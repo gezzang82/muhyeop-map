@@ -635,7 +635,7 @@ body {
     border-radius: 0;
     position: fixed; top: 0; bottom: 0; left: 0; right: 0;
   }
-  .modal-overlay { align-items: flex-end; }
+  .modal-overlay { align-items: stretch; }
 
   /* 토스트 위치 */
   .toast { bottom: 70px; }
