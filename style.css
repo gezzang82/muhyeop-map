@@ -365,7 +365,7 @@ body {
 .form-group select:focus { border-color: #1a1a2e; }
 
 .addr-row { display: flex; gap: 8px; }
-.addr-row input { flex: 1; }
+.addr-row input { flex: 1; min-width: 0; }
 
 .btn-search-addr {
   padding: 9px 16px; background: #1a1a2e; color: #e8c96d;
