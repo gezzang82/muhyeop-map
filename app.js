@@ -40,6 +40,13 @@ let campaigns = [
     reporterNickname: "", reporterUrl: ""
   },
   {
+    id: 7, placeId: 1, platform: "리뷰노트", channel: "블로그+클립",
+    content: "오마카세 2인 코스 체험 (150,000원 상당)",
+    deadline: "2026-06-28", link: "https://www.reviewnote.co.kr",
+    operatingDays: ["화", "수", "목", "금", "토"], operatingHours: "12:00~22:00",
+    reporterNickname: "", reporterUrl: ""
+  },
+  {
     id: 5, placeId: 5, platform: "레뷰", channel: "블로그",
     content: "수분크림 + 토너 패드 세트 체험",
     deadline: "2026-05-31", link: "https://www.revu.net",
@@ -56,7 +63,7 @@ let campaigns = [
 ];
 
 let nextPlaceId = 7;
-let nextCampaignId = 7;
+let nextCampaignId = 8;
 let currentChannelFilter = '전체';
 
 let map;
