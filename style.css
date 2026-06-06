@@ -507,8 +507,16 @@ body {
 .about-step strong { font-size: 13px; color: #1a1a2e; display: block; margin-bottom: 2px; }
 .about-step p { font-size: 12px; color: #777; line-height: 1.6; margin: 0; }
 
+.btn-about-mobile { display: none; }
+
 @media (max-width: 640px) {
   .btn-about { display: none; }
+  .btn-about-mobile {
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none;
+    font-size: 18px; cursor: pointer;
+    padding: 2px 4px;
+  }
 }
 
 /* ===== 빈 상태 ===== */
