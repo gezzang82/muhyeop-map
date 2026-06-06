@@ -5,7 +5,9 @@ let places = [
   { id: 1, name: "스시코우지 강남", address: "서울 강남구 테헤란로 152", lat: 37.5000, lng: 127.0370, category: "음식점", founderNickname: "맛집탐험가", founderUrl: "https://blog.naver.com/example1" },
   { id: 2, name: "올리브영 강남본점", address: "서울 강남구 강남대로 422", lat: 37.5012, lng: 127.0247, category: "뷰티", founderNickname: "뷰티로그", founderUrl: "https://blog.naver.com/example2" },
   { id: 3, name: "카페 노티드 청담", address: "서울 강남구 압구정로 428", lat: 37.5247, lng: 127.0430, category: "카페", founderNickname: "카페투어러", founderUrl: "https://instagram.com/example3" },
-  { id: 4, name: "젝시믹스 강남점", address: "서울 강남구 강남대로 390", lat: 37.4975, lng: 127.0280, category: "의류", founderNickname: "", founderUrl: "" }
+  { id: 4, name: "젝시믹스 강남점", address: "서울 강남구 강남대로 390", lat: 37.4975, lng: 127.0280, category: "의류", founderNickname: "", founderUrl: "" },
+  { id: 5, name: "이니스프리 강남점", address: "서울 강남구 강남대로 438", lat: 37.5020, lng: 127.0260, category: "뷰티", founderNickname: "스킨케어러", founderUrl: "https://blog.naver.com/example5" },
+  { id: 6, name: "할리스 압구정점", address: "서울 강남구 압구정로 20길 10", lat: 37.5270, lng: 127.0290, category: "카페", founderNickname: "카페순례자", founderUrl: "https://instagram.com/example6" }
 ];
 
 let campaigns = [
@@ -35,12 +37,26 @@ let campaigns = [
     content: "신상 레깅스 착용 리뷰",
     deadline: "2026-06-15", link: "https://www.gangnamfood.co.kr",
     operatingDays: ["월", "화", "수", "목", "금"], operatingHours: "",
-    reporterNickname: "", reporterBlog: "", reporterInstagram: ""
+    reporterNickname: "", reporterUrl: ""
+  },
+  {
+    id: 5, placeId: 5, platform: "레뷰", channel: "블로그",
+    content: "수분크림 + 토너 패드 세트 체험",
+    deadline: "2026-05-31", link: "https://www.revu.net",
+    operatingDays: ["월", "화", "수", "목", "금", "토", "일"], operatingHours: "10:00~21:00",
+    reporterNickname: "스킨케어러", reporterUrl: "https://blog.naver.com/example5"
+  },
+  {
+    id: 6, placeId: 6, platform: "미블", channel: "인스타그램",
+    content: "시그니처 음료 2잔 + 케이크 1조각",
+    deadline: "2026-06-01", link: "https://mrble.net",
+    operatingDays: [], operatingHours: "08:00~22:00",
+    reporterNickname: "카페순례자", reporterUrl: "https://instagram.com/example6"
   }
 ];
 
-let nextPlaceId = 5;
-let nextCampaignId = 5;
+let nextPlaceId = 7;
+let nextCampaignId = 7;
 let currentChannelFilter = '전체';
 
 let map;
