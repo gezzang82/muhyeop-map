@@ -526,13 +526,8 @@ body {
 .btn-about-mobile { display: none; }
 
 @media (max-width: 640px) {
-  .btn-about { display: none; }
-  .btn-about-mobile {
-    display: flex; align-items: center; justify-content: center;
-    background: none; border: none;
-    font-size: 18px; cursor: pointer;
-    padding: 2px 4px;
-  }
+  .btn-about { font-size: 11px; padding: 6px 10px; }
+  .btn-about-mobile { display: none; }
 }
 
 /* ===== 빈 상태 ===== */
