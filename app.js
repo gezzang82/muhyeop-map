@@ -346,6 +346,21 @@ function renderSidebar() {
   }).join('');
 }
 
+function moveToMyLocation() {
+  if (!navigator.geolocation) { showToast('위치 정보를 사용할 수 없어요'); return; }
+  const btn = document.querySelector('.btn-my-location');
+  btn.textContent = '⏳';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      map.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
+      map.setZoom(15);
+      btn.textContent = '📍';
+      renderSidebar();
+    },
+    () => { showToast('위치 권한을 허용해주세요'); btn.textContent = '📍'; }
+  );
+}
+
 function focusPlace(placeId) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;

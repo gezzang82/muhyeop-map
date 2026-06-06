@@ -42,6 +42,7 @@
 
   <div class="main-layout">
     <div id="map">
+      <button class="btn-my-location" onclick="moveToMyLocation()" title="내 위치로 이동">📍</button>
       <div class="mobile-search-bar">
         <input type="text" id="regionSearchMobile" placeholder="지역 검색 (예: 강남구, 성수동)" onkeydown="if(event.key==='Enter') searchRegionMobile()">
         <button onclick="searchRegionMobile()">🔍</button>
