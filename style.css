@@ -472,6 +472,18 @@ body {
 
 /* ===== 서비스 소개 모달 ===== */
 .about-modal { max-width: 460px; }
+.about-drag-handle {
+  display: none;
+}
+@media (max-width: 640px) {
+  .about-drag-handle {
+    display: block;
+    width: 36px; height: 4px;
+    background: #ddd; border-radius: 2px;
+    margin: 12px auto 0;
+    cursor: pointer;
+  }
+}
 
 .about-hero {
   text-align: center; padding: 10px 0 20px;
