@@ -552,7 +552,7 @@ body {
   /* 사이드바 → 하단 시트 */
   .sidebar {
     display: flex;
-    position: absolute;
+    position: fixed;
     bottom: 0; left: 0; right: 0;
     width: 100%;
     border-left: none;
@@ -561,7 +561,8 @@ body {
     box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
     z-index: 200;
     transition: height 0.3s ease;
-    height: 52px; /* 접힌 상태 */
+    height: calc(52px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
     overflow: hidden;
   }
   .sidebar.expanded { height: 55vh; }
