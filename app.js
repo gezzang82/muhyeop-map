@@ -461,9 +461,44 @@ function selectAddress(address, lat, lng) {
 }
 
 // ===== 기존 장소 검색 =====
+let autoSearchTimer = null;
 function searchExistingPlaces(name) {
   const q = name.trim();
-  if (q.length < 2) { document.getElementById('existingPlacesSection').style.display = 'none'; return; }
+  if (q.length < 2) {
+    document.getElementById('existingPlacesSection').style.display = 'none';
+    clearTimeout(autoSearchTimer);
+    return;
+  }
+
+  // 기존 장소 없을 때 장소명으로 주소 자동 검색 (0.8초 디바운스)
+  clearTimeout(autoSearchTimer);
+  autoSearchTimer = setTimeout(() => {
+    if (!modalIsNewPlace) return;
+    const resultDiv = document.getElementById('searchResult');
+    if (modalSelectedLat) return; // 이미 주소 선택됐으면 건드리지 않음
+    resultDiv.innerHTML = '<div class="search-hint">주소 검색 중...</div>';
+    const tryQuery = (query, fallback) => {
+      naver.maps.Service.geocode({ query }, function(status, response) {
+        const items = response?.v2?.addresses;
+        if (status === naver.maps.Service.Status.OK && items?.length) {
+          document.getElementById('inputAddress').value = items[0].roadAddress || items[0].jibunAddress;
+          resultDiv.innerHTML = items.slice(0, 3).map(item => {
+            const addr = (item.roadAddress || item.jibunAddress).replace(/'/g, "\\'");
+            return `<div class="search-item" onclick="selectAddress('${addr}', ${item.y}, ${item.x})">
+              <div class="item-name">${item.roadAddress || item.jibunAddress}</div>
+              <div class="item-sub">${item.jibunAddress || ''}</div>
+            </div>`;
+          }).join('');
+        } else if (fallback) {
+          tryQuery(fallback, null);
+        } else {
+          resultDiv.innerHTML = '<div class="search-hint">주소를 직접 입력해주세요</div>';
+        }
+      });
+    };
+    const alreadyPrefixed = /^서울|^경기|^인천|^부산|^대구|^광주|^대전/.test(q);
+    tryQuery(q, alreadyPrefixed ? null : '서울 ' + q);
+  }, 800);
 
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(q);
