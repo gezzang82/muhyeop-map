@@ -562,15 +562,15 @@ body {
     padding: 0 14px; font-size: 16px; cursor: pointer;
   }
 
-  /* 레이아웃 */
-  .main-layout { position: relative; }
+  /* 레이아웃 — 모바일은 세로 스택 */
+  .main-layout { flex-direction: column; }
+  #map { flex: 1; min-height: 0; }
   .btn-my-location { bottom: 70px; right: 14px; }
 
-  /* 사이드바 → 하단 시트 */
+  /* 사이드바 → 하단 고정 바 */
   .sidebar {
     display: flex;
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
+    position: relative;
     width: 100%;
     border-left: none;
     border-top: 1px solid #e8e8e8;
@@ -578,11 +578,11 @@ body {
     box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
     z-index: 200;
     transition: height 0.3s ease;
-    height: calc(52px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
+    height: 52px;
     overflow: hidden;
+    flex-shrink: 0;
   }
-  .sidebar.expanded { height: 55vh; }
+  .sidebar.expanded { height: 50vh; }
 
   /* 핸들 바 */
   .sidebar-header {
