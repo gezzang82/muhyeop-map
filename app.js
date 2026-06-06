@@ -171,7 +171,9 @@ function initMap() {
   // 지도 밖 영역 클릭 시 인포창 닫기
   document.addEventListener('click', (e) => {
     if (!openInfoWindow) return;
-    if (e.target.closest('#map')) return;
+    if (e.target.closest('.map-marker')) return; // 마커 클릭은 자체 처리
+    if (e.target.closest('.info-window')) return; // 인포창 내부 클릭은 유지
+    if (e.target.closest('#map') && !e.target.closest('.mobile-search-bar') && !e.target.closest('.btn-my-location')) return;
     openInfoWindow.close();
     openInfoWindow = null;
   });
