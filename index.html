@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>무협맵 - 무료협찬 지도</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
+</head>
+<body>
+
+  <!-- 헤더 -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🗺️</span>
+        <span class="logo-text">무협맵</span>
+        <span class="logo-sub">무료협찬 지도</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-add" onclick="openModal()">+ 협찬 제보하기</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 필터 바 -->
+  <div class="filter-bar">
+    <button class="filter-chip active" onclick="filterPlatform('전체')">전체</button>
+    <button class="filter-chip" onclick="filterPlatform('레뷰')">레뷰</button>
+    <button class="filter-chip" onclick="filterPlatform('리뷰노트')">리뷰노트</button>
+    <button class="filter-chip" onclick="filterPlatform('미블')">미블</button>
+    <button class="filter-chip" onclick="filterPlatform('강남체험단')">강남체험단</button>
+    <button class="filter-chip" onclick="filterPlatform('기타')">기타</button>
+  </div>
+
+  <!-- 메인 레이아웃 -->
+  <div class="main-layout">
+    <div id="map"></div>
+
+    <!-- 사이드바 -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">📍 등록된 협찬</span>
+        <span class="sidebar-count" id="campaignCount">0개</span>
+      </div>
+      <div class="sidebar-list" id="campaignList"></div>
+      <div class="route-section">
+        <div class="route-header">🗺️ 오늘의 루트</div>
+        <div class="route-info" id="routeInfo">캠페인을 선택하면 루트가 생성됩니다</div>
+        <button class="btn-route" onclick="generateRoute()">루트 최적화</button>
+        <button class="btn-route-clear" onclick="clearRoute()">루트 초기화</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 제보 모달 -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2>협찬 제보하기</h2>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>장소명 *</label>
+          <input type="text" id="inputName" placeholder="예: 스시코우지 강남점">
+        </div>
+        <div class="form-group">
+          <label>주소 검색 *</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="inputAddress" placeholder="예: 서울 강남구 테헤란로 152" style="flex:1;">
+            <button class="btn-search-addr" onclick="searchAddress()">검색</button>
+          </div>
+          <div id="searchResult" class="search-result"></div>
+        </div>
+        <div class="form-group">
+          <label>플랫폼 *</label>
+          <select id="inputPlatform">
+            <option value="">선택하세요</option>
+            <option value="레뷰">레뷰</option>
+            <option value="리뷰노트">리뷰노트</option>
+            <option value="미블">미블</option>
+            <option value="강남체험단">강남체험단</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>협찬 내용</label>
+          <input type="text" id="inputContent" placeholder="예: 오마카세 1인 체험">
+        </div>
+        <div class="form-group">
+          <label>마감일</label>
+          <input type="date" id="inputDeadline">
+        </div>
+        <div class="form-group">
+          <label>내 블로그 주소</label>
+          <input type="text" id="inputBlog" placeholder="예: https://blog.naver.com/아이디">
+        </div>
+        <div class="form-group">
+          <label>블로그 닉네임</label>
+          <input type="text" id="inputNickname" placeholder="예: 맛집탐험가">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">취소</button>
+        <button class="btn-submit" onclick="submitCampaign()">제보하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
