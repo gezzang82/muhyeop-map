@@ -540,6 +540,11 @@ body {
   .filter-bar { padding: 6px 12px; gap: 6px; }
   .filter-chip { padding: 4px 11px; font-size: 11px; }
 
+  /* input/select 자동 줌 방지 (font-size 16px 이상 필수) */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
   /* 지도 위 플로팅 검색창 */
   .mobile-search-bar {
     display: flex;
