@@ -168,6 +168,14 @@ function initMap() {
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
   });
 
+  // 지도 밖 영역 클릭 시 인포창 닫기
+  document.addEventListener('click', (e) => {
+    if (!openInfoWindow) return;
+    if (e.target.closest('#map')) return;
+    openInfoWindow.close();
+    openInfoWindow = null;
+  });
+
   initDateSelects();
   renderAll();
 }
