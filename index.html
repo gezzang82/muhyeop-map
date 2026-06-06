@@ -7,11 +7,11 @@
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-  <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
+  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
+  <script src="https://navermaps.github.io/marker-clustering/source/markerClustering.js"></script>
 </head>
 <body>
 
-  <!-- 헤더 -->
   <header class="header">
     <div class="header-inner">
       <div class="logo">
@@ -19,38 +19,100 @@
         <span class="logo-text">무협맵</span>
         <span class="logo-sub">무료협찬 지도</span>
       </div>
+      <div class="header-center">
+        <div class="search-bar">
+          <input type="text" id="regionSearch" placeholder="지역 검색 (예: 강남구, 성수동, 홍대)" onkeydown="if(event.key==='Enter') searchRegion()">
+          <button class="btn-search-region" onclick="searchRegion()">🔍</button>
+        </div>
+      </div>
       <div class="header-actions">
+        <button class="btn-about" onclick="openAbout()">서비스 소개</button>
         <button class="btn-add" onclick="openModal()">+ 협찬 제보하기</button>
       </div>
     </div>
   </header>
 
-  <!-- 필터 바 -->
   <div class="filter-bar">
-    <button class="filter-chip active" onclick="filterPlatform('전체')">전체</button>
-    <button class="filter-chip" onclick="filterPlatform('레뷰')">레뷰</button>
-    <button class="filter-chip" onclick="filterPlatform('리뷰노트')">리뷰노트</button>
-    <button class="filter-chip" onclick="filterPlatform('미블')">미블</button>
-    <button class="filter-chip" onclick="filterPlatform('강남체험단')">강남체험단</button>
-    <button class="filter-chip" onclick="filterPlatform('기타')">기타</button>
+    <button class="filter-chip active" onclick="filterChannel('전체')">전체</button>
+    <button class="filter-chip" onclick="filterChannel('블로그')">📝 블로그</button>
+    <button class="filter-chip" onclick="filterChannel('클립')">🎬 클립</button>
+    <button class="filter-chip" onclick="filterChannel('블로그+클립')">📝🎬 블로그+클립</button>
+    <button class="filter-chip" onclick="filterChannel('인스타그램')">📸 인스타그램</button>
   </div>
 
-  <!-- 메인 레이아웃 -->
   <div class="main-layout">
-    <div id="map"></div>
+    <div id="map">
+      <div class="mobile-search-bar">
+        <input type="text" id="regionSearchMobile" placeholder="지역 검색 (예: 강남구, 성수동)" onkeydown="if(event.key==='Enter') searchRegionMobile()">
+        <button onclick="searchRegionMobile()">🔍</button>
+      </div>
+    </div>
 
-    <!-- 사이드바 -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar" onclick="toggleBottomSheet(event)">
       <div class="sidebar-header">
-        <span class="sidebar-title">📍 등록된 협찬</span>
+        <span class="sidebar-title">📍 모집 중인 협찬</span>
         <span class="sidebar-count" id="campaignCount">0개</span>
+        <button class="btn-refresh-list" onclick="renderSidebar()" title="현재 지도 기준으로 새로고침">↺ 새로고침</button>
       </div>
       <div class="sidebar-list" id="campaignList"></div>
-      <div class="route-section">
-        <div class="route-header">🗺️ 오늘의 루트</div>
-        <div class="route-info" id="routeInfo">캠페인을 선택하면 루트가 생성됩니다</div>
-        <button class="btn-route" onclick="generateRoute()">루트 최적화</button>
-        <button class="btn-route-clear" onclick="clearRoute()">루트 초기화</button>
+    </div>
+  </div>
+
+  <!-- 서비스 소개 모달 -->
+  <div class="modal-overlay" id="aboutOverlay" onclick="closeAbout()">
+    <div class="modal about-modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2>무협맵 소개</h2>
+        <button class="modal-close" onclick="closeAbout()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="about-hero">
+          <div class="about-hero-icon">🗺️</div>
+          <div class="about-hero-title">무협맵</div>
+          <div class="about-hero-sub">무료협찬 지도 — 여러 플랫폼의 협찬을 한눈에</div>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-title">💡 이런 서비스예요</div>
+          <p class="about-desc">레뷰, 리뷰노트, 미블 등 여러 협찬 플랫폼을 따로따로 확인하던 불편함을 해소하기 위해 만들었어요. 현재 모집 중인 협찬을 지도 위에서 한눈에 볼 수 있어요.</p>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-title">📌 이렇게 사용하세요</div>
+          <div class="about-steps">
+            <div class="about-step">
+              <span class="step-num">1</span>
+              <div>
+                <strong>지역 이동</strong>
+                <p>검색창에서 가고 싶은 지역을 검색하거나 지도를 직접 이동해요</p>
+              </div>
+            </div>
+            <div class="about-step">
+              <span class="step-num">2</span>
+              <div>
+                <strong>핀 클릭</strong>
+                <p>지도 위 핀을 클릭하면 해당 장소의 협찬 정보와 신청 링크를 볼 수 있어요</p>
+              </div>
+            </div>
+            <div class="about-step">
+              <span class="step-num">3</span>
+              <div>
+                <strong>채널 필터</strong>
+                <p>블로그·클립·인스타그램 중 내가 운영하는 채널만 골라볼 수 있어요</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-title">🚩 협찬 제보하기</div>
+          <p class="about-desc">새로운 협찬 정보를 알고 계신가요? 우측 상단 <strong>+ 협찬 제보하기</strong> 버튼으로 직접 등록해주세요. 최초 제보자는 장소에 영구 표시돼요.</p>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-title">⚠️ 유의사항</div>
+          <p class="about-desc">무협맵은 사용자 제보로 운영되는 서비스예요. 협찬 정보가 변경되거나 마감되었을 수 있으니 신청 전 반드시 플랫폼에서 확인해주세요.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -62,51 +124,149 @@
         <h2>협찬 제보하기</h2>
         <button class="modal-close" onclick="closeModal()">✕</button>
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>장소명 *</label>
-          <input type="text" id="inputName" placeholder="예: 스시코우지 강남점">
-        </div>
-        <div class="form-group">
-          <label>주소 검색 *</label>
-          <div style="display:flex; gap:8px;">
-            <input type="text" id="inputAddress" placeholder="예: 서울 강남구 테헤란로 152" style="flex:1;">
-            <button class="btn-search-addr" onclick="searchAddress()">검색</button>
+
+      <!-- Step 1: 장소 검색 -->
+      <div id="step1">
+        <div class="modal-body">
+          <div class="step-indicator">
+            <span class="step active">1 장소</span>
+            <span class="step-arrow">›</span>
+            <span class="step">2 캠페인</span>
           </div>
-          <div id="searchResult" class="search-result"></div>
+
+          <div class="form-group">
+            <label>장소명 *</label>
+            <input type="text" id="inputName" placeholder="예: 스시코우지 강남점" oninput="searchExistingPlaces(this.value)">
+          </div>
+
+          <div id="existingPlacesSection" style="display:none;">
+            <div class="existing-label">🔍 이미 등록된 장소가 있어요</div>
+            <div id="existingPlacesList"></div>
+            <div class="existing-new" onclick="clearExistingSelection()">+ 새 장소로 등록하기</div>
+          </div>
+
+          <div class="form-group">
+            <label>주소 검색 *</label>
+            <div class="addr-row">
+              <input type="text" id="inputAddress" placeholder="예: 서울 강남구 테헤란로 152">
+              <button class="btn-search-addr" onclick="searchAddress()">검색</button>
+            </div>
+            <div id="searchResult" class="search-result"></div>
+          </div>
         </div>
-        <div class="form-group">
-          <label>플랫폼 *</label>
-          <select id="inputPlatform">
-            <option value="">선택하세요</option>
-            <option value="레뷰">레뷰</option>
-            <option value="리뷰노트">리뷰노트</option>
-            <option value="미블">미블</option>
-            <option value="강남체험단">강남체험단</option>
-            <option value="기타">기타</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>협찬 내용</label>
-          <input type="text" id="inputContent" placeholder="예: 오마카세 1인 체험">
-        </div>
-        <div class="form-group">
-          <label>마감일</label>
-          <input type="date" id="inputDeadline">
-        </div>
-        <div class="form-group">
-          <label>내 블로그 주소</label>
-          <input type="text" id="inputBlog" placeholder="예: https://blog.naver.com/아이디">
-        </div>
-        <div class="form-group">
-          <label>블로그 닉네임</label>
-          <input type="text" id="inputNickname" placeholder="예: 맛집탐험가">
+        <div class="modal-footer">
+          <button class="btn-cancel" onclick="closeModal()">취소</button>
+          <button class="btn-next" onclick="goStep2()">다음 →</button>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeModal()">취소</button>
-        <button class="btn-submit" onclick="submitCampaign()">제보하기</button>
+
+      <!-- Step 2: 캠페인 정보 -->
+      <div id="step2" style="display:none;">
+        <div class="modal-body">
+          <div class="step-indicator">
+            <span class="step done">✓ 장소</span>
+            <span class="step-arrow">›</span>
+            <span class="step active">2 캠페인</span>
+          </div>
+
+          <div id="selectedPlaceBadge"></div>
+
+          <div id="newPlaceCategoryField">
+            <div class="form-group">
+              <label>카테고리 *</label>
+              <select id="inputCategory">
+                <option value="">선택하세요</option>
+                <option value="음식점">🍽️ 음식점</option>
+                <option value="카페">☕ 카페</option>
+                <option value="뷰티">💄 뷰티</option>
+                <option value="숙박/여가">🏨 숙박/여가</option>
+                <option value="문화">🎭 문화</option>
+                <option value="의류">👗 의류</option>
+                <option value="안경/잡화">👓 안경/잡화</option>
+                <option value="기타">📦 기타</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>게시 채널 *</label>
+            <select id="inputChannel">
+              <option value="">선택하세요</option>
+              <option value="블로그">📝 블로그</option>
+              <option value="클립">🎬 클립</option>
+              <option value="블로그+클립">📝🎬 블로그+클립</option>
+              <option value="인스타그램">📸 인스타그램</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>플랫폼 *</label>
+            <select id="inputPlatform">
+              <option value="">선택하세요</option>
+              <option value="레뷰">레뷰</option>
+              <option value="리뷰노트">리뷰노트</option>
+              <option value="미블">미블</option>
+              <option value="강남맛집">강남맛집</option>
+              <option value="디너의여왕">디너의여왕</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>협찬 내용 *</label>
+            <input type="text" id="inputContent" placeholder="예: 오마카세 1인 체험 (80,000원 상당)">
+          </div>
+          <div class="form-group">
+            <label>모집 마감일 *</label>
+            <div class="date-selects">
+              <select id="inputDeadlineYear"></select>
+              <span>년</span>
+              <select id="inputDeadlineMonth"></select>
+              <span>월</span>
+              <select id="inputDeadlineDay"></select>
+              <span>일</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>캠페인 신청 링크 *</label>
+            <input type="url" id="inputLink" placeholder="https://...">
+          </div>
+
+          <div id="optionalFields">
+            <div class="form-group">
+              <label>영업 가능 요일</label>
+              <div class="day-selector">
+                <button type="button" class="day-btn" onclick="toggleDay(this)">월</button>
+                <button type="button" class="day-btn" onclick="toggleDay(this)">화</button>
+                <button type="button" class="day-btn" onclick="toggleDay(this)">수</button>
+                <button type="button" class="day-btn" onclick="toggleDay(this)">목</button>
+                <button type="button" class="day-btn" onclick="toggleDay(this)">금</button>
+                <button type="button" class="day-btn" onclick="toggleDay(this)">토</button>
+                <button type="button" class="day-btn" onclick="toggleDay(this)">일</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>영업 시간</label>
+              <input type="text" id="inputHours" placeholder="예: 11:00~22:00">
+            </div>
+            <div id="founderSection">
+              <div id="founderSectionTitle" class="optional-section-title">🚩 내 이름 남기기</div>
+              <div id="founderSectionDesc" class="optional-section-desc">새 장소 최초 제보자로 영구 등록돼요</div>
+              <div class="form-group">
+                <label>닉네임</label>
+                <input type="text" id="inputNickname" placeholder="예: 맛집탐험가, daily_food">
+              </div>
+              <div class="form-group">
+                <label>내 링크 (블로그 또는 인스타그램)</label>
+                <input type="url" id="inputUrl" placeholder="https://blog.naver.com/ 또는 https://instagram.com/...">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" onclick="goStep1()">← 이전</button>
+          <button class="btn-submit" onclick="submitCampaign()">제보하기</button>
+        </div>
       </div>
+
     </div>
   </div>
 

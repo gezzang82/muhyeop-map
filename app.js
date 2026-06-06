@@ -1,454 +1,630 @@
-// ===== 무협맵 app.js (네이버지도 버전) =====
+// ===== 무협맵 app.js =====
+
+// 데이터 구조: 장소(Places) + 캠페인(Campaigns)
+let places = [
+  { id: 1, name: "스시코우지 강남", address: "서울 강남구 테헤란로 152", lat: 37.5000, lng: 127.0370, category: "음식점", founderNickname: "맛집탐험가", founderUrl: "https://blog.naver.com/example1" },
+  { id: 2, name: "올리브영 강남본점", address: "서울 강남구 강남대로 422", lat: 37.5012, lng: 127.0247, category: "뷰티", founderNickname: "뷰티로그", founderUrl: "https://blog.naver.com/example2" },
+  { id: 3, name: "카페 노티드 청담", address: "서울 강남구 압구정로 428", lat: 37.5247, lng: 127.0430, category: "카페", founderNickname: "카페투어러", founderUrl: "https://instagram.com/example3" },
+  { id: 4, name: "젝시믹스 강남점", address: "서울 강남구 강남대로 390", lat: 37.4975, lng: 127.0280, category: "의류", founderNickname: "", founderUrl: "" }
+];
 
 let campaigns = [
   {
-    id: 1,
-    name: "스시코우지 강남",
-    address: "서울 강남구 테헤란로 152",
-    lat: 37.5000,
-    lng: 127.0370,
-    platform: "레뷰",
-    content: "오마카세 1인 체험",
-    deadline: "2026-06-10",
-    blog: "https://blog.naver.com/example1",
-    nickname: "맛집탐험가",
-    selected: false
+    id: 1, placeId: 1, platform: "레뷰", channel: "블로그",
+    content: "오마카세 1인 체험 (80,000원 상당)",
+    deadline: "2026-06-25", link: "https://www.revu.net",
+    operatingDays: ["화", "수", "목", "금", "토"], operatingHours: "12:00~22:00",
+    reporterNickname: "맛집탐험가", reporterBlog: "https://blog.naver.com/example1", reporterInstagram: ""
   },
   {
-    id: 2,
-    name: "올리브영 강남본점",
-    address: "서울 강남구 강남대로 422",
-    lat: 37.5012,
-    lng: 127.0247,
-    platform: "리뷰노트",
+    id: 2, placeId: 2, platform: "리뷰노트", channel: "블로그+클립",
     content: "신제품 스킨케어 체험",
-    deadline: "2026-06-15",
-    blog: "https://blog.naver.com/example2",
-    nickname: "뷰티로그",
-    selected: false
+    deadline: "2026-06-20", link: "https://www.reviewnote.co.kr",
+    operatingDays: ["월", "화", "수", "목", "금", "토", "일"], operatingHours: "10:00~22:00",
+    reporterNickname: "뷰티로그", reporterBlog: "https://blog.naver.com/example2", reporterInstagram: ""
   },
   {
-    id: 3,
-    name: "카페 노티드 청담",
-    address: "서울 강남구 압구정로 428",
-    lat: 37.5247,
-    lng: 127.0430,
-    platform: "미블",
-    content: "시즌 한정 음료 리뷰",
-    deadline: "2026-06-20",
-    blog: "https://blog.naver.com/example3",
-    nickname: "카페투어러",
-    selected: false
+    id: 3, placeId: 3, platform: "미블", channel: "인스타그램",
+    content: "시즌 한정 음료 2잔",
+    deadline: "2026-06-30", link: "https://mrble.net",
+    operatingDays: [], operatingHours: "09:00~22:00",
+    reporterNickname: "카페투어러", reporterBlog: "", reporterInstagram: "https://instagram.com/example3"
   },
   {
-    id: 4,
-    name: "젝시믹스 강남점",
-    address: "서울 강남구 강남대로 390",
-    lat: 37.4975,
-    lng: 127.0280,
-    platform: "강남체험단",
+    id: 4, placeId: 4, platform: "강남맛집", channel: "블로그",
     content: "신상 레깅스 착용 리뷰",
-    deadline: "2026-06-25",
-    blog: "",
-    nickname: "",
-    selected: false
+    deadline: "2026-06-15", link: "https://www.gangnamfood.co.kr",
+    operatingDays: ["월", "화", "수", "목", "금"], operatingHours: "",
+    reporterNickname: "", reporterBlog: "", reporterInstagram: ""
   }
 ];
 
-let currentFilter = "전체";
+let nextPlaceId = 5;
+let nextCampaignId = 5;
+let currentChannelFilter = '전체';
+
 let map;
 let markers = [];
-let polyline = null;
-let nextId = 5;
-let selectedLat = null;
-let selectedLng = null;
-let selectedAddress = "";
+let markerCluster = null;
+let openInfoWindow = null;
+
+// 모달 상태
+let modalSelectedPlaceId = null;
+let modalIsNewPlace = true;
+let modalSelectedLat = null;
+let modalSelectedLng = null;
+let modalSelectedAddress = "";
+
+// ===== 상수 =====
+const CATEGORY_ICONS = {
+  '음식점': '🍽️', '카페': '☕', '뷰티': '💄',
+  '숙박/여가': '🏨', '문화': '🎭', '의류': '👗',
+  '안경/잡화': '👓', '기타': '📦'
+};
+
+const PLATFORM_COLORS = {
+  '레뷰': '#1D9E75', '리뷰노트': '#185FA5', '미블': '#854F0B',
+  '강남맛집': '#993556', '디너의여왕': '#E05C00', '기타': '#666666'
+};
+
+function getCategoryIcon(cat) { return CATEGORY_ICONS[cat] || '📍'; }
+function getPlatformColor(p) { return PLATFORM_COLORS[p] || '#666666'; }
+
+function getActiveCampaigns(placeId) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return campaigns.filter(c => {
+    if (c.placeId !== placeId) return false;
+    if (new Date(c.deadline) < today) return false;
+    if (currentChannelFilter !== '전체' && c.channel !== currentChannelFilter) return false;
+    return true;
+  });
+}
+
+function filterChannel(channel) {
+  currentChannelFilter = channel;
+  document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.replace(/📝|🎬|📸|\s/g, '') === channel.replace(/📝|🎬|📸|\s/g, ''));
+  });
+  renderAll();
+}
+
+function hasActiveCampaign(placeId) {
+  return getActiveCampaigns(placeId).length > 0;
+}
+
+function getDeadlineText(deadline) {
+  if (!deadline) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((new Date(deadline) - today) / 86400000);
+  if (diff < 0) return { text: '마감됨', urgent: false };
+  if (diff === 0) return { text: '오늘 마감!', urgent: true };
+  if (diff <= 3) return { text: `D-${diff}`, urgent: true };
+  return { text: `D-${diff}`, urgent: false };
+}
+
+// ===== 날짜 셀렉트 초기화 =====
+function initDateSelects() {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth() + 1;
+  const d = today.getDate();
+
+  const yearSel = document.getElementById('inputDeadlineYear');
+  const monthSel = document.getElementById('inputDeadlineMonth');
+  const daySel = document.getElementById('inputDeadlineDay');
+
+  for (let i = y; i <= y + 1; i++) {
+    yearSel.innerHTML += `<option value="${i}" ${i === y ? 'selected' : ''}>${i}</option>`;
+  }
+  for (let i = 1; i <= 12; i++) {
+    monthSel.innerHTML += `<option value="${i}" ${i === m ? 'selected' : ''}>${i}</option>`;
+  }
+  updateDayOptions(y, m, d);
+
+  yearSel.addEventListener('change', () => updateDayOptions(
+    parseInt(yearSel.value), parseInt(monthSel.value)
+  ));
+  monthSel.addEventListener('change', () => updateDayOptions(
+    parseInt(yearSel.value), parseInt(monthSel.value)
+  ));
+}
+
+function updateDayOptions(year, month, selectedDay) {
+  const daySel = document.getElementById('inputDeadlineDay');
+  const current = selectedDay || parseInt(daySel.value) || 1;
+  const maxDay = new Date(year, month, 0).getDate();
+  daySel.innerHTML = '';
+  for (let i = 1; i <= maxDay; i++) {
+    daySel.innerHTML += `<option value="${i}" ${i === current ? 'selected' : ''}>${i}</option>`;
+  }
+}
+
+function getSelectedDeadline() {
+  const y = document.getElementById('inputDeadlineYear').value;
+  const m = String(document.getElementById('inputDeadlineMonth').value).padStart(2, '0');
+  const d = String(document.getElementById('inputDeadlineDay').value).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function resetDateSelects() {
+  const today = new Date();
+  document.getElementById('inputDeadlineYear').value = today.getFullYear();
+  document.getElementById('inputDeadlineMonth').value = today.getMonth() + 1;
+  updateDayOptions(today.getFullYear(), today.getMonth() + 1, today.getDate());
+}
 
 // ===== 지도 초기화 =====
 function initMap() {
-  const mapOptions = {
+  map = new naver.maps.Map('map', {
     center: new naver.maps.LatLng(37.5040, 127.0300),
     zoom: 14,
     mapTypeControl: false,
     scaleControl: false,
     logoControl: true,
     mapDataControl: false
-  };
+  });
 
-  map = new naver.maps.Map('map', mapOptions);
+  naver.maps.Event.addListener(map, 'click', () => {
+    if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
+  });
+
+  initDateSelects();
   renderAll();
-}
-
-// ===== 플랫폼 색상 =====
-function getPlatformColor(platform) {
-  const colors = {
-    '레뷰': '#1D9E75',
-    '리뷰노트': '#185FA5',
-    '미블': '#854F0B',
-    '강남체험단': '#993556',
-    '기타': '#666666'
-  };
-  return colors[platform] || '#666666';
 }
 
 // ===== 마커 렌더 =====
 function renderMarkers() {
+  if (markerCluster) { markerCluster.setMap(null); markerCluster = null; }
   markers.forEach(m => m.setMap(null));
   markers = [];
 
-  const filtered = getFiltered();
-
-  filtered.forEach((c, idx) => {
-    const color = getPlatformColor(c.platform);
-    const isSelected = c.selected;
-
-    const markerContent = `
-      <div style="
-        width: ${isSelected ? '38px' : '32px'};
-        height: ${isSelected ? '38px' : '32px'};
-        background: ${isSelected ? '#e8c96d' : color};
-        border: 3px solid ${isSelected ? '#1a1a2e' : 'white'};
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: ${isSelected ? '14px' : '12px'};
-        font-weight: 800;
-        color: ${isSelected ? '#1a1a2e' : 'white'};
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        cursor: pointer;
-        font-family: 'Nanum Gothic', sans-serif;
-      ">${idx + 1}</div>
-    `;
+  places.forEach(place => {
+    const active = hasActiveCampaign(place.id);
+    const icon = getCategoryIcon(place.category);
 
     const marker = new naver.maps.Marker({
-      position: new naver.maps.LatLng(c.lat, c.lng),
-      map: map,
+      position: new naver.maps.LatLng(place.lat, place.lng),
       icon: {
-        content: markerContent,
-        anchor: new naver.maps.Point(isSelected ? 19 : 16, isSelected ? 19 : 16)
+        content: `<div class="map-marker ${active ? 'active' : 'inactive'}">${icon}</div>`,
+        anchor: new naver.maps.Point(20, 20)
       }
     });
 
     const infoWindow = new naver.maps.InfoWindow({
-      content: createInfoContent(c),
+      content: createInfoContent(place),
       borderWidth: 0,
-      borderRadius: '12px',
-      backgroundColor: 'white',
-      pixelOffset: new naver.maps.Point(0, -10)
+      backgroundColor: 'transparent',
+      pixelOffset: new naver.maps.Point(0, -10),
+      disableAnchor: true
     });
 
     naver.maps.Event.addListener(marker, 'click', () => {
-      markers.forEach((m, i) => {
-        if (i !== idx) m._infoWindow && m._infoWindow.close();
-      });
-      if (infoWindow.getMap()) {
-        infoWindow.close();
-      } else {
-        infoWindow.open(map, marker);
+      if (openInfoWindow === infoWindow) {
+        infoWindow.close(); openInfoWindow = null; return;
       }
-      toggleSelect(c.id);
+      if (openInfoWindow) openInfoWindow.close();
+      infoWindow.open(map, marker);
+      openInfoWindow = infoWindow;
     });
 
-    marker._infoWindow = infoWindow;
     markers.push(marker);
   });
+
+  // 클러스터링
+  if (typeof MarkerClustering !== 'undefined') {
+    const clusterIcon = [{
+      content: '<div class="cluster-marker"><span class="cluster-count">0</span></div>',
+      size: new naver.maps.Size(44, 44),
+      anchor: new naver.maps.Point(22, 22)
+    }];
+
+    markerCluster = new MarkerClustering({
+      minClusterSize: 2,
+      maxZoom: 14,
+      map: map,
+      markers: markers,
+      disableClickZoom: false,
+      gridSize: 80,
+      icons: clusterIcon,
+      indexGenerator: [1],
+      stylingFunction: function(clusterMarker, count) {
+        const el = clusterMarker.getElement();
+        if (el) {
+          const c = el.querySelector('.cluster-count');
+          if (c) c.textContent = count;
+        }
+      }
+    });
+  } else {
+    markers.forEach(m => m.setMap(map));
+  }
 }
 
-// ===== 인포윈도우 내용 =====
-function createInfoContent(c) {
-  const dl = getDeadlineText(c.deadline);
-  const deadlineHtml = dl
-    ? `<div style="font-size:11px; color:${dl.urgent ? '#e8453c' : '#888'}; margin-bottom:5px;">${dl.text}</div>`
-    : '';
-  const blogHtml = c.blog
-    ? `<a href="${c.blog}" target="_blank" style="font-size:11px; color:#185fa5; text-decoration:none;">📝 ${c.nickname || '블로그 보기'}</a>`
+// ===== 인포윈도우 =====
+function createInfoContent(place) {
+  const active = getActiveCampaigns(place.id);
+  const icon = getCategoryIcon(place.category);
+
+  const campaignsHtml = active.length > 0
+    ? active.map(c => {
+        const dl = getDeadlineText(c.deadline);
+        const dlHtml = dl ? `<span class="c-deadline ${dl.urgent ? 'urgent' : ''}">${dl.text}</span><span class="c-deadline-date">${c.deadline.replace(/-/g, '.')} 마감</span>` : '';
+        const hoursHtml = c.operatingHours ? `<div class="c-hours">⏰ ${c.operatingHours}</div>` : '';
+        const daysHtml = c.operatingDays?.length > 0 ? `<div class="c-days">📅 ${c.operatingDays.join(' ')}</div>` : '';
+        const color = getPlatformColor(c.platform);
+        const channelHtml = c.channel ? `<span class="c-channel">${c.channel}</span>` : '';
+        let reporterHtml = '';
+        if (c.reporterNickname) {
+          const nameHtml = c.reporterUrl
+            ? `<a class="c-reporter-link" href="${c.reporterUrl}" target="_blank">${c.reporterNickname}</a>`
+            : c.reporterNickname;
+          reporterHtml = `<div class="c-reporter">🚩 ${nameHtml} 제보</div>`;
+        }
+
+        return `
+          <div class="c-item">
+            <div class="c-top">
+              <span class="platform-badge" style="background:${color}22;color:${color}">${c.platform}</span>
+              ${channelHtml}
+              ${dlHtml}
+              <a class="btn-apply" href="${c.link}" target="_blank">신청하기</a>
+            </div>
+            <div class="c-content">${c.content}</div>
+            ${hoursHtml}${daysHtml}${reporterHtml}
+          </div>`;
+      }).join('')
+    : '<div class="c-empty">현재 모집 중인 캠페인이 없어요</div>';
+
+  const founderHtml = place.founderNickname
+    ? `<div class="info-founder">🏅 최초 제보 <a class="founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a></div>`
     : '';
 
   return `
-    <div style="padding:14px 16px; font-family:'Noto Sans KR',sans-serif; min-width:200px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.12);">
-      <div style="font-weight:700; font-size:14px; color:#1a1a2e; margin-bottom:4px;">${c.name}</div>
-      <div style="font-size:11px; color:#888; margin-bottom:8px;">${c.address}</div>
-      <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-        <span style="background:${getPlatformColor(c.platform)}22; color:${getPlatformColor(c.platform)}; font-size:10px; padding:2px 7px; border-radius:4px; font-weight:700;">${c.platform}</span>
-        <span style="font-size:12px; color:#444;">${c.content}</span>
+    <div class="info-window">
+      <div class="info-head">
+        <span class="info-icon">${icon}</span>
+        <div>
+          <div class="info-name">${place.name}</div>
+          <div class="info-addr">${place.address}</div>
+        </div>
       </div>
-      ${deadlineHtml}
-      ${blogHtml}
-    </div>
-  `;
-}
-
-// ===== 마감일 계산 =====
-function getDeadlineText(deadline) {
-  if (!deadline) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dl = new Date(deadline);
-  const diff = Math.ceil((dl - today) / (1000 * 60 * 60 * 24));
-  if (diff < 0) return { text: '마감됨', urgent: true };
-  if (diff === 0) return { text: '⏰ 오늘 마감!', urgent: true };
-  if (diff <= 3) return { text: `⏰ 마감 D-${diff}`, urgent: true };
-  return { text: `마감 D-${diff}`, urgent: false };
+      ${founderHtml}
+      <div class="info-campaigns">${campaignsHtml}</div>
+    </div>`;
 }
 
 // ===== 사이드바 렌더 =====
 function renderSidebar() {
   const list = document.getElementById('campaignList');
-  const count = document.getElementById('campaignCount');
-  const filtered = getFiltered();
+  const countEl = document.getElementById('campaignCount');
 
-  count.textContent = `${filtered.length}개`;
+  const bounds = map ? map.getBounds() : null;
+  const visiblePlaces = bounds
+    ? places.filter(p => bounds.hasLatLng(new naver.maps.LatLng(p.lat, p.lng)))
+    : places;
 
-  if (filtered.length === 0) {
+  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id));
+  let total = 0;
+  activePlaces.forEach(p => total += getActiveCampaigns(p.id).length);
+  countEl.textContent = `${total}개`;
+
+  if (activePlaces.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">🗺️</div>
-        <p>등록된 협찬이 없어요.<br>첫 번째로 제보해보세요!</p>
-      </div>
-    `;
+        <p>모집 중인 협찬이 없어요.<br>첫 번째로 제보해보세요!</p>
+      </div>`;
     return;
   }
 
-  list.innerHTML = filtered.map((c, idx) => {
-    const dl = getDeadlineText(c.deadline);
-    const deadlineHtml = dl
-      ? `<span class="card-deadline ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>`
-      : '';
-    const blogHtml = c.blog
-      ? `<a class="card-blog" href="${c.blog}" target="_blank" onclick="event.stopPropagation()">📝 ${c.nickname || '블로그'}</a>`
-      : '';
+  list.innerHTML = activePlaces.map(place => {
+    const active = getActiveCampaigns(place.id);
+    const icon = getCategoryIcon(place.category);
+    const earliest = active.reduce((min, c) => new Date(c.deadline) < new Date(min.deadline) ? c : min);
+    const dl = getDeadlineText(earliest.deadline);
+    const platforms = [...new Set(active.map(c => c.platform))];
 
     return `
-      <div class="campaign-card ${c.selected ? 'selected' : ''}" onclick="toggleSelect(${c.id})">
+      <div class="sidebar-card" onclick="focusPlace(${place.id})">
         <div class="card-top">
-          <span class="platform-badge badge-${c.platform}">${c.platform}</span>
-          <span class="card-name">${c.name}</span>
+          <span class="card-icon">${icon}</span>
+          <span class="card-name">${place.name}</span>
+          ${dl ? `<span class="card-dl ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : ''}
         </div>
-        <div class="card-content">${c.content || '내용 없음'}</div>
-        <div class="card-bottom">${deadlineHtml}${blogHtml}</div>
-      </div>
-    `;
+        <div class="card-addr">
+          ${place.address}
+          ${earliest.deadline ? `<span class="card-deadline-date"> · ${earliest.deadline.replace(/-/g, '.')} 마감</span>` : ''}
+        </div>
+        <div class="card-platforms">
+          ${platforms.map(p => {
+            const color = getPlatformColor(p);
+            return `<span class="platform-badge" style="background:${color}22;color:${color}">${p}</span>`;
+          }).join('')}
+          ${active.length > 1 ? `<span class="count-badge">${active.length}개 캠페인</span>` : ''}
+        </div>
+      </div>`;
   }).join('');
-
-  updateRouteInfo();
 }
 
-// ===== 전체 렌더 =====
+function focusPlace(placeId) {
+  const place = places.find(p => p.id === placeId);
+  if (!place) return;
+  map.setCenter(new naver.maps.LatLng(place.lat, place.lng));
+  map.setZoom(16);
+}
+
 function renderAll() {
   renderMarkers();
   renderSidebar();
 }
 
-// ===== 필터 =====
-function getFiltered() {
-  if (currentFilter === '전체') return campaigns;
-  return campaigns.filter(c => c.platform === currentFilter);
-}
+// ===== 지역 검색 =====
+function searchRegion() {
+  const query = document.getElementById('regionSearch').value.trim();
+  if (!query) return;
 
-function filterPlatform(platform) {
-  currentFilter = platform;
-  document.querySelectorAll('.filter-chip').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent === platform);
-  });
-  renderAll();
-}
-
-// ===== 선택 토글 =====
-function toggleSelect(id) {
-  const c = campaigns.find(c => c.id === id);
-  if (c) {
-    c.selected = !c.selected;
-    renderAll();
-  }
-}
-
-// ===== 루트 정보 =====
-function updateRouteInfo() {
-  const selected = campaigns.filter(c => c.selected);
-  const info = document.getElementById('routeInfo');
-  if (selected.length === 0) {
-    info.textContent = '캠페인을 선택하면 루트가 생성됩니다';
-  } else {
-    info.textContent = `${selected.length}곳 선택됨 → 루트 최적화를 눌러보세요`;
-  }
-}
-
-// ===== 루트 생성 =====
-function generateRoute() {
-  const selected = campaigns.filter(c => c.selected);
-  if (selected.length < 2) {
-    showToast('2곳 이상 선택해주세요!');
-    return;
+  function trySearch(q, fallback) {
+    naver.maps.Service.geocode({ query: q }, function(status, response) {
+      const items = response?.v2?.addresses;
+      if (status === naver.maps.Service.Status.OK && items?.length) {
+        map.setCenter(new naver.maps.LatLng(parseFloat(items[0].y), parseFloat(items[0].x)));
+        map.setZoom(15);
+      } else if (fallback) {
+        trySearch(fallback, null);
+      } else {
+        showToast('검색 결과가 없어요. 주소로 검색해보세요 (예: 강남구, 성수동)');
+      }
+    });
   }
 
-  clearPolyline();
-
-  const path = selected.map(c => new naver.maps.LatLng(c.lat, c.lng));
-
-  polyline = new naver.maps.Polyline({
-    map: map,
-    path: path,
-    strokeColor: '#e8c96d',
-    strokeWeight: 4,
-    strokeOpacity: 0.9,
-    strokeStyle: 'shortdash'
-  });
-
-  const bounds = new naver.maps.LatLngBounds();
-  path.forEach(p => bounds.extend(p));
-  map.fitBounds(bounds, { padding: 60 });
-
-  const totalDist = calcTotalDistance(selected);
-  const walkMin = Math.round(totalDist / 80);
-
-  document.getElementById('routeInfo').innerHTML =
-    `✅ ${selected.length}곳 루트 생성<br>총 약 ${totalDist}m · 도보 약 ${walkMin}분`;
-
-  showToast(`루트 생성 완료! 총 ${selected.length}곳`);
+  const alreadyPrefixed = /^서울|^경기|^인천|^부산|^대구|^광주|^대전/.test(query);
+  trySearch(query, alreadyPrefixed ? null : '서울 ' + query);
 }
 
-// ===== 거리 계산 =====
-function calcTotalDistance(points) {
-  let total = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    const a = new naver.maps.LatLng(points[i].lat, points[i].lng);
-    const b = new naver.maps.LatLng(points[i + 1].lat, points[i + 1].lng);
-    total += naver.maps.geography.getDistance(a, b);
-  }
-  return Math.round(total);
+function searchRegionMobile() {
+  const el = document.getElementById('regionSearchMobile');
+  document.getElementById('regionSearch').value = el.value;
+  searchRegion();
 }
 
-// ===== 루트 초기화 =====
-function clearPolyline() {
-  if (polyline) { polyline.setMap(null); polyline = null; }
+// ===== 바텀시트 토글 (모바일) =====
+function toggleBottomSheet(e) {
+  if (window.innerWidth > 640) return;
+  const sidebar = document.getElementById('sidebar');
+  // 헤더 영역 클릭 시에만 토글 (리스트 스크롤은 방해 안 함)
+  if (e.target.closest('.sidebar-list') || e.target.closest('.sidebar-card')) return;
+  sidebar.classList.toggle('expanded');
+  if (sidebar.classList.contains('expanded')) renderSidebar();
 }
 
-function clearRoute() {
-  clearPolyline();
-  campaigns.forEach(c => c.selected = false);
-  renderAll();
-  showToast('루트가 초기화되었어요');
-}
-
-// ===== 주소 검색 (네이버 Geocoding) =====
+// ===== 주소 검색 =====
 function searchAddress() {
   const query = document.getElementById('inputAddress').value.trim();
   if (!query) { showToast('주소를 입력해주세요'); return; }
 
   const resultDiv = document.getElementById('searchResult');
-  resultDiv.innerHTML = '<div style="padding:8px; color:#888; font-size:12px;">검색 중...</div>';
+  resultDiv.innerHTML = '<div class="search-hint">검색 중...</div>';
 
-  naver.maps.Service.geocode({ query: query }, function(status, response) {
-    if (status !== naver.maps.Service.Status.OK) {
-      resultDiv.innerHTML = '<div style="padding:8px; color:#e8453c; font-size:12px;">검색 결과가 없어요. 다시 시도해보세요.</div>';
+  naver.maps.Service.geocode({ query }, function(status, response) {
+    if (status !== naver.maps.Service.Status.OK || !response.v2.addresses?.length) {
+      resultDiv.innerHTML = '<div class="search-hint error">검색 결과가 없어요</div>';
       return;
     }
-
-    const items = response.v2.addresses;
-    if (!items || items.length === 0) {
-      resultDiv.innerHTML = '<div style="padding:8px; color:#e8453c; font-size:12px;">검색 결과가 없어요.</div>';
-      return;
-    }
-
-    resultDiv.innerHTML = items.slice(0, 5).map((item, i) => `
-      <div class="search-item" onclick="selectPlace('${item.roadAddress || item.jibunAddress}', ${item.y}, ${item.x})">
-        <div class="item-name">${item.roadAddress || item.jibunAddress}</div>
-        <div class="item-addr">${item.jibunAddress || ''}</div>
-      </div>
-    `).join('');
+    resultDiv.innerHTML = response.v2.addresses.slice(0, 5).map(item => {
+      const addr = (item.roadAddress || item.jibunAddress).replace(/'/g, "\\'");
+      return `
+        <div class="search-item" onclick="selectAddress('${addr}', ${item.y}, ${item.x})">
+          <div class="item-name">${item.roadAddress || item.jibunAddress}</div>
+          <div class="item-sub">${item.jibunAddress || ''}</div>
+        </div>`;
+    }).join('');
   });
 }
 
-// ===== 장소 선택 =====
-function selectPlace(address, lat, lng) {
-  selectedAddress = address;
-  selectedLat = parseFloat(lat);
-  selectedLng = parseFloat(lng);
-
+function selectAddress(address, lat, lng) {
+  modalSelectedAddress = address;
+  modalSelectedLat = parseFloat(lat);
+  modalSelectedLng = parseFloat(lng);
   document.getElementById('inputAddress').value = address;
-  document.getElementById('searchResult').innerHTML = `
-    <div class="selected-place">✅ ${address}</div>
-  `;
 
-  map.setCenter(new naver.maps.LatLng(selectedLat, selectedLng));
-  map.setZoom(16);
+  // 가까운 좌표에 이미 등록된 장소 확인 (50m 이내)
+  const parsedLat = parseFloat(lat), parsedLng = parseFloat(lng);
+  const sameAddr = places.find(p => {
+    const dLat = (p.lat - parsedLat) * 111000;
+    const dLng = (p.lng - parsedLng) * 88000;
+    return Math.sqrt(dLat * dLat + dLng * dLng) < 50;
+  });
+  if (sameAddr) {
+    document.getElementById('searchResult').innerHTML =
+      `<div class="selected-addr">✅ ${address}</div>
+       <div class="addr-duplicate-warning">⚠️ 이 주소로 이미 <strong>${sameAddr.name}</strong>이 등록되어 있어요.
+         <span class="addr-dup-select" onclick="selectExistingPlace(${sameAddr.id})">이 장소 선택하기 →</span>
+       </div>`;
+    return;
+  }
+  document.getElementById('searchResult').innerHTML = `<div class="selected-addr">✅ ${address}</div>`;
+}
+
+// ===== 기존 장소 검색 =====
+function searchExistingPlaces(name) {
+  const q = name.trim();
+  if (q.length < 2) { document.getElementById('existingPlacesSection').style.display = 'none'; return; }
+
+  const normalize = s => s.replace(/\s/g, '').toLowerCase();
+  const nq = normalize(q);
+  const matches = places.filter(p => {
+    const np = normalize(p.name);
+    return np.includes(nq) || nq.includes(np) || np.includes(nq.slice(0, 3));
+  });
+  if (!matches.length) { document.getElementById('existingPlacesSection').style.display = 'none'; return; }
+
+  document.getElementById('existingPlacesSection').style.display = 'block';
+  document.getElementById('existingPlacesList').innerHTML = matches.map(p => `
+    <div class="existing-item ${modalSelectedPlaceId === p.id ? 'selected' : ''}" onclick="selectExistingPlace(${p.id})">
+      <span>${getCategoryIcon(p.category)}</span>
+      <div style="flex:1">
+        <div class="existing-name">${p.name}</div>
+        <div class="existing-addr">${p.address}</div>
+      </div>
+      ${modalSelectedPlaceId === p.id ? '<span>✅</span>' : ''}
+    </div>`).join('');
+}
+
+function selectExistingPlace(placeId) {
+  const place = places.find(p => p.id === placeId);
+  if (!place) return;
+  modalSelectedPlaceId = placeId;
+  modalIsNewPlace = false;
+  document.getElementById('inputName').value = place.name;
+  document.getElementById('inputAddress').value = place.address;
+  modalSelectedAddress = place.address;
+  modalSelectedLat = place.lat;
+  modalSelectedLng = place.lng;
+  document.getElementById('searchResult').innerHTML = `<div class="selected-addr">✅ ${place.address}</div>`;
+  searchExistingPlaces(place.name);
+}
+
+function clearExistingSelection() {
+  modalSelectedPlaceId = null;
+  modalIsNewPlace = true;
+  ['inputName', 'inputAddress'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('searchResult').innerHTML = '';
+  modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
+  document.getElementById('existingPlacesSection').style.display = 'none';
 }
 
 // ===== 모달 =====
+function openAbout() {
+  document.getElementById('aboutOverlay').classList.add('open');
+}
+function closeAbout() {
+  document.getElementById('aboutOverlay').classList.remove('open');
+}
+
 function openModal() {
   document.getElementById('modalOverlay').classList.add('open');
-  selectedLat = null;
-  selectedLng = null;
-  selectedAddress = "";
+  resetModal();
 }
 
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
-  clearForm();
 }
 
-function clearForm() {
-  ['inputName', 'inputAddress', 'inputContent', 'inputBlog', 'inputNickname', 'inputDeadline'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
+function resetModal() {
+  modalSelectedPlaceId = null; modalIsNewPlace = true;
+  modalSelectedLat = null; modalSelectedLng = null; modalSelectedAddress = '';
+  document.getElementById('step1').style.display = 'flex';
+  document.getElementById('step2').style.display = 'none';
+  ['inputName','inputAddress','inputContent','inputLink','inputHours','inputNickname','inputUrl']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  document.getElementById('inputCategory').value = '';
+  document.getElementById('inputChannel').value = '';
   document.getElementById('inputPlatform').value = '';
+  resetDateSelects();
   document.getElementById('searchResult').innerHTML = '';
-  selectedLat = null;
-  selectedLng = null;
+  document.getElementById('existingPlacesSection').style.display = 'none';
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
 }
+
+function goStep2() {
+  if (!document.getElementById('inputName').value.trim()) { showToast('장소명을 입력해주세요'); return; }
+  if (!modalSelectedLat) { showToast('주소를 검색하고 선택해주세요'); return; }
+
+  document.getElementById('step1').style.display = 'none';
+  document.getElementById('step2').style.display = 'flex';
+
+  const name = document.getElementById('inputName').value.trim();
+  const catField = document.getElementById('newPlaceCategoryField');
+
+  if (!modalIsNewPlace) {
+    catField.style.display = 'none';
+    document.getElementById('founderSection').style.display = 'block';
+    document.getElementById('founderSectionTitle').textContent = '🚩 내 이름 남기기';
+    document.getElementById('founderSectionDesc').textContent = '마감일까지 이 캠페인 제보자로 표시돼요';
+    const place = places.find(p => p.id === modalSelectedPlaceId);
+    document.getElementById('selectedPlaceBadge').innerHTML =
+      `<div class="place-badge">${getCategoryIcon(place.category)} <strong>${place.name}</strong>에 새 캠페인 추가</div>`;
+  } else {
+    catField.style.display = 'block';
+    document.getElementById('founderSection').style.display = 'block';
+    document.getElementById('founderSectionTitle').textContent = '🚩 내 이름 남기기';
+    document.getElementById('founderSectionDesc').textContent = '새 장소 최초 제보자로 영구 등록돼요';
+    document.getElementById('selectedPlaceBadge').innerHTML =
+      `<div class="place-badge">📍 <strong>${name}</strong> 새로 등록</div>`;
+  }
+}
+
+function goStep1() {
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('step1').style.display = 'block';
+}
+
+function toggleOptional() {
+  const fields = document.getElementById('optionalFields');
+  const hidden = fields.style.display === 'none';
+  fields.style.display = hidden ? 'block' : 'none';
+  document.getElementById('optionalToggleText').textContent = hidden ? '▴ 선택 정보 접기' : '▾ 선택 정보 추가하기';
+}
+
+function toggleDay(btn) { btn.classList.toggle('active'); }
 
 // ===== 제보 제출 =====
 function submitCampaign() {
-  const name = document.getElementById('inputName').value.trim();
-  const address = document.getElementById('inputAddress').value.trim();
+  const channel = document.getElementById('inputChannel').value;
   const platform = document.getElementById('inputPlatform').value;
+  const content = document.getElementById('inputContent').value.trim();
+  const deadline = getSelectedDeadline();
+  const link = document.getElementById('inputLink').value.trim();
 
-  if (!name || !address || !platform) {
-    showToast('장소명, 주소, 플랫폼은 필수예요!');
+  if (!channel || !platform || !content || !deadline || !link) {
+    showToast('게시채널, 플랫폼, 협찬내용, 마감일, 링크는 필수예요!');
     return;
   }
 
-  if (!selectedLat || !selectedLng) {
-    showToast('주소 검색 후 장소를 선택해주세요!');
-    return;
+  let placeId;
+
+  if (modalIsNewPlace) {
+    const category = document.getElementById('inputCategory').value;
+    if (!category) { showToast('카테고리를 선택해주세요'); return; }
+    const newPlace = {
+      id: nextPlaceId++,
+      name: document.getElementById('inputName').value.trim(),
+      address: modalSelectedAddress,
+      lat: modalSelectedLat, lng: modalSelectedLng,
+      category,
+      founderNickname: document.getElementById('inputNickname').value.trim(),
+      founderUrl: document.getElementById('inputUrl').value.trim()
+    };
+    places.push(newPlace);
+    placeId = newPlace.id;
+  } else {
+    placeId = modalSelectedPlaceId;
   }
 
-  const newCampaign = {
-    id: nextId++,
-    name,
-    address,
-    lat: selectedLat,
-    lng: selectedLng,
-    platform,
-    content: document.getElementById('inputContent').value.trim() || '내용 없음',
-    deadline: document.getElementById('inputDeadline').value,
-    blog: document.getElementById('inputBlog').value.trim(),
-    nickname: document.getElementById('inputNickname').value.trim(),
-    selected: false
-  };
+  campaigns.push({
+    id: nextCampaignId++, placeId, channel, platform, content, deadline, link,
+    operatingDays: [...document.querySelectorAll('.day-btn.active')].map(b => b.textContent),
+    operatingHours: document.getElementById('inputHours').value.trim(),
+    reporterNickname: document.getElementById('inputNickname').value.trim(),
+    reporterUrl: document.getElementById('inputUrl').value.trim()
+  });
 
-  campaigns.push(newCampaign);
   closeModal();
   renderAll();
 
-  map.setCenter(new naver.maps.LatLng(selectedLat, selectedLng));
+  const place = places.find(p => p.id === placeId);
+  map.setCenter(new naver.maps.LatLng(place.lat, place.lng));
   map.setZoom(16);
-  showToast(`${name} 제보 완료!`);
+  showToast(`${place.name} 제보 완료!`);
 }
 
 // ===== 토스트 =====
 function showToast(msg) {
   let toast = document.querySelector('.toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.className = 'toast';
-    document.body.appendChild(toast);
-  }
+  if (!toast) { toast = document.createElement('div'); toast.className = 'toast'; document.body.appendChild(toast); }
   toast.textContent = msg;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
-// ===== 시작 =====
 window.addEventListener('load', initMap);
