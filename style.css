@@ -472,6 +472,10 @@ body {
 
 /* ===== 서비스 소개 모달 ===== */
 .about-modal { max-width: 460px; }
+.about-footer { display: none; }
+@media (max-width: 640px) {
+  .about-footer { display: flex; }
+}
 .about-drag-handle {
   display: none;
 }
