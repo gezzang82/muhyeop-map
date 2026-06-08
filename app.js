@@ -742,4 +742,14 @@ function closeMobileSheet() {
   document.getElementById('mobileSheetOverlay').classList.remove('show');
 }
 
+// 검색창 외 영역 터치 시 키보드 닫기
+document.addEventListener('click', (e) => {
+  const searchInput = document.getElementById('regionSearchMobileTop');
+  if (searchInput && document.activeElement === searchInput) {
+    if (!e.target.closest('.mobile-header-search')) {
+      searchInput.blur();
+    }
+  }
+});
+
 window.addEventListener('load', initMap);
