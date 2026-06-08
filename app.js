@@ -232,12 +232,18 @@ function renderMarkers() {
     });
 
     naver.maps.Event.addListener(marker, 'click', () => {
-      if (openInfoWindow === infoWindow) {
-        infoWindow.close(); openInfoWindow = null; return;
+      if (window.innerWidth <= 640) {
+        // 모바일: 바텀시트
+        openMobileSheet(place);
+      } else {
+        // PC: 인포윈도우
+        if (openInfoWindow === infoWindow) {
+          infoWindow.close(); openInfoWindow = null; return;
+        }
+        if (openInfoWindow) openInfoWindow.close();
+        infoWindow.open(map, marker);
+        openInfoWindow = infoWindow;
       }
-      if (openInfoWindow) openInfoWindow.close();
-      infoWindow.open(map, marker);
-      openInfoWindow = infoWindow;
     });
 
     markers.push(marker);
@@ -673,6 +679,21 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ===== 모바일 바텀시트 =====
+function openMobileSheet(place) {
+  const sheet = document.getElementById('mobileSheet');
+  const overlay = document.getElementById('mobileSheetOverlay');
+  const content = document.getElementById('mobileSheetContent');
+  content.innerHTML = createInfoContent(place);
+  sheet.classList.add('show');
+  overlay.classList.add('show');
+}
+
+function closeMobileSheet() {
+  document.getElementById('mobileSheet').classList.remove('show');
+  document.getElementById('mobileSheetOverlay').classList.remove('show');
 }
 
 window.addEventListener('load', initMap);

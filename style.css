@@ -530,6 +530,71 @@ body {
   .btn-about-mobile { display: none; }
 }
 
+/* ===== 모바일 바텀시트 ===== */
+.mobile-sheet {
+  display: none;
+}
+@media (max-width: 640px) {
+  .mobile-sheet-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 300;
+  }
+  .mobile-sheet-overlay.show { display: block; }
+
+  .mobile-sheet {
+    display: block;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: white;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+    z-index: 400;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    max-height: 75vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .mobile-sheet.show { transform: translateY(0); }
+
+  .mobile-sheet-handle {
+    width: 36px; height: 4px;
+    background: #ddd; border-radius: 2px;
+    margin: 12px auto 0;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .mobile-sheet-content {
+    overflow-y: auto;
+    flex: 1;
+    padding: 12px 0 24px;
+  }
+
+  /* 바텀시트 내 인포창 스타일 재정의 */
+  .mobile-sheet-content .info-window {
+    box-shadow: none;
+    border-radius: 0;
+    min-width: unset;
+    max-width: unset;
+    width: 100%;
+  }
+  .mobile-sheet-content .info-head {
+    padding: 8px 20px 12px;
+  }
+  .mobile-sheet-content .info-campaigns {
+    max-height: unset;
+  }
+  .mobile-sheet-content .c-item {
+    padding: 12px 20px;
+  }
+  .mobile-sheet-content .info-founder {
+    padding: 0 20px 8px;
+  }
+}
+
 /* ===== 빈 상태 ===== */
 .empty-state { padding: 40px 20px; text-align: center; color: #bbb; }
 .empty-icon { font-size: 36px; margin-bottom: 10px; }
