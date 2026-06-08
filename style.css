@@ -106,6 +106,8 @@ body {
 }
 .filter-chip:hover { border-color: #e8c96d; color: #1a1a2e; }
 .filter-chip.active { background: #1a1a2e; border-color: #1a1a2e; color: #e8c96d; }
+.chip-icon { display: none; }
+.filter-chip.active .chip-icon { display: inline; }
 
 /* ===== 레이아웃 ===== */
 .main-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
