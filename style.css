@@ -699,4 +699,58 @@ body {
 
   /* 토스트 위치 */
   .toast { bottom: 70px; }
+
+  /* ===== 모바일 폰트 사이즈 전반 업스케일 ===== */
+  /* 헤더/필터 */
+  .logo-text { font-size: 18px; }
+  .btn-add { font-size: 13px; }
+  .filter-chip { font-size: 12px; }
+
+  /* 사이드바 리스트 */
+  .sidebar-title { font-size: 15px; }
+  .sidebar-count { font-size: 13px; }
+  .btn-refresh-list { font-size: 12px; }
+  .card-icon { font-size: 18px; }
+  .card-name { font-size: 15px; }
+  .card-dl { font-size: 12px; }
+  .card-deadline-date { font-size: 12px; }
+  .card-addr { font-size: 12px; }
+  .card-badge { font-size: 12px; padding: 3px 9px; }
+  .card-reporter { font-size: 12px; }
+
+  /* 바텀시트 인포창 */
+  .info-name { font-size: 16px; }
+  .info-addr { font-size: 13px; }
+  .c-content { font-size: 14px; }
+  .c-deadline { font-size: 13px; }
+  .c-deadline-date { font-size: 13px; }
+  .c-hours, .c-days { font-size: 13px; }
+  .c-link { font-size: 13px; }
+  .c-badge { font-size: 12px; padding: 3px 9px; }
+  .c-reporter { font-size: 13px; }
+  .c-empty { font-size: 14px; }
+  .info-founder { font-size: 13px; }
+
+  /* 모달 */
+  .modal-header h2 { font-size: 18px; }
+  .form-group label { font-size: 14px; }
+  .step-indicator .step { font-size: 13px; }
+  .optional-section-title { font-size: 14px; }
+  .optional-section-desc { font-size: 13px; }
+  .selected-place-badge { font-size: 13px; }
+  .search-hint { font-size: 14px; }
+  .item-name { font-size: 14px; }
+  .item-sub { font-size: 13px; }
+  .existing-label { font-size: 13px; }
+  .existing-name { font-size: 15px; }
+  .existing-addr { font-size: 13px; }
+  .existing-new { font-size: 14px; }
+
+  /* 서비스 소개 */
+  .about-section-title { font-size: 15px; }
+  .about-desc { font-size: 14px; }
+  .about-step strong { font-size: 15px; }
+  .about-step p { font-size: 13px; }
+  .about-hero-title { font-size: 24px; }
+  .about-hero-sub { font-size: 13px; }
 }

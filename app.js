@@ -7,7 +7,21 @@ let places = [
   { id: 3, name: "카페 노티드 청담", address: "서울 강남구 압구정로 428", lat: 37.5247, lng: 127.0430, category: "카페", founderNickname: "카페투어러", founderUrl: "https://instagram.com/example3" },
   { id: 4, name: "젝시믹스 강남점", address: "서울 강남구 강남대로 390", lat: 37.4975, lng: 127.0280, category: "의류", founderNickname: "", founderUrl: "" },
   { id: 5, name: "이니스프리 강남점", address: "서울 강남구 강남대로 438", lat: 37.5020, lng: 127.0260, category: "뷰티", founderNickname: "스킨케어러", founderUrl: "https://blog.naver.com/example5" },
-  { id: 6, name: "할리스 압구정점", address: "서울 강남구 압구정로 20길 10", lat: 37.5270, lng: 127.0290, category: "카페", founderNickname: "카페순례자", founderUrl: "https://instagram.com/example6" }
+  { id: 6, name: "할리스 압구정점", address: "서울 강남구 압구정로 20길 10", lat: 37.5270, lng: 127.0290, category: "카페", founderNickname: "카페순례자", founderUrl: "https://instagram.com/example6" },
+  { id: 7, name: "메가커피 성수점", address: "서울 성동구 성수이로 78", lat: 37.5447, lng: 127.0557, category: "카페", founderNickname: "커피러버", founderUrl: "https://blog.naver.com/example7" },
+  { id: 8, name: "ABC마트 홍대점", address: "서울 마포구 양화로 151", lat: 37.5573, lng: 126.9241, category: "의류", founderNickname: "스니커즈헌터", founderUrl: "https://instagram.com/example8" },
+  { id: 9, name: "교촌치킨 이태원점", address: "서울 용산구 이태원로 180", lat: 37.5346, lng: 126.9938, category: "음식점", founderNickname: "치킨러버", founderUrl: "" },
+  { id: 10, name: "네이처리퍼블릭 명동점", address: "서울 중구 명동길 53", lat: 37.5633, lng: 126.9820, category: "뷰티", founderNickname: "명동뷰티", founderUrl: "https://blog.naver.com/example10" },
+  { id: 11, name: "스타벅스 선릉역점", address: "서울 강남구 테헤란로 310", lat: 37.5040, lng: 127.0490, category: "카페", founderNickname: "", founderUrl: "" },
+  { id: 12, name: "이마트24 건대점", address: "서울 광진구 능동로 120", lat: 37.5403, lng: 127.0696, category: "기타", founderNickname: "편의점탐방", founderUrl: "" },
+  { id: 13, name: "삼청각", address: "서울 성북구 북악산로 65", lat: 37.5917, lng: 126.9832, category: "음식점", founderNickname: "고궁맛집", founderUrl: "https://blog.naver.com/example13" },
+  { id: 14, name: "무신사 스토어 홍대", address: "서울 마포구 어울마당로 35", lat: 37.5540, lng: 126.9226, category: "의류", founderNickname: "패션피플", founderUrl: "https://instagram.com/example14" },
+  { id: 15, name: "아워홈 코엑스점", address: "서울 강남구 영동대로 513", lat: 37.5126, lng: 127.0590, category: "음식점", founderNickname: "", founderUrl: "" },
+  { id: 16, name: "롭스 홍대점", address: "서울 마포구 와우산로 13", lat: 37.5560, lng: 126.9210, category: "뷰티", founderNickname: "홍대뷰티", founderUrl: "https://blog.naver.com/example16" },
+  { id: 17, name: "투썸플레이스 잠실점", address: "서울 송파구 올림픽로 240", lat: 37.5135, lng: 127.1028, category: "카페", founderNickname: "디저트마니아", founderUrl: "https://instagram.com/example17" },
+  { id: 18, name: "왓슨스 신촌점", address: "서울 서대문구 신촌로 83", lat: 37.5553, lng: 126.9370, category: "뷰티", founderNickname: "", founderUrl: "" },
+  { id: 19, name: "파리바게뜨 여의도점", address: "서울 영등포구 국제금융로 10", lat: 37.5210, lng: 126.9241, category: "카페", founderNickname: "빵순이", founderUrl: "https://blog.naver.com/example19" },
+  { id: 20, name: "GS25 서울숲점", address: "서울 성동구 뚝섬로 273", lat: 37.5436, lng: 127.0439, category: "기타", founderNickname: "편의점왕", founderUrl: "" }
 ];
 
 let campaigns = [
@@ -59,11 +73,25 @@ let campaigns = [
     deadline: "2026-06-01", link: "https://mrble.net",
     operatingDays: [], operatingHours: "08:00~22:00",
     reporterNickname: "카페순례자", reporterUrl: "https://instagram.com/example6"
-  }
+  },
+  { id: 8,  placeId: 7,  platform: "레뷰",       channel: "블로그",      content: "아메리카노 2잔 무료 체험", deadline: "2026-07-10", link: "https://www.revu.net", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "08:00~22:00", reporterNickname: "커피러버", reporterBlog: "https://blog.naver.com/example7", reporterInstagram: "" },
+  { id: 9,  placeId: 8,  platform: "디너의여왕",  channel: "인스타그램",   content: "한정판 스니커즈 착용 리뷰", deadline: "2026-07-05", link: "https://www.dinnersqueen.com", operatingDays: [], operatingHours: "11:00~21:00", reporterNickname: "스니커즈헌터", reporterBlog: "", reporterInstagram: "https://instagram.com/example8" },
+  { id: 10, placeId: 9,  platform: "강남맛집",    channel: "블로그",      content: "치킨 1마리 + 음료 2잔", deadline: "2026-06-30", link: "https://www.gangnamfood.co.kr", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "16:00~01:00", reporterNickname: "", reporterBlog: "", reporterInstagram: "" },
+  { id: 11, placeId: 10, platform: "리뷰노트",    channel: "블로그+클립", content: "여름 신제품 선크림 세트", deadline: "2026-07-15", link: "https://www.reviewnote.co.kr", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~21:00", reporterNickname: "명동뷰티", reporterBlog: "https://blog.naver.com/example10", reporterInstagram: "" },
+  { id: 12, placeId: 11, platform: "미블",        channel: "클립",        content: "시즌 신메뉴 2종 체험", deadline: "2026-07-20", link: "https://mrble.net", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "07:00~23:00", reporterNickname: "", reporterBlog: "", reporterInstagram: "" },
+  { id: 13, placeId: 12, platform: "레뷰",        channel: "블로그",      content: "편의점 신상 도시락 3종 체험", deadline: "2026-07-08", link: "https://www.revu.net", operatingDays: [], operatingHours: "24시간", reporterNickname: "편의점탐방", reporterBlog: "", reporterInstagram: "" },
+  { id: 14, placeId: 13, platform: "디너의여왕",  channel: "인스타그램",   content: "궁중 코스 요리 2인 체험", deadline: "2026-07-25", link: "https://www.dinnersqueen.com", operatingDays: ["화","수","목","금","토","일"], operatingHours: "12:00~22:00", reporterNickname: "고궁맛집", reporterBlog: "https://blog.naver.com/example13", reporterInstagram: "" },
+  { id: 15, placeId: 14, platform: "강남맛집",    channel: "블로그+클립", content: "여름 신상 반바지 착용 리뷰", deadline: "2026-07-01", link: "https://www.gangnamfood.co.kr", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "12:00~21:00", reporterNickname: "패션피플", reporterBlog: "", reporterInstagram: "https://instagram.com/example14" },
+  { id: 16, placeId: 15, platform: "리뷰노트",    channel: "블로그",      content: "런치 세트 2인 무료 체험", deadline: "2026-07-12", link: "https://www.reviewnote.co.kr", operatingDays: ["월","화","수","목","금"], operatingHours: "11:00~15:00", reporterNickname: "", reporterBlog: "", reporterInstagram: "" },
+  { id: 17, placeId: 16, platform: "미블",        channel: "인스타그램",   content: "여름 한정 스킨케어 3종 체험", deadline: "2026-06-28", link: "https://mrble.net", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~22:00", reporterNickname: "홍대뷰티", reporterBlog: "https://blog.naver.com/example16", reporterInstagram: "" },
+  { id: 18, placeId: 17, platform: "레뷰",        channel: "클립",        content: "딸기 케이크 + 음료 세트", deadline: "2026-07-18", link: "https://www.revu.net", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~22:00", reporterNickname: "디저트마니아", reporterBlog: "", reporterInstagram: "https://instagram.com/example17" },
+  { id: 19, placeId: 18, platform: "강남맛집",    channel: "블로그",      content: "여름 신상 선크림 2종 세트", deadline: "2026-07-22", link: "https://www.gangnamfood.co.kr", operatingDays: [], operatingHours: "09:00~22:00", reporterNickname: "", reporterBlog: "", reporterInstagram: "" },
+  { id: 20, placeId: 19, platform: "디너의여왕",  channel: "블로그+클립", content: "여름 한정 샌드위치 + 음료 세트", deadline: "2026-07-30", link: "https://www.dinnersqueen.com", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "08:00~21:00", reporterNickname: "빵순이", reporterBlog: "https://blog.naver.com/example19", reporterInstagram: "" },
+  { id: 21, placeId: 20, platform: "리뷰노트",    channel: "인스타그램",   content: "편의점 신상 디저트 5종 체험", deadline: "2026-07-14", link: "https://www.reviewnote.co.kr", operatingDays: [], operatingHours: "24시간", reporterNickname: "편의점왕", reporterBlog: "", reporterInstagram: "" }
 ];
 
-let nextPlaceId = 7;
-let nextCampaignId = 8;
+let nextPlaceId = 21;
+let nextCampaignId = 22;
 let currentChannelFilter = '전체';
 
 let map;
@@ -189,6 +217,11 @@ function initMap() {
 
   naver.maps.Event.addListener(map, 'click', () => {
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
+    // 모바일: 지도 터치 시 사이드바 닫기
+    if (window.innerWidth <= 640) {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.remove('expanded');
+    }
   });
 
   // 지도 밖 영역 클릭 시 인포창 닫기
