@@ -13,7 +13,8 @@
 <body>
 
   <header class="header">
-    <div class="header-inner">
+    <!-- PC 헤더 -->
+    <div class="header-inner header-pc">
       <div class="logo">
         <span class="logo-icon">🗺️</span>
         <span class="logo-text">무협맵</span>
@@ -29,6 +30,16 @@
         <button class="btn-about" onclick="openAbout()">서비스 소개</button>
         <button class="btn-add" onclick="openModal()">+ 협찬 제보하기</button>
       </div>
+    </div>
+    <!-- 모바일 헤더 -->
+    <div class="header-inner header-mobile">
+      <span class="logo-icon">🗺️</span>
+      <div class="mobile-header-search">
+        <input type="text" id="regionSearchMobileTop" placeholder="지역 검색 (예: 강남구, 성수동)" onkeydown="if(event.key==='Enter') searchRegionMobileTop()">
+        <button class="mobile-header-search-btn" onclick="searchRegionMobileTop()">🔍</button>
+      </div>
+      <button class="mobile-icon-btn" onclick="openModal()" title="협찬 제보하기">＋</button>
+      <button class="mobile-icon-btn mobile-icon-info" onclick="openAbout()" title="서비스 소개">ℹ</button>
     </div>
   </header>
 

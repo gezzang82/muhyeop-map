@@ -28,6 +28,10 @@ body {
   gap: 16px;
 }
 
+/* PC/모바일 헤더 전환 */
+.header-mobile { display: none; }
+.header-pc { display: flex; }
+
 .logo { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .logo-icon { font-size: 22px; }
 .logo-text {
@@ -618,14 +622,44 @@ body {
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
+/* ===== 모바일 헤더 전용 컴포넌트 (미디어 쿼리 밖, 항상 정의) ===== */
+.mobile-header-search {
+  flex: 1;
+  display: flex;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 22px;
+  overflow: hidden;
+  align-items: center;
+}
+.mobile-header-search input {
+  flex: 1; background: none; border: none; outline: none;
+  padding: 8px 14px; color: white;
+  font-size: 15px; font-family: 'Noto Sans KR', sans-serif;
+}
+.mobile-header-search input::placeholder { color: rgba(255,255,255,0.45); }
+.mobile-header-search-btn {
+  background: none; border: none;
+  padding: 0 12px; font-size: 16px; cursor: pointer; color: white;
+}
+.mobile-icon-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #e8c96d; color: #1a1a2e;
+  border: none; font-size: 20px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; line-height: 1;
+}
+.mobile-icon-info {
+  background: rgba(255,255,255,0.15);
+  color: white; font-size: 16px; font-style: normal;
+}
+
 /* ===== 모바일 ===== */
 @media (max-width: 640px) {
-  /* 헤더 */
-  .header { height: 50px; padding: 0 14px; }
-  .header-center { display: none; }
-  .logo-sub { display: none; }
-  .logo-text { font-size: 17px; }
-  .btn-add { padding: 7px 13px; font-size: 12px; }
+  /* 헤더 전환 */
+  .header { height: 56px; padding: 0 12px; }
+  .header-pc { display: none; }
+  .header-mobile { display: flex; gap: 10px; width: 100%; }
 
   /* 필터바 */
   .filter-bar { padding: 6px 12px; gap: 6px; }
@@ -636,27 +670,8 @@ body {
     font-size: 16px !important;
   }
 
-  /* 지도 위 플로팅 검색창 */
-  .mobile-search-bar {
-    display: flex;
-    position: absolute;
-    top: 8px; left: 12px; right: 12px;
-    z-index: 100;
-    background: white;
-    border-radius: 22px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-    overflow: hidden;
-  }
-  .mobile-search-bar input {
-    flex: 1; border: none; outline: none;
-    padding: 10px 14px; font-size: 13px;
-    font-family: 'Noto Sans KR', sans-serif; color: #1a1a2e;
-  }
-  .mobile-search-bar input::placeholder { color: #aaa; }
-  .mobile-search-bar button {
-    background: none; border: none;
-    padding: 0 14px; font-size: 16px; cursor: pointer;
-  }
+  /* 지도 위 플로팅 검색창 — 모바일에서 숨김 (헤더로 올라감) */
+  .mobile-search-bar { display: none; }
 
   /* 레이아웃 — 모바일은 세로 스택 */
   .main-layout { flex-direction: column; }

@@ -476,6 +476,13 @@ function searchRegionMobile() {
   searchRegion();
 }
 
+function searchRegionMobileTop() {
+  const el = document.getElementById('regionSearchMobileTop');
+  document.getElementById('regionSearch').value = el.value;
+  searchRegion();
+  el.blur(); // 키보드 닫기
+}
+
 // ===== 바텀시트 토글 (모바일) =====
 function toggleBottomSheet(e) {
   if (window.innerWidth > 640) return;
