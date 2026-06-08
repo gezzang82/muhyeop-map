@@ -221,6 +221,8 @@ function initMap() {
     if (window.innerWidth <= 640) {
       const sidebar = document.getElementById('sidebar');
       sidebar.classList.remove('expanded');
+      const arrow = document.getElementById('sidebarArrow');
+      if (arrow) arrow.textContent = '︿';
     }
   });
 
@@ -481,7 +483,11 @@ function toggleBottomSheet(e) {
   // 헤더 영역 클릭 시에만 토글 (리스트 스크롤은 방해 안 함)
   if (e.target.closest('.sidebar-list') || e.target.closest('.sidebar-card')) return;
   sidebar.classList.toggle('expanded');
-  if (sidebar.classList.contains('expanded')) renderSidebar();
+  const isExpanded = sidebar.classList.contains('expanded');
+  // 화살표 방향 전환 (닫힘: ︿ 위방향 → 열림: ﹀ 아래방향)
+  const arrow = document.getElementById('sidebarArrow');
+  if (arrow) arrow.textContent = isExpanded ? '﹀' : '︿';
+  if (isExpanded) renderSidebar();
 }
 
 // ===== 주소 검색 =====

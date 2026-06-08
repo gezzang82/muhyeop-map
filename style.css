@@ -135,17 +135,24 @@ body {
   padding: 14px 16px; border-bottom: 1px solid #f0f0f0;
   display: flex; justify-content: space-between; align-items: center;
 }
+.sidebar-header-left { display: flex; align-items: center; gap: 8px; }
+.sidebar-header-right { display: flex; align-items: center; gap: 6px; }
 .sidebar-title { font-size: 14px; font-weight: 700; color: #1a1a2e; }
 .sidebar-count {
   font-size: 12px; color: #888;
   background: #f5f5f0; padding: 3px 8px; border-radius: 10px;
 }
 .btn-refresh-list {
-  font-size: 11px; color: #555; background: #f0f0ea;
-  border: none; border-radius: 12px; padding: 4px 10px;
-  cursor: pointer; white-space: nowrap;
+  font-size: 14px; color: #555; background: #f0f0ea;
+  border: none; border-radius: 50%; width: 30px; height: 30px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
 .btn-refresh-list:hover { background: #e8e8e0; }
+.sidebar-arrow {
+  font-size: 16px; color: #999; line-height: 1;
+  display: none; /* PC에서는 숨김 */
+}
 
 .sidebar-list { flex: 1; overflow-y: auto; }
 .sidebar-list::-webkit-scrollbar { width: 4px; }
@@ -678,14 +685,20 @@ body {
     cursor: pointer;
     border-radius: 16px 16px 0 0;
     flex-shrink: 0;
+    padding: 14px 16px;
   }
-  .sidebar-header::before {
-    content: '';
-    display: block;
-    width: 36px; height: 4px;
-    background: #ddd; border-radius: 2px;
-    margin: 0 auto 10px;
-  }
+  /* 바 아이콘 제거 */
+  .sidebar-header::before { display: none; }
+
+  /* 화살표 + 새로고침 표시 */
+  .sidebar-arrow { display: flex; align-items: center; }
+  .btn-refresh-list { display: none; } /* 기본: 숨김 */
+  .sidebar.expanded .btn-refresh-list { display: flex; } /* 열릴 때만 노출 */
+
+  /* 폰트 크기 */
+  .sidebar-title { font-size: 15px; }
+  .sidebar-count { font-size: 13px; }
+  .btn-refresh-list { font-size: 16px; }
 
   /* 모달 모바일 */
   .modal {
@@ -707,9 +720,6 @@ body {
   .filter-chip { font-size: 12px; }
 
   /* 사이드바 리스트 */
-  .sidebar-title { font-size: 15px; }
-  .sidebar-count { font-size: 13px; }
-  .btn-refresh-list { font-size: 12px; }
   .card-icon { font-size: 18px; }
   .card-name { font-size: 15px; }
   .card-dl { font-size: 12px; }

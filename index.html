@@ -51,10 +51,14 @@
 
     <div class="sidebar" id="sidebar" onclick="toggleBottomSheet(event)">
       <div class="sidebar-header">
-        <span class="sidebar-title">📍 모집 중인 협찬</span>
-        <span class="sidebar-count" id="campaignCount">0개</span>
-        <button class="btn-refresh-list" onclick="renderSidebar()" title="현재 지도 기준으로 새로고침">↺ 새로고침</button>
-        <button class="btn-about-mobile" onclick="openAbout()">ℹ️</button>
+        <div class="sidebar-header-left">
+          <span class="sidebar-title">📍 모집 중인 협찬</span>
+          <span class="sidebar-count" id="campaignCount">0개</span>
+        </div>
+        <div class="sidebar-header-right">
+          <button class="btn-refresh-list" id="btnRefreshList" onclick="event.stopPropagation(); renderSidebar();" title="현재 지도 기준으로 새로고침">↺</button>
+          <span class="sidebar-arrow" id="sidebarArrow">︿</span>
+        </div>
       </div>
       <div class="sidebar-list" id="campaignList"></div>
     </div>
@@ -275,6 +279,13 @@
 
     </div>
   </div>
+
+  <!-- 모바일 바텀시트 -->
+  <div id="mobileSheet" class="mobile-sheet">
+    <div class="mobile-sheet-handle" onclick="closeMobileSheet()"></div>
+    <div class="mobile-sheet-content" id="mobileSheetContent"></div>
+  </div>
+  <div id="mobileSheetOverlay" class="mobile-sheet-overlay" onclick="closeMobileSheet()"></div>
 
   <script src="app.js"></script>
 </body>
