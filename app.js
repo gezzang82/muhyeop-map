@@ -254,10 +254,13 @@ function renderMarkers() {
     const active = hasActiveCampaign(place.id);
     const icon = getCategoryIcon(place.category);
 
+    // 활성 캠페인 없으면 마커 미노출
+    if (!active) return;
+
     const marker = new naver.maps.Marker({
       position: new naver.maps.LatLng(place.lat, place.lng),
       icon: {
-        content: `<div class="map-marker ${active ? 'active' : 'inactive'}">${icon}</div>`,
+        content: `<div class="map-marker active">${icon}</div>`,
         anchor: new naver.maps.Point(20, 20)
       }
     });
