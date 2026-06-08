@@ -688,12 +688,14 @@ body {
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
     z-index: 200;
-    transition: height 0.3s ease;
+    transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     height: 52px;
     overflow: hidden;
     flex-shrink: 0;
   }
   .sidebar.expanded { height: 50vh; }
+  /* 스크롤 시 필터바 아래까지 꽉 채움 (header 56px + filter ~44px = 100px) */
+  .sidebar.expanded-full { height: calc(100dvh - 100px); border-radius: 0; }
 
   /* 핸들 바 */
   .sidebar-header {

@@ -221,6 +221,9 @@ function initMap() {
     if (window.innerWidth <= 640) {
       const sidebar = document.getElementById('sidebar');
       sidebar.classList.remove('expanded');
+      sidebar.classList.remove('expanded-full');
+      const list = document.getElementById('campaignList');
+      if (list) list.scrollTop = 0;
       const arrow = document.getElementById('sidebarArrow');
       if (arrow) arrow.textContent = '︿';
     }
@@ -238,6 +241,7 @@ function initMap() {
 
   initDateSelects();
   renderAll();
+  initSidebarScrollExpand();
 }
 
 // ===== 마커 렌더 =====
@@ -489,12 +493,30 @@ function toggleBottomSheet(e) {
   const sidebar = document.getElementById('sidebar');
   // 헤더 영역 클릭 시에만 토글 (리스트 스크롤은 방해 안 함)
   if (e.target.closest('.sidebar-list') || e.target.closest('.sidebar-card')) return;
+  const willExpand = !sidebar.classList.contains('expanded');
   sidebar.classList.toggle('expanded');
+  if (!willExpand) sidebar.classList.remove('expanded-full'); // 닫을 때 full도 제거
   const isExpanded = sidebar.classList.contains('expanded');
   // 화살표 방향 전환 (닫힘: ︿ 위방향 → 열림: ﹀ 아래방향)
   const arrow = document.getElementById('sidebarArrow');
   if (arrow) arrow.textContent = isExpanded ? '﹀' : '︿';
   if (isExpanded) renderSidebar();
+}
+
+// 리스트 스크롤 시 바텀시트 높이 자동 확장/축소
+function initSidebarScrollExpand() {
+  const list = document.getElementById('campaignList');
+  if (!list) return;
+  list.addEventListener('scroll', () => {
+    if (window.innerWidth > 640) return;
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar.classList.contains('expanded')) return;
+    if (list.scrollTop > 10) {
+      sidebar.classList.add('expanded-full');
+    } else {
+      sidebar.classList.remove('expanded-full');
+    }
+  }, { passive: true });
 }
 
 // ===== 주소 검색 =====
