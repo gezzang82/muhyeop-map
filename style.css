@@ -678,7 +678,11 @@ body {
   /* 레이아웃 — 모바일은 세로 스택 */
   .main-layout { flex-direction: column; }
   #map { flex: 1; min-height: 0; }
-  .btn-my-location { bottom: 70px; right: 14px; }
+  .btn-my-location {
+    position: fixed;
+    bottom: 70px; right: 14px;
+    z-index: 150; /* 사이드바(200)보다 낮아서 바텀시트에 덮임 */
+  }
 
   /* 사이드바 → 하단 고정 바 */
   .sidebar {
