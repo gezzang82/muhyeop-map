@@ -305,6 +305,16 @@ body {
 }
 .btn-apply:hover { background: #2a2a4e; }
 
+.btn-naver-map {
+  flex-shrink: 0;
+  background: #03C75A; color: white;
+  padding: 5px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700;
+  text-decoration: none; white-space: nowrap;
+  cursor: pointer; border: none;
+}
+.btn-naver-map:hover { background: #02a84d; }
+
 /* ===== 모달 ===== */
 .modal-overlay {
   display: none; position: fixed; inset: 0;

@@ -363,14 +363,20 @@ function createInfoContent(place) {
     ? `<div class="info-founder">🏅 최초 제보 <a class="founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a></div>`
     : '';
 
+  const query = encodeURIComponent(place.name + ' ' + place.address);
+  const naverMapWeb = `https://map.naver.com/v5/search/${query}`;
+  // 모바일 앱 딥링크 (미설치 시 웹으로 fallback)
+  const naverMapLink = `javascript:openNaverMap('${encodeURIComponent(place.name)}','${encodeURIComponent(place.address)}')`;
+
   return `
     <div class="info-window">
       <div class="info-head">
         <span class="info-icon">${icon}</span>
-        <div>
+        <div style="flex:1;min-width:0;">
           <div class="info-name">${place.name}</div>
           <div class="info-addr">${place.address}</div>
         </div>
+        <a class="btn-naver-map" onclick="openNaverMap('${place.name.replace(/'/g,"\\'")}','${place.address.replace(/'/g,"\\'")}')">🗺️ 지도</a>
       </div>
       ${founderHtml}
       <div class="info-campaigns">${campaignsHtml}</div>
@@ -770,6 +776,28 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ===== 네이버지도 열기 =====
+function openNaverMap(name, address) {
+  const query = encodeURIComponent(name + ' ' + address);
+  const webUrl = `https://map.naver.com/v5/search/${query}`;
+
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    // 앱 딥링크 시도
+    const appUrl = `nmap://search?query=${encodeURIComponent(name)}&appname=muhyeop-map`;
+    const start = Date.now();
+    window.location.href = appUrl;
+    // 앱이 없으면 (300ms 내 화면 전환 없으면) 웹으로 fallback
+    setTimeout(() => {
+      if (Date.now() - start < 1500) {
+        window.open(webUrl, '_blank', 'noopener');
+      }
+    }, 300);
+  } else {
+    window.open(webUrl, '_blank', 'noopener');
+  }
 }
 
 // ===== 모바일 바텀시트 =====
