@@ -98,6 +98,7 @@ let map;
 let markers = [];
 let markerCluster = null;
 let openInfoWindow = null;
+let markerMap = {}; // placeId → { marker, infoWindow }
 
 // 모달 상태
 let modalSelectedPlaceId = null;
@@ -249,6 +250,7 @@ function renderMarkers() {
   if (markerCluster) { markerCluster.setMap(null); markerCluster = null; }
   markers.forEach(m => m.setMap(null));
   markers = [];
+  markerMap = {};
 
   places.forEach(place => {
     const active = hasActiveCampaign(place.id);
@@ -289,6 +291,7 @@ function renderMarkers() {
     });
 
     markers.push(marker);
+    markerMap[place.id] = { marker, infoWindow };
   });
 
   // 클러스터링
@@ -445,8 +448,26 @@ function moveToMyLocation() {
 function focusPlace(placeId) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
+
   map.setCenter(new naver.maps.LatLng(place.lat, place.lng));
   map.setZoom(16);
+
+  if (window.innerWidth <= 640) {
+    // 모바일: 바텀시트 열고 사이드바 닫기
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.remove('expanded');
+    sidebar.classList.remove('expanded-full');
+    const arrow = document.getElementById('sidebarArrow');
+    if (arrow) arrow.textContent = '︿';
+    setTimeout(() => openMobileSheet(place), 150);
+  } else {
+    // PC: 인포윈도우 열기
+    const entry = markerMap[placeId];
+    if (!entry) return;
+    if (openInfoWindow) openInfoWindow.close();
+    entry.infoWindow.open(map, entry.marker);
+    openInfoWindow = entry.infoWindow;
+  }
 }
 
 function renderAll() {
