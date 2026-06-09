@@ -826,42 +826,55 @@ function initSidebarSwipeToDismiss() {
   let currentY = 0;
   let dragging = false;
 
-  header.addEventListener('touchstart', (e) => {
-    if (window.innerWidth > 640) return;
-    if (!sidebar.classList.contains('expanded')) return;
-    startY = e.touches[0].clientY;
-    currentY = startY;
-    dragging = true;
+  function startDrag(y) {
+    if (window.innerWidth > 640) return false;
+    if (!sidebar.classList.contains('expanded')) return false;
+    startY = y; currentY = y; dragging = true;
     sidebar.style.transition = 'none';
-  }, { passive: true });
+    return true;
+  }
 
-  header.addEventListener('touchmove', (e) => {
+  function moveDrag(y) {
     if (!dragging) return;
-    currentY = e.touches[0].clientY;
+    currentY = y;
     const delta = currentY - startY;
     if (delta < 0) return;
     sidebar.style.transform = `translateY(${delta}px)`;
-  }, { passive: true });
+  }
 
-  header.addEventListener('touchend', () => {
+  function endDrag() {
     if (!dragging) return;
     dragging = false;
     sidebar.style.transition = '';
     const delta = currentY - startY;
+    sidebar.style.transform = '';
     if (delta > 80) {
-      // 닫기
-      sidebar.style.transform = '';
       sidebar.classList.remove('expanded');
       sidebar.classList.remove('expanded-full');
       const list = document.getElementById('campaignList');
       if (list) list.scrollTop = 0;
       const arrow = document.getElementById('sidebarArrow');
       if (arrow) arrow.textContent = '︿';
-    } else {
-      // 스냅백
-      sidebar.style.transform = '';
     }
-  });
+  }
+
+  // 헤더 영역
+  header.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientY), { passive: true });
+  header.addEventListener('touchmove', (e) => moveDrag(e.touches[0].clientY), { passive: true });
+  header.addEventListener('touchend', endDrag);
+
+  // 리스트 영역: 맨 위에서 아래로 당길 때만 닫기
+  const list = document.getElementById('campaignList');
+  list.addEventListener('touchstart', (e) => {
+    if (list.scrollTop === 0) startDrag(e.touches[0].clientY);
+  }, { passive: true });
+  list.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const delta = e.touches[0].clientY - startY;
+    if (delta > 0) e.preventDefault(); // 스크롤 방지하고 드래그 처리
+    moveDrag(e.touches[0].clientY);
+  }, { passive: false });
+  list.addEventListener('touchend', endDrag);
 }
 
 // ===== 바텀시트 스와이프 다운으로 닫기 =====
