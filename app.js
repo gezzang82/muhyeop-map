@@ -363,11 +363,6 @@ function createInfoContent(place) {
     ? `<div class="info-founder">🏅 최초 제보 <a class="founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a></div>`
     : '';
 
-  const query = encodeURIComponent(place.name + ' ' + place.address);
-  const naverMapWeb = `https://map.naver.com/v5/search/${query}`;
-  // 모바일 앱 딥링크 (미설치 시 웹으로 fallback)
-  const naverMapLink = `javascript:openNaverMap('${encodeURIComponent(place.name)}','${encodeURIComponent(place.address)}')`;
-
   return `
     <div class="info-window">
       <div class="info-head">
@@ -783,8 +778,7 @@ function showToast(msg) {
 
 // ===== 네이버지도 열기 =====
 function openNaverMap(name, address) {
-  const query = encodeURIComponent(name + ' ' + address);
-  const webUrl = `https://map.naver.com/v5/search/${query}`;
+  const webUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if (isMobile) {
