@@ -465,12 +465,15 @@ function focusPlace(placeId) {
     if (arrow) arrow.textContent = '︿';
     setTimeout(() => openMobileSheet(place), 150);
   } else {
-    // PC: 인포윈도우 열기
-    const entry = markerMap[placeId];
-    if (!entry) return;
-    if (openInfoWindow) openInfoWindow.close();
-    entry.infoWindow.open(map, entry.marker);
-    openInfoWindow = entry.infoWindow;
+    // PC: 인포윈도우 열기 — 지도 이동/줌 완료 후 좌표 기준으로 열기
+    if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
+    setTimeout(() => {
+      const entry = markerMap[placeId];
+      if (!entry) return;
+      const pos = new naver.maps.LatLng(place.lat, place.lng);
+      entry.infoWindow.open(map, pos);
+      openInfoWindow = entry.infoWindow;
+    }, 200);
   }
 }
 
