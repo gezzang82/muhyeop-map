@@ -351,7 +351,7 @@ function createInfoContent(place) {
               <span class="platform-badge" style="background:${color}22;color:${color}">${c.platform}</span>
               ${channelHtml}
               ${dlHtml}
-              <a class="btn-apply" href="${c.link}" target="_blank">신청하기</a>
+              <a class="btn-apply" href="${c.link}" onclick="event.preventDefault(); window.open('${c.link}', '_blank', 'noopener')">신청하기</a>
             </div>
             <div class="c-content">${c.content}</div>
             ${hoursHtml}${daysHtml}${reporterHtml}
