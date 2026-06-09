@@ -663,7 +663,7 @@ function resetModal() {
   modalSelectedLat = null; modalSelectedLng = null; modalSelectedAddress = '';
   document.getElementById('step1').style.display = 'flex';
   document.getElementById('step2').style.display = 'none';
-  ['inputName','inputAddress','inputContent','inputLink','inputHours','inputNickname','inputUrl']
+  ['inputName','inputAddress','inputContent','inputHours','inputNickname','inputUrl']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('inputCategory').value = '';
   ['블로그','클립','인스타그램'].forEach(ch => { const el = document.getElementById(`ch_${ch}`); if(el) el.checked = false; });
@@ -724,7 +724,7 @@ function submitCampaign() {
   const platform = document.getElementById('inputPlatform').value;
   const content = document.getElementById('inputContent').value.trim();
   const deadline = getSelectedDeadline();
-  const link = document.getElementById('inputLink').value.trim();
+  const link = '';
 
   if (!channels.length || !platform || !content || !deadline) {
     showToast('게시채널, 플랫폼, 협찬내용, 마감일은 필수예요!');
