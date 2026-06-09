@@ -47,7 +47,6 @@
     <button class="filter-chip active" onclick="filterChannel('전체')">전체</button>
     <button class="filter-chip" onclick="filterChannel('블로그')"><span class="chip-icon">📝</span> 블로그</button>
     <button class="filter-chip" onclick="filterChannel('클립')"><span class="chip-icon">🎬</span> 클립</button>
-    <button class="filter-chip" onclick="filterChannel('블로그+클립')"><span class="chip-icon">📝🎬</span> 블로그+클립</button>
     <button class="filter-chip" onclick="filterChannel('인스타그램')"><span class="chip-icon">📸</span> 인스타그램</button>
   </div>
 
@@ -210,14 +209,12 @@
           </div>
 
           <div class="form-group">
-            <label>게시 채널 *</label>
-            <select id="inputChannel">
-              <option value="">선택하세요</option>
-              <option value="블로그">📝 블로그</option>
-              <option value="클립">🎬 클립</option>
-              <option value="블로그+클립">📝🎬 블로그+클립</option>
-              <option value="인스타그램">📸 인스타그램</option>
-            </select>
+            <label>게시 채널 * <span style="font-weight:400;color:#aaa;font-size:11px;">복수 선택 가능</span></label>
+            <div class="channel-checks">
+              <label class="channel-check"><input type="checkbox" id="ch_블로그"> 📝 블로그</label>
+              <label class="channel-check"><input type="checkbox" id="ch_클립"> 🎬 클립</label>
+              <label class="channel-check"><input type="checkbox" id="ch_인스타그램"> 📸 인스타그램</label>
+            </div>
           </div>
           <div class="form-group">
             <label>플랫폼 *</label>

@@ -26,68 +26,68 @@ let places = [
 
 let campaigns = [
   {
-    id: 1, placeId: 1, platform: "레뷰", channel: "블로그",
+    id: 1, placeId: 1, platform: "레뷰", channels: ["블로그"],
     content: "오마카세 1인 체험 (80,000원 상당)",
     deadline: "2026-06-25", link: "https://www.revu.net",
     operatingDays: ["화", "수", "목", "금", "토"], operatingHours: "12:00~22:00",
     reporterNickname: "맛집탐험가", reporterBlog: "https://blog.naver.com/example1", reporterInstagram: ""
   },
   {
-    id: 2, placeId: 2, platform: "리뷰노트", channel: "블로그+클립",
+    id: 2, placeId: 2, platform: "리뷰노트", channels: ["블로그", "클립"],
     content: "신제품 스킨케어 체험",
     deadline: "2026-06-20", link: "https://www.reviewnote.co.kr",
     operatingDays: ["월", "화", "수", "목", "금", "토", "일"], operatingHours: "10:00~22:00",
     reporterNickname: "뷰티로그", reporterBlog: "https://blog.naver.com/example2", reporterInstagram: ""
   },
   {
-    id: 3, placeId: 3, platform: "미블", channel: "인스타그램",
+    id: 3, placeId: 3, platform: "미블", channels: ["인스타그램"],
     content: "시즌 한정 음료 2잔",
     deadline: "2026-06-30", link: "https://mrble.net",
     operatingDays: [], operatingHours: "09:00~22:00",
     reporterNickname: "카페투어러", reporterBlog: "", reporterInstagram: "https://instagram.com/example3"
   },
   {
-    id: 4, placeId: 4, platform: "강남맛집", channel: "블로그",
+    id: 4, placeId: 4, platform: "강남맛집", channels: ["블로그"],
     content: "신상 레깅스 착용 리뷰",
     deadline: "2026-06-15", link: "https://www.gangnamfood.co.kr",
     operatingDays: ["월", "화", "수", "목", "금"], operatingHours: "",
     reporterNickname: "", reporterUrl: ""
   },
   {
-    id: 7, placeId: 1, platform: "리뷰노트", channel: "블로그+클립",
+    id: 7, placeId: 1, platform: "리뷰노트", channels: ["블로그", "클립"],
     content: "오마카세 2인 코스 체험 (150,000원 상당)",
     deadline: "2026-06-28", link: "https://www.reviewnote.co.kr",
     operatingDays: ["화", "수", "목", "금", "토"], operatingHours: "12:00~22:00",
     reporterNickname: "", reporterUrl: ""
   },
   {
-    id: 5, placeId: 5, platform: "레뷰", channel: "블로그",
+    id: 5, placeId: 5, platform: "레뷰", channels: ["블로그"],
     content: "수분크림 + 토너 패드 세트 체험",
     deadline: "2026-05-31", link: "https://www.revu.net",
     operatingDays: ["월", "화", "수", "목", "금", "토", "일"], operatingHours: "10:00~21:00",
     reporterNickname: "스킨케어러", reporterUrl: "https://blog.naver.com/example5"
   },
   {
-    id: 6, placeId: 6, platform: "미블", channel: "인스타그램",
+    id: 6, placeId: 6, platform: "미블", channels: ["인스타그램"],
     content: "시그니처 음료 2잔 + 케이크 1조각",
     deadline: "2026-06-01", link: "https://mrble.net",
     operatingDays: [], operatingHours: "08:00~22:00",
     reporterNickname: "카페순례자", reporterUrl: "https://instagram.com/example6"
   },
-  { id: 8,  placeId: 7,  platform: "레뷰",       channel: "블로그",      content: "아메리카노 2잔 무료 체험", deadline: "2026-07-10", link: "https://www.revu.net", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "08:00~22:00", reporterNickname: "커피러버", reporterBlog: "https://blog.naver.com/example7", reporterInstagram: "" },
-  { id: 9,  placeId: 8,  platform: "디너의여왕",  channel: "인스타그램",   content: "한정판 스니커즈 착용 리뷰", deadline: "2026-07-05", link: "https://www.dinnersqueen.com", operatingDays: [], operatingHours: "11:00~21:00", reporterNickname: "스니커즈헌터", reporterBlog: "", reporterInstagram: "https://instagram.com/example8" },
-  { id: 10, placeId: 9,  platform: "강남맛집",    channel: "블로그",      content: "치킨 1마리 + 음료 2잔", deadline: "2026-06-30", link: "https://www.gangnamfood.co.kr", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "16:00~01:00", reporterNickname: "", reporterBlog: "", reporterInstagram: "" },
-  { id: 11, placeId: 10, platform: "리뷰노트",    channel: "블로그+클립", content: "여름 신제품 선크림 세트", deadline: "2026-07-15", link: "https://www.reviewnote.co.kr", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~21:00", reporterNickname: "명동뷰티", reporterBlog: "https://blog.naver.com/example10", reporterInstagram: "" },
-  { id: 12, placeId: 11, platform: "미블",        channel: "클립",        content: "시즌 신메뉴 2종 체험", deadline: "2026-07-20", link: "https://mrble.net", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "07:00~23:00", reporterNickname: "", reporterBlog: "", reporterInstagram: "" },
-  { id: 13, placeId: 12, platform: "레뷰",        channel: "블로그",      content: "편의점 신상 도시락 3종 체험", deadline: "2026-07-08", link: "https://www.revu.net", operatingDays: [], operatingHours: "24시간", reporterNickname: "편의점탐방", reporterBlog: "", reporterInstagram: "" },
-  { id: 14, placeId: 13, platform: "디너의여왕",  channel: "인스타그램",   content: "궁중 코스 요리 2인 체험", deadline: "2026-07-25", link: "https://www.dinnersqueen.com", operatingDays: ["화","수","목","금","토","일"], operatingHours: "12:00~22:00", reporterNickname: "고궁맛집", reporterBlog: "https://blog.naver.com/example13", reporterInstagram: "" },
-  { id: 15, placeId: 14, platform: "강남맛집",    channel: "블로그+클립", content: "여름 신상 반바지 착용 리뷰", deadline: "2026-07-01", link: "https://www.gangnamfood.co.kr", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "12:00~21:00", reporterNickname: "패션피플", reporterBlog: "", reporterInstagram: "https://instagram.com/example14" },
-  { id: 16, placeId: 15, platform: "리뷰노트",    channel: "블로그",      content: "런치 세트 2인 무료 체험", deadline: "2026-07-12", link: "https://www.reviewnote.co.kr", operatingDays: ["월","화","수","목","금"], operatingHours: "11:00~15:00", reporterNickname: "", reporterBlog: "", reporterInstagram: "" },
-  { id: 17, placeId: 16, platform: "미블",        channel: "인스타그램",   content: "여름 한정 스킨케어 3종 체험", deadline: "2026-06-28", link: "https://mrble.net", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~22:00", reporterNickname: "홍대뷰티", reporterBlog: "https://blog.naver.com/example16", reporterInstagram: "" },
-  { id: 18, placeId: 17, platform: "레뷰",        channel: "클립",        content: "딸기 케이크 + 음료 세트", deadline: "2026-07-18", link: "https://www.revu.net", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~22:00", reporterNickname: "디저트마니아", reporterBlog: "", reporterInstagram: "https://instagram.com/example17" },
-  { id: 19, placeId: 18, platform: "강남맛집",    channel: "블로그",      content: "여름 신상 선크림 2종 세트", deadline: "2026-07-22", link: "https://www.gangnamfood.co.kr", operatingDays: [], operatingHours: "09:00~22:00", reporterNickname: "", reporterBlog: "", reporterInstagram: "" },
-  { id: 20, placeId: 19, platform: "디너의여왕",  channel: "블로그+클립", content: "여름 한정 샌드위치 + 음료 세트", deadline: "2026-07-30", link: "https://www.dinnersqueen.com", operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "08:00~21:00", reporterNickname: "빵순이", reporterBlog: "https://blog.naver.com/example19", reporterInstagram: "" },
-  { id: 21, placeId: 20, platform: "리뷰노트",    channel: "인스타그램",   content: "편의점 신상 디저트 5종 체험", deadline: "2026-07-14", link: "https://www.reviewnote.co.kr", operatingDays: [], operatingHours: "24시간", reporterNickname: "편의점왕", reporterBlog: "", reporterInstagram: "" }
+  { id: 8,  placeId: 7,  platform: "레뷰",      channels: ["블로그"],             content: "아메리카노 2잔 무료 체험",          deadline: "2026-07-10", link: "https://www.revu.net",              operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "08:00~22:00", reporterNickname: "커피러버",    reporterBlog: "https://blog.naver.com/example7",  reporterInstagram: "" },
+  { id: 9,  placeId: 8,  platform: "디너의여왕", channels: ["인스타그램"],          content: "한정판 스니커즈 착용 리뷰",         deadline: "2026-07-05", link: "https://www.dinnersqueen.com",      operatingDays: [],                                   operatingHours: "11:00~21:00", reporterNickname: "스니커즈헌터", reporterBlog: "",                                  reporterInstagram: "https://instagram.com/example8" },
+  { id: 10, placeId: 9,  platform: "강남맛집",   channels: ["블로그"],             content: "치킨 1마리 + 음료 2잔",            deadline: "2026-06-30", link: "https://www.gangnamfood.co.kr",     operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "16:00~01:00", reporterNickname: "",            reporterBlog: "",                                  reporterInstagram: "" },
+  { id: 11, placeId: 10, platform: "리뷰노트",   channels: ["블로그", "클립"],     content: "여름 신제품 선크림 세트",           deadline: "2026-07-15", link: "https://www.reviewnote.co.kr",      operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~21:00", reporterNickname: "명동뷰티",    reporterBlog: "https://blog.naver.com/example10",  reporterInstagram: "" },
+  { id: 12, placeId: 11, platform: "미블",       channels: ["클립"],               content: "시즌 신메뉴 2종 체험",             deadline: "2026-07-20", link: "https://mrble.net",                 operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "07:00~23:00", reporterNickname: "",            reporterBlog: "",                                  reporterInstagram: "" },
+  { id: 13, placeId: 12, platform: "레뷰",       channels: ["블로그"],             content: "편의점 신상 도시락 3종 체험",       deadline: "2026-07-08", link: "https://www.revu.net",              operatingDays: [],                                   operatingHours: "24시간",      reporterNickname: "편의점탐방",   reporterBlog: "",                                  reporterInstagram: "" },
+  { id: 14, placeId: 13, platform: "디너의여왕", channels: ["인스타그램"],          content: "궁중 코스 요리 2인 체험",          deadline: "2026-07-25", link: "https://www.dinnersqueen.com",      operatingDays: ["화","수","목","금","토","일"],      operatingHours: "12:00~22:00", reporterNickname: "고궁맛집",    reporterBlog: "https://blog.naver.com/example13",  reporterInstagram: "" },
+  { id: 15, placeId: 14, platform: "강남맛집",   channels: ["블로그", "클립"],     content: "여름 신상 반바지 착용 리뷰",        deadline: "2026-07-01", link: "https://www.gangnamfood.co.kr",     operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "12:00~21:00", reporterNickname: "패션피플",    reporterBlog: "",                                  reporterInstagram: "https://instagram.com/example14" },
+  { id: 16, placeId: 15, platform: "리뷰노트",   channels: ["블로그"],             content: "런치 세트 2인 무료 체험",           deadline: "2026-07-12", link: "https://www.reviewnote.co.kr",      operatingDays: ["월","화","수","목","금"],           operatingHours: "11:00~15:00", reporterNickname: "",            reporterBlog: "",                                  reporterInstagram: "" },
+  { id: 17, placeId: 16, platform: "미블",       channels: ["인스타그램"],          content: "여름 한정 스킨케어 3종 체험",       deadline: "2026-06-28", link: "https://mrble.net",                 operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~22:00", reporterNickname: "홍대뷰티",    reporterBlog: "https://blog.naver.com/example16",  reporterInstagram: "" },
+  { id: 18, placeId: 17, platform: "레뷰",       channels: ["클립"],               content: "딸기 케이크 + 음료 세트",          deadline: "2026-07-18", link: "https://www.revu.net",              operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~22:00", reporterNickname: "디저트마니아", reporterBlog: "",                                  reporterInstagram: "https://instagram.com/example17" },
+  { id: 19, placeId: 18, platform: "강남맛집",   channels: ["블로그"],             content: "여름 신상 선크림 2종 세트",         deadline: "2026-07-22", link: "https://www.gangnamfood.co.kr",     operatingDays: [],                                   operatingHours: "09:00~22:00", reporterNickname: "",            reporterBlog: "",                                  reporterInstagram: "" },
+  { id: 20, placeId: 19, platform: "디너의여왕", channels: ["블로그", "클립"],     content: "여름 한정 샌드위치 + 음료 세트",    deadline: "2026-07-30", link: "https://www.dinnersqueen.com",      operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "08:00~21:00", reporterNickname: "빵순이",      reporterBlog: "https://blog.naver.com/example19",  reporterInstagram: "" },
+  { id: 21, placeId: 20, platform: "리뷰노트",   channels: ["블로그", "인스타그램"], content: "편의점 신상 디저트 5종 체험",       deadline: "2026-07-14", link: "https://www.reviewnote.co.kr",      operatingDays: [],                                   operatingHours: "24시간",      reporterNickname: "편의점왕",    reporterBlog: "",                                  reporterInstagram: "" }
 ];
 
 let nextPlaceId = 21;
@@ -127,7 +127,7 @@ function getActiveCampaigns(placeId) {
   return campaigns.filter(c => {
     if (c.placeId !== placeId) return false;
     if (new Date(c.deadline) < today) return false;
-    if (currentChannelFilter !== '전체' && c.channel !== currentChannelFilter) return false;
+    if (currentChannelFilter !== '전체' && !(c.channels || []).includes(currentChannelFilter)) return false;
     return true;
   });
 }
@@ -336,7 +336,7 @@ function createInfoContent(place) {
         const hoursHtml = c.operatingHours ? `<div class="c-hours">⏰ ${c.operatingHours}</div>` : '';
         const daysHtml = c.operatingDays?.length > 0 ? `<div class="c-days">📅 ${c.operatingDays.join(' ')}</div>` : '';
         const color = getPlatformColor(c.platform);
-        const channelHtml = c.channel ? `<span class="c-channel">${c.channel}</span>` : '';
+        const channelHtml = (c.channels && c.channels.length) ? c.channels.map(ch => `<span class="c-channel">${ch}</span>`).join('') : '';
         let reporterHtml = '';
         if (c.reporterNickname) {
           const nameHtml = c.reporterUrl
@@ -661,7 +661,7 @@ function resetModal() {
   ['inputName','inputAddress','inputContent','inputLink','inputHours','inputNickname','inputUrl']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('inputCategory').value = '';
-  document.getElementById('inputChannel').value = '';
+  ['블로그','클립','인스타그램'].forEach(ch => { const el = document.getElementById(`ch_${ch}`); if(el) el.checked = false; });
   document.getElementById('inputPlatform').value = '';
   resetDateSelects();
   document.getElementById('searchResult').innerHTML = '';
@@ -713,13 +713,15 @@ function toggleDay(btn) { btn.classList.toggle('active'); }
 
 // ===== 제보 제출 =====
 function submitCampaign() {
-  const channel = document.getElementById('inputChannel').value;
+  const channels = ['블로그','클립','인스타그램'].filter(ch =>
+    document.getElementById(`ch_${ch}`)?.checked
+  );
   const platform = document.getElementById('inputPlatform').value;
   const content = document.getElementById('inputContent').value.trim();
   const deadline = getSelectedDeadline();
   const link = document.getElementById('inputLink').value.trim();
 
-  if (!channel || !platform || !content || !deadline || !link) {
+  if (!channels.length || !platform || !content || !deadline || !link) {
     showToast('게시채널, 플랫폼, 협찬내용, 마감일, 링크는 필수예요!');
     return;
   }
@@ -745,7 +747,7 @@ function submitCampaign() {
   }
 
   campaigns.push({
-    id: nextCampaignId++, placeId, channel, platform, content, deadline, link,
+    id: nextCampaignId++, placeId, channels, platform, content, deadline, link,
     operatingDays: [...document.querySelectorAll('.day-btn.active')].map(b => b.textContent),
     operatingHours: document.getElementById('inputHours').value.trim(),
     reporterNickname: document.getElementById('inputNickname').value.trim(),
