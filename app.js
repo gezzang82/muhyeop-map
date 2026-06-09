@@ -353,7 +353,6 @@ function createInfoContent(place) {
               <span class="platform-badge" style="background:${color}22;color:${color}">${c.platform}</span>
               ${channelHtml}
               ${dlHtml}
-              <a class="btn-apply" href="${c.link}" onclick="event.preventDefault(); window.open('${c.link}', '_blank', 'noopener')">신청하기</a>
             </div>
             <div class="c-content">${c.content}</div>
             ${hoursHtml}${daysHtml}${reporterHtml}
@@ -727,8 +726,8 @@ function submitCampaign() {
   const deadline = getSelectedDeadline();
   const link = document.getElementById('inputLink').value.trim();
 
-  if (!channels.length || !platform || !content || !deadline || !link) {
-    showToast('게시채널, 플랫폼, 협찬내용, 마감일, 링크는 필수예요!');
+  if (!channels.length || !platform || !content || !deadline) {
+    showToast('게시채널, 플랫폼, 협찬내용, 마감일은 필수예요!');
     return;
   }
 
