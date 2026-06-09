@@ -243,6 +243,7 @@ function initMap() {
   initDateSelects();
   renderAll();
   initSidebarScrollExpand();
+  initSidebarSwipeToDismiss();
   initSheetSwipeToDismiss();
 }
 
@@ -814,6 +815,53 @@ function closeMobileSheet() {
   sheet.style.transform = '';
   sheet.classList.remove('show');
   document.getElementById('mobileSheetOverlay').classList.remove('show');
+}
+
+// ===== 모집중인협찬 사이드바 스와이프 다운으로 닫기 =====
+function initSidebarSwipeToDismiss() {
+  const sidebar = document.getElementById('sidebar');
+  const header = sidebar.querySelector('.sidebar-header');
+
+  let startY = 0;
+  let currentY = 0;
+  let dragging = false;
+
+  header.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 640) return;
+    if (!sidebar.classList.contains('expanded')) return;
+    startY = e.touches[0].clientY;
+    currentY = startY;
+    dragging = true;
+    sidebar.style.transition = 'none';
+  }, { passive: true });
+
+  header.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    currentY = e.touches[0].clientY;
+    const delta = currentY - startY;
+    if (delta < 0) return;
+    sidebar.style.transform = `translateY(${delta}px)`;
+  }, { passive: true });
+
+  header.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false;
+    sidebar.style.transition = '';
+    const delta = currentY - startY;
+    if (delta > 80) {
+      // 닫기
+      sidebar.style.transform = '';
+      sidebar.classList.remove('expanded');
+      sidebar.classList.remove('expanded-full');
+      const list = document.getElementById('campaignList');
+      if (list) list.scrollTop = 0;
+      const arrow = document.getElementById('sidebarArrow');
+      if (arrow) arrow.textContent = '︿';
+    } else {
+      // 스냅백
+      sidebar.style.transform = '';
+    }
+  });
 }
 
 // ===== 바텀시트 스와이프 다운으로 닫기 =====
