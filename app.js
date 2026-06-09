@@ -243,6 +243,7 @@ function initMap() {
   initDateSelects();
   renderAll();
   initSidebarScrollExpand();
+  initSheetSwipeToDismiss();
 }
 
 // ===== 마커 렌더 =====
@@ -803,13 +804,61 @@ function openMobileSheet(place) {
   const overlay = document.getElementById('mobileSheetOverlay');
   const content = document.getElementById('mobileSheetContent');
   content.innerHTML = createInfoContent(place);
+  sheet.style.transform = '';  // 혹시 남아 있던 드래그 위치 초기화
   sheet.classList.add('show');
   overlay.classList.add('show');
 }
 
 function closeMobileSheet() {
-  document.getElementById('mobileSheet').classList.remove('show');
+  const sheet = document.getElementById('mobileSheet');
+  sheet.style.transform = '';
+  sheet.classList.remove('show');
   document.getElementById('mobileSheetOverlay').classList.remove('show');
+}
+
+// ===== 바텀시트 스와이프 다운으로 닫기 =====
+function initSheetSwipeToDismiss() {
+  const sheet = document.getElementById('mobileSheet');
+  const handle = sheet.querySelector('.mobile-sheet-handle');
+  const content = document.getElementById('mobileSheetContent');
+
+  let startY = 0;
+  let currentY = 0;
+  let dragging = false;
+
+  function onTouchStart(e) {
+    // 컨텐츠 스크롤 중이면 무시 (맨 위일 때만 드래그 허용)
+    if (e.target.closest('.mobile-sheet-content') && content.scrollTop > 0) return;
+    startY = e.touches[0].clientY;
+    dragging = true;
+    sheet.style.transition = 'none'; // 드래그 중 애니메이션 끔
+  }
+
+  function onTouchMove(e) {
+    if (!dragging) return;
+    currentY = e.touches[0].clientY;
+    const delta = currentY - startY;
+    if (delta < 0) return; // 위로 당기는 건 무시
+    sheet.style.transform = `translateY(${delta}px)`;
+  }
+
+  function onTouchEnd() {
+    if (!dragging) return;
+    dragging = false;
+    sheet.style.transition = ''; // 애니메이션 복원
+    const delta = currentY - startY;
+    if (delta > 80) {
+      // 80px 이상 내리면 닫기
+      closeMobileSheet();
+    } else {
+      // 원위치로 스냅백
+      sheet.style.transform = '';
+    }
+  }
+
+  sheet.addEventListener('touchstart', onTouchStart, { passive: true });
+  sheet.addEventListener('touchmove', onTouchMove, { passive: true });
+  sheet.addEventListener('touchend', onTouchEnd);
 }
 
 // 검색창 외 영역 터치 시 키보드 닫기
