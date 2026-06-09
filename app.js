@@ -535,10 +535,9 @@ function initSidebarScrollExpand() {
     if (window.innerWidth > 640) return;
     const sidebar = document.getElementById('sidebar');
     if (!sidebar.classList.contains('expanded')) return;
+    // 한번 full 확장되면 닫기 전까지 유지 (scrollTop=0 돼도 축소 안 함)
     if (list.scrollTop > 10) {
       sidebar.classList.add('expanded-full');
-    } else {
-      sidebar.classList.remove('expanded-full');
     }
   }, { passive: true });
 }

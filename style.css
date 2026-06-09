@@ -160,7 +160,7 @@ body {
   display: none; /* PC에서는 숨김 */
 }
 
-.sidebar-list { flex: 1; overflow-y: auto; }
+.sidebar-list { flex: 1; min-height: 0; overflow-y: auto; }
 .sidebar-list::-webkit-scrollbar { width: 4px; }
 .sidebar-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
 
@@ -687,6 +687,7 @@ body {
   /* 사이드바 → 하단 고정 바 */
   .sidebar {
     display: flex;
+    flex-direction: column;
     position: relative;
     width: 100%;
     border-left: none;
