@@ -388,9 +388,7 @@ function renderSidebar() {
     : places;
 
   const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id));
-  let total = 0;
-  activePlaces.forEach(p => total += getActiveCampaigns(p.id).length);
-  countEl.textContent = `${total}개`;
+  countEl.textContent = `${activePlaces.length}개`;
 
   if (activePlaces.length === 0) {
     list.innerHTML = `
