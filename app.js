@@ -1026,16 +1026,23 @@ function initSidebarSwipeToDismiss() {
   function endDrag() {
     if (!dragging) return;
     dragging = false;
-    sidebar.style.transition = '';
     const delta = currentY - startY;
-    sidebar.style.transform = '';
     if (delta > 80) {
-      sidebar.classList.remove('expanded');
-      sidebar.classList.remove('expanded-full');
-      const list = document.getElementById('campaignList');
-      if (list) list.scrollTop = 0;
-      const arrow = document.getElementById('sidebarArrow');
-      if (arrow) arrow.textContent = '︿';
+      sidebar.style.transition = 'transform 0.3s ease';
+      sidebar.style.transform = 'translateY(100%)';
+      setTimeout(() => {
+        sidebar.style.transition = '';
+        sidebar.style.transform = '';
+        sidebar.classList.remove('expanded');
+        sidebar.classList.remove('expanded-full');
+        const list = document.getElementById('campaignList');
+        if (list) list.scrollTop = 0;
+        const arrow = document.getElementById('sidebarArrow');
+        if (arrow) arrow.textContent = '︿';
+      }, 300);
+    } else {
+      sidebar.style.transition = 'transform 0.25s ease';
+      sidebar.style.transform = '';
     }
   }
 
@@ -1087,13 +1094,18 @@ function initSheetSwipeToDismiss() {
   function onTouchEnd() {
     if (!dragging) return;
     dragging = false;
-    sheet.style.transition = ''; // 애니메이션 복원
     const delta = currentY - startY;
     if (delta > 80) {
-      // 80px 이상 내리면 닫기
-      closeMobileSheet();
+      sheet.style.transition = 'transform 0.3s ease';
+      sheet.style.transform = 'translateY(100%)';
+      setTimeout(() => {
+        sheet.style.transition = '';
+        sheet.style.transform = '';
+        sheet.classList.remove('show');
+        document.getElementById('mobileSheetOverlay').classList.remove('show');
+      }, 300);
     } else {
-      // 원위치로 스냅백
+      sheet.style.transition = 'transform 0.25s ease';
       sheet.style.transform = '';
     }
   }
