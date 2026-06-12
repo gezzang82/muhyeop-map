@@ -591,7 +591,7 @@ body {
   flex-shrink: 0; transition: all 0.15s;
 }
 .holiday-checkbox.active {
-  background: #006cff; border-color: #006cff;
+  background: #E82A2D; border-color: #E82A2D;
 }
 .holiday-checkbox.active::after {
   content: '';
