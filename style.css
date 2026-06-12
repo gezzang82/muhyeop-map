@@ -425,9 +425,9 @@ body {
   color: #1a1a1a; outline: none; cursor: pointer;
 }
 .date-selects select:focus { border-color: rgba(0,0,0,0.87); }
-.date-selects #inputDeadlineYear { width: 96px; flex-shrink: 0; }
-.date-selects #inputDeadlineMonth { width: 70px; flex-shrink: 0; }
-.date-selects #inputDeadlineDay { width: 70px; flex-shrink: 0; }
+.date-selects #inputDeadlineYear { flex: 1; min-width: 0; }
+.date-selects #inputDeadlineMonth { flex: 1; min-width: 0; }
+.date-selects #inputDeadlineDay { flex: 1; min-width: 0; }
 .date-selects span { font-size: 16px; color: #000; flex-shrink: 0; }
 
 /* 폼 */
