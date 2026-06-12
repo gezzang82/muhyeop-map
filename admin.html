@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>무협맵 어드민</title>
+  <link rel="stylesheet" href="admin.css">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- 로그인 화면 -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-box">
+      <div class="login-logo">🗺️</div>
+      <div class="login-title">무협맵 어드민</div>
+      <div class="login-sub">관리자 전용 페이지</div>
+      <div class="login-form">
+        <input type="password" id="loginPassword" placeholder="비밀번호 입력"
+          onkeydown="if(event.key==='Enter') tryLogin()">
+        <button onclick="tryLogin()">로그인</button>
+        <div class="login-error" id="loginError"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 어드민 본체 -->
+  <div id="adminApp" class="admin-app" style="display:none;">
+
+    <!-- 사이드바 -->
+    <aside class="admin-sidebar">
+      <div class="admin-brand">
+        <span>🗺️</span>
+        <span>무협맵 어드민</span>
+      </div>
+      <nav class="admin-nav">
+        <a class="nav-item active" onclick="showTab('dashboard')" id="tab-dashboard">📊 대시보드</a>
+        <a class="nav-item" onclick="showTab('campaigns')" id="tab-campaigns">📋 캠페인 목록</a>
+        <a class="nav-item" onclick="showTab('add')" id="tab-add">➕ 캠페인 등록</a>
+        <a class="nav-item" onclick="showTab('excel')" id="tab-excel">📂 엑셀 업로드</a>
+        <a class="nav-item" onclick="showTab('places')" id="tab-places">📍 장소 목록</a>
+      </nav>
+      <div class="admin-logout" onclick="logout()">🚪 로그아웃</div>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="admin-main">
+
+      <!-- 대시보드 -->
+      <div id="page-dashboard" class="admin-page">
+        <h1 class="page-title">대시보드</h1>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-icon">📍</div>
+            <div class="stat-value" id="statPlaces">0</div>
+            <div class="stat-label">등록 장소</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📣</div>
+            <div class="stat-value" id="statCampaigns">0</div>
+            <div class="stat-label">전체 캠페인</div>
+          </div>
+          <div class="stat-card active-card">
+            <div class="stat-icon">🟢</div>
+            <div class="stat-value" id="statActive">0</div>
+            <div class="stat-label">모집 중</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">⏰</div>
+            <div class="stat-value" id="statExpired">0</div>
+            <div class="stat-label">마감 완료</div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="dashboard-card">
+            <div class="card-title">플랫폼별 현황</div>
+            <div id="platformStats" class="platform-stats"></div>
+          </div>
+          <div class="dashboard-card">
+            <div class="card-title">채널별 현황</div>
+            <div id="channelStats" class="channel-stats"></div>
+          </div>
+        </div>
+
+        <div class="dashboard-card">
+          <div class="card-title">⚠️ 마감 임박 캠페인 (7일 이내)</div>
+          <div id="urgentList" class="urgent-list"></div>
+        </div>
+      </div>
+
+      <!-- 캠페인 목록 -->
+      <div id="page-campaigns" class="admin-page" style="display:none;">
+        <div class="page-header">
+          <h1 class="page-title">캠페인 목록</h1>
+          <div class="page-actions">
+            <select id="filterStatus" onchange="renderCampaignList()">
+              <option value="all">전체</option>
+              <option value="active">모집 중</option>
+              <option value="expired">마감</option>
+            </select>
+            <select id="filterPlatform" onchange="renderCampaignList()">
+              <option value="all">전체 플랫폼</option>
+              <option value="레뷰">레뷰</option>
+              <option value="리뷰노트">리뷰노트</option>
+              <option value="미블">미블</option>
+              <option value="강남맛집">강남맛집</option>
+              <option value="디너의여왕">디너의여왕</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="admin-table" id="campaignTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>장소명</th>
+                <th>플랫폼</th>
+                <th>채널</th>
+                <th>협찬내용</th>
+                <th>마감일</th>
+                <th>상태</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="campaignTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 캠페인 등록 -->
+      <div id="page-add" class="admin-page" style="display:none;">
+        <h1 class="page-title">캠페인 등록</h1>
+        <div class="form-card">
+
+          <div class="form-section-title">📍 장소 정보</div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>장소 선택</label>
+              <select id="addPlaceSelect" onchange="onPlaceSelect()">
+                <option value="">-- 기존 장소 선택 --</option>
+              </select>
+            </div>
+            <div class="form-group center-label">
+              <label>&nbsp;</label>
+              <div class="or-divider">또는 신규 장소 입력 ↓</div>
+            </div>
+          </div>
+
+          <div id="newPlaceFields">
+            <div class="form-row">
+              <div class="form-group">
+                <label>장소명 *</label>
+                <input type="text" id="addName" placeholder="예: 스시코우지 강남">
+              </div>
+              <div class="form-group">
+                <label>카테고리 *</label>
+                <select id="addCategory">
+                  <option value="">선택</option>
+                  <option value="음식점">🍽️ 음식점</option>
+                  <option value="카페">☕ 카페</option>
+                  <option value="뷰티">💄 뷰티</option>
+                  <option value="숙박/여가">🏨 숙박/여가</option>
+                  <option value="문화">🎭 문화</option>
+                  <option value="의류">👗 의류</option>
+                  <option value="안경/잡화">👓 안경/잡화</option>
+                  <option value="기타">📦 기타</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>주소 *</label>
+                <input type="text" id="addAddress" placeholder="예: 서울 강남구 테헤란로 152">
+              </div>
+              <div class="form-group addr-row">
+                <label>&nbsp;</label>
+                <button class="btn-search" onclick="searchAdminAddress()">🔍 좌표 검색</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>위도</label>
+                <input type="number" id="addLat" placeholder="37.5000" step="0.0001">
+              </div>
+              <div class="form-group">
+                <label>경도</label>
+                <input type="number" id="addLng" placeholder="127.0370" step="0.0001">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section-title" style="margin-top:28px;">📣 캠페인 정보</div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>플랫폼 *</label>
+              <select id="addPlatform">
+                <option value="">선택</option>
+                <option value="레뷰">레뷰</option>
+                <option value="리뷰노트">리뷰노트</option>
+                <option value="미블">미블</option>
+                <option value="강남맛집">강남맛집</option>
+                <option value="디너의여왕">디너의여왕</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>게시 채널 * <span class="hint">복수 선택 가능</span></label>
+              <div class="check-group">
+                <label class="check-item"><input type="checkbox" id="ach_블로그"> 📝 블로그</label>
+                <label class="check-item"><input type="checkbox" id="ach_클립"> 🎬 클립</label>
+                <label class="check-item"><input type="checkbox" id="ach_인스타그램"> 📸 인스타그램</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group full">
+              <label>협찬 내용 *</label>
+              <input type="text" id="addContent" placeholder="예: 오마카세 1인 체험 (80,000원 상당)">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>모집 마감일 *</label>
+              <input type="date" id="addDeadline">
+            </div>
+            <div class="form-group">
+              <label>영업 시간</label>
+              <input type="text" id="addHours" placeholder="예: 11:00~22:00">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group full">
+              <label>영업 가능 요일</label>
+              <div class="day-group">
+                <label class="day-item" onclick="this.classList.toggle('on')">월</label>
+                <label class="day-item" onclick="this.classList.toggle('on')">화</label>
+                <label class="day-item" onclick="this.classList.toggle('on')">수</label>
+                <label class="day-item" onclick="this.classList.toggle('on')">목</label>
+                <label class="day-item" onclick="this.classList.toggle('on')">금</label>
+                <label class="day-item" onclick="this.classList.toggle('on')">토</label>
+                <label class="day-item" onclick="this.classList.toggle('on')">일</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-submit" onclick="submitAdminCampaign()">✅ 등록하기</button>
+            <button class="btn-reset" onclick="resetAddForm()">초기화</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 엑셀 업로드 -->
+      <div id="page-excel" class="admin-page" style="display:none;">
+        <h1 class="page-title">엑셀 업로드</h1>
+
+        <div class="form-card">
+          <div class="excel-guide">
+            <div class="guide-title">📋 엑셀 파일 형식</div>
+            <p>아래 컬럼 순서에 맞게 작성해주세요. 1행은 헤더(컬럼명)로 자동 인식합니다.</p>
+            <div class="table-wrap">
+              <table class="guide-table">
+                <thead>
+                  <tr>
+                    <th>장소명</th><th>주소</th><th>위도</th><th>경도</th><th>카테고리</th>
+                    <th>플랫폼</th><th>채널</th><th>협찬내용</th><th>마감일</th><th>영업시간</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>스시코우지 강남</td>
+                    <td>서울 강남구 테헤란로 152</td>
+                    <td>37.5000</td>
+                    <td>127.0370</td>
+                    <td>음식점</td>
+                    <td>레뷰</td>
+                    <td>블로그,클립</td>
+                    <td>오마카세 1인 체험</td>
+                    <td>2026-07-31</td>
+                    <td>12:00~22:00</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <ul class="guide-notes">
+              <li>채널은 쉼표로 구분해서 입력 (예: <code>블로그,클립</code>)</li>
+              <li>마감일은 <code>YYYY-MM-DD</code> 형식</li>
+              <li>위도/경도를 모르면 비워두면 주소로 자동 변환 시도 (네트워크 필요)</li>
+              <li>기존에 같은 장소명이 있으면 캠페인만 추가됩니다</li>
+            </ul>
+            <button class="btn-download" onclick="downloadTemplate()">⬇️ 양식 다운로드</button>
+          </div>
+
+          <div class="upload-zone" id="uploadZone"
+            ondragover="event.preventDefault(); this.classList.add('drag-over')"
+            ondragleave="this.classList.remove('drag-over')"
+            ondrop="handleFileDrop(event)">
+            <div class="upload-icon">📂</div>
+            <div class="upload-text">엑셀 파일을 여기에 드래그하거나</div>
+            <label class="btn-upload-file">
+              파일 선택
+              <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)" style="display:none;">
+            </label>
+            <div class="upload-hint">.xlsx / .xls / .csv 지원</div>
+          </div>
+
+          <div id="previewSection" style="display:none;">
+            <div class="preview-header">
+              <div class="preview-title">📋 미리보기</div>
+              <div id="previewCount" class="preview-count"></div>
+            </div>
+            <div class="table-wrap">
+              <table class="admin-table" id="previewTable">
+                <thead id="previewHead"></thead>
+                <tbody id="previewBody"></tbody>
+              </table>
+            </div>
+            <div class="preview-actions">
+              <button class="btn-submit" onclick="importExcelData()">✅ 전체 가져오기</button>
+              <button class="btn-reset" onclick="resetExcel()">취소</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 장소 목록 -->
+      <div id="page-places" class="admin-page" style="display:none;">
+        <h1 class="page-title">장소 목록</h1>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>장소명</th><th>카테고리</th><th>주소</th>
+                <th>활성 캠페인</th><th>최초 제보자</th><th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="placeTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- 삭제 확인 모달 -->
+  <div id="confirmModal" class="modal-overlay" style="display:none;">
+    <div class="confirm-box">
+      <div class="confirm-title">⚠️ 삭제 확인</div>
+      <div class="confirm-msg" id="confirmMsg"></div>
+      <div class="confirm-actions">
+        <button class="btn-cancel-sm" onclick="closeConfirm()">취소</button>
+        <button class="btn-delete-sm" id="confirmOkBtn">삭제</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminToast" class="admin-toast"></div>
+
+  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
+  <script src="app.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -135,7 +135,8 @@ function getActiveCampaigns(placeId) {
 function filterChannel(channel) {
   currentChannelFilter = channel;
   document.querySelectorAll('.filter-chip').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.replace(/📝|🎬|📸|\s/g, '') === channel.replace(/📝|🎬|📸|\s/g, ''));
+    const ch = btn.dataset.channel || btn.textContent.replace(/\s/g, '');
+    btn.classList.toggle('active', ch === channel);
   });
   renderAll();
 }
@@ -379,7 +380,104 @@ function createInfoContent(place) {
     </div>`;
 }
 
+function createMobileDetailContent(place) {
+  const active = getActiveCampaigns(place.id);
+
+  // 채널 아이콘
+  const allChannels = [...new Set(active.flatMap(c => c.channels))];
+  const channelIconsHtml = allChannels.map(ch =>
+    CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}">` : ''
+  ).join('');
+
+  // 최초제보
+  const founderHtml = place.founderNickname ? `
+    <div class="detail-founder">
+      <span class="detail-founder-icon"></span>
+      <span class="detail-founder-label">최초제보</span>
+      ${place.founderUrl
+        ? `<a class="detail-founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a>`
+        : `<span class="detail-founder-link">${place.founderNickname}</span>`}
+    </div>` : '';
+
+  // 캠페인 카드
+  const ALL_DAYS = ['월','화','수','목','금','토','일'];
+  const WEEKEND = new Set(['토','일']);
+
+  const campaignsHtml = active.map((c, i) => {
+    const dl = getDeadlineText(c.deadline);
+    const ddayHtml = dl ? `<span class="detail-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : '';
+    const color = getPlatformColor(c.platform);
+
+    // 요일 렌더
+    let daysHtml = '';
+    if (c.operatingDays && c.operatingDays.length > 0) {
+      const daysFormatted = ALL_DAYS
+        .filter(d => c.operatingDays.includes(d))
+        .map(d => `<span class="${WEEKEND.has(d) ? 'weekend' : 'weekday'}">${d}</span>`)
+        .join(' ');
+      daysHtml = `
+        <div class="detail-info-row">
+          <span class="detail-info-icon"></span>
+          <span class="detail-info-label">요일</span>
+          <span class="detail-info-value">${daysFormatted}</span>
+        </div>`;
+    }
+
+    const hoursHtml = c.operatingHours ? `
+      <div class="detail-info-row">
+        <span class="detail-info-icon"></span>
+        <span class="detail-info-label">시간</span>
+        <span class="detail-info-value">${c.operatingHours}</span>
+      </div>` : '';
+
+    const reporterHtml = c.reporterNickname ? `
+      <div class="detail-info-row">
+        <span class="detail-info-icon"></span>
+        <span class="detail-info-label">제보</span>
+        <span class="detail-info-value" style="color:#000">${c.reporterNickname}</span>
+      </div>` : '';
+
+    const divider = i > 0 ? '<div class="detail-divider"></div>' : '';
+
+    return `
+      ${divider}
+      <div class="detail-campaign">
+        <div class="detail-campaign-header">
+          <div class="detail-campaign-tag-wrap">
+            <span class="detail-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
+          </div>
+          ${ddayHtml}
+        </div>
+        <p class="detail-content">${c.content}</p>
+        <div class="detail-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail-body">
+      <div class="detail-place">
+        <div class="detail-name-row">
+          <span class="detail-name">${place.name}</span>
+          <div class="detail-channels">${channelIconsHtml}</div>
+        </div>
+        <div class="detail-address">${place.address}</div>
+      </div>
+      <div class="detail-meta-section">
+        ${founderHtml}
+        <div class="detail-divider"></div>
+        ${campaignsHtml}
+      </div>
+    </div>`;
+}
+
 // ===== 사이드바 렌더 =====
+const CHANNEL_ICONS = {
+  '블로그': 'image/ic_naver_blog_20.png',
+  '클립': 'image/ic_clip_20.png',
+  '인스타그램': 'image/ic_instagram_20.png',
+  '유튜브': 'image/ic_youtube_20.png',
+};
+
 function renderSidebar() {
   const list = document.getElementById('campaignList');
   const countEl = document.getElementById('campaignCount');
@@ -390,7 +488,7 @@ function renderSidebar() {
     : places;
 
   const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id));
-  countEl.textContent = `${activePlaces.length}개`;
+  countEl.textContent = activePlaces.length;
 
   if (activePlaces.length === 0) {
     list.innerHTML = `
@@ -403,29 +501,34 @@ function renderSidebar() {
 
   list.innerHTML = activePlaces.map(place => {
     const active = getActiveCampaigns(place.id);
-    const icon = getCategoryIcon(place.category);
     const earliest = active.reduce((min, c) => new Date(c.deadline) < new Date(min.deadline) ? c : min);
     const dl = getDeadlineText(earliest.deadline);
-    const platforms = [...new Set(active.map(c => c.platform))];
+
+    // 채널 아이콘 (중복 제거)
+    const channels = [...new Set(active.flatMap(c => c.channels))];
+    const channelIconsHtml = channels.map(ch =>
+      CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}">` : ''
+    ).join('');
+
+    // 캠페인 행들
+    const campaignsHtml = active.map(c => {
+      const color = getPlatformColor(c.platform);
+      return `
+        <div class="sb-campaign">
+          <span class="sb-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
+          <span class="sb-content">${c.content}</span>
+        </div>`;
+    }).join('');
 
     return `
-      <div class="sidebar-card" onclick="focusPlace(${place.id})">
-        <div class="card-top">
-          <span class="card-icon">${icon}</span>
-          <span class="card-name">${place.name}</span>
-          ${dl ? `<span class="card-dl ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : ''}
+      <div class="sb-item" onclick="focusPlace(${place.id})">
+        <div class="sb-row-name">
+          <span class="sb-name">${place.name}</span>
+          <div class="sb-channels">${channelIconsHtml}</div>
+          ${dl ? `<span class="sb-deadline ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : ''}
         </div>
-        <div class="card-addr">
-          ${place.address}
-          ${earliest.deadline ? `<span class="card-deadline-date"> · ${earliest.deadline.replace(/-/g, '.')} 마감</span>` : ''}
-        </div>
-        <div class="card-platforms">
-          ${platforms.map(p => {
-            const color = getPlatformColor(p);
-            return `<span class="platform-badge" style="background:${color}22;color:${color}">${p}</span>`;
-          }).join('')}
-          ${active.length > 1 ? `<span class="count-badge">${active.length}개 캠페인</span>` : ''}
-        </div>
+        <div class="sb-address">${place.address}</div>
+        ${campaignsHtml}
       </div>`;
   }).join('');
 }
@@ -511,7 +614,14 @@ function searchRegionMobileTop() {
   const el = document.getElementById('regionSearchMobileTop');
   document.getElementById('regionSearch').value = el.value;
   searchRegion();
-  el.blur(); // 키보드 닫기
+  el.blur();
+}
+
+function searchRegionMobileOverlay() {
+  const el = document.getElementById('regionSearchMobileOverlay');
+  document.getElementById('regionSearch').value = el.value;
+  searchRegion();
+  el.blur();
 }
 
 // ===== 바텀시트 토글 (모바일) =====
@@ -584,13 +694,13 @@ function selectAddress(address, lat, lng) {
   });
   if (sameAddr) {
     document.getElementById('searchResult').innerHTML =
-      `<div class="selected-addr">✅ ${address}</div>
+      `<div class="selected-addr">${address}</div>
        <div class="addr-duplicate-warning">⚠️ 이 주소로 이미 <strong>${sameAddr.name}</strong>이 등록되어 있어요.
          <span class="addr-dup-select" onclick="selectExistingPlace(${sameAddr.id})">이 장소 선택하기 →</span>
        </div>`;
     return;
   }
-  document.getElementById('searchResult').innerHTML = `<div class="selected-addr">✅ ${address}</div>`;
+  document.getElementById('searchResult').innerHTML = `<div class="selected-addr">${address}</div>`;
 }
 
 // ===== 기존 장소 검색 =====
@@ -609,12 +719,11 @@ function searchExistingPlaces(name) {
   document.getElementById('existingPlacesSection').style.display = 'block';
   document.getElementById('existingPlacesList').innerHTML = matches.map(p => `
     <div class="existing-item ${modalSelectedPlaceId === p.id ? 'selected' : ''}" onclick="selectExistingPlace(${p.id})">
-      <span>${getCategoryIcon(p.category)}</span>
-      <div style="flex:1">
+      <div class="existing-item-info">
         <div class="existing-name">${p.name}</div>
         <div class="existing-addr">${p.address}</div>
       </div>
-      ${modalSelectedPlaceId === p.id ? '<span>✅</span>' : ''}
+      ${modalSelectedPlaceId === p.id ? '<span class="existing-item-check">✓</span>' : ''}
     </div>`).join('');
 }
 
@@ -628,7 +737,7 @@ function selectExistingPlace(placeId) {
   modalSelectedAddress = place.address;
   modalSelectedLat = place.lat;
   modalSelectedLng = place.lng;
-  document.getElementById('searchResult').innerHTML = `<div class="selected-addr">✅ ${place.address}</div>`;
+  document.getElementById('searchResult').innerHTML = `<div class="selected-addr">${place.address}</div>`;
   searchExistingPlaces(place.name);
 }
 
@@ -666,12 +775,35 @@ function resetModal() {
   ['inputName','inputAddress','inputContent','inputHours','inputNickname','inputUrl']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('inputCategory').value = '';
-  ['블로그','클립','인스타그램'].forEach(ch => { const el = document.getElementById(`ch_${ch}`); if(el) el.checked = false; });
+  document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('inputPlatform').value = '';
+  const holiday = document.getElementById('holidayExclude');
+  if (holiday) { holiday.classList.remove('active'); holiday.classList.add('active'); }
+  document.getElementById('modalStickyHeader').classList.remove('show');
+  document.querySelector('#modalOverlay .modal-header').style.display = 'flex';
   resetDateSelects();
   document.getElementById('searchResult').innerHTML = '';
   document.getElementById('existingPlacesSection').style.display = 'none';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+}
+
+function updateStepDots(step) {
+  [document.getElementById('stepDots'), document.getElementById('stickyStepDots')].forEach(container => {
+    if (!container) return;
+    const dots = container.querySelectorAll('.step-dot');
+    dots.forEach((d, i) => {
+      d.classList.remove('active', 'done');
+      if (i === step - 1) {
+        d.classList.add('active');
+        d.textContent = i + 1;
+      } else if (i < step - 1) {
+        d.classList.add('done');
+        d.textContent = '✓';
+      } else {
+        d.textContent = i + 1;
+      }
+    });
+  });
 }
 
 function goStep2() {
@@ -680,31 +812,44 @@ function goStep2() {
 
   document.getElementById('step1').style.display = 'none';
   document.getElementById('step2').style.display = 'flex';
+  // step2에서 modal-header 숨기기 (step2ScrollHeader가 대신 스크롤됨)
+  document.querySelector('#modalOverlay .modal-header').style.display = 'none';
+  updateStepDots(2);
+
+  // step2 스크롤 시 sticky 헤더 표시
+  const step2Body = document.getElementById('step2Body');
+  step2Body.removeEventListener('scroll', handleStep2Scroll);
+  step2Body.addEventListener('scroll', handleStep2Scroll, { passive: true });
+  step2Body.scrollTop = 0;
+  document.getElementById('modalStickyHeader').classList.remove('show');
 
   const name = document.getElementById('inputName').value.trim();
   const catField = document.getElementById('newPlaceCategoryField');
 
   if (!modalIsNewPlace) {
     catField.style.display = 'none';
-    document.getElementById('founderSection').style.display = 'block';
-    document.getElementById('founderSectionTitle').textContent = '🚩 내 이름 남기기';
+    document.getElementById('founderSection').style.display = 'flex';
+    document.getElementById('founderSectionTitle').textContent = '내 이름 남기기';
     document.getElementById('founderSectionDesc').textContent = '마감일까지 이 캠페인 제보자로 표시돼요';
     const place = places.find(p => p.id === modalSelectedPlaceId);
     document.getElementById('selectedPlaceBadge').innerHTML =
-      `<div class="place-badge">${getCategoryIcon(place.category)} <strong>${place.name}</strong>에 새 캠페인 추가</div>`;
+      `<div class="selected-place-badge"><div class="badge-icon"></div><span class="badge-text"><strong>${place.name}</strong>에 새 캠페인 추가</span></div>`;
   } else {
     catField.style.display = 'block';
-    document.getElementById('founderSection').style.display = 'block';
-    document.getElementById('founderSectionTitle').textContent = '🚩 내 이름 남기기';
+    document.getElementById('founderSection').style.display = 'flex';
+    document.getElementById('founderSectionTitle').textContent = '내 이름 남기기';
     document.getElementById('founderSectionDesc').textContent = '새 장소 최초 제보자로 영구 등록돼요';
     document.getElementById('selectedPlaceBadge').innerHTML =
-      `<div class="place-badge">📍 <strong>${name}</strong> 새로 등록</div>`;
+      `<div class="selected-place-badge"><div class="badge-icon"></div><span class="badge-text"><strong>${name}</strong> 새로 등록</span></div>`;
   }
 }
 
 function goStep1() {
   document.getElementById('step2').style.display = 'none';
   document.getElementById('step1').style.display = 'block';
+  document.querySelector('#modalOverlay .modal-header').style.display = 'flex';
+  document.getElementById('modalStickyHeader').classList.remove('show');
+  updateStepDots(1);
 }
 
 function toggleOptional() {
@@ -714,13 +859,50 @@ function toggleOptional() {
   document.getElementById('optionalToggleText').textContent = hidden ? '▴ 선택 정보 접기' : '▾ 선택 정보 추가하기';
 }
 
-function toggleDay(btn) { btn.classList.toggle('active'); }
+function toggleDay(btn) {
+  btn.classList.toggle('active');
+  // ALL 버튼 상태 업데이트
+  const allBtn = document.querySelector('.day-btn-all');
+  if (allBtn) {
+    const dayBtns = [...document.querySelectorAll('.day-btn:not(.day-btn-all)')];
+    allBtn.classList.toggle('active', dayBtns.every(b => b.classList.contains('active')));
+  }
+}
+
+function toggleAllDays(btn) {
+  const isActive = btn.classList.contains('active');
+  document.querySelectorAll('.day-btn:not(.day-btn-all)').forEach(b => {
+    b.classList.toggle('active', !isActive);
+  });
+  btn.classList.toggle('active', !isActive);
+}
+
+function toggleChannel(btn) {
+  btn.classList.toggle('active');
+}
+
+function toggleHoliday(row) {
+  const checkbox = row.querySelector('.holiday-checkbox');
+  if (checkbox) checkbox.classList.toggle('active');
+}
+
+function handleStep2Scroll() {
+  const body = document.getElementById('step2Body');
+  const header = document.getElementById('modalStickyHeader');
+  const scrollHeader = document.getElementById('step2ScrollHeader');
+  if (!body || !header || !scrollHeader) return;
+  // step2ScrollHeader 하단이 스크롤 아웃되면 sticky 표시
+  const threshold = scrollHeader.offsetTop + scrollHeader.offsetHeight;
+  if (body.scrollTop > threshold) {
+    header.classList.add('show');
+  } else {
+    header.classList.remove('show');
+  }
+}
 
 // ===== 제보 제출 =====
 function submitCampaign() {
-  const channels = ['블로그','클립','인스타그램'].filter(ch =>
-    document.getElementById(`ch_${ch}`)?.checked
-  );
+  const channels = [...document.querySelectorAll('.channel-btn.active')].map(b => b.dataset.channel);
   const platform = document.getElementById('inputPlatform').value;
   const content = document.getElementById('inputContent').value.trim();
   const deadline = getSelectedDeadline();
@@ -803,7 +985,7 @@ function openMobileSheet(place) {
   const sheet = document.getElementById('mobileSheet');
   const overlay = document.getElementById('mobileSheetOverlay');
   const content = document.getElementById('mobileSheetContent');
-  content.innerHTML = createInfoContent(place);
+  content.innerHTML = createMobileDetailContent(place);
   sheet.style.transform = '';  // 혹시 남아 있던 드래그 위치 초기화
   sheet.classList.add('show');
   overlay.classList.add('show');

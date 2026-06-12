@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="format-detection" content="telephone=no, address=no, email=no">
   <title>무협맵 - 무료협찬 지도</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
   <script src="https://navermaps.github.io/marker-clustering/source/markerClustering.js"></script>
 </head>
@@ -33,25 +34,50 @@
     </div>
     <!-- 모바일 헤더 -->
     <div class="header-inner header-mobile">
-      <span class="logo-icon">🗺️</span>
-      <div class="mobile-header-search">
-        <input type="text" id="regionSearchMobileTop" placeholder="지역 검색 (예: 강남구, 성수동)" onkeydown="if(event.key==='Enter') searchRegionMobileTop()">
-        <button class="mobile-header-search-btn" onclick="searchRegionMobileTop()">🔍</button>
+      <div class="mobile-row1">
+        <div class="mobile-header-search">
+          <span class="mobile-search-icon">🔍</span>
+          <input type="text" id="regionSearchMobileTop" placeholder="지역을 검색하세요" onkeydown="if(event.key==='Enter') searchRegionMobileTop()">
+        </div>
+        <button class="mobile-icon-btn mobile-icon-add" onclick="openModal()" title="협찬 제보하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4V20M4 12H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
       </div>
-      <button class="mobile-icon-btn" onclick="openModal()" title="협찬 제보하기">＋</button>
-      <button class="mobile-icon-btn mobile-icon-info" onclick="openAbout()" title="서비스 소개">ℹ</button>
+      <div class="mobile-chips-row">
+        <button class="filter-chip active" onclick="filterChannel('전체')">전체</button>
+        <button class="filter-chip" onclick="filterChannel('블로그')">블로그</button>
+        <button class="filter-chip" onclick="filterChannel('클립')">클립</button>
+        <button class="filter-chip" onclick="filterChannel('인스타그램')">인스타그램</button>
+        <button class="filter-chip" onclick="filterChannel('유튜브')">유튜브</button>
+      </div>
     </div>
   </header>
 
   <div class="filter-bar">
     <button class="filter-chip active" onclick="filterChannel('전체')">전체</button>
-    <button class="filter-chip" onclick="filterChannel('블로그')"><span class="chip-icon">📝</span> 블로그</button>
-    <button class="filter-chip" onclick="filterChannel('클립')"><span class="chip-icon">🎬</span> 클립</button>
-    <button class="filter-chip" onclick="filterChannel('인스타그램')"><span class="chip-icon">📸</span> 인스타그램</button>
+    <button class="filter-chip" onclick="filterChannel('블로그')">블로그</button>
+    <button class="filter-chip" onclick="filterChannel('클립')">클립</button>
+    <button class="filter-chip" onclick="filterChannel('인스타그램')">인스타그램</button>
+    <button class="filter-chip" onclick="filterChannel('릴스')">릴스</button>
+    <button class="filter-chip" onclick="filterChannel('유튜브')">유튜브</button>
   </div>
 
   <div class="main-layout">
     <div id="map">
+      <!-- 모바일 전용 오버레이 헤더 (지도 위에 절대 위치) -->
+      <div class="mobile-map-overlay">
+        <div class="mobile-row1">
+          <div class="mobile-header-search">
+            <input type="text" id="regionSearchMobileOverlay" placeholder="지역을 검색하세요" onkeydown="if(event.key==='Enter') searchRegionMobileOverlay()">
+          </div>
+          <button class="mobile-icon-btn mobile-icon-add" onclick="openModal()" title="협찬 제보하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4V20M4 12H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="mobile-chips-row">
+          <button class="filter-chip active" data-channel="전체" onclick="filterChannel('전체')">전체</button>
+          <button class="filter-chip" data-channel="블로그" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="16" height="16">블로그</button>
+          <button class="filter-chip" data-channel="클립" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="16" height="16">클립</button>
+          <button class="filter-chip" data-channel="인스타그램" onclick="filterChannel('인스타그램')"><img src="image/ic_instagram_20.png" width="16" height="16">인스타</button>
+          <button class="filter-chip" data-channel="유튜브" onclick="filterChannel('유튜브')"><img src="image/ic_youtube_20.png" width="16" height="16">유튜브</button>
+        </div>
+      </div>
       <button class="btn-my-location" onclick="moveToMyLocation()" title="내 위치로 이동">📍</button>
       <div class="mobile-search-bar">
         <input type="text" id="regionSearchMobile" placeholder="지역 검색 (예: 강남구, 성수동)" onkeydown="if(event.key==='Enter') searchRegionMobile()">
@@ -60,14 +86,13 @@
     </div>
 
     <div class="sidebar" id="sidebar" onclick="toggleBottomSheet(event)">
+      <div class="sidebar-handle-wrap">
+        <div class="sidebar-handle-bar"></div>
+      </div>
       <div class="sidebar-header">
         <div class="sidebar-header-left">
-          <span class="sidebar-title">📍 모집 중인 협찬</span>
-          <span class="sidebar-count" id="campaignCount">0개</span>
-        </div>
-        <div class="sidebar-header-right">
-          <button class="btn-refresh-list" id="btnRefreshList" onclick="event.stopPropagation(); renderSidebar();" title="현재 지도 기준으로 새로고침">↺</button>
-          <span class="sidebar-arrow" id="sidebarArrow">︿</span>
+          <span class="sidebar-title">모집 중인 체험</span>
+          <span class="sidebar-count" id="campaignCount">0</span>
         </div>
       </div>
       <div class="sidebar-list" id="campaignList"></div>
@@ -140,35 +165,42 @@
   <!-- 제보 모달 -->
   <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
     <div class="modal" onclick="event.stopPropagation()">
+      <!-- 스크롤 시 나타나는 sticky 헤더 -->
+      <div class="modal-sticky-header" id="modalStickyHeader">
+        <span>체험 제보하기</span>
+        <div class="step-dots" id="stickyStepDots">
+          <span class="step-dot done">✓</span>
+          <span class="step-dot-sep"></span>
+          <span class="step-dot active">2</span>
+        </div>
+      </div>
       <div class="modal-header">
-        <h2>협찬 제보하기</h2>
-        <button class="modal-close" onclick="closeModal()">✕</button>
+        <h2>체험 제보하기</h2>
+        <div class="step-dots" id="stepDots">
+          <span class="step-dot active">1</span>
+          <span class="step-dot-sep"></span>
+          <span class="step-dot">2</span>
+        </div>
       </div>
 
       <!-- Step 1: 장소 검색 -->
       <div id="step1">
         <div class="modal-body">
-          <div class="step-indicator">
-            <span class="step active">1 장소</span>
-            <span class="step-arrow">›</span>
-            <span class="step">2 캠페인</span>
-          </div>
-
           <div class="form-group">
-            <label>장소명 *</label>
-            <input type="text" id="inputName" placeholder="예: 스시코우지 강남점" oninput="searchExistingPlaces(this.value)">
+            <label>장소명 <span class="required">*</span></label>
+            <input type="text" id="inputName" placeholder="스타벅스 강남점" oninput="searchExistingPlaces(this.value)">
           </div>
 
           <div id="existingPlacesSection" style="display:none;">
-            <div class="existing-label">🔍 이미 등록된 장소가 있어요</div>
+            <div class="existing-label">이미 등록된 장소가 있어요</div>
             <div id="existingPlacesList"></div>
-            <div class="existing-new" onclick="clearExistingSelection()">+ 새 장소로 등록하기</div>
+            <div class="existing-new" onclick="clearExistingSelection()">새 장소로 등록하기 <span class="existing-new-arrow">›</span></div>
           </div>
 
           <div class="form-group">
-            <label>주소 검색 *</label>
+            <label>주소 검색 <span class="required">*</span></label>
             <div class="addr-row">
-              <input type="text" id="inputAddress" placeholder="예: 강남구 테헤란로 152, 스타벅스 강남점">
+              <input type="text" id="inputAddress" placeholder="강남구 테헤란로">
               <button class="btn-search-addr" onclick="searchAddress()">검색</button>
             </div>
             <div id="searchResult" class="search-result"></div>
@@ -176,48 +208,55 @@
         </div>
         <div class="modal-footer">
           <button class="btn-cancel" onclick="closeModal()">취소</button>
-          <button class="btn-next" onclick="goStep2()">다음 →</button>
+          <button class="btn-next" onclick="goStep2()">다음</button>
         </div>
       </div>
 
       <!-- Step 2: 캠페인 정보 -->
       <div id="step2" style="display:none;">
-        <div class="modal-body">
-          <div class="step-indicator">
-            <span class="step done">✓ 장소</span>
-            <span class="step-arrow">›</span>
-            <span class="step active">2 캠페인</span>
+        <div class="modal-body" id="step2Body">
+          <!-- 스크롤 헤더 (body 안에서 같이 스크롤됨, 사라지면 sticky header 등장) -->
+          <div class="step2-scroll-header" id="step2ScrollHeader">
+            <h2>체험 제보하기</h2>
+            <div class="step-dots" id="step2StepDots">
+              <span class="step-dot done">✓</span>
+              <span class="step-dot-sep"></span>
+              <span class="step-dot active">2</span>
+            </div>
           </div>
-
           <div id="selectedPlaceBadge"></div>
 
           <div id="newPlaceCategoryField">
             <div class="form-group">
-              <label>카테고리 *</label>
+              <label>카테고리 <span class="required">*</span></label>
               <select id="inputCategory">
                 <option value="">선택하세요</option>
-                <option value="음식점">🍽️ 음식점</option>
-                <option value="카페">☕ 카페</option>
-                <option value="뷰티">💄 뷰티</option>
-                <option value="숙박/여가">🏨 숙박/여가</option>
-                <option value="문화">🎭 문화</option>
-                <option value="의류">👗 의류</option>
-                <option value="안경/잡화">👓 안경/잡화</option>
-                <option value="기타">📦 기타</option>
+                <option value="음식점">음식점</option>
+                <option value="카페">카페</option>
+                <option value="뷰티">뷰티</option>
+                <option value="숙박/여가">숙박/여가</option>
+                <option value="문화">문화</option>
+                <option value="의류">의류</option>
+                <option value="안경/잡화">안경/잡화</option>
+                <option value="기타">기타</option>
               </select>
             </div>
           </div>
 
           <div class="form-group">
-            <label>게시 채널 * <span style="font-weight:400;color:#aaa;font-size:11px;">복수 선택 가능</span></label>
-            <div class="channel-checks">
-              <label class="channel-check"><input type="checkbox" id="ch_블로그"> 📝 블로그</label>
-              <label class="channel-check"><input type="checkbox" id="ch_클립"> 🎬 클립</label>
-              <label class="channel-check"><input type="checkbox" id="ch_인스타그램"> 📸 인스타그램</label>
+            <div class="channel-label-row">
+              <span>게시 채널 <span class="required">*</span></span>
+              <span class="label-sub">복수 선택 가능</span>
+            </div>
+            <div class="channel-btns">
+              <button type="button" class="channel-btn" data-channel="블로그" onclick="toggleChannel(this)">블로그</button>
+              <button type="button" class="channel-btn" data-channel="클립" onclick="toggleChannel(this)">클립</button>
+              <button type="button" class="channel-btn" data-channel="인스타그램" onclick="toggleChannel(this)">인스타</button>
+              <button type="button" class="channel-btn" data-channel="유튜브" onclick="toggleChannel(this)">유튜브</button>
             </div>
           </div>
           <div class="form-group">
-            <label>플랫폼 *</label>
+            <label>플랫폼 <span class="required">*</span></label>
             <select id="inputPlatform">
               <option value="">선택하세요</option>
               <option value="레뷰">레뷰</option>
@@ -229,11 +268,11 @@
             </select>
           </div>
           <div class="form-group">
-            <label>협찬 내용 *</label>
-            <input type="text" id="inputContent" placeholder="예: 오마카세 1인 체험 (80,000원 상당)">
+            <label>협찬 내용 <span class="required">*</span></label>
+            <input type="text" id="inputContent" placeholder="50,000원">
           </div>
           <div class="form-group">
-            <label>모집 마감일 *</label>
+            <label>모집 마감일 <span class="required">*</span></label>
             <div class="date-selects">
               <select id="inputDeadlineYear"></select>
               <span>년</span>
@@ -246,37 +285,47 @@
 
           <div id="optionalFields">
             <div class="form-group">
-              <label>영업 가능 요일</label>
-              <div class="day-selector">
-                <button type="button" class="day-btn" onclick="toggleDay(this)">월</button>
-                <button type="button" class="day-btn" onclick="toggleDay(this)">화</button>
-                <button type="button" class="day-btn" onclick="toggleDay(this)">수</button>
-                <button type="button" class="day-btn" onclick="toggleDay(this)">목</button>
-                <button type="button" class="day-btn" onclick="toggleDay(this)">금</button>
-                <button type="button" class="day-btn" onclick="toggleDay(this)">토</button>
-                <button type="button" class="day-btn" onclick="toggleDay(this)">일</button>
+              <label>방문 가능 요일</label>
+              <div class="day-field-inner">
+                <div class="day-selector">
+                  <button type="button" class="day-btn day-btn-all" onclick="toggleAllDays(this)">ALL</button>
+                  <button type="button" class="day-btn" onclick="toggleDay(this)">월</button>
+                  <button type="button" class="day-btn" onclick="toggleDay(this)">화</button>
+                  <button type="button" class="day-btn" onclick="toggleDay(this)">수</button>
+                  <button type="button" class="day-btn" onclick="toggleDay(this)">목</button>
+                  <button type="button" class="day-btn" onclick="toggleDay(this)">금</button>
+                  <button type="button" class="day-btn" onclick="toggleDay(this)">토</button>
+                  <button type="button" class="day-btn" onclick="toggleDay(this)">일</button>
+                </div>
+                <div class="holiday-check-row" onclick="toggleHoliday(this)">
+                  <div class="holiday-checkbox active" id="holidayExclude"></div>
+                  <span>공휴일 제외</span>
+                </div>
               </div>
             </div>
             <div class="form-group">
               <label>영업 시간</label>
-              <input type="text" id="inputHours" placeholder="예: 11:00~22:00">
+              <input type="text" id="inputHours" placeholder="11:00 ~ 22:00">
             </div>
+            <div class="section-divider"></div>
             <div id="founderSection">
-              <div id="founderSectionTitle" class="optional-section-title">🚩 내 이름 남기기</div>
-              <div id="founderSectionDesc" class="optional-section-desc">새 장소 최초 제보자로 영구 등록돼요</div>
+              <div class="founder-section-header">
+                <div id="founderSectionTitle" class="optional-section-title">내 이름 남기기</div>
+                <div id="founderSectionDesc" class="optional-section-desc">마감일까지 이 캠페인 제보자로 표시돼요</div>
+              </div>
               <div class="form-group">
                 <label>닉네임</label>
-                <input type="text" id="inputNickname" placeholder="예: 맛집탐험가, daily_food">
+                <input type="text" id="inputNickname" placeholder="맛집탐험가">
               </div>
               <div class="form-group">
                 <label>내 링크 (블로그 또는 인스타그램)</label>
-                <input type="url" id="inputUrl" placeholder="https://blog.naver.com/ 또는 https://instagram.com/...">
+                <input type="url" id="inputUrl" placeholder="http://blog.naver.com/pww010">
               </div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-cancel" onclick="goStep1()">← 이전</button>
+          <button class="btn-cancel" onclick="goStep1()">이전</button>
           <button class="btn-submit" onclick="submitCampaign()">제보하기</button>
         </div>
       </div>
@@ -286,11 +335,13 @@
 
   <!-- 모바일 바텀시트 -->
   <div id="mobileSheet" class="mobile-sheet">
-    <div class="mobile-sheet-handle" onclick="closeMobileSheet()"></div>
+    <div class="mobile-sheet-handle-wrap" onclick="closeMobileSheet()">
+      <div class="mobile-sheet-handle-bar"></div>
+    </div>
     <div class="mobile-sheet-content" id="mobileSheetContent"></div>
   </div>
   <div id="mobileSheetOverlay" class="mobile-sheet-overlay" onclick="closeMobileSheet()"></div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
