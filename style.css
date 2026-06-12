@@ -416,16 +416,16 @@ body {
 }
 
 .date-selects {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 6px;
 }
 .date-selects select {
-  padding: 0 32px 0 12px; height: 56px; border: 1px solid rgba(221,221,221,0.87);
+  padding: 0 28px 0 10px; height: 56px; border: 1px solid rgba(221,221,221,0.87);
   border-radius: 8px; font-size: 18px;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   color: #1a1a1a; outline: none; cursor: pointer;
 }
 .date-selects select:focus { border-color: rgba(0,0,0,0.87); }
-.date-selects #inputDeadlineYear { width: 100px; flex-shrink: 0; }
+.date-selects #inputDeadlineYear { width: 92px; flex-shrink: 0; }
 .date-selects #inputDeadlineMonth { width: 72px; flex-shrink: 0; }
 .date-selects #inputDeadlineDay { width: 72px; flex-shrink: 0; }
 .date-selects span { font-size: 18px; color: #000; flex-shrink: 0; }
