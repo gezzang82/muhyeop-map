@@ -1028,17 +1028,19 @@ function initSidebarSwipeToDismiss() {
     dragging = false;
     const delta = currentY - startY;
     if (delta > 80) {
+      // 클래스 먼저 제거 → 지도가 즉시 공간 확보
+      sidebar.classList.remove('expanded');
+      sidebar.classList.remove('expanded-full');
+      const list = document.getElementById('campaignList');
+      if (list) list.scrollTop = 0;
+      const arrow = document.getElementById('sidebarArrow');
+      if (arrow) arrow.textContent = '︿';
+      // 슬라이드 아웃 애니메이션
       sidebar.style.transition = 'transform 0.3s ease';
       sidebar.style.transform = 'translateY(100%)';
       setTimeout(() => {
         sidebar.style.transition = 'none';
         sidebar.style.transform = '';
-        sidebar.classList.remove('expanded');
-        sidebar.classList.remove('expanded-full');
-        const list = document.getElementById('campaignList');
-        if (list) list.scrollTop = 0;
-        const arrow = document.getElementById('sidebarArrow');
-        if (arrow) arrow.textContent = '︿';
         requestAnimationFrame(() => { sidebar.style.transition = ''; });
       }, 300);
     } else {
