@@ -1044,8 +1044,9 @@ function initSidebarSwipeToDismiss() {
         requestAnimationFrame(() => { sidebar.style.transition = ''; });
       }, 300);
     } else {
-      sidebar.style.transition = 'transform 0.25s ease';
+      sidebar.style.transition = 'none';
       sidebar.style.transform = '';
+      requestAnimationFrame(() => { sidebar.style.transition = ''; });
     }
   }
 
