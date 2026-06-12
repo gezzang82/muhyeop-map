@@ -1058,7 +1058,7 @@ function initSidebarSwipeToDismiss() {
   // 리스트 영역: 맨 위에서 아래로 당길 때만 닫기
   const list = document.getElementById('campaignList');
   list.addEventListener('touchstart', (e) => {
-    if (list.scrollTop === 0) startDrag(e.touches[0].clientY);
+    if (list.scrollTop < 5) startDrag(e.touches[0].clientY);
   }, { passive: true });
   list.addEventListener('touchmove', (e) => {
     if (!dragging) return;
