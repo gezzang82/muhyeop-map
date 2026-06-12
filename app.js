@@ -1031,7 +1031,7 @@ function initSidebarSwipeToDismiss() {
       sidebar.style.transition = 'transform 0.3s ease';
       sidebar.style.transform = 'translateY(100%)';
       setTimeout(() => {
-        sidebar.style.transition = '';
+        sidebar.style.transition = 'none';
         sidebar.style.transform = '';
         sidebar.classList.remove('expanded');
         sidebar.classList.remove('expanded-full');
@@ -1039,6 +1039,7 @@ function initSidebarSwipeToDismiss() {
         if (list) list.scrollTop = 0;
         const arrow = document.getElementById('sidebarArrow');
         if (arrow) arrow.textContent = '︿';
+        requestAnimationFrame(() => { sidebar.style.transition = ''; });
       }, 300);
     } else {
       sidebar.style.transition = 'transform 0.25s ease';
@@ -1099,10 +1100,11 @@ function initSheetSwipeToDismiss() {
       sheet.style.transition = 'transform 0.3s ease';
       sheet.style.transform = 'translateY(100%)';
       setTimeout(() => {
-        sheet.style.transition = '';
+        sheet.style.transition = 'none';
         sheet.style.transform = '';
         sheet.classList.remove('show');
         document.getElementById('mobileSheetOverlay').classList.remove('show');
+        requestAnimationFrame(() => { sheet.style.transition = ''; });
       }, 300);
     } else {
       sheet.style.transition = 'transform 0.25s ease';
