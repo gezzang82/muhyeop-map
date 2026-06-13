@@ -492,7 +492,7 @@ function createMobileDetailContent(place) {
   }).join('');
 
   return `
-    <div class="detail-body">
+    <div class="detail-fixed">
       <div class="detail-place">
         <div class="detail-name-row">
           <span class="detail-name">${place.name}</span>
@@ -500,9 +500,10 @@ function createMobileDetailContent(place) {
         </div>
         <div class="detail-address">${place.address}</div>
       </div>
-      <div class="detail-meta-section">
-        ${founderHtml}
-        <div class="detail-divider"></div>
+      ${founderHtml ? `<div class="detail-meta-founder">${founderHtml}<div class="detail-divider"></div></div>` : '<div class="detail-divider detail-divider-top"></div>'}
+    </div>
+    <div class="detail-scroll">
+      <div class="detail-campaigns-wrap">
         ${campaignsHtml}
       </div>
     </div>`;
