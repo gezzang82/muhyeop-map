@@ -1192,6 +1192,19 @@ function setupClearButtons() {
     const btn = createClearBtn();
     searchInput.parentElement.appendChild(btn);
     bindClearBtn(btn, searchInput);
+    // 검색창 포커스 시 바텀시트 닫기
+    searchInput.addEventListener('focus', () => {
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar && sidebar.classList.contains('expanded')) {
+        sidebar.classList.remove('expanded', 'expanded-full');
+        const arrow = document.getElementById('sidebarArrow');
+        if (arrow) arrow.textContent = '︿';
+        setTimeout(() => {
+          const list = document.getElementById('campaignList');
+          if (list) list.scrollTop = 0;
+        }, 350);
+      }
+    });
   }
 
   // 모달 폼 텍스트 입력 (input-wrap으로 감싸서 절대 위치)
