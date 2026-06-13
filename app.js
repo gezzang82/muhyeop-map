@@ -1328,12 +1328,17 @@ function pickSelectItem(selectId, value, label) {
     valueEl.classList.add('selected');
   }
 
-  // 날짜 셀렉트 연동
-  if (selectId === 'inputDeadlineYear' || selectId === 'inputDeadlineMonth') {
+  // 오류 메시지 클리어
+  if (selectId.startsWith('inputDeadline')) {
+    clearFieldError('deadline');
     const y = parseInt(document.getElementById('inputDeadlineYear').value);
     const m = parseInt(document.getElementById('inputDeadlineMonth').value);
-    updateDayOptions(y, m);
-    syncDateTriggers();
+    if (selectId === 'inputDeadlineYear' || selectId === 'inputDeadlineMonth') {
+      updateDayOptions(y, m);
+      syncDateTriggers();
+    }
+  } else {
+    clearFieldError(selectId);
   }
 
   closeSelectSheet();

@@ -201,11 +201,11 @@
           <div class="form-group">
             <label>주소 검색 <span class="required">*</span></label>
             <div class="addr-row">
-              <input type="text" id="inputAddress" placeholder="강남구 테헤란로">
+              <input type="text" id="inputAddress" placeholder="강남구 테헤란로" oninput="clearFieldError('inputAddress')">
               <button class="btn-search-addr" onclick="searchAddress()">검색</button>
             </div>
-            <div id="searchResult" class="search-result"></div>
             <span class="field-error-msg" id="inputAddressError">주소를 검색하고 선택해주세요.</span>
+            <div id="searchResult" class="search-result"></div>
           </div>
         </div>
         <div class="modal-footer">
