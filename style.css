@@ -886,7 +886,7 @@ body {
   .detail-info-value .day-dim { color: #ccc; }
   .holiday-badge-active { color: #000; }
   .detail-info-reporter-link { font-size: 15px; color: #000; text-decoration: none; }
-  .detail-reporter-chevron { font-size: 18px; color: #555; line-height: 1; }
+  .detail-reporter-chevron { font-size: 20px; color: #555; line-height: 1; margin-left: 4px; }
 }
 
 /* ===== 빈 상태 ===== */
