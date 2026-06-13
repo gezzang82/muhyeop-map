@@ -501,7 +501,7 @@ body {
 }
 
 /* 기존 장소 */
-.existing-label { font-size: 14px; font-weight: 400; color: #006cff; margin-bottom: 8px; }
+.existing-label { font-size: 14px; font-weight: 700; color: #006cff; margin-bottom: 8px; }
 
 .existing-item {
   display: flex; align-items: center; justify-content: space-between;
@@ -513,7 +513,7 @@ body {
 .existing-item:hover { background: rgba(0,108,255,0.14); }
 .existing-item.selected { border: 1.5px solid #006cff; background: rgba(0,108,255,0.08); }
 .existing-item-info { display: flex; flex-direction: column; gap: 4px; }
-.existing-name { font-size: 16px; font-weight: 400; color: #777; }
+.existing-name { font-size: 16px; font-weight: 400; color: #000; }
 .existing-addr { font-size: 14px; color: #777; }
 .existing-item-check { color: #006cff; font-size: 18px; }
 
