@@ -914,7 +914,7 @@ body {
 /* ===== 토스트 ===== */
 .toast {
   position: fixed; bottom: 24px; left: 20px; right: 20px;
-  transform: translateY(80px);
+  transform: translateY(calc(100% + 40px));
   background: rgba(0,0,0,0.72);
   backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
   color: #fff; text-align: center;
