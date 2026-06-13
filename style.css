@@ -891,14 +891,17 @@ body {
 
 /* ===== 토스트 ===== */
 .toast {
-  position: fixed; bottom: 24px; left: 50%;
-  transform: translateX(-50%) translateY(80px);
-  background: #1a1a2e; color: #e8c96d;
-  padding: 12px 24px; border-radius: 24px;
-  font-size: 13px; font-weight: 700; z-index: 9999;
-  transition: transform 0.3s ease; pointer-events: none;
+  position: fixed; bottom: 24px; left: 20px; right: 20px;
+  transform: translateY(80px);
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  color: #fff; text-align: center;
+  padding: 16px 10px; border-radius: 8px;
+  font-size: 15px; font-weight: 400;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.16);
+  z-index: 9999; transition: transform 0.3s ease; pointer-events: none;
 }
-.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.show { transform: translateY(0); }
 
 /* ===== 모바일 맵 오버레이 (기본 숨김) ===== */
 .mobile-map-overlay { display: none; }
@@ -1121,8 +1124,6 @@ body {
   .modal-header { padding-top: max(40px, env(safe-area-inset-top, 40px)); }
   .modal-overlay { align-items: stretch; }
 
-  /* 토스트 위치 */
-  .toast { bottom: 70px; }
 
   /* ===== 모바일 폰트 사이즈 전반 업스케일 ===== */
   /* 헤더/필터 */
