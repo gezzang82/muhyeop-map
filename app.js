@@ -1221,10 +1221,12 @@ function initSheetSwipeToDismiss() {
       sheet.style.transform = 'translateY(100%)';
       setTimeout(() => {
         sheet.style.transition = 'none';
-        sheet.style.transform = '';
         sheet.classList.remove('show');
         document.getElementById('mobileSheetOverlay').classList.remove('show');
-        requestAnimationFrame(() => { sheet.style.transition = ''; });
+        requestAnimationFrame(() => {
+          sheet.style.transform = '';
+          sheet.style.transition = '';
+        });
       }, 300);
     } else {
       sheet.style.transition = 'transform 0.25s ease';
