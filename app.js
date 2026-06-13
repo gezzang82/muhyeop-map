@@ -1072,13 +1072,23 @@ function initSidebarSwipeToDismiss() {
   // 리스트 영역: 맨 위에서 아래로 당길 때만 닫기
   const list = document.getElementById('campaignList');
   list.addEventListener('touchstart', (e) => {
-    if (list.scrollTop < 5) startDrag(e.touches[0].clientY);
+    startY = e.touches[0].clientY;
+    currentY = startY;
+    dragging = false;
   }, { passive: true });
   list.addEventListener('touchmove', (e) => {
-    if (!dragging) return;
-    const delta = e.touches[0].clientY - startY;
-    if (delta > 0) e.preventDefault(); // 스크롤 방지하고 드래그 처리
-    moveDrag(e.touches[0].clientY);
+    const y = e.touches[0].clientY;
+    const delta = y - startY;
+    // 맨 위에서 아래로 당길 때만 dismiss 처리
+    if (list.scrollTop <= 0 && delta > 0 && sidebar.classList.contains('expanded')) {
+      if (!dragging) {
+        dragging = true;
+        sidebar.style.transition = 'none';
+      }
+      e.preventDefault();
+      currentY = y;
+      sidebar.style.transform = `translateY(${delta}px)`;
+    }
   }, { passive: false });
   list.addEventListener('touchend', endDrag);
 }
