@@ -505,7 +505,7 @@ body {
 
 .existing-item {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px; border: none;
+  padding: 16px; border: 1.5px solid transparent;
   background: rgba(0,108,255,0.08);
   border-radius: 8px; margin-bottom: 8px;
   cursor: pointer; transition: all 0.15s;
