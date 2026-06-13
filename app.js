@@ -1156,4 +1156,48 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// 텍스트 필드 clear 버튼 설정
+function setupClearButtons() {
+  // 모바일 오버레이 검색창 (flex 컨테이너 내부에 버튼 추가)
+  const searchInput = document.getElementById('regionSearchMobileOverlay');
+  if (searchInput) {
+    const btn = createClearBtn();
+    searchInput.parentElement.appendChild(btn);
+    bindClearBtn(btn, searchInput);
+  }
+
+  // 모달 폼 텍스트 입력 (input-wrap으로 감싸서 절대 위치)
+  document.querySelectorAll('.form-group input[type="text"], .form-group input[type="url"]').forEach(input => {
+    const wrap = document.createElement('div');
+    wrap.className = 'input-wrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    const btn = createClearBtn();
+    wrap.appendChild(btn);
+    bindClearBtn(btn, input);
+  });
+}
+
+function createClearBtn() {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-input-clear';
+  btn.innerHTML = '<img src="image/ic_text_clear_20.svg" width="20" height="20" alt="지우기">';
+  return btn;
+}
+
+function bindClearBtn(btn, input) {
+  input.addEventListener('input', () => {
+    btn.classList.toggle('show', input.value.length > 0);
+  });
+  btn.addEventListener('mousedown', (e) => e.preventDefault()); // blur 방지
+  btn.addEventListener('click', () => {
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    input.focus();
+    btn.classList.remove('show');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', setupClearButtons);
 window.addEventListener('load', initMap);
