@@ -444,24 +444,30 @@ function createMobileDetailContent(place) {
       const holidayBadge = c.excludeHoliday ? ` <span class="holiday-badge-active">/ 공휴일 불가</span>` : '';
       daysHtml = `
         <div class="detail-info-row">
-          <img src="image/ic_calendar_20.svg" width="20" height="20" alt="" class="detail-info-icon">
-          <span class="detail-info-label">요일</span>
+          <div class="detail-info-label-group">
+            <img src="image/ic_calendar_20.svg" width="20" height="20" alt="" class="detail-info-icon">
+            <span class="detail-info-label">요일</span>
+          </div>
           <span class="detail-info-value">${daysFormatted}${holidayBadge}</span>
         </div>`;
     }
 
     const hoursHtml = c.operatingHours ? `
       <div class="detail-info-row">
-        <img src="image/ic_clock_20.svg" width="20" height="20" alt="" class="detail-info-icon">
-        <span class="detail-info-label">시간</span>
+        <div class="detail-info-label-group">
+          <img src="image/ic_clock_20.svg" width="20" height="20" alt="" class="detail-info-icon">
+          <span class="detail-info-label">시간</span>
+        </div>
         <span class="detail-info-value">${c.operatingHours}</span>
       </div>` : '';
 
     const reporterUrl = c.reporterBlog || c.reporterInstagram || c.reporterUrl || '';
     const reporterHtml = c.reporterNickname ? `
       <div class="detail-info-row">
-        <img src="image/ic_account_20.svg" width="20" height="20" alt="" class="detail-info-icon">
-        <span class="detail-info-label">제보</span>
+        <div class="detail-info-label-group">
+          <img src="image/ic_account_20.svg" width="20" height="20" alt="" class="detail-info-icon">
+          <span class="detail-info-label">제보</span>
+        </div>
         ${reporterUrl
           ? `<a class="detail-info-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><span class="detail-reporter-chevron">›</span>`
           : `<span class="detail-info-value">${c.reporterNickname}</span>`}
