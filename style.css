@@ -491,15 +491,13 @@ body {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .select-sheet-panel.show { transform: translateY(0); }
-.select-sheet-handle {
-  width: 36px; height: 4px; border-radius: 2px;
-  background: #ddd; margin: 12px auto 4px;
-  flex-shrink: 0;
-}
+.select-sheet-handle { display: none; }
 .select-sheet-title {
   font-size: 16px; font-weight: 600; color: #333;
-  padding: 8px 20px 12px; flex-shrink: 0;
+  padding: 20px 20px 12px; flex-shrink: 0;
   border-bottom: 1px solid #f0f0f0;
+  margin: 0 20px;
+  padding-left: 0; padding-right: 0;
 }
 .select-sheet-list { overflow-y: auto; padding: 8px 0 max(20px, env(safe-area-inset-bottom)); }
 .select-sheet-item {
