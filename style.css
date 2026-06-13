@@ -510,7 +510,7 @@ body {
   border-radius: 8px; margin-bottom: 8px;
   cursor: pointer; transition: all 0.15s;
 }
-.existing-item:hover { background: rgba(0,108,255,0.14); }
+@media (hover: hover) { .existing-item:hover { background: rgba(0,108,255,0.14); } }
 .existing-item.selected { border: 1.5px solid #006cff; background: rgba(0,108,255,0.08); }
 .existing-item-info { display: flex; flex-direction: column; gap: 4px; }
 .existing-name { font-size: 16px; font-weight: 400; color: #000; }
