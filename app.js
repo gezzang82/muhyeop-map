@@ -587,9 +587,11 @@ function focusPlace(placeId) {
     sidebar.classList.remove('expanded-full');
     const arrow = document.getElementById('sidebarArrow');
     if (arrow) arrow.textContent = '︿';
-    const list = document.getElementById('campaignList');
-    if (list) list.scrollTop = 0;
     setTimeout(() => openMobileSheet(place), 150);
+    setTimeout(() => {
+      const list = document.getElementById('campaignList');
+      if (list) list.scrollTop = 0;
+    }, 350);
   } else {
     // PC: 인포윈도우 열기 — 지도 이동/줌 완료 후 좌표 기준으로 열기
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
@@ -667,8 +669,10 @@ function toggleBottomSheet(e) {
   sidebar.classList.toggle('expanded');
   if (!willExpand) {
     sidebar.classList.remove('expanded-full');
-    const list = document.getElementById('campaignList');
-    if (list) list.scrollTop = 0;
+    setTimeout(() => {
+      const list = document.getElementById('campaignList');
+      if (list) list.scrollTop = 0;
+    }, 350);
   }
   const isExpanded = sidebar.classList.contains('expanded');
   // 화살표 방향 전환 (닫힘: ︿ 위방향 → 열림: ﹀ 아래방향)
@@ -1070,8 +1074,6 @@ function initSidebarSwipeToDismiss() {
       // 클래스 먼저 제거 → 지도가 즉시 공간 확보
       sidebar.classList.remove('expanded');
       sidebar.classList.remove('expanded-full');
-      const list = document.getElementById('campaignList');
-      if (list) list.scrollTop = 0;
       const arrow = document.getElementById('sidebarArrow');
       if (arrow) arrow.textContent = '︿';
       setNaverLogoVisible(true);
@@ -1082,6 +1084,8 @@ function initSidebarSwipeToDismiss() {
         sidebar.style.transition = 'none';
         sidebar.style.transform = '';
         requestAnimationFrame(() => { sidebar.style.transition = ''; });
+        const list = document.getElementById('campaignList');
+        if (list) list.scrollTop = 0;
       }, 300);
     } else {
       sidebar.style.transition = 'none';
