@@ -748,6 +748,7 @@ function selectAddress(address, lat, lng) {
 // ===== 기존 장소 검색 =====
 function searchExistingPlaces(name) {
   const q = name.trim();
+  modalSelectedPlaceId = null;
   if (q.length < 2) { document.getElementById('existingPlacesSection').style.display = 'none'; return; }
 
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
