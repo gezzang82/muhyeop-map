@@ -640,7 +640,7 @@ function searchRegion() {
       } else if (fallback) {
         trySearch(fallback, null);
       } else {
-        showToast('검색 결과가 없어요. 주소로 검색해보세요 (예: 강남구, 성수동)');
+        showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
       }
     });
   }
@@ -1062,7 +1062,7 @@ let _toastTimer = null;
 function showToast(msg) {
   let toast = document.querySelector('.toast');
   if (!toast) { toast = document.createElement('div'); toast.className = 'toast'; document.body.appendChild(toast); }
-  toast.textContent = msg;
+  toast.innerHTML = msg;
   toast.classList.add('show');
   if (_toastTimer) clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => { toast.classList.remove('show'); _toastTimer = null; }, 3000);
