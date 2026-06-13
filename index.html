@@ -229,7 +229,7 @@
           <div id="newPlaceCategoryField">
             <div class="form-group">
               <label>카테고리 <span class="required">*</span></label>
-              <select id="inputCategory">
+              <select id="inputCategory" style="display:none">
                 <option value="">선택하세요</option>
                 <option value="음식점">음식점</option>
                 <option value="카페">카페</option>
@@ -240,6 +240,9 @@
                 <option value="안경/잡화">안경/잡화</option>
                 <option value="기타">기타</option>
               </select>
+              <div class="custom-select-trigger" id="inputCategoryTrigger" onclick="openSelectSheet('inputCategory', '카테고리')">
+                <span class="custom-select-value" id="inputCategoryValue">선택하세요</span>
+              </div>
             </div>
           </div>
 
@@ -257,7 +260,7 @@
           </div>
           <div class="form-group">
             <label>플랫폼 <span class="required">*</span></label>
-            <select id="inputPlatform">
+            <select id="inputPlatform" style="display:none">
               <option value="">선택하세요</option>
               <option value="레뷰">레뷰</option>
               <option value="리뷰노트">리뷰노트</option>
@@ -266,6 +269,9 @@
               <option value="디너의여왕">디너의여왕</option>
               <option value="기타">기타</option>
             </select>
+            <div class="custom-select-trigger" id="inputPlatformTrigger" onclick="openSelectSheet('inputPlatform', '플랫폼')">
+              <span class="custom-select-value" id="inputPlatformValue">선택하세요</span>
+            </div>
           </div>
           <div class="form-group">
             <label>협찬 내용 <span class="required">*</span></label>
@@ -274,11 +280,20 @@
           <div class="form-group">
             <label>모집 마감일 <span class="required">*</span></label>
             <div class="date-selects">
-              <select id="inputDeadlineYear"></select>
+              <select id="inputDeadlineYear" style="display:none"></select>
+              <div class="custom-select-trigger date-trigger" id="inputDeadlineYearTrigger" onclick="openSelectSheet('inputDeadlineYear', '년도')">
+                <span class="custom-select-value" id="inputDeadlineYearValue">-</span>
+              </div>
               <span>년</span>
-              <select id="inputDeadlineMonth"></select>
+              <select id="inputDeadlineMonth" style="display:none"></select>
+              <div class="custom-select-trigger date-trigger" id="inputDeadlineMonthTrigger" onclick="openSelectSheet('inputDeadlineMonth', '월')">
+                <span class="custom-select-value" id="inputDeadlineMonthValue">-</span>
+              </div>
               <span>월</span>
-              <select id="inputDeadlineDay"></select>
+              <select id="inputDeadlineDay" style="display:none"></select>
+              <div class="custom-select-trigger date-trigger" id="inputDeadlineDayTrigger" onclick="openSelectSheet('inputDeadlineDay', '일')">
+                <span class="custom-select-value" id="inputDeadlineDayValue">-</span>
+              </div>
               <span>일</span>
             </div>
           </div>
@@ -298,7 +313,7 @@
                   <button type="button" class="day-btn" onclick="toggleDay(this)">일</button>
                 </div>
                 <div class="holiday-check-row" onclick="toggleHoliday(this)">
-                  <div class="holiday-checkbox active" id="holidayExclude"></div>
+                  <div class="holiday-checkbox" id="holidayExclude"></div>
                   <span>공휴일 불가</span>
                 </div>
               </div>
@@ -341,6 +356,14 @@
     <div class="mobile-sheet-content" id="mobileSheetContent"></div>
   </div>
   <div id="mobileSheetOverlay" class="mobile-sheet-overlay" onclick="closeMobileSheet()"></div>
+
+  <!-- 셀렉트 바텀시트 -->
+  <div id="selectSheetOverlay" class="select-sheet-overlay" onclick="closeSelectSheet()"></div>
+  <div id="selectSheetPanel" class="select-sheet-panel">
+    <div class="select-sheet-handle"></div>
+    <div class="select-sheet-title" id="selectSheetTitle"></div>
+    <div class="select-sheet-list" id="selectSheetList"></div>
+  </div>
 
   <script src="app.js?v=6"></script>
 </body>

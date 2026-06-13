@@ -174,6 +174,7 @@ function initDateSelects() {
     monthSel.innerHTML += `<option value="${i}" ${i === m ? 'selected' : ''}>${i}</option>`;
   }
   updateDayOptions(y, m, d);
+  setTimeout(syncDateTriggers, 0);
 
   yearSel.addEventListener('change', () => updateDayOptions(
     parseInt(yearSel.value), parseInt(monthSel.value)
@@ -205,6 +206,7 @@ function resetDateSelects() {
   document.getElementById('inputDeadlineYear').value = today.getFullYear();
   document.getElementById('inputDeadlineMonth').value = today.getMonth() + 1;
   updateDayOptions(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  setTimeout(syncDateTriggers, 0);
 }
 
 // ===== 지도 초기화 =====
@@ -831,8 +833,10 @@ function resetModal() {
   ['inputName','inputAddress','inputContent','inputHours','inputNickname','inputUrl']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('inputCategory').value = '';
+  syncSelectTrigger('inputCategory');
   document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('inputPlatform').value = '';
+  syncSelectTrigger('inputPlatform');
   const holiday = document.getElementById('holidayExclude');
   if (holiday) { holiday.classList.remove('active'); }
   document.getElementById('modalStickyHeader').classList.remove('show');
@@ -1256,3 +1260,80 @@ function bindClearBtn(btn, input) {
 
 document.addEventListener('DOMContentLoaded', setupClearButtons);
 window.addEventListener('load', initMap);
+
+// ===== 커스텀 셀렉트 바텀시트 =====
+let _selectSheetTarget = null;
+
+function openSelectSheet(selectId, title) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  _selectSheetTarget = selectId;
+
+  document.getElementById('selectSheetTitle').textContent = title;
+
+  const list = document.getElementById('selectSheetList');
+  list.innerHTML = [...sel.options].map(opt => {
+    const isActive = opt.value && opt.value === sel.value;
+    return `<div class="select-sheet-item${isActive ? ' active' : ''}" onclick="pickSelectItem('${selectId}', '${opt.value.replace(/'/g, "\\'")}', '${opt.textContent.replace(/'/g, "\\'")}')">
+      ${opt.textContent}
+    </div>`;
+  }).filter((_, i) => sel.options[i].value !== '').join(''); // 빈 placeholder 제외
+
+  document.getElementById('selectSheetOverlay').classList.add('show');
+  requestAnimationFrame(() => document.getElementById('selectSheetPanel').classList.add('show'));
+}
+
+function closeSelectSheet() {
+  document.getElementById('selectSheetPanel').classList.remove('show');
+  setTimeout(() => document.getElementById('selectSheetOverlay').classList.remove('show'), 300);
+  _selectSheetTarget = null;
+}
+
+function pickSelectItem(selectId, value, label) {
+  const sel = document.getElementById(selectId);
+  if (sel) sel.value = value;
+
+  const valueEl = document.getElementById(selectId + 'Value');
+  if (valueEl) {
+    valueEl.textContent = label;
+    valueEl.classList.add('selected');
+  }
+
+  // 날짜 셀렉트 연동
+  if (selectId === 'inputDeadlineYear' || selectId === 'inputDeadlineMonth') {
+    const y = parseInt(document.getElementById('inputDeadlineYear').value);
+    const m = parseInt(document.getElementById('inputDeadlineMonth').value);
+    updateDayOptions(y, m);
+    syncDateTriggers();
+  }
+
+  closeSelectSheet();
+  sel.dispatchEvent(new Event('change'));
+}
+
+function syncDateTriggers() {
+  ['inputDeadlineYear', 'inputDeadlineMonth', 'inputDeadlineDay'].forEach(id => {
+    const sel = document.getElementById(id);
+    const valueEl = document.getElementById(id + 'Value');
+    if (sel && valueEl && sel.value) {
+      const opt = sel.options[sel.selectedIndex];
+      valueEl.textContent = opt ? opt.textContent : sel.value;
+      valueEl.classList.add('selected');
+    }
+  });
+}
+
+function syncSelectTrigger(selectId) {
+  const sel = document.getElementById(selectId);
+  const valueEl = document.getElementById(selectId + 'Value');
+  if (!sel || !valueEl) return;
+  const val = sel.value;
+  if (val) {
+    const opt = [...sel.options].find(o => o.value === val);
+    valueEl.textContent = opt ? opt.textContent : val;
+    valueEl.classList.add('selected');
+  } else {
+    valueEl.textContent = '선택하세요';
+    valueEl.classList.remove('selected');
+  }
+}
