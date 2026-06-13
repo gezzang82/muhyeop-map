@@ -414,11 +414,13 @@ function createMobileDetailContent(place) {
   // 최초제보
   const founderHtml = place.founderNickname ? `
     <div class="detail-founder">
-      <span class="detail-founder-icon"></span>
-      <span class="detail-founder-label">최초제보</span>
-      ${place.founderUrl
-        ? `<a class="detail-founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a>`
-        : `<span class="detail-founder-link">${place.founderNickname}</span>`}
+      <span class="detail-founder-label">최초제보자</span>
+      <div class="detail-founder-right">
+        <img src="image/ic_workspace_premium_24.svg" width="24" height="24" alt="" class="detail-founder-icon-img">
+        ${place.founderUrl
+          ? `<a class="detail-founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a><span class="detail-founder-chevron">›</span>`
+          : `<span class="detail-founder-link">${place.founderNickname}</span>`}
+      </div>
     </div>` : '';
 
   // 캠페인 카드
@@ -442,7 +444,7 @@ function createMobileDetailContent(place) {
       const holidayBadge = c.excludeHoliday ? ` <span class="holiday-badge-active">/ 공휴일 불가</span>` : '';
       daysHtml = `
         <div class="detail-info-row">
-          <span class="detail-info-icon"></span>
+          <img src="image/ic_calendar_20.svg" width="20" height="20" alt="" class="detail-info-icon">
           <span class="detail-info-label">요일</span>
           <span class="detail-info-value">${daysFormatted}${holidayBadge}</span>
         </div>`;
@@ -450,16 +452,19 @@ function createMobileDetailContent(place) {
 
     const hoursHtml = c.operatingHours ? `
       <div class="detail-info-row">
-        <span class="detail-info-icon"></span>
+        <img src="image/ic_clock_20.svg" width="20" height="20" alt="" class="detail-info-icon">
         <span class="detail-info-label">시간</span>
         <span class="detail-info-value">${c.operatingHours}</span>
       </div>` : '';
 
+    const reporterUrl = c.reporterBlog || c.reporterInstagram || c.reporterUrl || '';
     const reporterHtml = c.reporterNickname ? `
       <div class="detail-info-row">
-        <span class="detail-info-icon"></span>
+        <img src="image/ic_account_20.svg" width="20" height="20" alt="" class="detail-info-icon">
         <span class="detail-info-label">제보</span>
-        <span class="detail-info-value" style="color:#000">${c.reporterNickname}</span>
+        ${reporterUrl
+          ? `<a class="detail-info-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><span class="detail-reporter-chevron">›</span>`
+          : `<span class="detail-info-value">${c.reporterNickname}</span>`}
       </div>` : '';
 
     const divider = i > 0 ? '<div class="detail-divider"></div>' : '';
