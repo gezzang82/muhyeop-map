@@ -209,7 +209,6 @@ function resetDateSelects() {
 
 // ===== 지도 초기화 =====
 function initMap() {
-  const isMobile = window.innerWidth <= 640;
   map = new naver.maps.Map('map', {
     center: new naver.maps.LatLng(37.5040, 127.0300),
     zoom: 14,
@@ -217,8 +216,7 @@ function initMap() {
     scaleControl: false,
     logoControl: true,
     logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
-    mapDataControl: false,
-    padding: isMobile ? { top: 0, right: 0, bottom: 78, left: 0 } : { top: 0, right: 0, bottom: 0, left: 0 }
+    mapDataControl: false
   });
 
   naver.maps.Event.addListener(map, 'click', () => {

@@ -1008,7 +1008,7 @@ body {
 
   /* 레이아웃 — 지도가 전체 채움, 바텀시트는 fixed로 위에 뜸 */
   .main-layout { flex-direction: column; }
-  #map { flex: 1; min-height: 0; }
+  #map { flex: 1; min-height: 0; padding-bottom: 78px; box-sizing: border-box; }
   .btn-my-location {
     position: fixed;
     bottom: 100px; right: 20px;
