@@ -214,6 +214,7 @@ function initMap() {
     mapTypeControl: false,
     scaleControl: false,
     logoControl: true,
+    logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
     mapDataControl: false
   });
 
