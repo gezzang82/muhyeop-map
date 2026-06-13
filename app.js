@@ -412,10 +412,13 @@ function createMobileDetailContent(place) {
 
     // 요일 렌더
     let daysHtml = '';
-    if (c.operatingDays && c.operatingDays.length > 0) {
+    if (c.operatingDays !== undefined) {
       const daysFormatted = ALL_DAYS
-        .filter(d => c.operatingDays.includes(d))
-        .map(d => `<span class="${WEEKEND.has(d) ? 'weekend' : 'weekday'}">${d}</span>`)
+        .map(d => {
+          const active = c.operatingDays.includes(d);
+          const cls = active ? (WEEKEND.has(d) ? 'weekend' : 'weekday') : 'day-dim';
+          return `<span class="${cls}">${d}</span>`;
+        })
         .join(' ');
       const holidayBadge = c.excludeHoliday ? ` <span class="holiday-badge">/ 공휴일 불가</span>` : '';
       daysHtml = `
