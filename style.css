@@ -820,10 +820,9 @@ body {
   .detail-info-icon { width: 16px; height: 16px; background: #ddd; border-radius: 3px; flex-shrink: 0; }
   .detail-info-label { font-size: 14px; color: #777; flex-shrink: 0; }
   .detail-info-value { font-size: 15px; color: #000; }
-  .detail-info-value .weekday { color: #000; }
-  .detail-info-value .weekend { color: #E82A2D; }
-  .detail-info-value .day-dim { color: #ddd; }
-  .holiday-badge { color: #aaa; }
+  .detail-info-value .day-active { color: #000; }
+  .detail-info-value .day-dim { color: #ccc; }
+  .holiday-badge-active { color: #000; }
 }
 
 /* ===== 빈 상태 ===== */

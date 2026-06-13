@@ -416,11 +416,10 @@ function createMobileDetailContent(place) {
       const daysFormatted = ALL_DAYS
         .map(d => {
           const active = c.operatingDays.includes(d);
-          const cls = active ? (WEEKEND.has(d) ? 'weekend' : 'weekday') : 'day-dim';
-          return `<span class="${cls}">${d}</span>`;
+          return `<span class="${active ? 'day-active' : 'day-dim'}">${d}</span>`;
         })
         .join(' ');
-      const holidayBadge = c.excludeHoliday ? ` <span class="holiday-badge">/ 공휴일 불가</span>` : '';
+      const holidayBadge = c.excludeHoliday ? ` <span class="holiday-badge-active">/ 공휴일 불가</span>` : '';
       daysHtml = `
         <div class="detail-info-row">
           <span class="detail-info-icon"></span>
