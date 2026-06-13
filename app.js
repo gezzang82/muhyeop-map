@@ -417,9 +417,11 @@ function createMobileDetailContent(place) {
       <span class="detail-founder-label">최초제보자</span>
       <div class="detail-founder-right">
         <img src="image/ic_workspace_premium_24.svg" width="24" height="24" alt="" class="detail-founder-icon-img">
-        ${place.founderUrl
-          ? `<a class="detail-founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a><span class="detail-founder-chevron">›</span>`
-          : `<span class="detail-founder-link">${place.founderNickname}</span>`}
+        <div class="detail-founder-name-group">
+          ${place.founderUrl
+            ? `<a class="detail-founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a><span class="detail-founder-chevron">›</span>`
+            : `<span class="detail-founder-link">${place.founderNickname}</span>`}
+        </div>
       </div>
     </div>` : '';
 

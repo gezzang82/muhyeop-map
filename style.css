@@ -862,8 +862,9 @@ body {
   .detail-founder-label { font-size: 14px; color: #777; flex-shrink: 0; }
   .detail-founder-right { display: flex; align-items: center; gap: 2px; }
   .detail-founder-icon-img { flex-shrink: 0; }
+  .detail-founder-name-group { display: flex; align-items: center; gap: 8px; }
   .detail-founder-link { font-size: 15px; font-weight: 700; color: #006cff; text-decoration: none; }
-  .detail-founder-chevron { font-size: 18px; color: #006cff; line-height: 1; }
+  .detail-founder-chevron { font-size: 22px; color: #006cff; line-height: 1; }
 
   .detail-divider { height: 1px; background: #eee; margin: 0 0; }
 
@@ -886,7 +887,7 @@ body {
   .detail-info-value .day-dim { color: #ccc; }
   .holiday-badge-active { color: #000; }
   .detail-info-reporter-link { font-size: 15px; color: #000; text-decoration: none; }
-  .detail-reporter-chevron { font-size: 20px; color: #555; line-height: 1; margin-left: 4px; }
+  .detail-reporter-chevron { font-size: 22px; color: #555; line-height: 1; margin-left: 8px; }
 }
 
 /* ===== 빈 상태 ===== */
