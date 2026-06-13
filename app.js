@@ -625,6 +625,12 @@ function searchRegionMobileOverlay() {
   el.blur();
 }
 
+// 네이버 로고 표시/숨김
+function setNaverLogoVisible(visible) {
+  const logo = document.querySelector('#map .naver_logo, #map [class*="logo"]');
+  if (logo) logo.style.visibility = visible ? '' : 'hidden';
+}
+
 // ===== 바텀시트 토글 (모바일) =====
 function toggleBottomSheet(e) {
   if (window.innerWidth > 640) return;
@@ -638,6 +644,7 @@ function toggleBottomSheet(e) {
   // 화살표 방향 전환 (닫힘: ︿ 위방향 → 열림: ﹀ 아래방향)
   const arrow = document.getElementById('sidebarArrow');
   if (arrow) arrow.textContent = isExpanded ? '﹀' : '︿';
+  setNaverLogoVisible(!isExpanded);
   if (isExpanded) renderSidebar();
 }
 
@@ -1036,6 +1043,7 @@ function initSidebarSwipeToDismiss() {
       if (list) list.scrollTop = 0;
       const arrow = document.getElementById('sidebarArrow');
       if (arrow) arrow.textContent = '︿';
+      setNaverLogoVisible(true);
       // 슬라이드 아웃 애니메이션
       sidebar.style.transition = 'transform 0.3s ease';
       sidebar.style.transform = 'translateY(100%)';
