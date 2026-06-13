@@ -541,15 +541,17 @@ function renderSidebar() {
 function moveToMyLocation() {
   if (!navigator.geolocation) { showToast('위치 정보를 사용할 수 없어요'); return; }
   const btn = document.querySelector('.btn-my-location');
-  btn.textContent = '⏳';
+  btn.style.opacity = '0.4';
+  btn.disabled = true;
+  const restore = () => { btn.style.opacity = ''; btn.disabled = false; };
   navigator.geolocation.getCurrentPosition(
     pos => {
       map.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
       map.setZoom(15);
-      btn.textContent = '📍';
+      restore();
       renderSidebar();
     },
-    () => { showToast('위치 권한을 허용해주세요'); btn.textContent = '📍'; }
+    () => { showToast('위치 권한을 허용해주세요'); restore(); }
   );
 }
 
