@@ -112,6 +112,9 @@ body {
 /* ===== 레이아웃 ===== */
 .main-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
 #map { flex: 1; z-index: 1; }
+#map a[href*="naver"],
+#map [class*="logo"],
+#map [class*="Logo"] { display: none !important; }
 .mobile-search-bar { display: none; }
 
 .btn-my-location {
