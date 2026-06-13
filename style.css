@@ -1006,7 +1006,7 @@ body {
   /* 지도 위 플로팅 검색창 — 모바일에서 숨김 (헤더로 올라감) */
   .mobile-search-bar { display: none; }
 
-  /* 레이아웃 — 모바일은 세로 스택 */
+  /* 레이아웃 — 지도가 전체 채움, 바텀시트는 fixed로 위에 뜸 */
   .main-layout { flex-direction: column; }
   #map { flex: 1; min-height: 0; }
   .btn-my-location {
@@ -1015,11 +1015,12 @@ body {
     z-index: 250;
   }
 
-  /* 사이드바 → 하단 고정 바 */
+  /* 사이드바 → fixed 바텀시트 */
   .sidebar {
     display: flex;
     flex-direction: column;
-    position: relative;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
     width: 100%;
     border-left: none;
     border-top: none;
@@ -1029,7 +1030,6 @@ body {
     transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     height: 78px;
     overflow: hidden;
-    flex-shrink: 0;
     background: white;
   }
   .sidebar.expanded { height: 50vh; }
