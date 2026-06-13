@@ -213,7 +213,8 @@ function initMap() {
     zoom: 14,
     mapTypeControl: false,
     scaleControl: false,
-    logoControl: false,
+    logoControl: true,
+    logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
     mapDataControl: false
   });
 
