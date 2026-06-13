@@ -87,11 +87,12 @@ let campaigns = [
   { id: 18, placeId: 17, platform: "레뷰",       channels: ["클립"],               content: "딸기 케이크 + 음료 세트",          deadline: "2026-07-18", link: "https://www.revu.net",              operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "10:00~22:00", reporterNickname: "디저트마니아", reporterBlog: "",                                  reporterInstagram: "https://instagram.com/example17" },
   { id: 19, placeId: 18, platform: "강남맛집",   channels: ["블로그"],             content: "여름 신상 선크림 2종 세트",         deadline: "2026-07-22", link: "https://www.gangnamfood.co.kr",     operatingDays: [],                                   operatingHours: "09:00~22:00", reporterNickname: "",            reporterBlog: "",                                  reporterInstagram: "" },
   { id: 20, placeId: 19, platform: "디너의여왕", channels: ["블로그", "클립"],     content: "여름 한정 샌드위치 + 음료 세트",    deadline: "2026-07-30", link: "https://www.dinnersqueen.com",      operatingDays: ["월","화","수","목","금","토","일"], operatingHours: "08:00~21:00", reporterNickname: "빵순이",      reporterBlog: "https://blog.naver.com/example19",  reporterInstagram: "" },
-  { id: 21, placeId: 20, platform: "리뷰노트",   channels: ["블로그", "인스타그램"], content: "편의점 신상 디저트 5종 체험",       deadline: "2026-07-14", link: "https://www.reviewnote.co.kr",      operatingDays: [],                                   operatingHours: "24시간",      reporterNickname: "편의점왕",    reporterBlog: "",                                  reporterInstagram: "" }
+  { id: 21, placeId: 20, platform: "리뷰노트",   channels: ["블로그", "인스타그램"], content: "편의점 신상 디저트 5종 체험",       deadline: "2026-07-14", link: "https://www.reviewnote.co.kr",      operatingDays: [],                                   operatingHours: "24시간",      reporterNickname: "편의점왕",    reporterBlog: "",                                  reporterInstagram: "" },
+  { id: 22, placeId: 1,  platform: "레뷰",       channels: ["블로그", "인스타그램"], content: "오마카세 1인 런치 코스 체험 (12만원 상당)", deadline: "2026-07-31", link: "https://www.revu.net", operatingDays: ["화","수","목","금","토"], operatingHours: "12:00~15:00", excludeHoliday: true, reporterNickname: "맛집탐험가", reporterBlog: "https://blog.naver.com/example1", reporterInstagram: "" }
 ];
 
 let nextPlaceId = 21;
-let nextCampaignId = 22;
+let nextCampaignId = 23;
 let currentChannelFilter = '전체';
 
 let map;
