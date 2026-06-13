@@ -820,7 +820,7 @@ function resetModal() {
   document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('inputPlatform').value = '';
   const holiday = document.getElementById('holidayExclude');
-  if (holiday) { holiday.classList.remove('active'); holiday.classList.add('active'); }
+  if (holiday) { holiday.classList.remove('active'); }
   document.getElementById('modalStickyHeader').classList.remove('show');
   document.querySelector('#modalOverlay .modal-header').style.display = 'flex';
   resetDateSelects();
