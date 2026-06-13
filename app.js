@@ -797,6 +797,8 @@ function selectExistingPlace(placeId) {
   modalSelectedLat = place.lat;
   modalSelectedLng = place.lng;
   document.getElementById('searchResult').innerHTML = `<div class="selected-addr">${place.address}</div>`;
+  clearFieldError('inputName');
+  clearFieldError('inputAddress');
   searchExistingPlaces(place.name, true);
 }
 
@@ -998,7 +1000,6 @@ function submitCampaign() {
   if (!channels.length) { showFieldError('channel'); valid = false; }
   if (!platform) { showFieldError('inputPlatform'); valid = false; }
   if (!content) { showFieldError('inputContent'); valid = false; }
-  if (!deadline) { showFieldError('deadline'); valid = false; }
 
   let placeId;
 
