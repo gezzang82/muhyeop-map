@@ -862,6 +862,14 @@ body {
   align-items: center;
   padding: 0 20px;
   gap: 8px;
+  position: relative;
+}
+.mobile-header-search input { padding-right: 40px; }
+.mobile-header-search .btn-input-clear {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .mobile-search-icon {
   font-size: 16px;
