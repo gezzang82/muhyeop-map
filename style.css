@@ -1033,7 +1033,7 @@ body {
     background: white;
   }
   .sidebar.expanded { height: 50vh; }
-  .sidebar.expanded-full { height: calc(100dvh - 120px); border-radius: 0; }
+  .sidebar.expanded-full { height: calc(100dvh - 120px); }
 
   .sidebar-header {
     cursor: pointer;
