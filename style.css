@@ -591,7 +591,7 @@ body {
   flex-shrink: 0; transition: all 0.15s;
 }
 .holiday-checkbox.active {
-  background: #E82A2D url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cpath d='M8 14L12 18L20 10' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/28px no-repeat;
+  background: #E82A2D url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cpath fill='none' d='M8 14L12 18L20 10' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/28px no-repeat;
   border-color: #E82A2D;
 }
 .holiday-checkbox.active::after { display: none; }
