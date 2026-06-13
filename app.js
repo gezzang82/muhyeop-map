@@ -587,6 +587,8 @@ function focusPlace(placeId) {
     sidebar.classList.remove('expanded-full');
     const arrow = document.getElementById('sidebarArrow');
     if (arrow) arrow.textContent = '︿';
+    const list = document.getElementById('campaignList');
+    if (list) list.scrollTop = 0;
     setTimeout(() => openMobileSheet(place), 150);
   } else {
     // PC: 인포윈도우 열기 — 지도 이동/줌 완료 후 좌표 기준으로 열기
@@ -663,7 +665,11 @@ function toggleBottomSheet(e) {
   if (e.target.closest('.sidebar-list') || e.target.closest('.sidebar-card')) return;
   const willExpand = !sidebar.classList.contains('expanded');
   sidebar.classList.toggle('expanded');
-  if (!willExpand) sidebar.classList.remove('expanded-full'); // 닫을 때 full도 제거
+  if (!willExpand) {
+    sidebar.classList.remove('expanded-full');
+    const list = document.getElementById('campaignList');
+    if (list) list.scrollTop = 0;
+  }
   const isExpanded = sidebar.classList.contains('expanded');
   // 화살표 방향 전환 (닫힘: ︿ 위방향 → 열림: ﹀ 아래방향)
   const arrow = document.getElementById('sidebarArrow');
