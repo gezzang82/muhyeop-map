@@ -765,7 +765,7 @@ function searchExistingPlaces(name) {
         <div class="existing-name">${p.name}</div>
         <div class="existing-addr">${p.address}</div>
       </div>
-      ${modalSelectedPlaceId === p.id ? '<span class="existing-item-check">✓</span>' : ''}
+      <span class="existing-item-check ${modalSelectedPlaceId === p.id ? 'selected' : ''}">✓</span>
     </div>`).join('');
 }
 
