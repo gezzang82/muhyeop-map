@@ -219,6 +219,24 @@ function initMap() {
     mapDataControl: false
   });
 
+  // 모바일: 네이버 로고를 바텀시트 위로 올림
+  if (window.innerWidth <= 640) {
+    const liftNaverLogo = () => {
+      const mapDiv = document.getElementById('map');
+      const logoA = [...mapDiv.querySelectorAll('a')].find(a => {
+        const r = a.getBoundingClientRect();
+        return r.x < 80 && r.y > 100 && r.width > 0;
+      });
+      const logoContainer = logoA?.parentElement?.parentElement;
+      if (logoContainer && logoContainer.style.bottom === '0px') {
+        logoContainer.style.bottom = '86px';
+      } else if (!logoContainer) {
+        setTimeout(liftNaverLogo, 300);
+      }
+    };
+    setTimeout(liftNaverLogo, 500);
+  }
+
   naver.maps.Event.addListener(map, 'click', () => {
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
     // 모바일: 지도 터치 시 사이드바 닫기
