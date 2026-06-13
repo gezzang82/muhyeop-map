@@ -746,9 +746,9 @@ function selectAddress(address, lat, lng) {
 }
 
 // ===== 기존 장소 검색 =====
-function searchExistingPlaces(name) {
+function searchExistingPlaces(name, keepSelection = false) {
   const q = name.trim();
-  modalSelectedPlaceId = null;
+  if (!keepSelection) modalSelectedPlaceId = null;
   if (q.length < 2) { document.getElementById('existingPlacesSection').style.display = 'none'; return; }
 
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
@@ -781,7 +781,7 @@ function selectExistingPlace(placeId) {
   modalSelectedLat = place.lat;
   modalSelectedLng = place.lng;
   document.getElementById('searchResult').innerHTML = `<div class="selected-addr">${place.address}</div>`;
-  searchExistingPlaces(place.name);
+  searchExistingPlaces(place.name, true);
 }
 
 function clearExistingSelection() {
