@@ -1094,9 +1094,16 @@ function openMobileSheet(place) {
   const overlay = document.getElementById('mobileSheetOverlay');
   const content = document.getElementById('mobileSheetContent');
   content.innerHTML = createMobileDetailContent(place);
-  sheet.style.transform = '';  // 혹시 남아 있던 드래그 위치 초기화
+  sheet.style.transform = '';
   sheet.classList.add('show');
   overlay.classList.add('show');
+  // 사이드바 오프스크린으로 내리기
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) {
+    sidebar.style.transition = 'transform 0.3s ease';
+    sidebar.style.transform = 'translateY(100%)';
+    setTimeout(() => { sidebar.style.transition = ''; }, 300);
+  }
 }
 
 function closeMobileSheet() {
@@ -1104,6 +1111,13 @@ function closeMobileSheet() {
   sheet.style.transform = '';
   sheet.classList.remove('show');
   document.getElementById('mobileSheetOverlay').classList.remove('show');
+  // 사이드바 78px 상태로 복귀
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) {
+    sidebar.style.transition = 'transform 0.3s ease';
+    sidebar.style.transform = '';
+    setTimeout(() => { sidebar.style.transition = ''; }, 300);
+  }
 }
 
 // ===== 모집중인협찬 사이드바 스와이프 다운으로 닫기 =====
@@ -1222,6 +1236,13 @@ function initSheetSwipeToDismiss() {
     if (delta > 80) {
       sheet.style.transition = 'transform 0.3s ease';
       sheet.style.transform = 'translateY(100%)';
+      // 사이드바 동시에 올라오기
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) {
+        sidebar.style.transition = 'transform 0.3s ease';
+        sidebar.style.transform = '';
+        setTimeout(() => { sidebar.style.transition = ''; }, 300);
+      }
       setTimeout(() => {
         sheet.style.transition = 'none';
         sheet.style.transform = '';
