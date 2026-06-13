@@ -727,6 +727,7 @@ function selectAddress(address, lat, lng) {
   modalSelectedAddress = address;
   modalSelectedLat = parseFloat(lat);
   modalSelectedLng = parseFloat(lng);
+  clearFieldError('inputAddress');
   document.getElementById('inputAddress').value = address;
 
   // 가까운 좌표에 이미 등록된 장소 확인 (50m 이내)
@@ -826,6 +827,7 @@ function closeModal() {
 }
 
 function resetModal() {
+  clearAllFieldErrors();
   modalSelectedPlaceId = null; modalIsNewPlace = true;
   modalSelectedLat = null; modalSelectedLng = null; modalSelectedAddress = '';
   document.getElementById('step1').style.display = 'flex';
@@ -866,9 +868,33 @@ function updateStepDots(step) {
   });
 }
 
+function showFieldError(fieldId) {
+  const el = document.getElementById(fieldId === 'channel' ? 'channelError' : fieldId + 'Error');
+  if (el) el.classList.add('show');
+  const input = document.getElementById(fieldId === 'channel' ? null : fieldId + 'Trigger') ||
+                document.getElementById(fieldId);
+  if (input) input.classList.add('input-error');
+}
+
+function clearFieldError(fieldId) {
+  const el = document.getElementById(fieldId === 'channel' ? 'channelError' : fieldId + 'Error');
+  if (el) el.classList.remove('show');
+  const trigger = document.getElementById(fieldId + 'Trigger');
+  const input = document.getElementById(fieldId);
+  if (trigger) trigger.classList.remove('input-error');
+  if (input) input.classList.remove('input-error');
+}
+
+function clearAllFieldErrors() {
+  document.querySelectorAll('.field-error-msg').forEach(el => el.classList.remove('show'));
+  document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+}
+
 function goStep2() {
-  if (!document.getElementById('inputName').value.trim()) { showToast('장소명을 입력해주세요'); return; }
-  if (!modalSelectedLat) { showToast('주소를 검색하고 선택해주세요'); return; }
+  let valid = true;
+  if (!document.getElementById('inputName').value.trim()) { showFieldError('inputName'); valid = false; }
+  if (!modalSelectedLat) { showFieldError('inputAddress'); valid = false; }
+  if (!valid) return;
 
   document.getElementById('step1').style.display = 'none';
   document.getElementById('step2').style.display = 'flex';
@@ -968,16 +994,18 @@ function submitCampaign() {
   const deadline = getSelectedDeadline();
   const link = '';
 
-  if (!channels.length || !platform || !content || !deadline) {
-    showToast('게시채널, 플랫폼, 협찬내용, 마감일은 필수예요!');
-    return;
-  }
+  let valid = true;
+  if (!channels.length) { showFieldError('channel'); valid = false; }
+  if (!platform) { showFieldError('inputPlatform'); valid = false; }
+  if (!content) { showFieldError('inputContent'); valid = false; }
+  if (!deadline) { showFieldError('deadline'); valid = false; }
 
   let placeId;
 
   if (modalIsNewPlace) {
     const category = document.getElementById('inputCategory').value;
-    if (!category) { showToast('카테고리를 선택해주세요'); return; }
+    if (!category) { showFieldError('inputCategory'); valid = false; }
+    if (!valid) return;
     const newPlace = {
       id: nextPlaceId++,
       name: document.getElementById('inputName').value.trim(),
@@ -990,6 +1018,7 @@ function submitCampaign() {
     places.push(newPlace);
     placeId = newPlace.id;
   } else {
+    if (!valid) return;
     placeId = modalSelectedPlaceId;
   }
 

@@ -188,7 +188,8 @@
         <div class="modal-body">
           <div class="form-group">
             <label>장소명 <span class="required">*</span></label>
-            <input type="text" id="inputName" placeholder="스타벅스 강남점" oninput="searchExistingPlaces(this.value)">
+            <input type="text" id="inputName" placeholder="스타벅스 강남점" oninput="searchExistingPlaces(this.value); clearFieldError('inputName')">
+            <span class="field-error-msg" id="inputNameError">장소명을 입력해주세요.</span>
           </div>
 
           <div id="existingPlacesSection" style="display:none;">
@@ -204,6 +205,7 @@
               <button class="btn-search-addr" onclick="searchAddress()">검색</button>
             </div>
             <div id="searchResult" class="search-result"></div>
+            <span class="field-error-msg" id="inputAddressError">주소를 검색하고 선택해주세요.</span>
           </div>
         </div>
         <div class="modal-footer">
@@ -240,9 +242,10 @@
                 <option value="안경/잡화">안경/잡화</option>
                 <option value="기타">기타</option>
               </select>
-              <div class="custom-select-trigger" id="inputCategoryTrigger" onclick="openSelectSheet('inputCategory', '카테고리')">
+              <div class="custom-select-trigger" id="inputCategoryTrigger" onclick="openSelectSheet('inputCategory', '카테고리'); clearFieldError('inputCategory')">
                 <span class="custom-select-value" id="inputCategoryValue">선택하세요</span>
               </div>
+              <span class="field-error-msg" id="inputCategoryError">카테고리를 선택해주세요.</span>
             </div>
           </div>
 
@@ -252,11 +255,12 @@
               <span class="label-sub">복수 선택 가능</span>
             </div>
             <div class="channel-btns">
-              <button type="button" class="channel-btn" data-channel="블로그" onclick="toggleChannel(this)">블로그</button>
-              <button type="button" class="channel-btn" data-channel="클립" onclick="toggleChannel(this)">클립</button>
-              <button type="button" class="channel-btn" data-channel="인스타그램" onclick="toggleChannel(this)">인스타</button>
-              <button type="button" class="channel-btn" data-channel="유튜브" onclick="toggleChannel(this)">유튜브</button>
+              <button type="button" class="channel-btn" data-channel="블로그" onclick="toggleChannel(this); clearFieldError('channel')">블로그</button>
+              <button type="button" class="channel-btn" data-channel="클립" onclick="toggleChannel(this); clearFieldError('channel')">클립</button>
+              <button type="button" class="channel-btn" data-channel="인스타그램" onclick="toggleChannel(this); clearFieldError('channel')">인스타</button>
+              <button type="button" class="channel-btn" data-channel="유튜브" onclick="toggleChannel(this); clearFieldError('channel')">유튜브</button>
             </div>
+            <span class="field-error-msg" id="channelError">게시 채널을 선택해주세요.</span>
           </div>
           <div class="form-group">
             <label>플랫폼 <span class="required">*</span></label>
@@ -269,13 +273,15 @@
               <option value="디너의여왕">디너의여왕</option>
               <option value="기타">기타</option>
             </select>
-            <div class="custom-select-trigger" id="inputPlatformTrigger" onclick="openSelectSheet('inputPlatform', '플랫폼')">
+            <div class="custom-select-trigger" id="inputPlatformTrigger" onclick="openSelectSheet('inputPlatform', '플랫폼'); clearFieldError('inputPlatform')">
               <span class="custom-select-value" id="inputPlatformValue">선택하세요</span>
             </div>
+            <span class="field-error-msg" id="inputPlatformError">플랫폼을 선택해주세요.</span>
           </div>
           <div class="form-group">
             <label>협찬 내용 <span class="required">*</span></label>
-            <input type="text" id="inputContent" placeholder="50,000원">
+            <input type="text" id="inputContent" placeholder="50,000원" oninput="clearFieldError('inputContent')">
+            <span class="field-error-msg" id="inputContentError">협찬 내용을 입력해주세요.</span>
           </div>
           <div class="form-group">
             <label>모집 마감일 <span class="required">*</span></label>
@@ -296,6 +302,7 @@
               </div>
               <span>일</span>
             </div>
+            <span class="field-error-msg" id="deadlineError">모집 마감일을 선택해주세요.</span>
           </div>
 
           <div id="optionalFields">

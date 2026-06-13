@@ -446,6 +446,15 @@ body {
 .form-group input:focus,
 .form-group select:focus { border-color: rgba(0,0,0,0.87); }
 
+/* ===== 인라인 오류 메시지 ===== */
+.field-error-msg { font-size: 14px; color: #E82A2D; margin-top: 6px; display: none; }
+.field-error-msg.show { display: block; }
+.input-error,
+.input-error.custom-select-trigger { border-color: #E82A2D !important; }
+.channel-error .channel-btns { outline: none; }
+.channel-error-msg { font-size: 14px; color: #E82A2D; margin-top: 6px; display: none; }
+.channel-error-msg.show { display: block; }
+
 .form-group select,
 .date-selects select {
   appearance: none; -webkit-appearance: none;
