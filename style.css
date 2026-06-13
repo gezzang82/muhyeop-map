@@ -822,6 +822,7 @@ body {
   .detail-info-value { font-size: 15px; color: #000; }
   .detail-info-value .weekday { color: #000; }
   .detail-info-value .weekend { color: #aaa; }
+  .holiday-badge { color: #aaa; }
 }
 
 /* ===== 빈 상태 ===== */

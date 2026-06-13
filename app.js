@@ -416,11 +416,12 @@ function createMobileDetailContent(place) {
         .filter(d => c.operatingDays.includes(d))
         .map(d => `<span class="${WEEKEND.has(d) ? 'weekend' : 'weekday'}">${d}</span>`)
         .join(' ');
+      const holidayBadge = c.excludeHoliday ? ` <span class="holiday-badge">/ 공휴일 불가</span>` : '';
       daysHtml = `
         <div class="detail-info-row">
           <span class="detail-info-icon"></span>
           <span class="detail-info-label">요일</span>
-          <span class="detail-info-value">${daysFormatted}</span>
+          <span class="detail-info-value">${daysFormatted}${holidayBadge}</span>
         </div>`;
     }
 
@@ -944,6 +945,7 @@ function submitCampaign() {
   campaigns.push({
     id: nextCampaignId++, placeId, channels, platform, content, deadline, link,
     operatingDays: [...document.querySelectorAll('.day-btn.active')].map(b => b.textContent),
+    excludeHoliday: document.getElementById('holidayExclude')?.classList.contains('active') ?? false,
     operatingHours: document.getElementById('inputHours').value.trim(),
     reporterNickname: document.getElementById('inputNickname').value.trim(),
     reporterUrl: document.getElementById('inputUrl').value.trim()
