@@ -681,6 +681,8 @@ function toggleBottomSheet(e) {
   // 헤더 영역 클릭 시에만 토글 (리스트 스크롤은 방해 안 함)
   if (e.target.closest('.sidebar-list') || e.target.closest('.sidebar-card')) return;
   const willExpand = !sidebar.classList.contains('expanded');
+  // 스와이프 dismiss 후 남아있는 inline transform 초기화
+  if (willExpand) { sidebar.style.transform = ''; sidebar.style.transition = ''; }
   sidebar.classList.toggle('expanded');
   if (!willExpand) {
     sidebar.classList.remove('expanded-full');
@@ -1134,21 +1136,22 @@ function initSidebarSwipeToDismiss() {
     dragging = false;
     const delta = currentY - startY;
     if (delta > 80) {
-      // 클래스 먼저 제거 → 지도가 즉시 공간 확보
       sidebar.classList.remove('expanded');
       sidebar.classList.remove('expanded-full');
       const arrow = document.getElementById('sidebarArrow');
       if (arrow) arrow.textContent = '︿';
       setNaverLogoVisible(true);
-      // 슬라이드 아웃 애니메이션
+      // 슬라이드 아웃 애니메이션 (height 변화 막기 위해 현재 높이 고정)
+      sidebar.style.height = sidebar.offsetHeight + 'px';
       sidebar.style.transition = 'transform 0.3s ease';
       sidebar.style.transform = 'translateY(100%)';
       setTimeout(() => {
+        // transform은 유지한 채 height만 초기화 → 스냅 없이 숨김 상태 유지
         sidebar.style.transition = 'none';
-        sidebar.style.transform = '';
-        requestAnimationFrame(() => { sidebar.style.transition = ''; });
+        sidebar.style.height = '';
         const list = document.getElementById('campaignList');
         if (list) list.scrollTop = 0;
+        requestAnimationFrame(() => { sidebar.style.transition = ''; });
       }, 300);
     } else {
       sidebar.style.transition = 'none';
@@ -1221,12 +1224,10 @@ function initSheetSwipeToDismiss() {
       sheet.style.transform = 'translateY(100%)';
       setTimeout(() => {
         sheet.style.transition = 'none';
+        sheet.style.transform = '';
         sheet.classList.remove('show');
         document.getElementById('mobileSheetOverlay').classList.remove('show');
-        requestAnimationFrame(() => {
-          sheet.style.transform = '';
-          sheet.style.transition = '';
-        });
+        requestAnimationFrame(() => { sheet.style.transition = ''; });
       }, 300);
     } else {
       sheet.style.transition = 'transform 0.25s ease';
