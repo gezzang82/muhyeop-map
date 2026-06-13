@@ -116,6 +116,7 @@ function renderCampaignList() {
       <td><span class="badge-platform">${c.platform}</span></td>
       <td>${(c.channels||[]).join(', ')}</td>
       <td class="td-content">${c.content}</td>
+      <td class="td-days">${(c.operatingDays||[]).join(' ')}${c.excludeHoliday ? ' / 공휴일 불가' : ''}</td>
       <td>${c.deadline}</td>
       <td><span class="badge-status ${isActive?'active':'expired'}">${isActive?'모집 중':'마감'}</span></td>
       <td>
@@ -177,7 +178,7 @@ function searchAdminAddress() {
 function submitAdminCampaign() {
   const selectedPlaceId = document.getElementById('addPlaceSelect').value;
   const platform = document.getElementById('addPlatform').value;
-  const channels = ['블로그','클립','인스타그램'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
+  const channels = ['블로그','클립','인스타그램','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
   const content = document.getElementById('addContent').value.trim();
   const deadline = document.getElementById('addDeadline').value;
   const hours = document.getElementById('addHours').value.trim();
@@ -205,9 +206,10 @@ function submitAdminCampaign() {
     adminToast(`장소 "${name}" 등록 완료`);
   }
 
+  const excludeHoliday = document.getElementById('addExcludeHoliday')?.checked || false;
   campaigns.push({
     id: nextCampaignId++, placeId, platform, channels, content, deadline, link: '',
-    operatingDays: days, operatingHours: hours,
+    operatingDays: days, operatingHours: hours, excludeHoliday,
     reporterNickname: '', reporterBlog: '', reporterInstagram: ''
   });
 
@@ -223,10 +225,11 @@ function resetAddForm() {
   document.getElementById('addPlatform').value = '';
   document.getElementById('addCategory').value = '';
   document.getElementById('addDeadline').value = '';
-  ['블로그','클립','인스타그램'].forEach(ch => {
+  ['블로그','클립','인스타그램','유튜브'].forEach(ch => {
     const el = document.getElementById(`ach_${ch}`); if(el) el.checked = false;
   });
   document.querySelectorAll('.day-item').forEach(d => d.classList.remove('on'));
+  const excludeEl = document.getElementById('addExcludeHoliday'); if(excludeEl) excludeEl.checked = false;
   document.getElementById('newPlaceFields').style.opacity = '1';
   document.getElementById('newPlaceFields').style.pointerEvents = '';
 }
@@ -280,16 +283,19 @@ function editCampaign(id) {
     document.querySelectorAll('.day-item').forEach(d => {
       if ((c.operatingDays||[]).includes(d.textContent.trim())) d.classList.add('on');
     });
+    const excludeEl = document.getElementById('addExcludeHoliday');
+    if (excludeEl) excludeEl.checked = c.excludeHoliday || false;
     // 등록 버튼을 수정 모드로
     const btn = document.querySelector('.btn-submit');
     btn.textContent = '✅ 수정 완료';
     btn.onclick = () => {
       c.platform = document.getElementById('addPlatform').value;
-      c.channels = ['블로그','클립','인스타그램'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
+      c.channels = ['블로그','클립','인스타그램','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
       c.content = document.getElementById('addContent').value.trim();
       c.deadline = document.getElementById('addDeadline').value;
       c.operatingHours = document.getElementById('addHours').value.trim();
       c.operatingDays = [...document.querySelectorAll('.day-item.on')].map(el => el.textContent.trim());
+      c.excludeHoliday = document.getElementById('addExcludeHoliday')?.checked || false;
       adminToast('캠페인 수정 완료 ✅');
       btn.textContent = '✅ 등록하기';
       btn.onclick = submitAdminCampaign;
