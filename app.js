@@ -1042,12 +1042,14 @@ function submitCampaign() {
 }
 
 // ===== 토스트 =====
+let _toastTimer = null;
 function showToast(msg) {
   let toast = document.querySelector('.toast');
   if (!toast) { toast = document.createElement('div'); toast.className = 'toast'; document.body.appendChild(toast); }
   toast.textContent = msg;
   toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2500);
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { toast.classList.remove('show'); _toastTimer = null; }, 3000);
 }
 
 // ===== 네이버지도 열기 =====
