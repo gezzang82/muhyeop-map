@@ -669,14 +669,14 @@ body {
 }
 .btn-cancel {
   width: 140px; flex-shrink: 0; height: 64px; background: white;
-  border: 1px solid rgba(170,170,170,0.87); border-radius: 8px;
+  border: 1px solid rgba(170,170,170,0.87); border-radius: 16px;
   font-size: 20px; font-weight: 400; cursor: pointer; color: #000;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .btn-cancel:hover { background: #f5f5f5; }
 .btn-next, .btn-submit {
   flex: 1; height: 64px; background: #E82A2D; color: white;
-  border: none; border-radius: 8px; font-size: 20px; font-weight: 700;
+  border: none; border-radius: 16px; font-size: 20px; font-weight: 700;
   cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   transition: background 0.2s;
 }
