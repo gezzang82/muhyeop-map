@@ -773,6 +773,19 @@ function searchExistingPlaces(name, keepSelection = false) {
 function selectExistingPlace(placeId) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
+
+  if (modalSelectedPlaceId === placeId) {
+    modalSelectedPlaceId = null;
+    modalIsNewPlace = true;
+    modalSelectedAddress = null;
+    modalSelectedLat = null;
+    modalSelectedLng = null;
+    document.getElementById('inputAddress').value = '';
+    document.getElementById('searchResult').innerHTML = '';
+    searchExistingPlaces(place.name, false);
+    return;
+  }
+
   modalSelectedPlaceId = placeId;
   modalIsNewPlace = false;
   document.getElementById('inputName').value = place.name;
