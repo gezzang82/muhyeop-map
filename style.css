@@ -864,7 +864,7 @@ body {
   gap: 8px;
   position: relative;
 }
-.mobile-header-search input { padding-right: 40px; }
+.mobile-header-search input { padding-right: 40px; box-sizing: border-box; }
 .mobile-header-search .btn-input-clear {
   position: absolute;
   right: 16px;
