@@ -864,7 +864,7 @@ body {
   .detail-founder-icon-img { flex-shrink: 0; }
   .detail-founder-name-group { display: flex; align-items: center; gap: 8px; }
   .detail-founder-link { font-size: 15px; font-weight: 700; color: #006cff; text-decoration: none; }
-  .detail-founder-chevron { font-size: 22px; color: #006cff; line-height: 1; }
+  .detail-founder-chevron { display: block; flex-shrink: 0; }
 
   .detail-divider { height: 1px; background: #eee; margin: 0 0; }
 
@@ -887,7 +887,7 @@ body {
   .detail-info-value .day-dim { color: #ccc; }
   .holiday-badge-active { color: #000; }
   .detail-info-reporter-link { font-size: 15px; color: #000; text-decoration: none; }
-  .detail-reporter-chevron { font-size: 22px; color: #555; line-height: 1; }
+  .detail-reporter-chevron { display: block; flex-shrink: 0; }
 }
 
 /* ===== 빈 상태 ===== */

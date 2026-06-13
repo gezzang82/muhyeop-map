@@ -419,7 +419,7 @@ function createMobileDetailContent(place) {
         <img src="image/ic_workspace_premium_24.svg" width="24" height="24" alt="" class="detail-founder-icon-img">
         <div class="detail-founder-name-group">
           ${place.founderUrl
-            ? `<a class="detail-founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a><span class="detail-founder-chevron">›</span>`
+            ? `<a class="detail-founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a><img src="image/ic_chevron_right_blue.svg" class="detail-founder-chevron" alt="">`
             : `<span class="detail-founder-link">${place.founderNickname}</span>`}
         </div>
       </div>
@@ -471,7 +471,7 @@ function createMobileDetailContent(place) {
           <span class="detail-info-label">제보</span>
         </div>
         ${reporterUrl
-          ? `<a class="detail-info-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><span class="detail-reporter-chevron">›</span>`
+          ? `<a class="detail-info-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" class="detail-reporter-chevron" alt="">`
           : `<span class="detail-info-value">${c.reporterNickname}</span>`}
       </div>` : '';
 
