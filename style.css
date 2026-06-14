@@ -13,101 +13,95 @@ body {
 
 /* ===== 헤더 ===== */
 .header {
-  background: #1a1a2e;
-  color: white;
+  position: fixed;
+  top: 20px; left: 20px; right: 20px;
+  z-index: 500;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  height: 80px;
   padding: 0 20px;
-  height: 56px;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .header-inner {
   height: 100%;
   display: flex;
   align-items: center;
-  gap: 16px;
 }
 
 /* PC/모바일 헤더 전환 */
 .header-mobile { display: none; }
 .header-pc { display: flex; }
 
-.logo { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.logo-icon { font-size: 22px; }
-.logo-text {
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 20px; font-weight: 800;
-  color: #e8c96d; letter-spacing: -0.5px;
-}
-.logo-sub { font-size: 11px; color: #888; }
-
-.header-center { flex: 1; max-width: 420px; }
+.logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.logo-text-img { display: block; }
 
 .search-bar {
   display: flex;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 22px;
+  align-items: center;
+  background: rgba(0,0,0,0.08);
+  border-radius: 9px;
+  height: 48px;
+  width: 320px;
   overflow: hidden;
 }
 .search-bar input {
   flex: 1; background: none; border: none;
-  padding: 8px 14px; color: white;
-  font-size: 13px; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 0 20px; color: #1a1a1a;
+  font-size: 18px; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   outline: none;
 }
-.search-bar input::placeholder { color: rgba(255,255,255,0.45); }
-.btn-search-region {
-  background: none; border: none;
-  padding: 0 12px; cursor: pointer; font-size: 15px;
-}
+.search-bar input::placeholder { color: #bbb; }
 
 .header-actions { margin-left: auto; flex-shrink: 0; display: flex; gap: 8px; align-items: center; }
 
 .btn-about {
-  background: transparent; color: rgba(255,255,255,0.75);
-  border: 1px solid rgba(255,255,255,0.25); padding: 7px 14px;
-  border-radius: 20px; font-size: 12px; font-weight: 500;
+  background: transparent; color: #555;
+  border: 1px solid rgba(0,0,0,0.16); height: 48px; padding: 0 16px;
+  border-radius: 8px; font-size: 16px; font-weight: 500;
   cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   white-space: nowrap; transition: all 0.2s;
 }
-.btn-about:hover { color: white; border-color: rgba(255,255,255,0.5); }
+.btn-about:hover { border-color: rgba(0,0,0,0.3); color: #333; }
 
 .btn-add {
-  background: #e8c96d; color: #1a1a2e;
-  border: none; padding: 8px 18px;
-  border-radius: 20px; font-size: 13px; font-weight: 700;
+  background: #e82a2d; color: white;
+  border: none; height: 48px; padding: 0 16px;
+  border-radius: 8px; font-size: 16px; font-weight: 700;
   cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   transition: background 0.2s; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
 }
-.btn-add:hover { background: #f0d87a; }
+.btn-add:hover { background: #c9242a; }
 
 /* ===== 필터바 ===== */
 .filter-bar {
-  background: white;
-  padding: 8px 16px;
+  position: fixed;
+  top: 116px; left: 20px;
+  z-index: 500;
+  background: transparent;
+  padding: 0;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   overflow-x: auto;
-  border-bottom: 1px solid #e8e8e8;
-  flex-shrink: 0;
 }
 .filter-bar::-webkit-scrollbar { display: none; }
 
 .filter-chip {
-  padding: 5px 14px;
+  display: flex; align-items: center; gap: 4px;
+  height: 40px; padding: 0 14px;
   border-radius: 20px;
-  border: 1.5px solid #ddd;
+  border: 1px solid #ddd;
   background: white;
-  font-size: 12px; font-weight: 500;
+  font-size: 16px; font-weight: 400;
   cursor: pointer; white-space: nowrap;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  transition: all 0.15s; color: #555;
+  transition: all 0.15s; color: #333;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
-.filter-chip:hover { border-color: #e8c96d; color: #1a1a2e; }
-.filter-chip.active { background: #1a1a2e; border-color: #1a1a2e; color: #e8c96d; }
-.chip-icon { display: none; }
-.filter-chip.active .chip-icon { display: inline; }
+.filter-chip img { border-radius: 4px; display: block; flex-shrink: 0; }
+.filter-chip:hover { border-color: #bbb; }
+.filter-chip.active { background: #383838; border-color: #383838; color: white; font-weight: 700; }
 
 /* ===== 레이아웃 ===== */
 .main-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
@@ -131,10 +125,14 @@ body {
 
 /* ===== 사이드바 ===== */
 .sidebar {
-  width: 280px; background: white;
-  border-left: 1px solid #e8e8e8;
+  position: fixed;
+  right: 20px; top: 116px; bottom: 20px;
+  width: 340px; background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
   display: flex; flex-direction: column;
   overflow: hidden; flex-shrink: 0;
+  z-index: 400;
 }
 
 .sidebar-handle-wrap {

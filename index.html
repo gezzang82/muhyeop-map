@@ -17,19 +17,15 @@
     <!-- PC 헤더 -->
     <div class="header-inner header-pc">
       <div class="logo">
-        <span class="logo-icon">🗺️</span>
-        <span class="logo-text">무협맵</span>
-        <span class="logo-sub">무료협찬 지도</span>
-      </div>
-      <div class="header-center">
-        <div class="search-bar">
-          <input type="text" id="regionSearch" placeholder="지역 검색 (예: 강남구, 성수동, 홍대)" onkeydown="if(event.key==='Enter') searchRegion()">
-          <button class="btn-search-region" onclick="searchRegion()">🔍</button>
-        </div>
+        <img src="image/mhmap_ci.svg" width="45" height="32" alt="무협맵">
+        <img src="image/text_ci.svg" height="21" alt="무협맵 무료협찬맵" class="logo-text-img">
       </div>
       <div class="header-actions">
         <button class="btn-about" onclick="openAbout()">서비스 소개</button>
-        <button class="btn-add" onclick="openModal()">+ 협찬 제보하기</button>
+        <div class="search-bar">
+          <input type="text" id="regionSearch" placeholder="지역을 검색하세요" onkeydown="if(event.key==='Enter') searchRegion()">
+        </div>
+        <button class="btn-add" onclick="openModal()">+ 체험 제보하기</button>
       </div>
     </div>
     <!-- 모바일 헤더 -->
@@ -53,11 +49,10 @@
 
   <div class="filter-bar">
     <button class="filter-chip active" onclick="filterChannel('전체')">전체</button>
-    <button class="filter-chip" onclick="filterChannel('블로그')">블로그</button>
-    <button class="filter-chip" onclick="filterChannel('클립')">클립</button>
-    <button class="filter-chip" onclick="filterChannel('인스타그램')">인스타그램</button>
-    <button class="filter-chip" onclick="filterChannel('릴스')">릴스</button>
-    <button class="filter-chip" onclick="filterChannel('유튜브')">유튜브</button>
+    <button class="filter-chip" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="20" height="20">블로그</button>
+    <button class="filter-chip" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="20" height="20">클립</button>
+    <button class="filter-chip" onclick="filterChannel('인스타그램')"><img src="image/ic_instagram_20.png" width="20" height="20">인스타</button>
+    <button class="filter-chip" onclick="filterChannel('유튜브')"><img src="image/ic_youtube_20.png" width="20" height="20">유튜브</button>
   </div>
 
   <div class="main-layout">
