@@ -19,7 +19,7 @@ body {
   background: white;
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  height: 80px;
+  height: 64px;
   padding: 0 20px;
 }
 
@@ -57,8 +57,8 @@ body {
 
 .btn-about {
   background: transparent; color: #555;
-  border: 1px solid rgba(0,0,0,0.16); height: 48px; padding: 0 16px;
-  border-radius: 8px; font-size: 16px; font-weight: 500;
+  border: 1px solid rgba(0,0,0,0.16); height: 40px; padding: 0 12px;
+  border-radius: 4px; font-size: 14px; font-weight: 500;
   cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   white-space: nowrap; transition: all 0.2s;
 }
@@ -66,8 +66,8 @@ body {
 
 .btn-add {
   background: #e82a2d; color: white;
-  border: none; height: 48px; padding: 0 16px;
-  border-radius: 8px; font-size: 16px; font-weight: 700;
+  border: none; height: 40px; padding: 0 12px;
+  border-radius: 4px; font-size: 14px; font-weight: 700;
   cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   transition: background 0.2s; white-space: nowrap;
   display: flex; align-items: center; gap: 6px;
@@ -77,7 +77,7 @@ body {
 /* ===== 필터바 ===== */
 .filter-bar {
   position: fixed;
-  top: 116px; left: 20px;
+  top: 84px; left: 20px;
   z-index: 500;
   background: transparent;
   padding: 0;
@@ -109,24 +109,46 @@ body {
 .mobile-search-bar { display: none; }
 
 .btn-my-location {
-  position: absolute;
-  bottom: 80px; right: 14px;
-  z-index: 100;
-  width: 44px; height: 44px;
-  border-radius: 50%;
+  position: fixed;
+  bottom: 20px; right: 372px;
+  z-index: 400;
+  width: 48px; height: 48px;
+  border-radius: 8px;
   background: white;
   border: none;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  font-size: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
 .btn-my-location:hover { background: #f5f5f0; }
 
+.btn-zoom-group {
+  position: fixed;
+  bottom: 76px; right: 372px;
+  z-index: 400;
+  width: 48px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  display: flex; flex-direction: column; align-items: center;
+  overflow: hidden;
+}
+.btn-zoom {
+  width: 100%; height: 48px;
+  background: none; border: none;
+  font-size: 20px; font-weight: 400; color: #333;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.btn-zoom:hover { background: #f5f5f5; }
+.btn-zoom-divider {
+  width: 20px; height: 1px; background: #e0e0e0;
+}
+
 /* ===== 사이드바 ===== */
 .sidebar {
   position: fixed;
-  right: 20px; top: 116px; bottom: 20px;
+  right: 20px; top: 104px; bottom: 20px;
   width: 340px; background: white;
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.08);
@@ -1094,8 +1116,11 @@ body {
   .btn-my-location {
     position: fixed;
     bottom: 100px; right: 20px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
     z-index: 250;
   }
+  .btn-zoom-group { display: none; }
 
   /* 사이드바 → fixed 바텀시트 */
   .sidebar {
