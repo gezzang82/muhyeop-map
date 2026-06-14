@@ -1102,7 +1102,7 @@ body {
     display: flex;
     flex-direction: column;
     position: fixed;
-    bottom: 0; left: 0; right: 0;
+    top: auto; bottom: 0; left: 0; right: 0;
     width: 100%;
     border-left: none;
     border-top: none;
