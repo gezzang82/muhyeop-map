@@ -172,6 +172,7 @@ let markers = [];
 let markerCluster = null;
 let openInfoWindow = null;
 let openPcCardPlaceId = null;
+let openPcCardPlace = null;
 let pcCardPanTimer = null;
 let markerMap = {}; // placeId → { marker, infoWindow }
 let selectedMarkerId = null;
@@ -781,31 +782,34 @@ function focusPlace(placeId) {
   }
 }
 
-function openPcCard(place) {
-  if (openPcCardPlaceId === place.id) { closePcCard(); return; }
-  openPcCardPlaceId = place.id;
-  document.getElementById('pcCardContent').innerHTML = createInfoContent(place);
-  document.getElementById('pcCard').classList.add('visible');
-  setSelectedMarker(place.id);
+function panToCard(place) {
   const latlng = new naver.maps.LatLng(place.lat, place.lng);
   const proj = map.getProjection();
   if (proj) {
     const off = proj.fromCoordToOffset(latlng);
     off.y -= 24;
-    // 팝업카드(left:20 + width:320 + arrow:10 + gap:40 = 390px) 바로 오른쪽에 핀이 오도록 수평 이동
     const mapWidth = document.getElementById('map').offsetWidth;
-    if (mapWidth > 640) {
-      off.x += (mapWidth / 2 - 390);
-    }
+    if (mapWidth > 640) off.x += (mapWidth / 2 - 390);
     map.panTo(proj.fromOffsetToCoord(off));
   } else {
     map.panTo(latlng);
   }
 }
 
+function openPcCard(place) {
+  if (openPcCardPlaceId === place.id) { closePcCard(); return; }
+  openPcCardPlaceId = place.id;
+  openPcCardPlace = place;
+  document.getElementById('pcCardContent').innerHTML = createInfoContent(place);
+  document.getElementById('pcCard').classList.add('visible');
+  setSelectedMarker(place.id);
+  panToCard(place);
+}
+
 function closePcCard() {
   if (!openPcCardPlaceId) return;
   openPcCardPlaceId = null;
+  openPcCardPlace = null;
   document.getElementById('pcCard').classList.remove('visible');
   clearSelectedMarker();
 }
@@ -1539,8 +1543,13 @@ function bindClearBtn(btn, input) {
 document.addEventListener('DOMContentLoaded', setupClearButtons);
 window.addEventListener('load', function() {
   initMap();
-  // Naver Maps가 flex 컨테이너에서 초기 크기를 잘못 계산하는 경우 강제 리사이즈
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
+});
+
+window.addEventListener('resize', function() {
+  if (openPcCardPlace && window.innerWidth > 640) {
+    panToCard(openPcCardPlace);
+  }
 });
 
 // ===== 커스텀 셀렉트 바텀시트 =====
