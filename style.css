@@ -318,16 +318,14 @@ body {
   pointer-events: none;
 }
 .pc-card-close {
-  position: absolute;
-  top: 12px; right: 12px;
-  width: 28px; height: 28px;
-  border: none; background: rgba(0,0,0,0.07);
-  border-radius: 50%; cursor: pointer;
-  font-size: 18px; line-height: 1; color: #555;
+  flex-shrink: 0;
+  width: 16px; height: 16px;
+  border: none; background: none; padding: 0;
+  cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  z-index: 1;
+  opacity: 0.45;
 }
-.pc-card-close:hover { background: rgba(0,0,0,0.13); }
+.pc-card-close:hover { opacity: 1; }
 
 /* ===== 인포윈도우 ===== */
 .info-window {
@@ -340,14 +338,15 @@ body {
 
 /* 매장 정보 */
 .iw-place { display: flex; flex-direction: column; padding: 20px 20px 0; }
-.iw-name-row { display: flex; align-items: center; gap: 8px; padding: 3px 44px 3px 0; }
+.iw-name-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.iw-name-text-group { display: flex; flex: 1; min-width: 0; gap: 8px; align-items: center; }
 .iw-name { font-size: 16px; font-weight: 500; color: #000; white-space: nowrap; flex-shrink: 0; }
 .iw-channels { display: flex; gap: 4px; align-items: center; }
 .iw-channels img { border-radius: 4px; display: block; }
 .iw-address { font-size: 14px; color: #777; padding: 5px 0; }
 
 /* 최초제보자 */
-.iw-meta-founder { padding: 8px 20px 0; display: flex; flex-direction: column; gap: 12px; }
+.iw-meta-founder { padding: 0 20px 0; display: flex; flex-direction: column; gap: 12px; }
 .iw-founder { display: flex; align-items: center; gap: 8px; height: 26px; }
 .iw-founder-label { font-size: 14px; color: #777; flex-shrink: 0; }
 .iw-founder-right { display: flex; align-items: center; gap: 2px; }

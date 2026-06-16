@@ -560,8 +560,13 @@ function createInfoContent(place) {
     <div class="info-window">
       <div class="iw-place">
         <div class="iw-name-row">
-          <span class="iw-name">${place.name}</span>
-          <div class="iw-channels">${channelIconsHtml}</div>
+          <div class="iw-name-text-group">
+            <span class="iw-name">${place.name}</span>
+            <div class="iw-channels">${channelIconsHtml}</div>
+          </div>
+          <button class="pc-card-close" onclick="closePcCard()">
+            <img src="image/ic_text_clear_20.svg" width="16" height="16" alt="닫기">
+          </button>
         </div>
         <div class="iw-address">${place.address}</div>
       </div>
