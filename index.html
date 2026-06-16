@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="format-detection" content="telephone=no, address=no, email=no">
   <title>무협맵 - 무료협찬 지도</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=10">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
@@ -17,8 +17,8 @@
     <!-- PC 헤더 -->
     <div class="header-inner header-pc">
       <div class="logo">
-        <img src="image/mhmap_ci.svg" width="45" height="32" alt="무협맵">
-        <img src="image/text_ci.svg" height="21" alt="무협맵 무료협찬맵" class="logo-text-img">
+        <img src="image/mhmap_ci.svg" width="36" height="26" alt="무협맵">
+        <img src="image/text_ci.svg" height="17" alt="무협맵 무료협찬맵" class="logo-text-img">
       </div>
       <div class="header-actions">
         <button class="btn-about" onclick="openAbout()">서비스 소개</button>
@@ -83,6 +83,13 @@
         <input type="text" id="regionSearchMobile" placeholder="지역 검색 (예: 강남구, 성수동)" onkeydown="if(event.key==='Enter') searchRegionMobile()">
         <button onclick="searchRegionMobile()">🔍</button>
       </div>
+    </div>
+
+    <!-- PC 팝업 카드 -->
+    <div id="pcCard" class="pc-card">
+      <button class="pc-card-close" onclick="closePcCard()">×</button>
+      <div id="pcCardContent"></div>
+      <img src="image/popup_arrow.svg" class="pc-card-arrow" alt="">
     </div>
 
     <div class="sidebar" id="sidebar" onclick="toggleBottomSheet(event)">
@@ -228,6 +235,20 @@
           </div>
           <div id="selectedPlaceBadge"></div>
 
+          <div class="form-group">
+            <div class="channel-label-row">
+              <span>게시 채널 <span class="required">*</span></span>
+              <span class="label-sub">복수 선택 가능</span>
+            </div>
+            <div class="channel-btns">
+              <button type="button" class="channel-btn" data-channel="블로그" onclick="toggleChannel(this); clearFieldError('channel')">블로그</button>
+              <button type="button" class="channel-btn" data-channel="클립" onclick="toggleChannel(this); clearFieldError('channel')">클립</button>
+              <button type="button" class="channel-btn" data-channel="인스타그램" onclick="toggleChannel(this); clearFieldError('channel')">인스타</button>
+              <button type="button" class="channel-btn" data-channel="유튜브" onclick="toggleChannel(this); clearFieldError('channel')">유튜브</button>
+            </div>
+            <span class="field-error-msg" id="channelError">게시 채널을 선택해주세요.</span>
+          </div>
+
           <div id="newPlaceCategoryField">
             <div class="form-group">
               <label>카테고리 <span class="required">*</span></label>
@@ -248,29 +269,20 @@
               <span class="field-error-msg" id="inputCategoryError">카테고리를 선택해주세요.</span>
             </div>
           </div>
-
-          <div class="form-group">
-            <div class="channel-label-row">
-              <span>게시 채널 <span class="required">*</span></span>
-              <span class="label-sub">복수 선택 가능</span>
-            </div>
-            <div class="channel-btns">
-              <button type="button" class="channel-btn" data-channel="블로그" onclick="toggleChannel(this); clearFieldError('channel')">블로그</button>
-              <button type="button" class="channel-btn" data-channel="클립" onclick="toggleChannel(this); clearFieldError('channel')">클립</button>
-              <button type="button" class="channel-btn" data-channel="인스타그램" onclick="toggleChannel(this); clearFieldError('channel')">인스타</button>
-              <button type="button" class="channel-btn" data-channel="유튜브" onclick="toggleChannel(this); clearFieldError('channel')">유튜브</button>
-            </div>
-            <span class="field-error-msg" id="channelError">게시 채널을 선택해주세요.</span>
-          </div>
           <div class="form-group">
             <label>플랫폼 <span class="required">*</span></label>
             <select id="inputPlatform" style="display:none">
               <option value="">선택하세요</option>
               <option value="레뷰">레뷰</option>
               <option value="리뷰노트">리뷰노트</option>
-              <option value="미블">미블</option>
-              <option value="강남맛집">강남맛집</option>
               <option value="디너의여왕">디너의여왕</option>
+              <option value="서울오빠">서울오빠</option>
+              <option value="리뷰플레이스">리뷰플레이스</option>
+              <option value="포블로그">포블로그</option>
+              <option value="링블">링블</option>
+              <option value="미블">미블</option>
+              <option value="강남맛집">강남맛집체험단</option>
+              <option value="체험뷰">체험뷰</option>
               <option value="기타">기타</option>
             </select>
             <div class="custom-select-trigger" id="inputPlatformTrigger" onclick="openSelectSheet('inputPlatform', '플랫폼'); clearFieldError('inputPlatform')">
@@ -352,6 +364,13 @@
         </div>
       </div>
 
+      <!-- 셀렉트 바텀시트 -->
+      <div id="selectSheetOverlay" class="select-sheet-overlay" onclick="closeSelectSheet()"></div>
+      <div id="selectSheetPanel" class="select-sheet-panel">
+        <div class="select-sheet-handle"></div>
+        <div class="select-sheet-title" id="selectSheetTitle"></div>
+        <div class="select-sheet-list" id="selectSheetList"></div>
+      </div>
     </div>
   </div>
 
@@ -364,14 +383,6 @@
   </div>
   <div id="mobileSheetOverlay" class="mobile-sheet-overlay" onclick="closeMobileSheet()"></div>
 
-  <!-- 셀렉트 바텀시트 -->
-  <div id="selectSheetOverlay" class="select-sheet-overlay" onclick="closeSelectSheet()"></div>
-  <div id="selectSheetPanel" class="select-sheet-panel">
-    <div class="select-sheet-handle"></div>
-    <div class="select-sheet-title" id="selectSheetTitle"></div>
-    <div class="select-sheet-list" id="selectSheetList"></div>
-  </div>
-
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=20"></script>
 </body>
 </html>

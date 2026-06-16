@@ -99,7 +99,10 @@ let map;
 let markers = [];
 let markerCluster = null;
 let openInfoWindow = null;
+let openPcCardPlaceId = null;
+let pcCardPanTimer = null;
 let markerMap = {}; // placeId → { marker, infoWindow }
+let selectedMarkerId = null;
 
 // 모달 상태
 let modalSelectedPlaceId = null;
@@ -109,18 +112,73 @@ let modalSelectedLng = null;
 let modalSelectedAddress = "";
 
 // ===== 상수 =====
-const CATEGORY_ICONS = {
-  '음식점': '🍽️', '카페': '☕', '뷰티': '💄',
-  '숙박/여가': '🏨', '문화': '🎭', '의류': '👗',
-  '안경/잡화': '👓', '기타': '📦'
+// 카테고리별 지도 핀: 색상 + 화이트 아이콘 (viewBox 0 0 30 30 기준)
+const CATEGORY_PINS = {
+  '음식점':    { color: '#E82A2D', icon: '<path d="M11 21.6667V15.5667C10.4 15.4111 9.91667 15.0944 9.55 14.6167C9.18333 14.1389 9 13.6 9 13V8.33333H10.3333V12.3333H11V8.33333H12.3333V12.3333H13V8.33333H14.3333V13C14.3333 13.6 14.15 14.1389 13.7833 14.6167C13.4167 15.0944 12.9333 15.4111 12.3333 15.5667V21.6667H11ZM17.6667 21.6667V15.3167C17.0667 15.1167 16.5833 14.6972 16.2167 14.0583C15.85 13.4194 15.6667 12.6944 15.6667 11.8833C15.6667 10.8944 15.9278 10.0556 16.45 9.36667C16.9722 8.67778 17.6 8.33333 18.3333 8.33333C19.0667 8.33333 19.6944 8.68056 20.2167 9.375C20.7389 10.0694 21 10.9111 21 11.9C21 12.7111 20.8167 13.4333 20.45 14.0667C20.0833 14.7 19.6 15.1167 19 15.3167V21.6667H17.6667Z" fill="#fff"/>' },
+  '카페':      { color: '#C07C58', icon: '<path d="M9.66667 21V19.6667H20.3333V21H9.66667ZM12.3333 18.3333C11.6 18.3333 10.9722 18.0722 10.45 17.55C9.92778 17.0278 9.66667 16.4 9.66667 15.6667V9H20.3333C20.7 9 21.0139 9.13056 21.275 9.39167C21.5361 9.65278 21.6667 9.96667 21.6667 10.3333V12.3333C21.6667 12.7 21.5361 13.0139 21.275 13.275C21.0139 13.5361 20.7 13.6667 20.3333 13.6667H19V15.6667C19 16.4 18.7389 17.0278 18.2167 17.55C17.6944 18.0722 17.0667 18.3333 16.3333 18.3333H12.3333ZM19 12.3333H20.3333V10.3333H19V12.3333Z" fill="#fff"/>' },
+  '뷰티':      { color: '#FFB619', icon: '<path d="M18.3333 21.6667C18.1444 21.6667 17.9861 21.6028 17.8583 21.475C17.7306 21.3472 17.6667 21.1889 17.6667 21C17.6667 20.8111 17.7306 20.6528 17.8583 20.525C17.9861 20.3972 18.1444 20.3333 18.3333 20.3333H20.3333V19H18.3333C18.1444 19 17.9861 18.9361 17.8583 18.8083C17.7306 18.6806 17.6667 18.5222 17.6667 18.3333C17.6667 18.1444 17.7306 17.9861 17.8583 17.8583C17.9861 17.7306 18.1444 17.6667 18.3333 17.6667H20.3333V16.3333H18.3333C18.1444 16.3333 17.9861 16.2694 17.8583 16.1417C17.7306 16.0139 17.6667 15.8556 17.6667 15.6667C17.6667 15.4778 17.7306 15.3194 17.8583 15.1917C17.9861 15.0639 18.1444 15 18.3333 15H20.3333V13.6667H18.3333C18.1444 13.6667 17.9861 13.6028 17.8583 13.475C17.7306 13.3472 17.6667 13.1889 17.6667 13C17.6667 12.8111 17.7306 12.6528 17.8583 12.525C17.9861 12.3972 18.1444 12.3333 18.3333 12.3333H20.3333V11H18.3333C18.1444 11 17.9861 10.9361 17.8583 10.8083C17.7306 10.6806 17.6667 10.5222 17.6667 10.3333C17.6667 10.1444 17.7306 9.98611 17.8583 9.85833C17.9861 9.73056 18.1444 9.66667 18.3333 9.66667H21C21.3667 9.66667 21.6806 9.79722 21.9417 10.0583C22.2028 10.3194 22.3333 10.6333 22.3333 11V20.3333C22.3333 20.7 22.2028 21.0139 21.9417 21.275C21.6806 21.5361 21.3667 21.6667 21 21.6667H18.3333ZM10.3333 21.6667L7.66667 14.3333L11 12.3333V8.33333H13.6667V12.3333L17 14.3333L14.3333 21.6667H10.3333Z" fill="#fff"/>' },
+  '숙박/여가': { color: '#B063CC', icon: '<path d="M8.33333 19.6667V15.6667C8.33333 15.3667 8.39444 15.0944 8.51667 14.85C8.63889 14.6056 8.8 14.3889 9 14.2V12.3333C9 11.7778 9.19444 11.3056 9.58333 10.9167C9.97222 10.5278 10.4444 10.3333 11 10.3333H13.6667C13.9222 10.3333 14.1611 10.3806 14.3833 10.475C14.6056 10.5694 14.8111 10.7 15 10.8667C15.1889 10.7 15.3944 10.5694 15.6167 10.475C15.8389 10.3806 16.0778 10.3333 16.3333 10.3333H19C19.5556 10.3333 20.0278 10.5278 20.4167 10.9167C20.8056 11.3056 21 11.7778 21 12.3333V14.2C21.2 14.3889 21.3611 14.6056 21.4833 14.85C21.6056 15.0944 21.6667 15.3667 21.6667 15.6667V19.6667H20.3333V18.3333H9.66667V19.6667H8.33333ZM15.6667 13.6667H19.6667V12.3333C19.6667 12.1444 19.6028 11.9861 19.475 11.8583C19.3472 11.7306 19.1889 11.6667 19 11.6667H16.3333C16.1444 11.6667 15.9861 11.7306 15.8583 11.8583C15.7306 11.9861 15.6667 12.1444 15.6667 12.3333V13.6667ZM10.3333 13.6667H14.3333V12.3333C14.3333 12.1444 14.2694 11.9861 14.1417 11.8583C14.0139 11.7306 13.8556 11.6667 13.6667 11.6667H11C10.8111 11.6667 10.6528 11.7306 10.525 11.8583C10.3972 11.9861 10.3333 12.1444 10.3333 12.3333V13.6667Z" fill="#fff"/>' },
+  '문화':      { color: '#2A76E8', icon: '<path d="M13.1333 17.6667L15 16.2667L16.8333 17.6667L16.1333 15.4L18 13.9333H15.7333L15 11.6667L14.2667 13.9333H12L13.8333 15.4L13.1333 17.6667ZM9.66667 20.3333C9.3 20.3333 8.98611 20.2028 8.725 19.9417C8.46389 19.6806 8.33333 19.3667 8.33333 19V16.75C8.33333 16.6278 8.37222 16.5222 8.45 16.4333C8.52778 16.3444 8.62778 16.2889 8.75 16.2667C9.01667 16.1778 9.23611 16.0167 9.40833 15.7833C9.58056 15.55 9.66667 15.2889 9.66667 15C9.66667 14.7111 9.58056 14.45 9.40833 14.2167C9.23611 13.9833 9.01667 13.8222 8.75 13.7333C8.62778 13.7111 8.52778 13.6556 8.45 13.5667C8.37222 13.4778 8.33333 13.3722 8.33333 13.25V11C8.33333 10.6333 8.46389 10.3194 8.725 10.0583C8.98611 9.79722 9.3 9.66667 9.66667 9.66667H20.3333C20.7 9.66667 21.0139 9.79722 21.275 10.0583C21.5361 10.3194 21.6667 10.6333 21.6667 11V13.25C21.6667 13.3722 21.6278 13.4778 21.55 13.5667C21.4722 13.6556 21.3722 13.7111 21.25 13.7333C20.9833 13.8222 20.7639 13.9833 20.5917 14.2167C20.4194 14.45 20.3333 14.7111 20.3333 15C20.3333 15.2889 20.4194 15.55 20.5917 15.7833C20.7639 16.0167 20.9833 16.1778 21.25 16.2667C21.3722 16.2889 21.4722 16.3444 21.55 16.4333C21.6278 16.5222 21.6667 16.6278 21.6667 16.75V19C21.6667 19.3667 21.5361 19.6806 21.275 19.9417C21.0139 20.2028 20.7 20.3333 20.3333 20.3333H9.66667Z" fill="#fff"/>' },
+  '의류':      { color: '#14B8A6', icon: '<g transform="translate(7 7)"><path d="M14.3998 12.1333L8.66651 7.83328V7.22661C9.76651 6.89994 10.5332 5.77994 10.2865 4.52661C10.1132 3.65328 9.41985 2.92661 8.54651 2.72661C7.02651 2.37994 5.66651 3.53328 5.66651 4.99994H6.99985C6.99985 4.44661 7.44651 3.99994 7.99985 3.99994C8.55318 3.99994 8.99985 4.44661 8.99985 4.99994C8.99985 5.55994 8.53985 6.01328 7.97985 5.99994C7.61985 5.99328 7.33318 6.29994 7.33318 6.65994V7.83328L1.59985 12.1333C1.08651 12.5199 1.35985 13.3333 1.99985 13.3333H7.99985H13.9998C14.6398 13.3333 14.9132 12.5199 14.3998 12.1333ZM3.99985 11.9999L7.99985 8.99994L11.9998 11.9999H3.99985Z" fill="#fff"/></g>' },
+  '안경/잡화': { color: '#E84393', icon: '<path d="M10.3333 21.6667C9.96667 21.6667 9.65278 21.5361 9.39167 21.275C9.13056 21.0139 9 20.7 9 20.3333V12.3333C9 11.9667 9.13056 11.6528 9.39167 11.3917C9.65278 11.1306 9.96667 11 10.3333 11H11.6667C11.6667 10.0778 11.9917 9.29167 12.6417 8.64167C13.2917 7.99167 14.0778 7.66667 15 7.66667C15.9222 7.66667 16.7083 7.99167 17.3583 8.64167C18.0083 9.29167 18.3333 10.0778 18.3333 11H19.6667C20.0333 11 20.3472 11.1306 20.6083 11.3917C20.8694 11.6528 21 11.9667 21 12.3333V20.3333C21 20.7 20.8694 21.0139 20.6083 21.275C20.3472 21.5361 20.0333 21.6667 19.6667 21.6667H10.3333ZM17.3583 15.3583C18.0083 14.7083 18.3333 13.9222 18.3333 13H17C17 13.5556 16.8056 14.0278 16.4167 14.4167C16.0278 14.8056 15.5556 15 15 15C14.4444 15 13.9722 14.8056 13.5833 14.4167C13.1944 14.0278 13 13.5556 13 13H11.6667C11.6667 13.9222 11.9917 14.7083 12.6417 15.3583C13.2917 16.0083 14.0778 16.3333 15 16.3333C15.9222 16.3333 16.7083 16.0083 17.3583 15.3583ZM13 11H17C17 10.4444 16.8056 9.97222 16.4167 9.58333C16.0278 9.19444 15.5556 9 15 9C14.4444 9 13.9722 9.19444 13.5833 9.58333C13.1944 9.97222 13 10.4444 13 11Z" fill="#fff"/>' },
+  '기타':      { color: '#8E8E8E', icon: '<circle cx="10" cy="15" r="1.5" fill="#fff"/><circle cx="15" cy="15" r="1.5" fill="#fff"/><circle cx="20" cy="15" r="1.5" fill="#fff"/>' }
 };
+const DEFAULT_PIN = { color: '#8E8E8E', icon: '<circle cx="15" cy="15" r="2.2" fill="#fff"/>' };
 
 const PLATFORM_COLORS = {
   '레뷰': '#1D9E75', '리뷰노트': '#185FA5', '미블': '#854F0B',
-  '강남맛집': '#993556', '디너의여왕': '#E05C00', '기타': '#666666'
+  '강남맛집': '#993556', '디너의여왕': '#E05C00',
+  '서울오빠': '#E8173A', '리뷰플레이스': '#5B3EC8',
+  '포블로그': '#0066CC', '링블': '#00A86B', '체험뷰': '#FF6B00',
+  '기타': '#666666'
 };
 
-function getCategoryIcon(cat) { return CATEGORY_ICONS[cat] || '📍'; }
+function getCategoryPin(cat) {
+  const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
+  return `<svg class="map-pin-svg" width="34" height="34" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">`
+    + `<circle cx="15" cy="15" r="14" fill="#fff"/>`
+    + `<circle cx="15" cy="15" r="14.5" stroke="#000" stroke-opacity="0.08"/>`
+    + `<circle cx="15" cy="15" r="12" fill="${p.color}"/>`
+    + p.icon
+    + `</svg>`;
+}
+
+// 선택된 핀: 물방울(teardrop) 형태로 확대 + 흰 테두리 (기존 카테고리 아이콘 재사용)
+function getCategoryPinSelected(cat) {
+  const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
+  return `<svg class="map-pin-svg" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">`
+    + `<path d="M24 3.55675C28.5005 3.55684 32.8171 5.38047 36 8.63194H35.999C38.8639 11.5548 40.3793 14.8561 40.7793 18.3009C41.1758 21.7042 40.4635 25.0858 39.1445 28.212C36.533 34.4156 31.3755 40.005 26.457 43.631C25.7434 44.1586 24.8842 44.4444 24 44.4444C23.1152 44.4444 22.255 44.1583 21.541 43.63V43.629C16.6229 40.0028 11.4656 34.4127 8.85254 28.212C7.53549 25.0857 6.8255 21.7044 7.21973 18.2999V18.2989C7.61974 14.8559 9.13549 11.5565 12 8.63194L12.001 8.63097C15.1946 5.37825 19.5047 3.55254 24 3.55675Z" fill="${p.color}" stroke="#fff" stroke-width="1.77778"/>`
+    + `<g transform="translate(3 1) scale(1.4)">${p.icon}</g>`
+    + `</svg>`;
+}
+
+function setSelectedMarker(placeId) {
+  if (selectedMarkerId === placeId) return;
+  clearSelectedMarker();
+  const entry = markerMap[placeId];
+  const place = places.find(p => p.id === placeId);
+  if (!entry || !place) return;
+  entry.marker.setIcon({
+    content: `<div class="map-pin map-pin-selected">${getCategoryPinSelected(place.category)}</div>`,
+    anchor: new naver.maps.Point(24, 45)
+  });
+  entry.marker.setZIndex(1000);
+  selectedMarkerId = placeId;
+}
+
+function clearSelectedMarker() {
+  if (selectedMarkerId == null) return;
+  const entry = markerMap[selectedMarkerId];
+  const place = places.find(p => p.id === selectedMarkerId);
+  if (entry && place) {
+    entry.marker.setIcon({
+      content: `<div class="map-pin">${getCategoryPin(place.category)}</div>`,
+      anchor: new naver.maps.Point(17, 17)
+    });
+    entry.marker.setZIndex(0);
+  }
+  selectedMarkerId = null;
+}
 function getPlatformColor(p) { return PLATFORM_COLORS[p] || '#666666'; }
 
 function getActiveCampaigns(placeId) {
@@ -240,6 +298,7 @@ function initMap() {
   }
 
   naver.maps.Event.addListener(map, 'click', () => {
+    closePcCard();
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
     // 모바일: 지도 터치 시 사이드바 닫기
     if (window.innerWidth <= 640) {
@@ -253,14 +312,17 @@ function initMap() {
     }
   });
 
-  // 지도 밖 영역 클릭 시 인포창 닫기
+  naver.maps.Event.addListener(map, 'zoom_changed', () => {
+    if (window.innerWidth > 640) closePcCard();
+  });
+
+  // 지도 밖 영역 클릭 시 PC 카드 닫기
   document.addEventListener('click', (e) => {
-    if (!openInfoWindow) return;
-    if (e.target.closest('.map-marker')) return; // 마커 클릭은 자체 처리
-    if (e.target.closest('.info-window')) return; // 인포창 내부 클릭은 유지
+    if (!openPcCardPlaceId) return;
+    if (e.target.closest('.map-pin')) return;
+    if (e.target.closest('#pcCard')) return;
     if (e.target.closest('#map') && !e.target.closest('.mobile-search-bar') && !e.target.closest('.btn-my-location')) return;
-    openInfoWindow.close();
-    openInfoWindow = null;
+    closePcCard();
   });
 
   initDateSelects();
@@ -276,10 +338,11 @@ function renderMarkers() {
   markers.forEach(m => m.setMap(null));
   markers = [];
   markerMap = {};
+  selectedMarkerId = null;
 
   places.forEach(place => {
     const active = hasActiveCampaign(place.id);
-    const icon = getCategoryIcon(place.category);
+    const icon = getCategoryPin(place.category);
 
     // 활성 캠페인 없으면 마커 미노출
     if (!active) return;
@@ -287,17 +350,9 @@ function renderMarkers() {
     const marker = new naver.maps.Marker({
       position: new naver.maps.LatLng(place.lat, place.lng),
       icon: {
-        content: `<div class="map-marker active">${icon}</div>`,
-        anchor: new naver.maps.Point(20, 20)
+        content: `<div class="map-pin">${icon}</div>`,
+        anchor: new naver.maps.Point(17, 17)
       }
-    });
-
-    const infoWindow = new naver.maps.InfoWindow({
-      content: createInfoContent(place),
-      borderWidth: 0,
-      backgroundColor: 'transparent',
-      pixelOffset: new naver.maps.Point(0, -10),
-      disableAnchor: true
     });
 
     naver.maps.Event.addListener(marker, 'click', () => {
@@ -305,18 +360,13 @@ function renderMarkers() {
         // 모바일: 바텀시트
         openMobileSheet(place);
       } else {
-        // PC: 인포윈도우
-        if (openInfoWindow === infoWindow) {
-          infoWindow.close(); openInfoWindow = null; return;
-        }
-        if (openInfoWindow) openInfoWindow.close();
-        infoWindow.open(map, marker);
-        openInfoWindow = infoWindow;
+        // PC: 팝업 카드
+        openPcCard(place);
       }
     });
 
     markers.push(marker);
-    markerMap[place.id] = { marker, infoWindow };
+    markerMap[place.id] = { marker };
   });
 
   // 클러스터링
@@ -352,53 +402,98 @@ function renderMarkers() {
 // ===== 인포윈도우 =====
 function createInfoContent(place) {
   const active = getActiveCampaigns(place.id);
-  const icon = getCategoryIcon(place.category);
+  const ALL_DAYS = ['월','화','수','목','금','토','일'];
+
+  const allChannels = [...new Set(active.flatMap(c => c.channels))];
+  const channelIconsHtml = allChannels.map(ch =>
+    CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}" style="border-radius:4px;display:block;">` : ''
+  ).join('');
+
+  const founderHtml = place.founderNickname ? `
+    <div class="iw-founder">
+      <span class="iw-founder-label">최초제보자</span>
+      <div class="iw-founder-right">
+        <img src="image/ic_workspace_premium_24.svg" width="24" height="24" alt="">
+        <div class="iw-founder-name-group">
+          ${place.founderUrl
+            ? `<a class="iw-founder-name" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a><img src="image/ic_chevron_right_blue.svg" class="iw-founder-chevron" alt="">`
+            : `<span class="iw-founder-name">${place.founderNickname}</span>`}
+        </div>
+      </div>
+    </div>` : '';
 
   const campaignsHtml = active.length > 0
-    ? active.map(c => {
+    ? active.map((c, i) => {
         const dl = getDeadlineText(c.deadline);
-        const dlHtml = dl ? `<span class="c-deadline ${dl.urgent ? 'urgent' : ''}">${dl.text}</span><span class="c-deadline-date">${c.deadline.replace(/-/g, '.')} 마감</span>` : '';
-        const hoursHtml = c.operatingHours ? `<div class="c-hours">⏰ ${c.operatingHours}</div>` : '';
-        const daysHtml = c.operatingDays?.length > 0 ? `<div class="c-days">📅 ${c.operatingDays.join(' ')}</div>` : '';
+        const ddayHtml = dl ? `<span class="iw-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : '';
         const color = getPlatformColor(c.platform);
-        const channelHtml = (c.channels && c.channels.length) ? c.channels.map(ch => `<span class="c-channel">${ch}</span>`).join('') : '';
-        let reporterHtml = '';
-        if (c.reporterNickname) {
-          const nameHtml = c.reporterUrl
-            ? `<a class="c-reporter-link" href="${c.reporterUrl}" target="_blank">${c.reporterNickname}</a>`
-            : c.reporterNickname;
-          reporterHtml = `<div class="c-reporter">🚩 ${nameHtml} 제보</div>`;
+
+        let daysHtml = '';
+        if (c.operatingDays !== undefined) {
+          const daysFormatted = ALL_DAYS.map(d => {
+            const isActive = c.operatingDays.includes(d);
+            return `<span style="color:${isActive ? '#000' : '#ccc'}">${d}</span>`;
+          }).join(' ');
+          const holidayBadge = c.excludeHoliday ? ` <span style="color:#aaa">/ 공휴일 불가</span>` : '';
+          daysHtml = `
+            <div class="iw-info-row">
+              <div class="iw-info-label-group">
+                <img src="image/ic_calendar_20.svg" width="20" height="20" alt="">
+                <span class="iw-info-label">요일</span>
+              </div>
+              <span class="iw-info-value">${daysFormatted}${holidayBadge}</span>
+            </div>`;
         }
 
-        return `
-          <div class="c-item">
-            <div class="c-top">
-              <span class="platform-badge" style="background:${color}22;color:${color}">${c.platform}</span>
-              ${channelHtml}
-              ${dlHtml}
+        const hoursHtml = c.operatingHours ? `
+          <div class="iw-info-row">
+            <div class="iw-info-label-group">
+              <img src="image/ic_clock_20.svg" width="20" height="20" alt="">
+              <span class="iw-info-label">시간</span>
             </div>
-            <div class="c-content">${c.content}</div>
-            ${hoursHtml}${daysHtml}${reporterHtml}
+            <span class="iw-info-value">${c.operatingHours}</span>
+          </div>` : '';
+
+        const reporterUrl = c.reporterBlog || c.reporterInstagram || c.reporterUrl || '';
+        const reporterHtml = c.reporterNickname ? `
+          <div class="iw-info-row">
+            <div class="iw-info-label-group">
+              <img src="image/ic_account_20.svg" width="20" height="20" alt="">
+              <span class="iw-info-label">제보</span>
+            </div>
+            ${reporterUrl
+              ? `<a class="iw-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" style="display:block;flex-shrink:0;" alt="">`
+              : `<span class="iw-info-value">${c.reporterNickname}</span>`}
+          </div>` : '';
+
+        const divider = i > 0 ? '<div class="iw-divider"></div>' : '';
+
+        return `
+          ${divider}
+          <div class="iw-campaign">
+            <div class="iw-campaign-header">
+              <div style="flex:1;min-width:0;">
+                <span class="iw-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
+              </div>
+              ${ddayHtml}
+            </div>
+            <p class="iw-content">${c.content}</p>
+            <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
           </div>`;
       }).join('')
-    : '<div class="c-empty">현재 모집 중인 캠페인이 없어요</div>';
-
-  const founderHtml = place.founderNickname
-    ? `<div class="info-founder">🏅 최초 제보 <a class="founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a></div>`
-    : '';
+    : '<div class="iw-empty">현재 모집 중인 캠페인이 없어요</div>';
 
   return `
     <div class="info-window">
-      <div class="info-head">
-        <span class="info-icon">${icon}</span>
-        <div style="flex:1;min-width:0;">
-          <div class="info-name">${place.name}</div>
-          <div class="info-addr">${place.address}</div>
+      <div class="iw-place">
+        <div class="iw-name-row">
+          <span class="iw-name">${place.name}</span>
+          <div class="iw-channels">${channelIconsHtml}</div>
         </div>
-        <a class="btn-naver-map" onclick="openNaverMap('${place.name.replace(/'/g,"\\'")}','${place.address.replace(/'/g,"\\'")}')">🗺️ 지도</a>
+        <div class="iw-address">${place.address}</div>
       </div>
-      ${founderHtml}
-      <div class="info-campaigns">${campaignsHtml}</div>
+      ${founderHtml ? `<div class="iw-meta-founder">${founderHtml}<div class="iw-divider"></div></div>` : '<div class="iw-divider iw-divider-top"></div>'}
+      <div class="iw-campaigns-wrap">${campaignsHtml}</div>
     </div>`;
 }
 
@@ -609,16 +704,34 @@ function focusPlace(placeId) {
       if (list) list.scrollTop = 0;
     }, 350);
   } else {
-    // PC: 인포윈도우 열기 — 지도 이동/줌 완료 후 좌표 기준으로 열기
-    if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
-    setTimeout(() => {
-      const entry = markerMap[placeId];
-      if (!entry) return;
-      const pos = new naver.maps.LatLng(place.lat, place.lng);
-      entry.infoWindow.open(map, pos);
-      openInfoWindow = entry.infoWindow;
-    }, 200);
+    // PC: 팝업 카드 열기
+    setTimeout(() => openPcCard(place), 200);
   }
+}
+
+function openPcCard(place) {
+  if (openPcCardPlaceId === place.id) { closePcCard(); return; }
+  openPcCardPlaceId = place.id;
+  document.getElementById('pcCardContent').innerHTML = createInfoContent(place);
+  document.getElementById('pcCard').classList.add('visible');
+  setSelectedMarker(place.id);
+  // 선택 핀(teardrop)의 몸통이 팝업 화살표(화면 중앙)와 맞도록 핀을 24px 아래로 내려 배치
+  const latlng = new naver.maps.LatLng(place.lat, place.lng);
+  const proj = map.getProjection();
+  if (proj) {
+    const off = proj.fromCoordToOffset(latlng);
+    off.y -= 24;
+    map.panTo(proj.fromOffsetToCoord(off));
+  } else {
+    map.panTo(latlng);
+  }
+}
+
+function closePcCard() {
+  if (!openPcCardPlaceId) return;
+  openPcCardPlaceId = null;
+  document.getElementById('pcCard').classList.remove('visible');
+  clearSelectedMarker();
 }
 
 function renderAll() {
@@ -931,11 +1044,13 @@ function goStep2() {
   const catField = document.getElementById('newPlaceCategoryField');
 
   if (!modalIsNewPlace) {
-    catField.style.display = 'none';
+    catField.style.display = 'block';
+    const place = places.find(p => p.id === modalSelectedPlaceId);
+    document.getElementById('inputCategory').value = place.category || '';
+    syncSelectTrigger('inputCategory');
     document.getElementById('founderSection').style.display = 'flex';
     document.getElementById('founderSectionTitle').textContent = '내 이름 남기기';
     document.getElementById('founderSectionDesc').textContent = '마감일까지 이 캠페인 제보자로 표시돼요';
-    const place = places.find(p => p.id === modalSelectedPlaceId);
     document.getElementById('selectedPlaceBadge').innerHTML =
       `<div class="selected-place-badge"><div class="badge-icon"></div><span class="badge-text"><strong>${place.name}</strong>에 새 캠페인 추가</span></div>`;
   } else {
@@ -1012,16 +1127,17 @@ function submitCampaign() {
   const deadline = getSelectedDeadline();
   const link = '';
 
+  const category = document.getElementById('inputCategory').value;
+
   let valid = true;
   if (!channels.length) { showFieldError('channel'); valid = false; }
+  if (!category) { showFieldError('inputCategory'); valid = false; }
   if (!platform) { showFieldError('inputPlatform'); valid = false; }
   if (!content) { showFieldError('inputContent'); valid = false; }
 
   let placeId;
 
   if (modalIsNewPlace) {
-    const category = document.getElementById('inputCategory').value;
-    if (!category) { showFieldError('inputCategory'); valid = false; }
     if (!valid) return;
     const newPlace = {
       id: nextPlaceId++,
@@ -1037,6 +1153,8 @@ function submitCampaign() {
   } else {
     if (!valid) return;
     placeId = modalSelectedPlaceId;
+    const place = places.find(p => p.id === placeId);
+    if (place) place.category = category;
   }
 
   campaigns.push({
@@ -1091,6 +1209,10 @@ function openNaverMap(name, address) {
 
 // ===== 모바일 바텀시트 =====
 function openMobileSheet(place) {
+  // 검색 키패드가 떠 있으면 먼저 닫아 바텀시트가 올바른 위치에 뜨도록
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
   const sheet = document.getElementById('mobileSheet');
   const overlay = document.getElementById('mobileSheetOverlay');
   const content = document.getElementById('mobileSheetContent');
@@ -1098,6 +1220,14 @@ function openMobileSheet(place) {
   sheet.style.transform = '';
   sheet.classList.add('show');
   overlay.classList.add('show');
+  setSelectedMarker(place.id);
+  // 핀을 바텀시트 위 영역 중앙으로 이동 (시트에 가리지 않게 위로 올림)
+  const proj = map.getProjection();
+  if (proj) {
+    const off = proj.fromCoordToOffset(new naver.maps.LatLng(place.lat, place.lng));
+    off.y += 150;
+    map.panTo(proj.fromOffsetToCoord(off));
+  }
   // 사이드바 오프스크린으로 내리기
   const sidebar = document.getElementById('sidebar');
   if (sidebar) {
@@ -1112,6 +1242,7 @@ function closeMobileSheet() {
   sheet.style.transform = '';
   sheet.classList.remove('show');
   document.getElementById('mobileSheetOverlay').classList.remove('show');
+  clearSelectedMarker();
   // 사이드바 78px 상태로 복귀
   const sidebar = document.getElementById('sidebar');
   if (sidebar) {
@@ -1151,19 +1282,20 @@ function initSidebarSwipeToDismiss() {
     dragging = false;
     const delta = currentY - startY;
     if (delta > 80) {
-      sidebar.classList.remove('expanded');
-      sidebar.classList.remove('expanded-full');
+      // peek(헤더 바) 상태로 복귀 — transform만 애니메이션(GPU 가속)해 부드럽게, 끝나면 height를 한 프레임에 교체
       const arrow = document.getElementById('sidebarArrow');
       if (arrow) arrow.textContent = '︿';
       setNaverLogoVisible(true);
-      // 슬라이드 아웃 애니메이션 (height 변화 막기 위해 현재 높이 고정)
-      sidebar.style.height = sidebar.offsetHeight + 'px';
-      sidebar.style.transition = 'transform 0.3s ease';
-      sidebar.style.transform = 'translateY(100%)';
+      const PEEK_H = 78;
+      const slideTo = Math.max(0, sidebar.offsetHeight - PEEK_H);
+      sidebar.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      sidebar.style.transform = `translateY(${slideTo}px)`;
       setTimeout(() => {
-        // transform은 유지한 채 height만 초기화 → 스냅 없이 숨김 상태 유지
+        // 같은 화면 위치에서 height 축소 + transform 리셋을 원자적으로 교체 → 점프 없음
         sidebar.style.transition = 'none';
-        sidebar.style.height = '';
+        sidebar.classList.remove('expanded');
+        sidebar.classList.remove('expanded-full');
+        sidebar.style.transform = '';
         const list = document.getElementById('campaignList');
         if (list) list.scrollTop = 0;
         requestAnimationFrame(() => { sidebar.style.transition = ''; });
