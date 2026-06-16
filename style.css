@@ -88,7 +88,7 @@ body {
 .filter-chip.active { background: #383838; border-color: #383838; color: white; font-weight: 700; }
 
 /* ===== 레이아웃 ===== */
-#map { flex: 1; z-index: 1; position: relative; overflow: hidden; }
+#map { flex: 1; min-width: 0; z-index: 1; position: relative; }
 .mobile-search-bar { display: none; }
 
 .btn-my-location {
@@ -1093,6 +1093,7 @@ body {
   body { flex-direction: column; }
   .pc-nav { display: none; }
   .btn-report-sidebar { display: none; }
+  .mobile-sheet-overlay { display: none; }
 
   /* 필터바 숨김 (모바일 오버레이가 대체) */
   .filter-bar { display: none; }

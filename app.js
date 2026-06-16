@@ -1533,7 +1533,11 @@ function bindClearBtn(btn, input) {
 }
 
 document.addEventListener('DOMContentLoaded', setupClearButtons);
-window.addEventListener('load', initMap);
+window.addEventListener('load', function() {
+  initMap();
+  // Naver Maps가 flex 컨테이너에서 초기 크기를 잘못 계산하는 경우 강제 리사이즈
+  setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
+});
 
 // ===== 커스텀 셀렉트 바텀시트 =====
 let _selectSheetTarget = null;
