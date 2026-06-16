@@ -787,12 +787,16 @@ function openPcCard(place) {
   document.getElementById('pcCardContent').innerHTML = createInfoContent(place);
   document.getElementById('pcCard').classList.add('visible');
   setSelectedMarker(place.id);
-  // 선택 핀(teardrop)의 몸통이 팝업 화살표(화면 중앙)와 맞도록 핀을 24px 아래로 내려 배치
   const latlng = new naver.maps.LatLng(place.lat, place.lng);
   const proj = map.getProjection();
   if (proj) {
     const off = proj.fromCoordToOffset(latlng);
     off.y -= 24;
+    // 팝업카드(left:20 + width:320 + arrow:10 + gap:40 = 390px) 바로 오른쪽에 핀이 오도록 수평 이동
+    const mapWidth = document.getElementById('map').offsetWidth;
+    if (mapWidth > 640) {
+      off.x += (mapWidth / 2 - 390);
+    }
     map.panTo(proj.fromOffsetToCoord(off));
   } else {
     map.panTo(latlng);
