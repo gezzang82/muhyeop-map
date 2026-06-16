@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="format-detection" content="telephone=no, address=no, email=no">
   <title>무협맵 - 무료협찬 지도</title>
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
@@ -13,76 +13,49 @@
 </head>
 <body>
 
-  <header class="header">
-    <!-- PC 헤더 -->
-    <div class="header-inner header-pc">
-      <div class="logo">
-        <img src="image/mhmap_ci.svg" width="36" height="26" alt="무협맵">
-        <img src="image/text_ci.svg" height="17" alt="무협맵 무료협찬맵" class="logo-text-img">
-      </div>
-      <div class="header-actions">
-        <button class="btn-about" onclick="openAbout()">서비스 소개</button>
-        <div class="search-bar">
-          <input type="text" id="regionSearch" placeholder="지역을 검색하세요" onkeydown="if(event.key==='Enter') searchRegion()">
-        </div>
-        <button class="btn-add" onclick="openModal()">+ 체험 제보하기</button>
-      </div>
-    </div>
-    <!-- 모바일 헤더 -->
-    <div class="header-inner header-mobile">
-      <div class="mobile-row1">
-        <div class="mobile-header-search">
-          <span class="mobile-search-icon">🔍</span>
-          <input type="text" id="regionSearchMobileTop" placeholder="지역을 검색하세요" onkeydown="if(event.key==='Enter') searchRegionMobileTop()">
-        </div>
-        <button class="mobile-icon-btn mobile-icon-add" onclick="openModal()" title="협찬 제보하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4V20M4 12H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
-      </div>
-      <div class="mobile-chips-row">
-        <button class="filter-chip active" onclick="filterChannel('전체')">전체</button>
-        <button class="filter-chip" onclick="filterChannel('블로그')">블로그</button>
-        <button class="filter-chip" onclick="filterChannel('클립')">클립</button>
-        <button class="filter-chip" onclick="filterChannel('인스타그램')">인스타그램</button>
-        <button class="filter-chip" onclick="filterChannel('유튜브')">유튜브</button>
-      </div>
-    </div>
-  </header>
+  <!-- 검색 입력 (JS에서 참조, PC 위치 미정) -->
+  <input type="text" id="regionSearch" style="display:none" onkeydown="if(event.key==='Enter') searchRegion()">
 
-  <div class="filter-bar">
-    <button class="filter-chip active" data-channel="전체" onclick="filterChannel('전체')">전체</button>
-    <button class="filter-chip" data-channel="블로그" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="20" height="20">블로그</button>
-    <button class="filter-chip" data-channel="클립" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="20" height="20">클립</button>
-    <button class="filter-chip" data-channel="인스타그램" onclick="filterChannel('인스타그램')"><img src="image/ic_instagram_20.png" width="20" height="20">인스타</button>
-    <button class="filter-chip" data-channel="유튜브" onclick="filterChannel('유튜브')"><img src="image/ic_youtube_20.png" width="20" height="20">유튜브</button>
+  <!-- PC 네브바 (모바일에서 숨김) -->
+  <nav class="pc-nav">
+    <div class="pc-nav-logo">
+      <img src="image/mhmap_ci.svg" width="36" height="26" alt="무협맵">
+    </div>
+    <div class="pc-nav-tabs">
+      <button class="pc-nav-tab active" id="tabCampaigns">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+        </svg>
+        <span>체험</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- 사이드바 (PC: 왼쪽 패널 / 모바일: 바텀시트) -->
+  <div class="sidebar" id="sidebar" onclick="toggleBottomSheet(event)">
+    <div class="sidebar-handle-wrap">
+      <div class="sidebar-handle-bar"></div>
+    </div>
+    <div class="sidebar-header">
+      <div class="sidebar-header-left">
+        <span class="sidebar-title">모집 중인 체험</span>
+        <span class="sidebar-count" id="campaignCount">0</span>
+      </div>
+      <button class="btn-report-sidebar" onclick="event.stopPropagation(); openModal()">+ 제보하기</button>
+    </div>
+    <div class="sidebar-list" id="campaignList"></div>
   </div>
 
-  <div class="main-layout">
-    <div id="map">
-      <!-- 모바일 전용 오버레이 헤더 (지도 위에 절대 위치) -->
-      <div class="mobile-map-overlay">
-        <div class="mobile-row1">
-          <div class="mobile-header-search">
-            <input type="text" id="regionSearchMobileOverlay" placeholder="지역을 검색하세요" onkeydown="if(event.key==='Enter') searchRegionMobileOverlay()">
-          </div>
-          <button class="mobile-icon-btn mobile-icon-add" onclick="openModal()" title="협찬 제보하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4V20M4 12H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
-        </div>
-        <div class="mobile-chips-row">
-          <button class="filter-chip active" data-channel="전체" onclick="filterChannel('전체')">전체</button>
-          <button class="filter-chip" data-channel="블로그" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="16" height="16">블로그</button>
-          <button class="filter-chip" data-channel="클립" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="16" height="16">클립</button>
-          <button class="filter-chip" data-channel="인스타그램" onclick="filterChannel('인스타그램')"><img src="image/ic_instagram_20.png" width="16" height="16">인스타</button>
-          <button class="filter-chip" data-channel="유튜브" onclick="filterChannel('유튜브')"><img src="image/ic_youtube_20.png" width="16" height="16">유튜브</button>
-        </div>
-      </div>
-      <button class="btn-my-location" onclick="moveToMyLocation()" title="내 위치로 이동"><img src="image/ic_local_20.svg" width="20" height="20" alt="내 위치"></button>
-      <div class="btn-zoom-group">
-        <button class="btn-zoom" onclick="map && map.setZoom(map.getZoom()+1)" title="확대">+</button>
-        <div class="btn-zoom-divider"></div>
-        <button class="btn-zoom" onclick="map && map.setZoom(map.getZoom()-1)" title="축소">−</button>
-      </div>
-      <div class="mobile-search-bar">
-        <input type="text" id="regionSearchMobile" placeholder="지역 검색 (예: 강남구, 성수동)" onkeydown="if(event.key==='Enter') searchRegionMobile()">
-        <button onclick="searchRegionMobile()">🔍</button>
-      </div>
+  <!-- 지도 영역 -->
+  <div id="map">
+
+    <!-- 필터 칩 (PC: 지도 위 float) -->
+    <div class="filter-bar">
+      <button class="filter-chip active" data-channel="전체" onclick="filterChannel('전체')">전체</button>
+      <button class="filter-chip" data-channel="블로그" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="20" height="20">블로그</button>
+      <button class="filter-chip" data-channel="클립" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="20" height="20">클립</button>
+      <button class="filter-chip" data-channel="인스타그램" onclick="filterChannel('인스타그램')"><img src="image/ic_instagram_20.png" width="20" height="20">인스타</button>
+      <button class="filter-chip" data-channel="유튜브" onclick="filterChannel('유튜브')"><img src="image/ic_youtube_20.png" width="20" height="20">유튜브</button>
     </div>
 
     <!-- PC 팝업 카드 -->
@@ -92,17 +65,28 @@
       <img src="image/popup_arrow.svg" class="pc-card-arrow" alt="">
     </div>
 
-    <div class="sidebar" id="sidebar" onclick="toggleBottomSheet(event)">
-      <div class="sidebar-handle-wrap">
-        <div class="sidebar-handle-bar"></div>
-      </div>
-      <div class="sidebar-header">
-        <div class="sidebar-header-left">
-          <span class="sidebar-title">모집 중인 체험</span>
-          <span class="sidebar-count" id="campaignCount">0</span>
+    <!-- 모바일 전용 오버레이 헤더 -->
+    <div class="mobile-map-overlay">
+      <div class="mobile-row1">
+        <div class="mobile-header-search">
+          <input type="text" id="regionSearchMobileOverlay" placeholder="지역을 검색하세요" onkeydown="if(event.key==='Enter') searchRegionMobileOverlay()">
         </div>
+        <button class="mobile-icon-btn mobile-icon-add" onclick="openModal()" title="협찬 제보하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4V20M4 12H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
       </div>
-      <div class="sidebar-list" id="campaignList"></div>
+      <div class="mobile-chips-row">
+        <button class="filter-chip active" data-channel="전체" onclick="filterChannel('전체')">전체</button>
+        <button class="filter-chip" data-channel="블로그" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="16" height="16">블로그</button>
+        <button class="filter-chip" data-channel="클립" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="16" height="16">클립</button>
+        <button class="filter-chip" data-channel="인스타그램" onclick="filterChannel('인스타그램')"><img src="image/ic_instagram_20.png" width="16" height="16">인스타</button>
+        <button class="filter-chip" data-channel="유튜브" onclick="filterChannel('유튜브')"><img src="image/ic_youtube_20.png" width="16" height="16">유튜브</button>
+      </div>
+    </div>
+
+    <button class="btn-my-location" onclick="moveToMyLocation()" title="내 위치로 이동"><img src="image/ic_local_20.svg" width="20" height="20" alt="내 위치"></button>
+    <div class="btn-zoom-group">
+      <button class="btn-zoom" onclick="map && map.setZoom(map.getZoom()+1)" title="확대">+</button>
+      <div class="btn-zoom-divider"></div>
+      <button class="btn-zoom" onclick="map && map.setZoom(map.getZoom()-1)" title="축소">−</button>
     </div>
   </div>
 
@@ -155,7 +139,7 @@
 
         <div class="about-section">
           <div class="about-section-title">🚩 협찬 제보하기</div>
-          <p class="about-desc">새로운 협찬 정보를 알고 계신가요? 우측 상단 <strong>+ 협찬 제보하기</strong> 버튼으로 직접 등록해주세요. 최초 제보자는 장소에 영구 표시돼요.</p>
+          <p class="about-desc">새로운 협찬 정보를 알고 계신가요? 사이드바 상단 <strong>+ 제보하기</strong> 버튼으로 직접 등록해주세요. 최초 제보자는 장소에 영구 표시돼요.</p>
         </div>
 
         <div class="about-section">

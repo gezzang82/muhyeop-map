@@ -7,77 +7,61 @@ body {
   height: 100vh;
   height: 100dvh;
   display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+/* ===== PC 네브바 ===== */
+.pc-nav {
+  width: 72px;
+  flex-shrink: 0;
+  background: #39395c;
+  display: flex;
   flex-direction: column;
-  overflow: hidden;
+  z-index: 300;
 }
 
-/* ===== 헤더 ===== */
-.header {
-  position: fixed;
-  top: 20px; left: 20px; right: 20px;
-  z-index: 500;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  height: 64px;
-  padding: 0 20px;
-}
-
-.header-inner {
-  height: 100%;
+.pc-nav-logo {
+  height: 80px;
+  background: #e82a2d;
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-/* PC/모바일 헤더 전환 */
-.header-mobile { display: none; }
-.header-pc { display: flex; }
-
-.logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.logo-text-img { display: block; }
-
-.search-bar {
+.pc-nav-tabs {
   display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding-top: 8px;
+}
+
+.pc-nav-tab {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  background: rgba(0,0,0,0.08);
-  border-radius: 4px;
-  height: 40px;
-  width: 320px;
-  overflow: hidden;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: rgba(255,255,255,0.45);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  transition: color 0.15s;
+  padding: 0;
 }
-.search-bar input {
-  flex: 1; background: none; border: none;
-  padding: 0 20px; color: #1a1a1a;
-  font-size: 16px; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  outline: none;
-}
-.search-bar input::placeholder { color: #bbb; }
+.pc-nav-tab.active { color: white; }
+.pc-nav-tab:hover:not(.active) { color: rgba(255,255,255,0.7); }
 
-.header-actions { margin-left: auto; flex-shrink: 0; display: flex; gap: 8px; align-items: center; }
-
-.btn-about {
-  background: transparent; color: #555;
-  border: 1px solid rgba(0,0,0,0.16); height: 40px; padding: 0 12px;
-  border-radius: 4px; font-size: 14px; font-weight: 500;
-  cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  white-space: nowrap; transition: all 0.2s;
-}
-.btn-about:hover { border-color: rgba(0,0,0,0.3); color: #333; }
-
-.btn-add {
-  background: #e82a2d; color: white;
-  border: none; height: 40px; padding: 0 12px;
-  border-radius: 4px; font-size: 14px; font-weight: 700;
-  cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  transition: background 0.2s; white-space: nowrap;
-  display: flex; align-items: center; gap: 6px;
-}
-.btn-add:hover { background: #c9242a; }
-
-/* ===== 필터바 ===== */
+/* ===== 필터바 (지도 위 absolute) ===== */
 .filter-bar {
-  position: fixed;
-  top: 96px; left: 20px;
+  position: absolute;
+  top: 20px; left: 20px;
   z-index: 500;
   background: transparent;
   padding: 0;
@@ -104,13 +88,12 @@ body {
 .filter-chip.active { background: #383838; border-color: #383838; color: white; font-weight: 700; }
 
 /* ===== 레이아웃 ===== */
-.main-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
-#map { flex: 1; z-index: 1; }
+#map { flex: 1; z-index: 1; position: relative; overflow: hidden; }
 .mobile-search-bar { display: none; }
 
 .btn-my-location {
-  position: fixed;
-  bottom: 20px; right: 372px;
+  position: absolute;
+  bottom: 20px; right: 20px;
   z-index: 400;
   width: 48px; height: 48px;
   border-radius: 8px;
@@ -123,8 +106,8 @@ body {
 .btn-my-location:hover { background: #f5f5f0; }
 
 .btn-zoom-group {
-  position: fixed;
-  bottom: 76px; right: 372px;
+  position: absolute;
+  bottom: 76px; right: 20px;
   z-index: 400;
   width: 48px;
   background: white;
@@ -145,17 +128,33 @@ body {
   width: 20px; height: 1px; background: #e0e0e0;
 }
 
-/* ===== 사이드바 ===== */
+/* ===== 사이드바 (PC: 인플로우 왼쪽 패널) ===== */
 .sidebar {
-  position: fixed;
-  right: 20px; top: 104px; bottom: 20px;
-  width: 340px; background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  width: 360px;
+  flex-shrink: 0;
+  background: white;
   display: flex; flex-direction: column;
-  overflow: hidden; flex-shrink: 0;
-  z-index: 400;
+  overflow: hidden;
+  border-right: 1px solid #f0f0f0;
 }
+
+/* 제보하기 버튼 (사이드 패널 헤더) */
+.btn-report-sidebar {
+  margin-left: auto;
+  background: #e82a2d;
+  color: white;
+  border: none;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-report-sidebar:hover { background: #c82020; }
 
 .sidebar-handle-wrap {
   display: none;
@@ -300,10 +299,10 @@ body {
 /* ===== PC 팝업 카드 ===== */
 .pc-card {
   display: none;
-  position: fixed;
+  position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  left: calc(50vw - 350px);
+  left: 20px;
   z-index: 400;
   width: 320px;
   border-radius: 16px;
@@ -1090,12 +1089,13 @@ body {
 }
 
 @media (max-width: 640px) {
-  /* 헤더: 모바일에서 완전히 숨김 (오버레이가 대체) */
-  .header { display: none; }
-  .filter-bar { display: none; }
+  /* PC 레이아웃 구조 해제 */
+  body { flex-direction: column; }
+  .pc-nav { display: none; }
+  .btn-report-sidebar { display: none; }
 
-  /* 지도를 position/overflow context로 */
-  #map { position: relative; overflow: hidden; }
+  /* 필터바 숨김 (모바일 오버레이가 대체) */
+  .filter-bar { display: none; }
 
   /* 모바일 맵 오버레이: 지도 위 절대 위치 */
   .mobile-map-overlay {
@@ -1143,7 +1143,7 @@ body {
     border-radius: 50%;
     z-index: 250;
   }
-  .btn-zoom-group { display: none; }
+  .btn-zoom-group { display: none !important; }
 
   /* 사이드바 → fixed 바텀시트 */
   .sidebar-handle-wrap {
@@ -1156,8 +1156,7 @@ body {
     position: fixed;
     top: auto; bottom: 0; left: 0; right: 0;
     width: 100%;
-    border-left: none;
-    border-top: none;
+    border-right: none;
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 8px rgba(0,0,0,0.08);
     z-index: 200;
