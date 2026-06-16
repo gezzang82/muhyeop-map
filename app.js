@@ -565,7 +565,9 @@ function createInfoContent(place) {
             <div class="iw-channels">${channelIconsHtml}</div>
           </div>
           <button class="pc-card-close" onclick="closePcCard()">
-            <img src="image/ic_text_clear_20.svg" width="16" height="16" alt="닫기">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 3L13 13M13 3L3 13" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
           </button>
         </div>
         <div class="iw-address">${place.address}</div>
