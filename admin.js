@@ -118,13 +118,15 @@ function renderCampaignList() {
       <td class="td-content">${c.content}</td>
       <td class="td-days">${(c.operatingDays||[]).join(' ')}${c.excludeHoliday ? ' / 공휴일 불가' : ''}</td>
       <td>${c.deadline}</td>
+      <td>${c.reporterNickname || '-'}</td>
+      <td>${c.reporterEmail || '-'}</td>
       <td><span class="badge-status ${isActive?'active':'expired'}">${isActive?'모집 중':'마감'}</span></td>
       <td>
         <button class="btn-edit-sm" onclick="editCampaign(${c.id})">수정</button>
         <button class="btn-del-sm" onclick="confirmDelete('campaign', ${c.id})">삭제</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="8" class="empty-msg">해당하는 캠페인 없음</td></tr>`;
+  }).join('') || `<tr><td colspan="10" class="empty-msg">해당하는 캠페인 없음</td></tr>`;
 }
 
 // ===== 장소 목록 =====
@@ -140,11 +142,12 @@ function renderPlaceList() {
       <td class="td-addr">${p.address}</td>
       <td><span class="badge-count ${activeCnt>0?'active':''}">${activeCnt}개</span></td>
       <td>${p.founderNickname || '-'}</td>
+      <td>${p.founderEmail || '-'}</td>
       <td>
         <button class="btn-del-sm" onclick="confirmDelete('place', ${p.id})">삭제</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="7" class="empty-msg">등록된 장소 없음</td></tr>`;
+  }).join('') || `<tr><td colspan="8" class="empty-msg">등록된 장소 없음</td></tr>`;
 }
 
 // ===== 캠페인 등록 =====
@@ -202,7 +205,7 @@ function submitAdminCampaign() {
       adminToast('신규 장소는 장소명, 주소, 카테고리, 좌표가 필요해요!'); return;
     }
     placeId = nextPlaceId++;
-    places.push({ id: placeId, name, address, lat, lng, category, founderNickname: '', founderUrl: '' });
+    places.push({ id: placeId, name, address, lat, lng, category, founderNickname: '', founderEmail: '', founderUrl: '' });
     adminToast(`장소 "${name}" 등록 완료`);
   }
 
@@ -210,7 +213,7 @@ function submitAdminCampaign() {
   campaigns.push({
     id: nextCampaignId++, placeId, platform, channels, content, deadline, link: '',
     operatingDays: days, operatingHours: hours, excludeHoliday,
-    reporterNickname: '', reporterBlog: '', reporterInstagram: ''
+    reporterNickname: '', reporterEmail: '', reporterBlog: '', reporterInstagram: ''
   });
 
   adminToast('캠페인 등록 완료 ✅');
@@ -357,7 +360,7 @@ function importExcelData() {
     let place = places.find(p => p.name.replace(/\s/g,'') === String(name).replace(/\s/g,''));
     if (!place) {
       place = { id: nextPlaceId++, name: String(name), address: String(address), lat, lng,
-        category: String(category) || '기타', founderNickname: '', founderUrl: '' };
+        category: String(category) || '기타', founderNickname: '', founderEmail: '', founderUrl: '' };
       places.push(place);
     }
 
@@ -365,7 +368,7 @@ function importExcelData() {
       id: nextCampaignId++, placeId: place.id, platform: String(platform), channels,
       content: String(content), deadline: String(deadline), link: '',
       operatingDays: [], operatingHours: String(hours) || '',
-      reporterNickname: '', reporterBlog: '', reporterInstagram: ''
+      reporterNickname: '', reporterEmail: '', reporterBlog: '', reporterInstagram: ''
     });
     added++;
   });

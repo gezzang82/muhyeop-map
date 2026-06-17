@@ -166,6 +166,7 @@ let campaigns = [
 let nextPlaceId = 51;
 let nextCampaignId = 54;
 let currentChannelFilter = '전체';
+let pcTabActive = 'campaigns'; // 'campaigns' | 'report'
 
 let map;
 let markers = [];
@@ -349,8 +350,25 @@ function initMap() {
     scaleControl: false,
     logoControl: true,
     logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
-    mapDataControl: false
+    mapDataControl: false,
+    scrollWheel: false
   });
+
+  // 마우스휠 줌 속도 조절: SDK 기본값(1 notch = 1 zoom)이 너무 빠르므로
+  // ~2 notch당 1 zoom으로 조절 (naver.com 지도와 유사한 감도)
+  let _wheelAccum = 0;
+  document.getElementById('map').addEventListener('wheel', function(e) {
+    e.preventDefault();
+    let delta = e.deltaY;
+    if (e.deltaMode === 1) delta *= 30;
+    else if (e.deltaMode === 2) delta *= 300;
+    _wheelAccum += delta;
+    const step = 200;
+    while (Math.abs(_wheelAccum) >= step) {
+      map.setZoom(map.getZoom() + (_wheelAccum > 0 ? -1 : 1), true);
+      _wheelAccum -= Math.sign(_wheelAccum) * step;
+    }
+  }, { passive: false });
 
   // 모바일: 네이버 로고를 바텀시트 위로 올림
   if (window.innerWidth <= 640) {
@@ -792,11 +810,14 @@ function focusPlace(placeId) {
 function panToCard(place) {
   const latlng = new naver.maps.LatLng(place.lat, place.lng);
   const proj = map.getProjection();
-  if (proj) {
+  const mapWidth = document.getElementById('map').offsetWidth;
+  // 넓은 화면: 핀을 맵 중앙으로 (panTo 그대로)
+  // 좁은 화면(<780px): 카드(0~350px) 오른쪽인 390px에 핀 고정
+  const pinTargetX = Math.max(Math.round(mapWidth / 2), 390);
+  const deltaX = Math.round(mapWidth / 2) - pinTargetX;
+  if (proj && deltaX !== 0) {
     const off = proj.fromCoordToOffset(latlng);
-    off.y -= 24;
-    const mapWidth = document.getElementById('map').offsetWidth;
-    if (mapWidth > 640) off.x += (mapWidth / 2 - 390);
+    off.x += deltaX;
     map.panTo(proj.fromOffsetToCoord(off));
   } else {
     map.panTo(latlng);
@@ -1035,13 +1056,54 @@ function closeAbout() {
   document.getElementById('aboutOverlay').classList.remove('open');
 }
 
+// ===== PC 탭 전환 =====
+function switchPcTab(tab) {
+  if (window.innerWidth <= 640) return;
+
+  const campaignsTab = document.getElementById('tabCampaigns');
+  const reportTab = document.getElementById('tabReport');
+
+  if (tab === 'report') {
+    pcTabActive = 'report';
+    document.body.classList.add('pc-report-mode');
+    campaignsTab?.classList.remove('active');
+    reportTab?.classList.add('active');
+    document.getElementById('modalOverlay').classList.add('open');
+    resetModal();
+  } else {
+    pcTabActive = 'campaigns';
+    document.body.classList.remove('pc-report-mode');
+    campaignsTab?.classList.add('active');
+    reportTab?.classList.remove('active');
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+  setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 50);
+}
+
+function searchRegionPC() {
+  const el = document.getElementById('regionSearchPC');
+  if (!el || !el.value.trim()) return;
+  document.getElementById('regionSearch').value = el.value;
+  searchRegion();
+}
+
 function openModal() {
+  if (window.innerWidth > 640) {
+    switchPcTab('report');
+    return;
+  }
   document.getElementById('modalOverlay').classList.add('open');
   resetModal();
 }
 
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
+  if (window.innerWidth > 640 && pcTabActive === 'report') {
+    pcTabActive = 'campaigns';
+    document.body.classList.remove('pc-report-mode');
+    document.getElementById('tabCampaigns')?.classList.add('active');
+    document.getElementById('tabReport')?.classList.remove('active');
+  }
 }
 
 function resetModal() {
@@ -1050,7 +1112,7 @@ function resetModal() {
   modalSelectedLat = null; modalSelectedLng = null; modalSelectedAddress = '';
   document.getElementById('step1').style.display = 'flex';
   document.getElementById('step2').style.display = 'none';
-  ['inputName','inputAddress','inputContent','inputHours','inputNickname','inputUrl']
+  ['inputName','inputAddress','inputContent','inputHours','inputNickname','inputEmail','inputUrl']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('inputCategory').value = '';
   syncSelectTrigger('inputCategory');
@@ -1116,8 +1178,10 @@ function goStep2() {
 
   document.getElementById('step1').style.display = 'none';
   document.getElementById('step2').style.display = 'flex';
-  // step2에서 modal-header 숨기기 (step2ScrollHeader가 대신 스크롤됨)
-  document.querySelector('#modalOverlay .modal-header').style.display = 'none';
+  // step2에서 modal-header 숨기기 (모바일만)
+  if (window.innerWidth <= 640) {
+    document.querySelector('#modalOverlay .modal-header').style.display = 'none';
+  }
   updateStepDots(2);
 
   // step2 스크롤 시 sticky 헤더 표시
@@ -1193,6 +1257,7 @@ function toggleHoliday(row) {
 }
 
 function handleStep2Scroll() {
+  if (window.innerWidth > 640) return;
   const body = document.getElementById('step2Body');
   const header = document.getElementById('modalStickyHeader');
   const scrollHeader = document.getElementById('step2ScrollHeader');
@@ -1233,6 +1298,7 @@ function submitCampaign() {
       lat: modalSelectedLat, lng: modalSelectedLng,
       category,
       founderNickname: document.getElementById('inputNickname').value.trim(),
+      founderEmail: document.getElementById('inputEmail').value.trim(),
       founderUrl: document.getElementById('inputUrl').value.trim()
     };
     places.push(newPlace);
@@ -1250,6 +1316,7 @@ function submitCampaign() {
     excludeHoliday: document.getElementById('holidayExclude')?.classList.contains('active') ?? false,
     operatingHours: document.getElementById('inputHours').value.trim(),
     reporterNickname: document.getElementById('inputNickname').value.trim(),
+    reporterEmail: document.getElementById('inputEmail').value.trim(),
     reporterUrl: document.getElementById('inputUrl').value.trim()
   });
 
@@ -1553,7 +1620,24 @@ window.addEventListener('load', function() {
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
 });
 
+let _prevIsMobile = window.innerWidth <= 640;
 window.addEventListener('resize', function() {
+  const isMobile = window.innerWidth <= 640;
+
+  if (!_prevIsMobile && isMobile) {
+    // PC → 모바일: pc-report-mode 해제
+    if (document.body.classList.contains('pc-report-mode')) {
+      document.body.classList.remove('pc-report-mode');
+      document.getElementById('modalOverlay').classList.remove('open');
+      document.getElementById('tabCampaigns')?.classList.add('active');
+      document.getElementById('tabReport')?.classList.remove('active');
+      document.getElementById('sidebar').style.display = '';
+      pcTabActive = 'campaigns';
+    }
+  }
+
+  _prevIsMobile = isMobile;
+
   if (openPcCardPlace && window.innerWidth > 640) {
     panToCard(openPcCardPlace);
   }
