@@ -1182,7 +1182,7 @@ body.pc-report-mode .holiday-checkbox.active {
     transition: opacity 0.2s ease, visibility 0.2s ease;
   }
   .live-bubble {
-    font-size: 16px;
+    font-size: 14px;
     padding: 12px 16px;
     border-radius: 16px;
     min-height: 64px;
