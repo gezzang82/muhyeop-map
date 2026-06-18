@@ -1411,7 +1411,6 @@ function getEulReul(word) {
 }
 
 function showLiveBubble(data) {
-  if (window.innerWidth <= 640) return;
   const bubble = document.getElementById('liveBubble');
   const text = document.getElementById('liveBubbleText');
   if (!bubble || !text) return;
