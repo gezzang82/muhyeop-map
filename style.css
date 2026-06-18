@@ -1161,6 +1161,10 @@ body.pc-report-mode .holiday-checkbox.active {
 }
 .live-bubble strong { color: #006cff; font-weight: 700; }
 @media (max-width: 640px) {
+  body:has(.sidebar.expanded) .live-alert,
+  body:has(.sidebar.expanded-full) .live-alert {
+    display: none !important;
+  }
   .live-alert {
     display: flex;
     flex-direction: column;
@@ -1175,8 +1179,7 @@ body.pc-report-mode .holiday-checkbox.active {
     padding: 12px 16px;
     border-radius: 16px;
     min-height: 64px;
-    max-width: 220px;
-    white-space: normal;
+    white-space: nowrap;
     line-height: 1.5;
     transform-origin: bottom right;
   }
