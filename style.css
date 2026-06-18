@@ -1161,7 +1161,57 @@ body.pc-report-mode .holiday-checkbox.active {
 }
 .live-bubble strong { color: #006cff; font-weight: 700; }
 @media (max-width: 640px) {
-  .live-alert { display: none; }
+  .live-alert {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    bottom: 80px;
+    right: 16px;
+    left: auto;
+    gap: 0;
+  }
+  .live-bubble {
+    font-size: 16px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    min-height: 64px;
+    max-width: 220px;
+    white-space: normal;
+    line-height: 1.5;
+    transform-origin: bottom right;
+  }
+  .live-bubble::before {
+    content: '';
+    position: absolute;
+    right: -11px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border-top: 11px solid transparent;
+    border-bottom: 11px solid transparent;
+    border-left: 11px solid #aaaaaa;
+  }
+  .live-bubble::after {
+    content: '';
+    position: absolute;
+    right: -9px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border-top: 9px solid transparent;
+    border-bottom: 9px solid transparent;
+    border-left: 9px solid white;
+  }
+  .live-bubble-tail { display: none; }
+  .live-character-wrap {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+  }
+  .live-character {
+    width: 64px;
+    height: 64px;
+  }
 }
 
 /* ===== 토스트 ===== */
