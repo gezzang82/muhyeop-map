@@ -177,6 +177,7 @@ body.pc-report-mode .modal-header h2 {
 body.pc-report-mode #step2 .modal-body {
   padding-top: 16px !important;
 }
+body.pc-report-mode .step1-scroll-header,
 body.pc-report-mode .step2-scroll-header {
   display: none !important;
 }
@@ -322,6 +323,14 @@ body.pc-report-mode .holiday-checkbox.active {
 }
 .sidebar-header-left { display: flex; align-items: center; gap: 8px; }
 .sidebar-header-right { display: flex; align-items: center; gap: 6px; }
+.refresh-btn {
+  background: none; border: none; padding: 4px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+}
+.refresh-btn img { width: 24px; height: 24px; display: block; }
+.refresh-btn:hover img { animation: spin 0.5s linear; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .sidebar-title { font-size: 18px; font-weight: 600; color: #000; }
 .sidebar-count {
   font-size: 14px; font-weight: 700; color: #555;
@@ -883,10 +892,12 @@ body.pc-report-mode .holiday-checkbox.active {
 .selected-place-badge .badge-text strong { color: #000; font-weight: 600; }
 
 /* step2 스크롤 헤더 (body 안에서 같이 스크롤됨) */
+.step1-scroll-header,
 .step2-scroll-header {
   display: flex; justify-content: space-between; align-items: center;
   flex-shrink: 0;
 }
+.step1-scroll-header h2,
 .step2-scroll-header h2 {
   font-size: 26px; font-weight: 500; color: #000;
   letter-spacing: -0.52px; line-height: normal;
@@ -1095,9 +1106,12 @@ body.pc-report-mode .holiday-checkbox.active {
 }
 
 /* ===== 빈 상태 ===== */
-.empty-state { padding: 40px 20px; text-align: center; color: #bbb; }
-.empty-icon { font-size: 36px; margin-bottom: 10px; }
-.empty-state p { font-size: 13px; line-height: 1.6; }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 80px 20px; text-align: center;
+}
+.empty-img { width: 80px; height: 80px; object-fit: contain; }
+.empty-state p { font-size: 16px; font-weight: 400; color: #777; line-height: 1.5; }
 
 /* ===== 토스트 ===== */
 .toast {

@@ -47,6 +47,9 @@
         <span class="sidebar-title">모집 중인 체험</span>
         <span class="sidebar-count" id="campaignCount">0</span>
       </div>
+      <button class="refresh-btn" id="refreshBtn" onclick="renderSidebar()" title="새로고침">
+        <img src="image/ic_refresh_24.svg" alt="새로고침">
+      </button>
     </div>
     <div class="sidebar-list" id="campaignList"></div>
   </div>
@@ -186,7 +189,15 @@
 
       <!-- Step 1: 장소 검색 -->
       <div id="step1">
-        <div class="modal-body">
+        <div class="modal-body" id="step1Body">
+          <div class="step1-scroll-header" id="step1ScrollHeader">
+            <h2>체험 제보하기</h2>
+            <div class="step-dots" id="step1StepDots">
+              <span class="step-dot active">1</span>
+              <span class="step-dot-sep"></span>
+              <span class="step-dot">2</span>
+            </div>
+          </div>
           <div class="form-group">
             <label>장소명 <span class="required">*</span></label>
             <input type="text" id="inputName" placeholder="스타벅스 강남점" oninput="searchExistingPlaces(this.value); clearFieldError('inputName')">

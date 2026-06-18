@@ -725,8 +725,8 @@ function renderSidebar() {
   if (activePlaces.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">🗺️</div>
-        <p>모집 중인 협찬이 없어요.<br>첫 번째로 제보해보세요!</p>
+        <img src="image/img_list_80.png" alt="" class="empty-img">
+        <p>모집 중인 협찬이 없어요.<br>첫번째로 제보해 보세요!</p>
       </div>`;
     return;
   }
@@ -1122,7 +1122,16 @@ function resetModal() {
   const holiday = document.getElementById('holidayExclude');
   if (holiday) { holiday.classList.remove('active'); }
   document.getElementById('modalStickyHeader').classList.remove('show');
-  document.querySelector('#modalOverlay .modal-header').style.display = 'flex';
+  // 모바일: modal-header 숨기기 (step1-scroll-header가 대체)
+  const _mh = document.querySelector('#modalOverlay .modal-header');
+  if (_mh) _mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
+  updateStepDots(1);
+  const step1Body = document.getElementById('step1Body');
+  if (step1Body) {
+    step1Body.removeEventListener('scroll', handleStep1Scroll);
+    step1Body.addEventListener('scroll', handleStep1Scroll, { passive: true });
+    step1Body.scrollTop = 0;
+  }
   resetDateSelects();
   document.getElementById('searchResult').innerHTML = '';
   document.getElementById('existingPlacesSection').style.display = 'none';
@@ -1178,13 +1187,11 @@ function goStep2() {
 
   document.getElementById('step1').style.display = 'none';
   document.getElementById('step2').style.display = 'flex';
-  // step2에서 modal-header 숨기기 (모바일만)
-  if (window.innerWidth <= 640) {
-    document.querySelector('#modalOverlay .modal-header').style.display = 'none';
-  }
   updateStepDots(2);
 
-  // step2 스크롤 시 sticky 헤더 표시
+  // step1 → step2: 스크롤 리스너 교체
+  const _s1b = document.getElementById('step1Body');
+  if (_s1b) _s1b.removeEventListener('scroll', handleStep1Scroll);
   const step2Body = document.getElementById('step2Body');
   step2Body.removeEventListener('scroll', handleStep2Scroll);
   step2Body.addEventListener('scroll', handleStep2Scroll, { passive: true });
@@ -1217,9 +1224,19 @@ function goStep2() {
 function goStep1() {
   document.getElementById('step2').style.display = 'none';
   document.getElementById('step1').style.display = 'block';
-  document.querySelector('#modalOverlay .modal-header').style.display = 'flex';
+  const _mh = document.querySelector('#modalOverlay .modal-header');
+  if (_mh) _mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
   document.getElementById('modalStickyHeader').classList.remove('show');
   updateStepDots(1);
+  // step2 → step1: 스크롤 리스너 교체
+  const step2Body = document.getElementById('step2Body');
+  step2Body.removeEventListener('scroll', handleStep2Scroll);
+  const step1Body = document.getElementById('step1Body');
+  if (step1Body) {
+    step1Body.removeEventListener('scroll', handleStep1Scroll);
+    step1Body.addEventListener('scroll', handleStep1Scroll, { passive: true });
+    step1Body.scrollTop = 0;
+  }
 }
 
 function toggleOptional() {
@@ -1254,6 +1271,20 @@ function toggleChannel(btn) {
 function toggleHoliday(row) {
   const checkbox = row.querySelector('.holiday-checkbox');
   if (checkbox) checkbox.classList.toggle('active');
+}
+
+function handleStep1Scroll() {
+  if (window.innerWidth > 640) return;
+  const body = document.getElementById('step1Body');
+  const header = document.getElementById('modalStickyHeader');
+  const scrollHeader = document.getElementById('step1ScrollHeader');
+  if (!body || !header || !scrollHeader) return;
+  const threshold = scrollHeader.offsetTop + scrollHeader.offsetHeight;
+  if (body.scrollTop > threshold) {
+    header.classList.add('show');
+  } else {
+    header.classList.remove('show');
+  }
 }
 
 function handleStep2Scroll() {
