@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="format-detection" content="telephone=no, address=no, email=no">
-  <title>무협맵 - 무료협찬 지도</title>
+  <title>무협맵 - 협찬 사냥꾼들의 지도</title>
   <link rel="stylesheet" href="style.css?v=11">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
@@ -104,6 +104,17 @@
     </div>
   </div>
 
+  <!-- 실시간 제보 알림 캐릭터 (PC only) -->
+  <div class="live-alert" id="liveAlert">
+    <div class="live-bubble" id="liveBubble">
+      <span id="liveBubbleText"></span>
+      <img src="image/ic_arrow_down.svg" class="live-bubble-tail" alt="">
+    </div>
+    <div class="live-character-wrap">
+      <img src="image/img_ch_01.png" alt="무협맵 캐릭터" class="live-character" id="liveCharacter">
+    </div>
+  </div>
+
   <!-- 서비스 소개 모달 -->
   <div class="modal-overlay" id="aboutOverlay" onclick="closeAbout()">
     <div class="modal about-modal" onclick="event.stopPropagation()">
@@ -114,18 +125,19 @@
       </div>
       <div class="modal-body">
         <div class="about-hero">
-          <div class="about-hero-icon">🗺️</div>
+          <img src="image/img_list_80.png" alt="무협맵 캐릭터" class="about-hero-img">
           <div class="about-hero-title">무협맵</div>
-          <div class="about-hero-sub">무료협찬 지도 — 여러 플랫폼의 협찬을 한눈에</div>
+          <div class="about-hero-sub">협찬 사냥꾼들의 지도</div>
+          <div class="about-hero-desc">여러 플랫폼에 흩어진 협찬 정보를 지도 위에서 한눈에.</div>
         </div>
 
         <div class="about-section">
-          <div class="about-section-title">💡 이런 서비스예요</div>
-          <p class="about-desc">레뷰, 리뷰노트, 미블 등 여러 협찬 플랫폼을 따로따로 확인하던 불편함을 해소하기 위해 만들었어요. 현재 모집 중인 협찬을 지도 위에서 한눈에 볼 수 있어요.</p>
+          <div class="about-section-title">한 번의 외출, 여러 개의 협찬</div>
+          <p class="about-desc">홍대 카페 협찬에 당첨되셨나요? 무협맵은 주변 맛집, 디저트, 주점 협찬까지 함께 탐색하여 협찬 동선을 계획할 수 있도록 도와줍니다.</p>
         </div>
 
         <div class="about-section">
-          <div class="about-section-title">📌 이렇게 사용하세요</div>
+          <div class="about-section-title">이렇게 사용하세요</div>
           <div class="about-steps">
             <div class="about-step">
               <span class="step-num">1</span>
@@ -138,7 +150,7 @@
               <span class="step-num">2</span>
               <div>
                 <strong>핀 클릭</strong>
-                <p>지도 위 핀을 클릭하면 해당 장소의 협찬 정보와 신청 링크를 볼 수 있어요</p>
+                <p>지도 위 핀을 클릭하면 협찬 정보를 확인하고 해당 플랫폼에서 직접 신청해요</p>
               </div>
             </div>
             <div class="about-step">
@@ -152,13 +164,12 @@
         </div>
 
         <div class="about-section">
-          <div class="about-section-title">🚩 협찬 제보하기</div>
-          <p class="about-desc">새로운 협찬 정보를 알고 계신가요? 사이드바 상단 <strong>+ 제보하기</strong> 버튼으로 직접 등록해주세요. 최초 제보자는 장소에 영구 표시돼요.</p>
+          <div class="about-section-title">협찬 제보하기</div>
+          <p class="about-desc">새로운 협찬 정보를 알고 계신가요? 제보하기 버튼으로 직접 등록해주세요. 최초 제보자는 장소에 영구 표시돼요.</p>
         </div>
 
-        <div class="about-section">
-          <div class="about-section-title">⚠️ 유의사항</div>
-          <p class="about-desc">무협맵은 사용자 제보로 운영되는 서비스예요. 협찬 정보가 변경되거나 마감되었을 수 있으니 신청 전 반드시 플랫폼에서 확인해주세요.</p>
+        <div class="about-legal">
+          <p>무협맵은 협찬 정보를 탐색하기 위한 지도 기반 정보 제공 서비스입니다.<br>협찬 신청 및 진행은 각 플랫폼에서 이루어지며 관련 권리는 해당 플랫폼 및 업체에 있습니다.</p>
         </div>
       </div>
       <div class="modal-footer about-footer">

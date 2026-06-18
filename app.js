@@ -282,9 +282,9 @@ function getDeadlineText(deadline) {
   if (!deadline) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const diff = Math.ceil((new Date(deadline) - today) / 86400000);
-  if (diff < 0) return { text: '마감됨', urgent: false };
-  if (diff === 0) return { text: '오늘 마감!', urgent: true };
-  if (diff <= 3) return { text: `D-${diff}`, urgent: true };
+  if (diff < 0) return null;
+  if (diff === 0) return { text: 'D-DAY', urgent: true };
+  if (diff <= 2) return { text: `D-${diff}`, urgent: true };
   return { text: `D-${diff}`, urgent: false };
 }
 
@@ -1371,6 +1371,74 @@ function showToast(msg) {
   _toastTimer = setTimeout(() => { toast.classList.remove('show'); _toastTimer = null; }, 3000);
 }
 
+// ===== 실시간 제보 알림 =====
+// { nick, place } 형식 — 말풍선에서 장소명 볼드 처리
+const _liveMessages = [
+  { nick: '뷰티로그', place: '올리브영 강남본점' },
+  { nick: '홍대러버', place: '카페 노티드 홍대' },
+  { nick: '성수탐험가', place: '애프터블로우 성수점' },
+  { nick: '강남미식가', place: '교촌치킨 역삼점' },
+  { nick: '명동뷰티', place: '이니스프리 명동점' },
+  { nick: '잠실일상', place: '스타벅스 잠실롯데점' },
+  { nick: '어퍼컷', place: 'BBQ 합정점' },
+  { nick: '디저트마니아', place: '런던베이글 연남점' },
+];
+let _liveIdx = 0;
+let _liveBubbleTimer = null;
+const _chFrames = ['image/img_ch_01.png','image/img_ch_02.png','image/img_ch_03.png','image/img_ch_04.png','image/img_ch_05.png'];
+
+function playCharacterAnim() {
+  const el = document.getElementById('liveCharacter');
+  if (!el) return;
+  let f = 0;
+  const tick = setInterval(() => {
+    el.src = _chFrames[f % _chFrames.length];
+    f++;
+    if (f >= _chFrames.length * 2) { // 2회 순환 후 마지막 프레임 고정
+      clearInterval(tick);
+      el.src = _chFrames[0];
+    }
+  }, 100);
+}
+
+function getEulReul(word) {
+  const last = word[word.length - 1];
+  const code = last ? last.charCodeAt(0) : 0;
+  if (code >= 0xAC00 && code <= 0xD7A3) {
+    return (code - 0xAC00) % 28 === 0 ? '를' : '을';
+  }
+  return '를';
+}
+
+function showLiveBubble(data) {
+  if (window.innerWidth <= 640) return;
+  const bubble = document.getElementById('liveBubble');
+  const text = document.getElementById('liveBubbleText');
+  if (!bubble || !text) return;
+  if (_liveBubbleTimer) clearTimeout(_liveBubbleTimer);
+  bubble.classList.remove('show');
+  setTimeout(() => {
+    const particle = getEulReul(data.place);
+    text.innerHTML = `${data.nick}님이 <strong>${data.place}</strong>${particle}<br>추가했어요!`;
+    bubble.classList.add('show');
+    playCharacterAnim();
+    _liveBubbleTimer = setTimeout(() => bubble.classList.remove('show'), 5000);
+  }, 100);
+}
+
+function startLiveAlerts() {
+  const delays = [4000, 12000, 22000, 34000, 48000, 64000, 82000];
+  delays.forEach((delay, i) => {
+    setTimeout(() => {
+      showLiveBubble(_liveMessages[i % _liveMessages.length]);
+    }, delay);
+  });
+  setInterval(() => {
+    _liveIdx = (_liveIdx + 1) % _liveMessages.length;
+    showLiveBubble(_liveMessages[_liveIdx]);
+  }, 90000);
+}
+
 // ===== 네이버지도 열기 =====
 function openNaverMap(name, address) {
   const webUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
@@ -1649,6 +1717,7 @@ document.addEventListener('DOMContentLoaded', setupClearButtons);
 window.addEventListener('load', function() {
   initMap();
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
+  startLiveAlerts();
 });
 
 let _prevIsMobile = window.innerWidth <= 640;

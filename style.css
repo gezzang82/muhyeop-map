@@ -244,10 +244,10 @@ body.pc-report-mode .holiday-checkbox.active {
 .mobile-search-bar { display: none; }
 
 .btn-my-location {
-  position: absolute;
-  bottom: 20px; right: 20px;
+  position: fixed;
+  bottom: 20px; left: 452px;
   z-index: 400;
-  width: 48px; height: 48px;
+  width: 40px; height: 40px;
   border-radius: 8px;
   background: white;
   border: none;
@@ -258,10 +258,10 @@ body.pc-report-mode .holiday-checkbox.active {
 .btn-my-location:hover { background: #f5f5f0; }
 
 .btn-zoom-group {
-  position: absolute;
-  bottom: 76px; right: 20px;
+  position: fixed;
+  bottom: 68px; left: 452px;
   z-index: 400;
-  width: 48px;
+  width: 40px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.12);
@@ -269,9 +269,9 @@ body.pc-report-mode .holiday-checkbox.active {
   overflow: hidden;
 }
 .btn-zoom {
-  width: 100%; height: 48px;
+  width: 100%; height: 40px;
   background: none; border: none;
-  font-size: 20px; font-weight: 400; color: #333;
+  font-size: 18px; font-weight: 400; color: #333;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   line-height: 1;
 }
@@ -964,12 +964,16 @@ body.pc-report-mode .holiday-checkbox.active {
   text-align: center; padding: 10px 0 20px;
   border-bottom: 1px solid #f0f0f0; margin-bottom: 4px;
 }
-.about-hero-icon { font-size: 40px; margin-bottom: 8px; }
+.about-hero-img { width: 80px; height: 80px; object-fit: contain; margin-bottom: 12px; }
 .about-hero-title {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 22px; font-weight: 800; color: #1a1a2e;
 }
-.about-hero-sub { font-size: 12px; color: #888; margin-top: 4px; }
+.about-hero-sub { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-top: 6px; }
+.about-hero-desc { font-size: 13px; color: #888; margin-top: 4px; }
+.about-legal {
+  padding: 16px 0 4px; font-size: 11px; color: #aaa; line-height: 1.7; text-align: center;
+}
 
 .about-section { padding: 14px 0; border-bottom: 1px solid #f5f5f0; }
 .about-section:last-child { border-bottom: none; }
@@ -1113,6 +1117,52 @@ body.pc-report-mode .holiday-checkbox.active {
 }
 .empty-img { width: 80px; height: 80px; object-fit: contain; }
 .empty-state p { font-size: 16px; font-weight: 400; color: #777; line-height: 1.5; }
+
+/* ===== 실시간 제보 알림 캐릭터 ===== */
+.live-alert {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 16px;
+  z-index: 300; pointer-events: none;
+}
+.live-character-wrap {
+  width: 72px; height: 72px; flex-shrink: 0;
+  background: #f0f0f0;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.1);
+}
+.live-character {
+  width: 72px; height: 72px; object-fit: cover;
+}
+.live-bubble {
+  position: relative;
+  background: white;
+  border: 2px solid #aaaaaa;
+  border-radius: 16px;
+  padding: 14px 20px;
+  white-space: nowrap;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.08));
+  font-size: 15px; color: #1a1a1a; line-height: 1.55;
+  opacity: 0; transform: translateY(8px) scale(0.95);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform-origin: bottom right;
+}
+.live-bubble-tail {
+  position: absolute;
+  right: 26px;
+  bottom: -10px;
+  width: 12px;
+  height: 10px;
+  display: block;
+}
+.live-bubble.show {
+  opacity: 1; transform: translateY(0) scale(1);
+}
+.live-bubble strong { color: #006cff; font-weight: 700; }
+@media (max-width: 640px) {
+  .live-alert { display: none; }
+}
 
 /* ===== 토스트 ===== */
 .toast {
@@ -1345,6 +1395,7 @@ body.pc-report-mode .holiday-checkbox.active {
   .sidebar-header::before { display: none; }
 
   .sidebar-arrow { display: flex; align-items: center; }
+  .refresh-btn { display: none; }
   .btn-refresh-list { display: none; }
   .sidebar.expanded .btn-refresh-list { display: flex; }
   .sidebar-title { font-size: 18px; }
