@@ -1189,7 +1189,7 @@ body.pc-report-mode .holiday-checkbox.active {
     line-height: 1.5;
     transform-origin: bottom right;
   }
-  .live-bubble-tail { display: block; }
+  .live-bubble-tail { display: block; right: 24px; }
   .live-character-wrap {
     width: 64px;
     height: 64px;
