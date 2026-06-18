@@ -1163,12 +1163,12 @@ body.pc-report-mode .holiday-checkbox.active {
 @media (max-width: 640px) {
   .live-alert {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: flex-end;
     bottom: 152px;
-    right: 16px;
+    right: 8px;
     left: auto;
-    gap: 0;
+    gap: 16px;
   }
   .live-bubble {
     font-size: 16px;
@@ -1180,29 +1180,7 @@ body.pc-report-mode .holiday-checkbox.active {
     line-height: 1.5;
     transform-origin: bottom right;
   }
-  .live-bubble::before {
-    content: '';
-    position: absolute;
-    right: -11px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 0; height: 0;
-    border-top: 11px solid transparent;
-    border-bottom: 11px solid transparent;
-    border-left: 11px solid #aaaaaa;
-  }
-  .live-bubble::after {
-    content: '';
-    position: absolute;
-    right: -9px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 0; height: 0;
-    border-top: 9px solid transparent;
-    border-bottom: 9px solid transparent;
-    border-left: 9px solid white;
-  }
-  .live-bubble-tail { display: none; }
+  .live-bubble-tail { display: block; }
   .live-character-wrap {
     width: 64px;
     height: 64px;
