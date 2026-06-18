@@ -325,12 +325,13 @@ body.pc-report-mode .holiday-checkbox.active {
 .sidebar-header-right { display: flex; align-items: center; gap: 6px; }
 .refresh-btn {
   background: none; border: none; padding: 4px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
   border-radius: 6px;
 }
 .refresh-btn img { width: 24px; height: 24px; display: block; }
+.refresh-btn span { font-size: 14px; color: #777; }
 .refresh-btn:hover img { animation: spin 0.5s linear; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
 .sidebar-title { font-size: 18px; font-weight: 600; color: #000; }
 .sidebar-count {
   font-size: 14px; font-weight: 700; color: #555;
