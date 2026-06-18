@@ -1354,7 +1354,7 @@ body.pc-report-mode .holiday-checkbox.active {
   #map { flex: 1; min-height: 0; }
   .btn-my-location {
     position: fixed;
-    bottom: 100px; right: 20px;
+    bottom: 100px; left: auto; right: 20px;
     width: 44px; height: 44px;
     border-radius: 50%;
     z-index: 250;
