@@ -1148,6 +1148,7 @@ body.pc-report-mode .holiday-checkbox.active {
   transition: opacity 0.3s ease, transform 0.3s ease;
   transform-origin: bottom right;
 }
+.live-bubble-tail-mob { display: none; }
 .live-bubble-tail {
   position: absolute;
   right: 26px;
@@ -1189,7 +1190,11 @@ body.pc-report-mode .holiday-checkbox.active {
     line-height: 1.5;
     transform-origin: bottom right;
   }
-  .live-bubble-tail { display: block; right: 24px; }
+  .live-bubble {
+    border-width: 1px;
+  }
+  .live-bubble-tail-pc { display: none; }
+  .live-bubble-tail-mob { display: block; right: 24px; }
   .live-character-wrap {
     width: 64px;
     height: 64px;

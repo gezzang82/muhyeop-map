@@ -1,0 +1,10 @@
+<svg width="12" height="10" viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <mask id="m">
+    <rect width="12" height="10" fill="white"/>
+  </mask>
+  <g mask="url(#m)">
+    <rect width="12" height="10" fill="white"/>
+    <path d="M-0.5 0 L4.448 9.063 C5.138 10.313 6.862 10.313 7.552 9.063 L12.5 0"
+          fill="white" stroke="#aaaaaa" stroke-width="1" stroke-linejoin="round"/>
+  </g>
+</svg>
