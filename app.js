@@ -1690,6 +1690,14 @@ function setupClearButtons() {
     });
   }
 
+  // PC 지도 검색창
+  const pcSearchInput = document.getElementById('regionSearchPC');
+  if (pcSearchInput) {
+    const btn = createClearBtn();
+    pcSearchInput.parentElement.appendChild(btn);
+    bindClearBtn(btn, pcSearchInput);
+  }
+
   // 모달 폼 텍스트 입력 (input-wrap으로 감싸서 절대 위치)
   document.querySelectorAll('.form-group input[type="text"], .form-group input[type="url"]').forEach(input => {
     const wrap = document.createElement('div');

@@ -85,22 +85,38 @@ body {
   width: 320px;
   flex-shrink: 0;
   background: white;
+  border: 2px solid transparent;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   height: 56px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   padding: 0 16px;
+  gap: 10px;
+  position: relative;
+}
+.pc-search-wrap:focus-within {
+  border-color: #e82a2d;
   gap: 8px;
 }
+.pc-search-icon { color: #bbb; }
+.pc-search-wrap:focus-within .pc-search-icon { color: #e82a2d; }
 .pc-search-wrap input {
   flex: 1; min-width: 0;
   border: none; outline: none;
   font-size: 16px;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   color: #333; background: none;
+  padding-right: 24px;
 }
 .pc-search-wrap input::placeholder { color: #bbb; }
+.pc-search-wrap .btn-input-clear {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 .pc-stat-pill {
   flex-shrink: 0;
