@@ -97,6 +97,8 @@ body {
   gap: 6px;
   overflow-x: auto;
   flex-wrap: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 .pc-chips-row::-webkit-scrollbar { display: none; }
 
