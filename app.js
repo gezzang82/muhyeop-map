@@ -977,12 +977,20 @@ function selectAddress(address, lat, lng) {
   if (sameAddr) {
     document.getElementById('searchResult').innerHTML =
       `<div class="selected-addr">${address}</div>
-       <div class="addr-duplicate-warning">⚠️ 이 주소로 이미 <strong>${sameAddr.name}</strong>이 등록되어 있어요.
-         <span class="addr-dup-select" onclick="selectExistingPlace(${sameAddr.id})">이 장소 선택하기 →</span>
+       <div class="addr-duplicate-warning" id="addrDupWarning">⚠️ 이 주소로 이미 <strong>${sameAddr.name}</strong>이 등록되어 있어요. 같은 건물의 다른 매장이라면 무시하고 진행하세요.
+         <div class="addr-dup-actions">
+           <span class="addr-dup-select" onclick="selectExistingPlace(${sameAddr.id})">이 장소 선택하기 →</span>
+           <span class="addr-dup-ignore" onclick="dismissAddrDuplicateWarning()">무시하고 새로 등록 →</span>
+         </div>
        </div>`;
     return;
   }
   document.getElementById('searchResult').innerHTML = `<div class="selected-addr">${address}</div>`;
+}
+
+function dismissAddrDuplicateWarning() {
+  const warning = document.getElementById('addrDupWarning');
+  if (warning) warning.remove();
 }
 
 // ===== 기존 장소 검색 =====

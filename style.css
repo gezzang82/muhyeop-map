@@ -774,9 +774,14 @@ body.pc-report-mode .holiday-checkbox.active {
   background: #fff5f5; border: 1.5px solid #f5a0a0;
   border-radius: 8px; font-size: 12px; color: #c0392b; line-height: 1.5;
 }
+.addr-dup-actions { display: flex; gap: 12px; margin-top: 4px; }
 .addr-dup-select {
-  display: inline-block; margin-top: 4px;
+  display: inline-block;
   color: #185fa5; font-weight: 700; cursor: pointer; text-decoration: underline;
+}
+.addr-dup-ignore {
+  display: inline-block;
+  color: #888; font-weight: 700; cursor: pointer; text-decoration: underline;
 }
 
 /* 기존 장소 */
