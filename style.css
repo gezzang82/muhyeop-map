@@ -774,6 +774,7 @@ body.pc-report-mode .holiday-checkbox.active {
   background: #fff5f5; border: 1.5px solid #f5a0a0;
   border-radius: 8px; font-size: 12px; color: #c0392b; line-height: 1.5;
 }
+.addr-dup-hint { margin-top: 4px; color: #999; font-size: 11px; }
 .addr-dup-actions { display: flex; gap: 12px; margin-top: 4px; }
 .addr-dup-select {
   display: inline-block;

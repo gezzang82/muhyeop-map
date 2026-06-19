@@ -978,6 +978,7 @@ function selectAddress(address, lat, lng) {
     document.getElementById('searchResult').innerHTML =
       `<div class="selected-addr">${address}</div>
        <div class="addr-duplicate-warning" id="addrDupWarning">⚠️ 이 주소로 이미 <strong>${sameAddr.name}</strong>이 등록되어 있어요. 같은 건물의 다른 매장이라면 무시하고 진행하세요.
+         <div class="addr-dup-hint">상세주소(층/호)는 네이버지도 또는 플랫폼에서 확인해주세요.</div>
          <div class="addr-dup-actions">
            <span class="addr-dup-select" onclick="selectExistingPlace(${sameAddr.id})">이 장소 선택하기 →</span>
            <span class="addr-dup-ignore" onclick="dismissAddrDuplicateWarning()">무시하고 새로 등록 →</span>
@@ -996,7 +997,15 @@ function dismissAddrDuplicateWarning() {
 // ===== 기존 장소 검색 =====
 function searchExistingPlaces(name, keepSelection = false) {
   const q = name.trim();
-  if (!keepSelection) modalSelectedPlaceId = null;
+  if (!keepSelection && modalSelectedPlaceId !== null) {
+    // 장소명을 다시 수정하면 기존 장소 선택이 풀리므로, 잠겨있던 주소 입력도 함께 해제
+    modalSelectedPlaceId = null;
+    modalIsNewPlace = true;
+    document.getElementById('inputAddress').value = '';
+    document.getElementById('searchResult').innerHTML = '';
+    modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
+    setAddressLocked(false);
+  }
   if (q.length < 2) { document.getElementById('existingPlacesSection').style.display = 'none'; return; }
 
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
