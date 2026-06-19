@@ -110,11 +110,29 @@ function clearSelectedMarker() {
 }
 function getPlatformColor(p) { return PLATFORM_COLORS[p] || '#666666'; }
 
+// 브라우저 로컬 시간대와 무관하게 한국시간(KST) 기준 "오늘"을 계산한다.
+function getKSTDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(date);
+  const obj = {};
+  parts.forEach(p => { obj[p.type] = p.value; });
+  return { y: +obj.year, m: +obj.month, d: +obj.day };
+}
+function getKSTTodayUTC() {
+  const { y, m, d } = getKSTDateParts();
+  return Date.UTC(y, m - 1, d);
+}
+function deadlineToUTC(deadline) {
+  const [y, m, d] = deadline.split('-').map(Number);
+  return Date.UTC(y, m - 1, d);
+}
+
 function getActiveCampaigns(placeId) {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const today = getKSTTodayUTC();
   return campaigns.filter(c => {
     if (c.placeId !== placeId) return false;
-    if (new Date(c.deadline) < today) return false;
+    if (deadlineToUTC(c.deadline) < today) return false;
     if (currentChannelFilter !== '전체' && !(c.channels || []).includes(currentChannelFilter)) return false;
     return true;
   });
@@ -134,14 +152,14 @@ function hasActiveCampaign(placeId) {
 }
 
 function hasPlatformAlready(placeId, platform) {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return campaigns.some(c => c.placeId === placeId && c.platform === platform && new Date(c.deadline) >= today);
+  const today = getKSTTodayUTC();
+  return campaigns.some(c => c.placeId === placeId && c.platform === platform && deadlineToUTC(c.deadline) >= today);
 }
 
 function getDeadlineText(deadline) {
   if (!deadline) return null;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const diff = Math.ceil((new Date(deadline) - today) / 86400000);
+  const today = getKSTTodayUTC();
+  const diff = Math.round((deadlineToUTC(deadline) - today) / 86400000);
   if (diff < 0) return null;
   if (diff === 0) return { text: 'D-DAY', urgent: true };
   if (diff <= 2) return { text: `D-${diff}`, urgent: true };
@@ -150,10 +168,7 @@ function getDeadlineText(deadline) {
 
 // ===== 날짜 셀렉트 초기화 =====
 function initDateSelects() {
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = today.getMonth() + 1;
-  const d = today.getDate();
+  const { y, m, d } = getKSTDateParts();
 
   const yearSel = document.getElementById('inputDeadlineYear');
   const monthSel = document.getElementById('inputDeadlineMonth');
@@ -194,10 +209,10 @@ function getSelectedDeadline() {
 }
 
 function resetDateSelects() {
-  const today = new Date();
-  document.getElementById('inputDeadlineYear').value = today.getFullYear();
-  document.getElementById('inputDeadlineMonth').value = today.getMonth() + 1;
-  updateDayOptions(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  const today = getKSTDateParts();
+  document.getElementById('inputDeadlineYear').value = today.y;
+  document.getElementById('inputDeadlineMonth').value = today.m;
+  updateDayOptions(today.y, today.m, today.d);
   setTimeout(syncDateTriggers, 0);
 }
 
@@ -840,8 +855,8 @@ let existingResultsVisibleCount = 10;
 const EXISTING_RESULTS_PAGE_SIZE = 10;
 
 function renderActivePlaceCampaigns(placeId) {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const active = campaigns.filter(c => c.placeId === placeId && new Date(c.deadline) >= today);
+  const today = getKSTTodayUTC();
+  const active = campaigns.filter(c => c.placeId === placeId && deadlineToUTC(c.deadline) >= today);
   if (!active.length) {
     return '<div class="place-campaign-preview"><div class="place-campaign-preview-empty">현재 진행중인 협찬이 없어요. 새 협찬을 등록해주세요.</div></div>';
   }

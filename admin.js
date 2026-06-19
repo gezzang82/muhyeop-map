@@ -44,9 +44,9 @@ function initAdmin() {
 
 // ===== 대시보드 =====
 function renderDashboard() {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const active = campaigns.filter(c => new Date(c.deadline) >= today);
-  const expired = campaigns.filter(c => new Date(c.deadline) < today);
+  const today = getKSTTodayUTC();
+  const active = campaigns.filter(c => deadlineToUTC(c.deadline) >= today);
+  const expired = campaigns.filter(c => deadlineToUTC(c.deadline) < today);
 
   document.getElementById('statPlaces').textContent = places.length;
   document.getElementById('statCampaigns').textContent = campaigns.length;
@@ -80,13 +80,13 @@ function renderDashboard() {
       </div>`).join('') || '<div class="empty-msg">데이터 없음</div>';
 
   // 마감 임박 (7일 이내)
-  const d7 = new Date(today); d7.setDate(d7.getDate()+7);
-  const urgent = active.filter(c => new Date(c.deadline) <= d7)
-    .sort((a,b) => new Date(a.deadline)-new Date(b.deadline));
+  const d7 = today + 7 * 86400000;
+  const urgent = active.filter(c => deadlineToUTC(c.deadline) <= d7)
+    .sort((a,b) => deadlineToUTC(a.deadline)-deadlineToUTC(b.deadline));
   document.getElementById('urgentList').innerHTML = urgent.length
     ? urgent.map(c => {
         const place = places.find(p => p.id === c.placeId);
-        const diff = Math.ceil((new Date(c.deadline)-today)/(1000*60*60*24));
+        const diff = Math.round((deadlineToUTC(c.deadline)-today)/86400000);
         return `<div class="urgent-item">
           <span class="urgent-place">${place?.name || '-'}</span>
           <span class="urgent-platform">${c.platform}</span>
@@ -98,20 +98,20 @@ function renderDashboard() {
 
 // ===== 캠페인 목록 =====
 function renderCampaignList() {
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = getKSTTodayUTC();
   const statusFilter = document.getElementById('filterStatus').value;
   const platformFilter = document.getElementById('filterPlatform').value;
 
   let list = [...campaigns];
-  if (statusFilter === 'active') list = list.filter(c => new Date(c.deadline) >= today);
-  if (statusFilter === 'expired') list = list.filter(c => new Date(c.deadline) < today);
+  if (statusFilter === 'active') list = list.filter(c => deadlineToUTC(c.deadline) >= today);
+  if (statusFilter === 'expired') list = list.filter(c => deadlineToUTC(c.deadline) < today);
   if (platformFilter !== 'all') list = list.filter(c => c.platform === platformFilter);
-  list.sort((a,b) => new Date(b.deadline)-new Date(a.deadline));
+  list.sort((a,b) => deadlineToUTC(b.deadline)-deadlineToUTC(a.deadline));
 
   const tbody = document.getElementById('campaignTableBody');
   tbody.innerHTML = list.map(c => {
     const place = places.find(p => p.id === c.placeId);
-    const isActive = new Date(c.deadline) >= today;
+    const isActive = deadlineToUTC(c.deadline) >= today;
     return `<tr class="${isActive ? '' : 'row-expired'}">
       <td class="td-id">${c.id}</td>
       <td><strong>${place?.name || '-'}</strong></td>
@@ -133,10 +133,10 @@ function renderCampaignList() {
 
 // ===== 장소 목록 =====
 function renderPlaceList() {
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = getKSTTodayUTC();
   const tbody = document.getElementById('placeTableBody');
   tbody.innerHTML = places.map(p => {
-    const activeCnt = campaigns.filter(c => c.placeId === p.id && new Date(c.deadline) >= today).length;
+    const activeCnt = campaigns.filter(c => c.placeId === p.id && deadlineToUTC(c.deadline) >= today).length;
     return `<tr>
       <td class="td-id">${p.id}</td>
       <td><strong>${p.name}</strong></td>
