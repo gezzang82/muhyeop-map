@@ -874,7 +874,7 @@ function renderActivePlaceCampaigns(placeId) {
   return `
     <div class="place-campaign-preview">
       <div class="place-campaign-preview-label">진행중인 협찬 ${active.length}건</div>
-      ${itemsHtml}
+      <div class="place-campaign-preview-items">${itemsHtml}</div>
     </div>`;
 }
 
@@ -933,7 +933,7 @@ function renderPlaceResults() {
   }).join('');
 
   const moreButtonHtml = allExistingMatches.length > existingResultsVisibleCount
-    ? `<div class="place-result-more" onclick="loadMoreExistingResults()">더보기 (${allExistingMatches.length - existingResultsVisibleCount}개 더)</div>`
+    ? `<div class="place-result-more-wrap"><div class="place-result-more" onclick="loadMoreExistingResults()">더보기</div></div>`
     : '';
 
   const naverRows = lastNaverResults.map((item, i) => {
@@ -1167,7 +1167,7 @@ function clearAllFieldErrors() {
 function goStep2() {
   const nameVal = document.getElementById('inputName').value.trim();
   if (!nameVal) {
-    document.getElementById('inputNameError').textContent = '장소명을 입력해주세요.';
+    document.getElementById('inputNameError').textContent = '매장명을 입력해주세요.';
     showFieldError('inputName');
     return;
   }

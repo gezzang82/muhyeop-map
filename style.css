@@ -879,20 +879,23 @@ body.pc-report-mode .holiday-checkbox.active {
 .place-result-check { color: #006cff; font-size: 18px; opacity: 0; flex-shrink: 0; }
 .place-result-check.selected { opacity: 1; }
 
+.place-result-more-wrap { display: flex; justify-content: center; padding-top: 24px; }
 .place-result-more {
-  padding: 14px 4px; text-align: center;
-  font-size: 14px; font-weight: 600; color: #555;
-  border-bottom: 1px solid #ececec; cursor: pointer;
+  width: 72px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  background: #f2f2f2; border-radius: 8px;
+  font-size: 16px; font-weight: 400; color: #777; cursor: pointer;
 }
-@media (hover: hover) { .place-result-more:hover { background: #fafafa; } }
+@media (hover: hover) { .place-result-more:hover { background: #ebebeb; } }
 
 .place-campaign-preview {
   display: flex; flex-direction: column; gap: 8px;
-  margin: 0 4px 12px; padding: 12px;
-  background: rgba(0,108,255,0.06); border-radius: 8px;
+  margin: 0 0 12px; padding: 16px;
+  background: #f2f6ff; border: 1px solid #006cff; border-radius: 4px;
 }
-.place-campaign-preview-label { font-size: 13px; font-weight: 700; color: #006cff; }
+.place-campaign-preview-label { font-size: 14px; font-weight: 600; color: #006cff; }
 .place-campaign-preview-empty { font-size: 14px; color: #888; }
+.place-campaign-preview-items { display: flex; flex-direction: column; gap: 4px; }
 .place-campaign-preview-item { display: flex; align-items: center; gap: 8px; }
 .place-campaign-tag { font-size: 12px; font-weight: 700; height: 22px; padding: 0 6px; border-radius: 4px; display: inline-flex; align-items: center; flex-shrink: 0; }
 .place-campaign-content { font-size: 14px; color: #333; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

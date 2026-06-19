@@ -196,7 +196,7 @@
     <div class="modal" onclick="event.stopPropagation()">
       <!-- 스크롤 시 나타나는 sticky 헤더 -->
       <div class="modal-sticky-header" id="modalStickyHeader">
-        <span>체험 제보하기</span>
+        <span>협찬 제보하기</span>
         <div class="step-dots" id="stickyStepDots">
           <span class="step-dot done">✓</span>
           <span class="step-dot-sep"></span>
@@ -204,7 +204,7 @@
         </div>
       </div>
       <div class="modal-header">
-        <h2>체험 제보하기</h2>
+        <h2>협찬 제보하기</h2>
         <div class="step-dots" id="stepDots">
           <span class="step-dot active">1</span>
           <span class="step-dot-sep"></span>
@@ -216,7 +216,7 @@
       <div id="step1">
         <div class="modal-body" id="step1Body">
           <div class="step1-scroll-header" id="step1ScrollHeader">
-            <h2>체험 제보하기</h2>
+            <h2>협찬 제보하기</h2>
             <div class="step-dots" id="step1StepDots">
               <span class="step-dot active">1</span>
               <span class="step-dot-sep"></span>
@@ -224,12 +224,12 @@
             </div>
           </div>
           <div class="form-group">
-            <label>장소명 <span class="required">*</span></label>
+            <label>매장명 <span class="required">*</span></label>
             <div class="addr-row">
               <input type="text" id="inputName" placeholder="예) 스타OO 강남점" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPlaceUnified();}">
               <button class="btn-search-addr" id="btnSearchAddr" onclick="searchPlaceUnified()">검색</button>
             </div>
-            <span class="field-error-msg" id="inputNameError">장소명을 입력해주세요.</span>
+            <span class="field-error-msg" id="inputNameError">매장명을 입력해주세요.</span>
           </div>
 
           <div id="placeResultsList" class="place-results-list"></div>
@@ -245,7 +245,7 @@
         <div class="modal-body" id="step2Body">
           <!-- 스크롤 헤더 (body 안에서 같이 스크롤됨, 사라지면 sticky header 등장) -->
           <div class="step2-scroll-header" id="step2ScrollHeader">
-            <h2>체험 제보하기</h2>
+            <h2>협찬 제보하기</h2>
             <div class="step-dots" id="step2StepDots">
               <span class="step-dot done">✓</span>
               <span class="step-dot-sep"></span>
