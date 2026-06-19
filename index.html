@@ -66,9 +66,14 @@
           <input type="text" id="regionSearchPC" placeholder="지역, 매장명, 역명으로 검색" onkeydown="if(event.key==='Enter') searchRegionPC()">
         </div>
         <div class="pc-stat-pill">
-          <span>총 협찬수</span>
-          <strong id="pcStatCount">0</strong>
-          <span>건</span>
+          <div class="pc-stat-label">
+            <img src="image/ic_total_20.svg" width="20" height="20" alt="">
+            <span>총 협찬수</span>
+          </div>
+          <div class="pc-stat-value">
+            <strong id="pcStatCount">0</strong>
+            <span>건</span>
+          </div>
         </div>
       </div>
       <div class="pc-chips-row">
