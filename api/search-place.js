@@ -23,12 +23,15 @@ module.exports = async function handler(req, res) {
 
   const data = await naverRes.json();
   const stripTags = s => String(s || '').replace(/<[^>]+>/g, '');
-  const items = (data.items || []).map(item => ({
-    name: stripTags(item.title),
-    category: item.category || '',
-    address: item.address || '',
-    roadAddress: item.roadAddress || ''
-  }));
+  const EXCLUDED_CATEGORY_KEYWORDS = ['공공', '관공서', '주민센터', '행정', '구청', '시청', '동사무소'];
+  const items = (data.items || [])
+    .map(item => ({
+      name: stripTags(item.title),
+      category: item.category || '',
+      address: item.address || '',
+      roadAddress: item.roadAddress || ''
+    }))
+    .filter(item => !EXCLUDED_CATEGORY_KEYWORDS.some(k => item.category.includes(k)));
 
   return res.status(200).json(items);
 };
