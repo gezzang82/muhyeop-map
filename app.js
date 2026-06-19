@@ -869,6 +869,61 @@ function handleAddressInput(input) {
   }
 }
 
+// ===== 네이버 매장명 검색 (주소 자동완성) =====
+let naverPlaceSearchTimer = null;
+function onPlaceNameInput(value) {
+  searchExistingPlaces(value);
+  clearFieldError('inputName');
+
+  clearTimeout(naverPlaceSearchTimer);
+  const q = value.trim();
+  if (q.length < 2) {
+    document.getElementById('naverPlaceResults').innerHTML = '';
+    return;
+  }
+  naverPlaceSearchTimer = setTimeout(() => fetchNaverPlaceSuggestions(q), 400);
+}
+
+async function fetchNaverPlaceSuggestions(query) {
+  const container = document.getElementById('naverPlaceResults');
+  try {
+    const res = await fetch('/api/search-place?query=' + encodeURIComponent(query));
+    if (!res.ok) { container.innerHTML = ''; return; }
+    const items = await res.json();
+    if (!items.length) { container.innerHTML = ''; return; }
+    container.innerHTML = items.map(item => {
+      const addr = (item.roadAddress || item.address).replace(/'/g, "\\'");
+      const name = item.name.replace(/'/g, "\\'");
+      return `
+        <div class="search-item" onclick="selectNaverPlace('${name}', '${addr}')">
+          <div class="item-name">${item.name}</div>
+          <div class="item-sub">${item.roadAddress || item.address}</div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = '';
+  }
+}
+
+function selectNaverPlace(name, address) {
+  document.getElementById('naverPlaceResults').innerHTML = '';
+  document.getElementById('inputName').value = name;
+  document.getElementById('inputAddress').value = address;
+  clearFieldError('inputName');
+  searchExistingPlaces(name, false);
+
+  const resultDiv = document.getElementById('searchResult');
+  resultDiv.innerHTML = '<div class="search-hint">주소 확인 중...</div>';
+  naver.maps.Service.geocode({ query: address }, function(status, response) {
+    if (status !== naver.maps.Service.Status.OK || !response.v2.addresses?.length) {
+      resultDiv.innerHTML = '<div class="search-hint error">주소를 찾을 수 없어요. 직접 검색해주세요.</div>';
+      return;
+    }
+    const item = response.v2.addresses[0];
+    selectAddress(item.roadAddress || item.jibunAddress, item.y, item.x, item.jibunAddress || '');
+  });
+}
+
 // ===== 기존 장소 검색 =====
 function searchExistingPlaces(name, keepSelection = false) {
   const q = name.trim();
@@ -928,6 +983,7 @@ function selectExistingPlace(placeId) {
   modalIsNewPlace = false;
   document.getElementById('inputName').value = place.name;
   document.getElementById('inputAddress').value = place.address;
+  document.getElementById('naverPlaceResults').innerHTML = '';
   modalSelectedAddress = place.address;
   modalSelectedLat = place.lat;
   modalSelectedLng = place.lng;
@@ -946,6 +1002,7 @@ function clearExistingSelection() {
   // 장소명은 사용자가 입력한 값을 그대로 유지 (새 장소로 등록할 이름이므로 지우지 않음)
   document.getElementById('inputAddress').value = '';
   document.getElementById('searchResult').innerHTML = '';
+  document.getElementById('naverPlaceResults').innerHTML = '';
   modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
   document.getElementById('existingPlacesSection').style.display = 'none';
   setAddressLocked(false);

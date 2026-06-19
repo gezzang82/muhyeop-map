@@ -213,8 +213,9 @@
           </div>
           <div class="form-group">
             <label>장소명 <span class="required">*</span></label>
-            <input type="text" id="inputName" placeholder="스타벅스 강남점" oninput="searchExistingPlaces(this.value); clearFieldError('inputName')">
+            <input type="text" id="inputName" placeholder="스타벅스 강남점" oninput="onPlaceNameInput(this.value)">
             <span class="field-error-msg" id="inputNameError">장소명을 입력해주세요.</span>
+            <div id="naverPlaceResults" class="search-result"></div>
           </div>
 
           <div id="existingPlacesSection" style="display:none;">
