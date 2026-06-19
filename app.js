@@ -1763,6 +1763,11 @@ function updateUrlPlatform(platform) {
   prefixEl.textContent = domain;
   idInput.value = '';
 
+  // 바텀시트 닫힘 애니메이션(300ms) 끝난 뒤 입력칸이 화면에 들어오도록 스크롤
+  if (domain) {
+    setTimeout(() => rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' }), 320);
+  }
+
   const icon = URL_PLATFORM_ICONS[platform];
   if (icon) { iconEl.src = icon; iconEl.style.display = 'block'; }
   else { iconEl.removeAttribute('src'); iconEl.style.display = 'none'; }
