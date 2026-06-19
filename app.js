@@ -783,6 +783,7 @@ function searchRegionMobileOverlay() {
   document.getElementById('regionSearch').value = el.value;
   searchRegion();
   el.blur();
+  setTimeout(() => el.blur(), 0);
 }
 
 // 네이버 로고 표시/숨김
