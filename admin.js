@@ -1,15 +1,17 @@
 // ===== 무협맵 어드민 =====
-// Firebase 연동 전: app.js의 places/campaigns 배열을 직접 공유
+// app.js의 places/campaigns 배열을 공유하며, 변경 시 /api/places, /api/campaigns로 동기화
 
 const ADMIN_PASSWORD = 'muhyeop2024'; // Firebase Auth로 교체 예정
+const dataReady = loadInitialData();
 
 // ===== 로그인 =====
-function tryLogin() {
+async function tryLogin() {
   const pw = document.getElementById('loginPassword').value;
   if (pw === ADMIN_PASSWORD) {
     sessionStorage.setItem('adminLoggedIn', 'true');
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminApp').style.display = 'flex';
+    await dataReady;
     initAdmin();
   } else {
     document.getElementById('loginError').textContent = '비밀번호가 올바르지 않아요.';
@@ -178,7 +180,7 @@ function searchAdminAddress() {
   });
 }
 
-function submitAdminCampaign() {
+async function submitAdminCampaign() {
   const selectedPlaceId = document.getElementById('addPlaceSelect').value;
   const platform = document.getElementById('addPlatform').value;
   const channels = ['블로그','클립','인스타그램','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
@@ -204,17 +206,28 @@ function submitAdminCampaign() {
     if (!name || !address || !category || isNaN(lat) || isNaN(lng)) {
       adminToast('신규 장소는 장소명, 주소, 카테고리, 좌표가 필요해요!'); return;
     }
-    placeId = nextPlaceId++;
-    places.push({ id: placeId, name, address, lat, lng, category, founderNickname: '', founderEmail: '', founderUrl: '' });
+    const res = await fetch('/api/places', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, address, lat, lng, category })
+    });
+    const place = await res.json();
+    places.push(place);
+    placeId = place.id;
     adminToast(`장소 "${name}" 등록 완료`);
   }
 
   const excludeHoliday = document.getElementById('addExcludeHoliday')?.checked || false;
-  campaigns.push({
-    id: nextCampaignId++, placeId, platform, channels, content, deadline, link: '',
-    operatingDays: days, operatingHours: hours, excludeHoliday,
-    reporterNickname: '', reporterEmail: '', reporterBlog: '', reporterInstagram: ''
+  const res = await fetch('/api/campaigns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      placeId, platform, channels, content, deadline, link: '',
+      operatingDays: days, operatingHours: hours, excludeHoliday
+    })
   });
+  const campaign = await res.json();
+  campaigns.push(campaign);
 
   adminToast('캠페인 등록 완료 ✅');
   resetAddForm();
@@ -245,13 +258,15 @@ function confirmDelete(type, id) {
     : `장소 "${places.find(p=>p.id===id)?.name}"`;
   document.getElementById('confirmMsg').textContent = `${name}을 삭제할까요?`;
   document.getElementById('confirmModal').style.display = 'flex';
-  confirmCallback = () => {
+  confirmCallback = async () => {
     if (type === 'campaign') {
+      await fetch(`/api/campaigns?id=${id}`, { method: 'DELETE' });
       const idx = campaigns.findIndex(c => c.id === id);
       if (idx > -1) campaigns.splice(idx, 1);
       adminToast('캠페인 삭제 완료');
       renderCampaignList();
     } else {
+      await fetch(`/api/places?id=${id}`, { method: 'DELETE' });
       const idx = places.findIndex(p => p.id === id);
       if (idx > -1) places.splice(idx, 1);
       campaigns.splice(0, campaigns.length, ...campaigns.filter(c => c.placeId !== id));
@@ -291,7 +306,7 @@ function editCampaign(id) {
     // 등록 버튼을 수정 모드로
     const btn = document.querySelector('.btn-submit');
     btn.textContent = '✅ 수정 완료';
-    btn.onclick = () => {
+    btn.onclick = async () => {
       c.platform = document.getElementById('addPlatform').value;
       c.channels = ['블로그','클립','인스타그램','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
       c.content = document.getElementById('addContent').value.trim();
@@ -299,6 +314,15 @@ function editCampaign(id) {
       c.operatingHours = document.getElementById('addHours').value.trim();
       c.operatingDays = [...document.querySelectorAll('.day-item.on')].map(el => el.textContent.trim());
       c.excludeHoliday = document.getElementById('addExcludeHoliday')?.checked || false;
+      await fetch(`/api/campaigns?id=${c.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: c.platform, channels: c.channels, content: c.content, deadline: c.deadline,
+          link: c.link || '', operatingDays: c.operatingDays, operatingHours: c.operatingHours,
+          excludeHoliday: c.excludeHoliday
+        })
+      });
       adminToast('캠페인 수정 완료 ✅');
       btn.textContent = '✅ 등록하기';
       btn.onclick = submitAdminCampaign;
@@ -346,11 +370,11 @@ function renderExcelPreview(headers, rows) {
   ).join('') + (rows.length > 10 ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#aaa">...외 ${rows.length-10}행</td></tr>` : '');
 }
 
-function importExcelData() {
+async function importExcelData() {
   let added = 0, skipped = 0;
-  parsedRows.forEach(row => {
+  for (const row of parsedRows) {
     const [name, address, latRaw, lngRaw, category, platform, channelRaw, content, deadline, hours] = row;
-    if (!name || !platform || !content || !deadline) { skipped++; return; }
+    if (!name || !platform || !content || !deadline) { skipped++; continue; }
 
     const lat = parseFloat(latRaw) || 0;
     const lng = parseFloat(lngRaw) || 0;
@@ -359,19 +383,27 @@ function importExcelData() {
     // 기존 장소 or 신규
     let place = places.find(p => p.name.replace(/\s/g,'') === String(name).replace(/\s/g,''));
     if (!place) {
-      place = { id: nextPlaceId++, name: String(name), address: String(address), lat, lng,
-        category: String(category) || '기타', founderNickname: '', founderEmail: '', founderUrl: '' };
+      const res = await fetch('/api/places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: String(name), address: String(address), lat, lng, category: String(category) || '기타' })
+      });
+      place = await res.json();
       places.push(place);
     }
 
-    campaigns.push({
-      id: nextCampaignId++, placeId: place.id, platform: String(platform), channels,
-      content: String(content), deadline: String(deadline), link: '',
-      operatingDays: [], operatingHours: String(hours) || '',
-      reporterNickname: '', reporterEmail: '', reporterBlog: '', reporterInstagram: ''
+    const res = await fetch('/api/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        placeId: place.id, platform: String(platform), channels,
+        content: String(content), deadline: String(deadline), link: '',
+        operatingDays: [], operatingHours: String(hours) || ''
+      })
     });
+    campaigns.push(await res.json());
     added++;
-  });
+  }
   adminToast(`✅ ${added}개 등록 완료${skipped ? ` (${skipped}개 건너뜀)` : ''}`);
   resetExcel();
   renderDashboard();
@@ -403,10 +435,11 @@ function adminToast(msg) {
 }
 
 // ===== 자동 로그인 체크 =====
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   if (sessionStorage.getItem('adminLoggedIn') === 'true') {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminApp').style.display = 'flex';
+    await dataReady;
     initAdmin();
   }
   // 엔터키 로그인

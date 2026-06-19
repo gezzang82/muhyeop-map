@@ -5,13 +5,19 @@
 let places = [];
 let campaigns = [];
 
-async function loadInitialData() {
-  const [placesRes, campaignsRes] = await Promise.all([
-    fetch('/api/places'),
-    fetch('/api/campaigns')
-  ]);
-  places = await placesRes.json();
-  campaigns = await campaignsRes.json();
+let _dataLoadPromise = null;
+function loadInitialData() {
+  if (!_dataLoadPromise) {
+    _dataLoadPromise = (async () => {
+      const [placesRes, campaignsRes] = await Promise.all([
+        fetch('/api/places'),
+        fetch('/api/campaigns')
+      ]);
+      places = await placesRes.json();
+      campaigns = await campaignsRes.json();
+    })();
+  }
+  return _dataLoadPromise;
 }
 
 let currentChannelFilter = '전체';
@@ -1629,6 +1635,7 @@ function bindClearBtn(btn, input) {
 document.addEventListener('DOMContentLoaded', setupClearButtons);
 window.addEventListener('load', async function() {
   await loadInitialData();
+  if (!document.getElementById('map')) return;
   initMap();
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   startLiveAlerts();

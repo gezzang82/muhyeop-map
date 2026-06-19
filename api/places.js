@@ -46,6 +46,16 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ id, category });
   }
 
-  res.setHeader('Allow', 'GET, POST, PATCH');
+  if (req.method === 'DELETE') {
+    const id = Number(req.query.id);
+    if (!id) {
+      return res.status(400).json({ error: 'id는 필수입니다.' });
+    }
+    await db.execute({ sql: 'DELETE FROM campaigns WHERE place_id = ?', args: [id] });
+    await db.execute({ sql: 'DELETE FROM places WHERE id = ?', args: [id] });
+    return res.status(200).json({ id });
+  }
+
+  res.setHeader('Allow', 'GET, POST, PATCH, DELETE');
   return res.status(405).json({ error: 'Method Not Allowed' });
 };

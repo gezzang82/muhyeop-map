@@ -55,6 +55,35 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  res.setHeader('Allow', 'GET, POST');
+  if (req.method === 'PATCH') {
+    const id = Number(req.query.id);
+    if (!id) {
+      return res.status(400).json({ error: 'id는 필수입니다.' });
+    }
+    const {
+      platform, channels, content, deadline, link,
+      operatingDays, operatingHours, excludeHoliday
+    } = req.body || {};
+    await db.execute({
+      sql: `UPDATE campaigns SET platform = ?, channels = ?, content = ?, deadline = ?, link = ?,
+            operating_days = ?, operating_hours = ?, exclude_holiday = ? WHERE id = ?`,
+      args: [
+        platform, JSON.stringify(channels || []), content, deadline, link || '',
+        JSON.stringify(operatingDays || []), operatingHours || '', excludeHoliday ? 1 : 0, id
+      ]
+    });
+    return res.status(200).json({ id, platform, channels: channels || [], content, deadline, link: link || '', operatingDays: operatingDays || [], operatingHours: operatingHours || '', excludeHoliday: !!excludeHoliday });
+  }
+
+  if (req.method === 'DELETE') {
+    const id = Number(req.query.id);
+    if (!id) {
+      return res.status(400).json({ error: 'id는 필수입니다.' });
+    }
+    await db.execute({ sql: 'DELETE FROM campaigns WHERE id = ?', args: [id] });
+    return res.status(200).json({ id });
+  }
+
+  res.setHeader('Allow', 'GET, POST, PATCH, DELETE');
   return res.status(405).json({ error: 'Method Not Allowed' });
 };
