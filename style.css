@@ -1212,6 +1212,13 @@ body.pc-report-mode .holiday-checkbox.active {
 }
 .empty-img { width: 80px; height: 80px; object-fit: contain; }
 .empty-state p { font-size: 16px; font-weight: 400; color: #777; line-height: 1.5; }
+.empty-state-btn {
+  width: 120px; height: 40px;
+  background: #e82a2d; color: #fff;
+  font-size: 16px; font-weight: 700;
+  border: none; border-radius: 8px;
+  cursor: pointer;
+}
 
 /* ===== 실시간 제보 알림 캐릭터 ===== */
 .live-alert {

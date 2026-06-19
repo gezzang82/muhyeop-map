@@ -602,6 +602,7 @@ function renderSidebar() {
       <div class="empty-state">
         <img src="image/img_list_80.png" alt="" class="empty-img">
         <p>모집 중인 협찬이 없어요.<br>첫번째로 제보해 보세요!</p>
+        <button class="empty-state-btn" onclick="openModal()">제보하기</button>
       </div>`;
     return;
   }
