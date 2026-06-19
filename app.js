@@ -1752,17 +1752,16 @@ const URL_PLATFORM_DOMAINS = { '블로그': 'blog.naver.com/', '인스타그램'
 const URL_PLATFORM_ICONS = { '블로그': 'image/ic_naver_blog_20.png', '인스타그램': 'image/ic_instagram_20.png' };
 
 function updateUrlPlatform(platform) {
+  const rowEl = document.getElementById('inputUrlIdRow');
   const prefixEl = document.getElementById('inputUrlDomainPrefix');
   const idInput = document.getElementById('inputUrlId');
   const iconEl = document.getElementById('inputUrlPlatformIcon');
-  if (!prefixEl || !idInput || !iconEl) return;
+  if (!rowEl || !prefixEl || !idInput || !iconEl) return;
   const domain = URL_PLATFORM_DOMAINS[platform] || '';
 
-  prefixEl.textContent = domain || '–';
-  prefixEl.classList.toggle('placeholder', !domain);
-  idInput.disabled = !domain;
+  rowEl.style.display = domain ? 'flex' : 'none';
+  prefixEl.textContent = domain;
   idInput.value = '';
-  idInput.placeholder = domain ? '아이디 입력' : '플랫폼을 먼저 선택하세요';
 
   const icon = URL_PLATFORM_ICONS[platform];
   if (icon) { iconEl.src = icon; iconEl.style.display = 'block'; }
