@@ -375,7 +375,21 @@
               </div>
               <div class="form-group">
                 <label>내 링크 (블로그 또는 인스타그램)</label>
-                <input type="url" id="inputUrl" placeholder="http://blog.naver.com/pww010">
+                <select id="inputUrlPlatform" style="display:none">
+                  <option value="">선택하세요</option>
+                  <option value="블로그">블로그</option>
+                  <option value="인스타그램">인스타그램</option>
+                </select>
+                <div class="custom-select-trigger url-platform-trigger" id="inputUrlPlatformTrigger" onclick="openSelectSheet('inputUrlPlatform', '링크 플랫폼')">
+                  <span class="url-platform-trigger-left">
+                    <img src="" alt="" id="inputUrlPlatformIcon" class="url-platform-icon" style="display:none">
+                    <span class="custom-select-value" id="inputUrlPlatformValue">선택하세요</span>
+                  </span>
+                </div>
+                <div class="url-id-row">
+                  <span class="url-domain-prefix placeholder" id="inputUrlDomainPrefix">–</span>
+                  <input type="text" id="inputUrlId" class="url-id-input" placeholder="플랫폼을 먼저 선택하세요" disabled>
+                </div>
               </div>
             </div>
           </div>

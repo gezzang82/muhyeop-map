@@ -1112,10 +1112,13 @@ function resetModal() {
   modalSelectedLat = null; modalSelectedLng = null; modalSelectedAddress = '';
   document.getElementById('step1').style.display = 'flex';
   document.getElementById('step2').style.display = 'none';
-  ['inputName','inputAddress','inputContent','inputHours','inputNickname','inputEmail','inputUrl']
+  ['inputName','inputAddress','inputContent','inputHours','inputNickname','inputEmail']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('inputCategory').value = '';
   syncSelectTrigger('inputCategory');
+  document.getElementById('inputUrlPlatform').value = '';
+  syncSelectTrigger('inputUrlPlatform');
+  updateUrlPlatform('');
   document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('inputPlatform').value = '';
   syncSelectTrigger('inputPlatform');
@@ -1319,6 +1322,7 @@ function submitCampaign() {
   if (!content) { showFieldError('inputContent'); valid = false; }
 
   let placeId;
+  const reporterUrl = buildReporterUrl();
 
   if (modalIsNewPlace) {
     if (!valid) return;
@@ -1330,7 +1334,7 @@ function submitCampaign() {
       category,
       founderNickname: document.getElementById('inputNickname').value.trim(),
       founderEmail: document.getElementById('inputEmail').value.trim(),
-      founderUrl: document.getElementById('inputUrl').value.trim()
+      founderUrl: reporterUrl
     };
     places.push(newPlace);
     placeId = newPlace.id;
@@ -1348,7 +1352,7 @@ function submitCampaign() {
     operatingHours: document.getElementById('inputHours').value.trim(),
     reporterNickname: document.getElementById('inputNickname').value.trim(),
     reporterEmail: document.getElementById('inputEmail').value.trim(),
-    reporterUrl: document.getElementById('inputUrl').value.trim()
+    reporterUrl
   });
 
   closeModal();
@@ -1742,6 +1746,37 @@ window.addEventListener('resize', function() {
   }
 });
 
+// ===== 내 링크 (플랫폼 + 아이디) =====
+// 임의 URL을 그대로 저장하지 않고, 도메인을 화이트리스트로 고정해 악성 링크 등록을 막는다
+const URL_PLATFORM_DOMAINS = { '블로그': 'blog.naver.com/', '인스타그램': 'instagram.com/' };
+const URL_PLATFORM_ICONS = { '블로그': 'image/ic_naver_blog_20.png', '인스타그램': 'image/ic_instagram_20.png' };
+
+function updateUrlPlatform(platform) {
+  const prefixEl = document.getElementById('inputUrlDomainPrefix');
+  const idInput = document.getElementById('inputUrlId');
+  const iconEl = document.getElementById('inputUrlPlatformIcon');
+  if (!prefixEl || !idInput || !iconEl) return;
+  const domain = URL_PLATFORM_DOMAINS[platform] || '';
+
+  prefixEl.textContent = domain || '–';
+  prefixEl.classList.toggle('placeholder', !domain);
+  idInput.disabled = !domain;
+  idInput.value = '';
+  idInput.placeholder = domain ? '아이디 입력' : '플랫폼을 먼저 선택하세요';
+
+  const icon = URL_PLATFORM_ICONS[platform];
+  if (icon) { iconEl.src = icon; iconEl.style.display = 'block'; }
+  else { iconEl.removeAttribute('src'); iconEl.style.display = 'none'; }
+}
+
+function buildReporterUrl() {
+  const platform = document.getElementById('inputUrlPlatform').value;
+  const id = document.getElementById('inputUrlId').value.trim();
+  const domain = URL_PLATFORM_DOMAINS[platform];
+  if (!domain || !id) return '';
+  return `https://${domain}${id}`;
+}
+
 // ===== 커스텀 셀렉트 바텀시트 =====
 let _selectSheetTarget = null;
 
@@ -1779,6 +1814,8 @@ function pickSelectItem(selectId, value, label) {
     valueEl.textContent = label;
     valueEl.classList.add('selected');
   }
+
+  if (selectId === 'inputUrlPlatform') updateUrlPlatform(value);
 
   // 오류 메시지 클리어
   if (selectId.startsWith('inputDeadline')) {

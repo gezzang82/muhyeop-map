@@ -663,6 +663,15 @@ body.pc-report-mode .holiday-checkbox.active {
   cursor: pointer;
 }
 
+/* ===== 내 링크 (플랫폼 + 아이디) ===== */
+.url-platform-trigger-left { display: flex; align-items: center; gap: 8px; }
+.url-platform-icon { border-radius: 4px; display: block; flex-shrink: 0; }
+.url-id-row { display: flex; align-items: center; gap: 10px; height: 56px; }
+.url-domain-prefix { font-size: 18px; color: #1a1a1a; white-space: nowrap; flex-shrink: 0; }
+.url-domain-prefix.placeholder { color: #bbb; }
+.url-id-input { flex: 1; min-width: 0; }
+.url-id-input:disabled { background: #f7f7f7; color: #bbb; cursor: not-allowed; }
+
 /* ===== 커스텀 셀렉트 트리거 ===== */
 .custom-select-trigger {
   display: flex; align-items: center; justify-content: space-between;
