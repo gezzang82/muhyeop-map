@@ -654,6 +654,14 @@ body.pc-report-mode .holiday-checkbox.active {
 /* ===== 인라인 오류 메시지 ===== */
 .field-error-msg { font-size: 14px; color: #E82A2D; margin-top: 0; display: none; }
 .field-error-msg.show { display: block; }
+.field-hint { margin-top: 8px; }
+.field-hint ul { margin: 0; padding: 0; list-style: none; }
+.field-hint li { position: relative; padding-left: 12px; font-size: 14px; color: #555; line-height: normal; }
+.field-hint li::before {
+  content: ''; position: absolute; left: 0; top: 7px;
+  width: 3px; height: 3px; border-radius: 50%; background: #555;
+}
+.field-hint li + li { margin-top: 4px; }
 .input-error,
 .input-error.custom-select-trigger { border-color: #E82A2D !important; }
 .channel-error .channel-btns { outline: none; }
@@ -749,7 +757,7 @@ body.pc-report-mode .holiday-checkbox.active {
 .btn-search-addr:disabled { background: #f5f5f5; color: #999; border-color: #ccc; cursor: not-allowed; }
 
 /* 검색 결과 */
-.search-result { margin-top: 0; max-height: 200px; overflow-y: auto; }
+.search-result { margin-top: 0; }
 .search-hint { padding: 8px 0; font-size: 14px; color: #888; }
 .search-hint.error { color: #e82a2d; }
 
@@ -764,26 +772,30 @@ body.pc-report-mode .holiday-checkbox.active {
 .item-sub { font-size: 14px; color: #777; }
 
 .selected-addr {
-  padding: 16px; background: #f5f5f5;
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: 8px; padding: 16px; background: #f5f5f5;
   border: 1px solid #ddd; border-radius: 8px;
-  font-size: 16px; color: #555; line-height: normal;
 }
+.selected-addr-main { font-size: 16px; color: #000; line-height: normal; }
+.selected-addr-sub { font-size: 14px; color: #777; line-height: normal; }
 
 .addr-duplicate-warning {
-  margin-top: 6px; padding: 8px 12px;
-  background: #fff5f5; border: 1.5px solid #f5a0a0;
-  border-radius: 8px; font-size: 12px; color: #c0392b; line-height: 1.5;
+  display: flex; flex-direction: column; gap: 12px;
+  margin-top: 16px; padding: 16px;
+  background: rgba(232,42,45,0.08); border: 1px solid #e82a2d;
+  border-radius: 8px;
 }
-.addr-dup-hint { margin-top: 4px; color: #999; font-size: 11px; }
-.addr-dup-actions { display: flex; gap: 12px; margin-top: 4px; }
-.addr-dup-select {
-  display: inline-block;
-  color: #185fa5; font-weight: 700; cursor: pointer; text-decoration: underline;
+.addr-dup-message { display: flex; gap: 10px; align-items: flex-start; }
+.addr-dup-message img { flex-shrink: 0; margin-top: 1px; }
+.addr-dup-text { font-size: 14px; color: #e82a2d; line-height: 20px; }
+.addr-dup-text p { margin: 0; }
+.addr-dup-text strong { font-weight: 700; text-decoration: underline; }
+.addr-dup-actions { display: flex; gap: 6px; padding-left: 30px; }
+.addr-dup-select, .addr-dup-ignore {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  font-size: 14px; color: #555; cursor: pointer;
 }
-.addr-dup-ignore {
-  display: inline-block;
-  color: #888; font-weight: 700; cursor: pointer; text-decoration: underline;
-}
+.addr-dup-chevron { font-size: 14px; color: #555; }
 
 /* 기존 장소 */
 .existing-label { font-size: 14px; font-weight: 700; color: #006cff; margin-bottom: 8px; }

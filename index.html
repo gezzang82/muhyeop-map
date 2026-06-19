@@ -226,11 +226,17 @@
           <div class="form-group">
             <label>주소 검색 <span class="required">*</span></label>
             <div class="addr-row">
-              <input type="text" id="inputAddress" placeholder="강남구 테헤란로" oninput="clearFieldError('inputAddress')">
+              <input type="text" id="inputAddress" placeholder="강남구 테헤란로" oninput="handleAddressInput(this)">
               <button class="btn-search-addr" id="btnSearchAddr" onclick="searchAddress()">검색</button>
             </div>
             <span class="field-error-msg" id="inputAddressError">주소를 검색하고 선택해주세요.</span>
             <div id="searchResult" class="search-result"></div>
+            <div class="field-hint">
+              <ul>
+                <li>주소 검색은 건물 단위까지만 찾아져서, 같은 건물에 다른 매장이 있으면 중복 등록 경고가 뜰 수 있어요.</li>
+                <li>상세주소(층/호)는 네이버지도 또는 플랫폼에서 확인해주세요.</li>
+              </ul>
+            </div>
           </div>
         </div>
         <div class="modal-footer">

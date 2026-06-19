@@ -951,8 +951,9 @@ function searchAddress() {
     }
     resultDiv.innerHTML = response.v2.addresses.slice(0, 5).map(item => {
       const addr = (item.roadAddress || item.jibunAddress).replace(/'/g, "\\'");
+      const jibun = (item.jibunAddress || '').replace(/'/g, "\\'");
       return `
-        <div class="search-item" onclick="selectAddress('${addr}', ${item.y}, ${item.x})">
+        <div class="search-item" onclick="selectAddress('${addr}', ${item.y}, ${item.x}, '${jibun}')">
           <div class="item-name">${item.roadAddress || item.jibunAddress}</div>
           <div class="item-sub">${item.jibunAddress || ''}</div>
         </div>`;
@@ -960,12 +961,18 @@ function searchAddress() {
   });
 }
 
-function selectAddress(address, lat, lng) {
+function selectAddress(address, lat, lng, jibunAddress = '') {
   modalSelectedAddress = address;
   modalSelectedLat = parseFloat(lat);
   modalSelectedLng = parseFloat(lng);
   clearFieldError('inputAddress');
   document.getElementById('inputAddress').value = address;
+
+  const selectedAddrHTML =
+    `<div class="selected-addr">
+       <div class="selected-addr-main">${address}</div>
+       ${jibunAddress ? `<div class="selected-addr-sub">${jibunAddress}</div>` : ''}
+     </div>`;
 
   // 가까운 좌표에 이미 등록된 장소 확인 (50m 이내)
   const parsedLat = parseFloat(lat), parsedLng = parseFloat(lng);
@@ -976,22 +983,35 @@ function selectAddress(address, lat, lng) {
   });
   if (sameAddr) {
     document.getElementById('searchResult').innerHTML =
-      `<div class="selected-addr">${address}</div>
-       <div class="addr-duplicate-warning" id="addrDupWarning">⚠️ 이 주소로 이미 <strong>${sameAddr.name}</strong>이 등록되어 있어요. 같은 건물의 다른 매장이라면 무시하고 진행하세요.
-         <div class="addr-dup-hint">상세주소(층/호)는 네이버지도 또는 플랫폼에서 확인해주세요.</div>
+      `${selectedAddrHTML}
+       <div class="addr-duplicate-warning" id="addrDupWarning">
+         <div class="addr-dup-message">
+           <img src="image/ic_warning_triangle.svg" width="20" height="18" alt="">
+           <div class="addr-dup-text">
+             <p>이 주소로 이미 <strong>${sameAddr.name}</strong>이 등록되어 있어요. 같은 건물의 다른 매장이라면 무시하고 진행하세요.</p>
+           </div>
+         </div>
          <div class="addr-dup-actions">
-           <span class="addr-dup-select" onclick="selectExistingPlace(${sameAddr.id})">이 장소 선택하기 →</span>
-           <span class="addr-dup-ignore" onclick="dismissAddrDuplicateWarning()">무시하고 새로 등록 →</span>
+           <span class="addr-dup-select" onclick="selectExistingPlace(${sameAddr.id})">이 장소로 선택하기 <span class="addr-dup-chevron">›</span></span>
+           <span class="addr-dup-ignore" onclick="dismissAddrDuplicateWarning()">무시하고 새로 등록 <span class="addr-dup-chevron">›</span></span>
          </div>
        </div>`;
     return;
   }
-  document.getElementById('searchResult').innerHTML = `<div class="selected-addr">${address}</div>`;
+  document.getElementById('searchResult').innerHTML = selectedAddrHTML;
 }
 
 function dismissAddrDuplicateWarning() {
   const warning = document.getElementById('addrDupWarning');
   if (warning) warning.remove();
+}
+
+function handleAddressInput(input) {
+  clearFieldError('inputAddress');
+  if (input.value.trim() === '') {
+    document.getElementById('searchResult').innerHTML = '';
+    modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
+  }
 }
 
 // ===== 기존 장소 검색 =====
