@@ -794,6 +794,9 @@ function initSidebarScrollExpand() {
 // ===== 매장 검색 (장소명 → 기존 등록 + 네이버 검색 통합) =====
 let modalSelectedResultKey = null;
 let lastNaverResults = [];
+let lastSearchQuery = '';
+let existingResultsVisibleCount = 10;
+const EXISTING_RESULTS_PAGE_SIZE = 10;
 
 function renderActivePlaceCampaigns(placeId) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -829,6 +832,8 @@ function searchPlaceUnified() {
   modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
   modalSelectedResultKey = null;
   lastNaverResults = [];
+  lastSearchQuery = q;
+  existingResultsVisibleCount = EXISTING_RESULTS_PAGE_SIZE;
 
   listEl.innerHTML = '<div class="search-hint">검색 중...</div>';
 
@@ -837,18 +842,24 @@ function searchPlaceUnified() {
     .catch(() => [])
     .then(items => {
       lastNaverResults = items;
-      renderPlaceResults(q);
+      renderPlaceResults();
     });
 }
 
-function renderPlaceResults(query) {
+function loadMoreExistingResults() {
+  existingResultsVisibleCount += EXISTING_RESULTS_PAGE_SIZE;
+  renderPlaceResults();
+}
+
+function renderPlaceResults() {
   const listEl = document.getElementById('placeResultsList');
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
-  const nq = normalize(query);
-  const existingMatches = places.filter(p => {
+  const nq = normalize(lastSearchQuery);
+  const allExistingMatches = places.filter(p => {
     const np = normalize(p.name);
     return np.includes(nq) || nq.includes(np);
   });
+  const existingMatches = allExistingMatches.slice(0, existingResultsVisibleCount);
 
   const existingRows = existingMatches.map(p => {
     const key = `existing:${p.id}`;
@@ -863,6 +874,10 @@ function renderPlaceResults(query) {
       </div>`;
     return selected ? rowHtml + renderActivePlaceCampaigns(p.id) : rowHtml;
   }).join('');
+
+  const moreButtonHtml = allExistingMatches.length > existingResultsVisibleCount
+    ? `<div class="place-result-more" onclick="loadMoreExistingResults()">더보기 (${allExistingMatches.length - existingResultsVisibleCount}개 더)</div>`
+    : '';
 
   const naverRows = lastNaverResults.map((item, i) => {
     const key = `naver:${i}`;
@@ -883,7 +898,7 @@ function renderPlaceResults(query) {
     listEl.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>';
     return;
   }
-  listEl.innerHTML = existingRows + naverRows;
+  listEl.innerHTML = existingRows + moreButtonHtml + naverRows;
 }
 
 function selectExistingPlace(placeId) {
@@ -896,7 +911,7 @@ function selectExistingPlace(placeId) {
     modalIsNewPlace = true;
     modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
     modalSelectedResultKey = null;
-    renderPlaceResults(document.getElementById('inputName').value.trim());
+    renderPlaceResults();
     return;
   }
 
@@ -908,7 +923,7 @@ function selectExistingPlace(placeId) {
   modalSelectedResultKey = key;
   document.getElementById('inputName').value = place.name;
   clearFieldError('inputName');
-  renderPlaceResults(place.name);
+  renderPlaceResults();
 }
 
 function selectNaverPlace(index, name, address) {
@@ -919,7 +934,7 @@ function selectNaverPlace(index, name, address) {
     modalIsNewPlace = true;
     modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
     modalSelectedResultKey = null;
-    renderPlaceResults(document.getElementById('inputName').value.trim());
+    renderPlaceResults();
     return;
   }
 
@@ -953,7 +968,7 @@ function selectNaverPlace(index, name, address) {
     modalSelectedLat = lat;
     modalSelectedLng = lng;
     modalSelectedResultKey = key;
-    renderPlaceResults(name);
+    renderPlaceResults();
   });
 }
 
@@ -1020,6 +1035,7 @@ function resetModal() {
   modalSelectedPlaceId = null; modalIsNewPlace = true;
   modalSelectedLat = null; modalSelectedLng = null; modalSelectedAddress = '';
   modalSelectedResultKey = null; lastNaverResults = [];
+  lastSearchQuery = ''; existingResultsVisibleCount = EXISTING_RESULTS_PAGE_SIZE;
   document.getElementById('step1').style.display = 'flex';
   document.getElementById('step2').style.display = 'none';
   ['inputName','inputContent','inputHours','inputNickname','inputEmail']

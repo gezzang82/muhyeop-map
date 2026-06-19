@@ -839,6 +839,13 @@ body.pc-report-mode .holiday-checkbox.active {
 .place-result-check { color: #006cff; font-size: 18px; opacity: 0; flex-shrink: 0; }
 .place-result-check.selected { opacity: 1; }
 
+.place-result-more {
+  padding: 14px 4px; text-align: center;
+  font-size: 14px; font-weight: 600; color: #555;
+  border-bottom: 1px solid #ececec; cursor: pointer;
+}
+@media (hover: hover) { .place-result-more:hover { background: #fafafa; } }
+
 .place-campaign-preview {
   display: flex; flex-direction: column; gap: 8px;
   margin: 0 4px 12px; padding: 12px;
