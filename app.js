@@ -791,221 +791,146 @@ function initSidebarScrollExpand() {
   }, { passive: true });
 }
 
-// ===== 주소 검색 =====
-function searchAddress() {
-  const query = document.getElementById('inputAddress').value.trim();
-  if (!query) { showToast('주소를 입력해주세요'); return; }
+// ===== 매장 검색 (장소명 → 기존 등록 + 네이버 검색 통합) =====
+let modalSelectedResultKey = null;
+let lastNaverResults = [];
 
-  const resultDiv = document.getElementById('searchResult');
-  resultDiv.innerHTML = '<div class="search-hint">검색 중...</div>';
-
-  naver.maps.Service.geocode({ query }, function(status, response) {
-    if (status !== naver.maps.Service.Status.OK || !response.v2.addresses?.length) {
-      resultDiv.innerHTML = '<div class="search-hint error">검색 결과가 없어요</div>';
-      return;
-    }
-    resultDiv.innerHTML = response.v2.addresses.slice(0, 5).map(item => {
-      const addr = (item.roadAddress || item.jibunAddress).replace(/'/g, "\\'");
-      const jibun = (item.jibunAddress || '').replace(/'/g, "\\'");
-      return `
-        <div class="search-item" onclick="selectAddress('${addr}', ${item.y}, ${item.x}, '${jibun}')">
-          <div class="item-name">${item.roadAddress || item.jibunAddress}</div>
-          <div class="item-sub">${item.jibunAddress || ''}</div>
-        </div>`;
-    }).join('');
-  });
-}
-
-function selectAddress(address, lat, lng, jibunAddress = '') {
-  modalSelectedAddress = address;
-  modalSelectedLat = parseFloat(lat);
-  modalSelectedLng = parseFloat(lng);
-  clearFieldError('inputAddress');
-  document.getElementById('inputAddress').value = address;
-
-  const selectedAddrHTML =
-    `<div class="selected-addr">
-       <div class="selected-addr-main">${address}</div>
-       ${jibunAddress ? `<div class="selected-addr-sub">${jibunAddress}</div>` : ''}
-     </div>`;
-
-  // 가까운 좌표에 이미 등록된 장소 확인 (50m 이내)
-  const parsedLat = parseFloat(lat), parsedLng = parseFloat(lng);
-  const sameAddr = places.find(p => {
-    const dLat = (p.lat - parsedLat) * 111000;
-    const dLng = (p.lng - parsedLng) * 88000;
-    return Math.sqrt(dLat * dLat + dLng * dLng) < 50;
-  });
-  if (sameAddr) {
-    document.getElementById('searchResult').innerHTML =
-      `${selectedAddrHTML}
-       <div class="addr-duplicate-warning" id="addrDupWarning">
-         <div class="addr-dup-message">
-           <img src="image/ic_warning_triangle.svg" width="20" height="18" alt="">
-           <div class="addr-dup-text">
-             <p>이 주소로 이미 <strong>${sameAddr.name}</strong>이 등록되어 있어요. 같은 건물의 다른 매장이라면 무시하고 진행하세요.</p>
-           </div>
-         </div>
-         <div class="addr-dup-actions">
-           <span class="addr-dup-select" onclick="selectExistingPlace(${sameAddr.id})">이 장소로 선택하기 <span class="addr-dup-chevron">›</span></span>
-           <span class="addr-dup-ignore" onclick="dismissAddrDuplicateWarning()">무시하고 새로 등록 <span class="addr-dup-chevron">›</span></span>
-         </div>
-       </div>`;
-    return;
-  }
-  document.getElementById('searchResult').innerHTML = selectedAddrHTML;
-}
-
-function dismissAddrDuplicateWarning() {
-  const warning = document.getElementById('addrDupWarning');
-  if (warning) warning.remove();
-}
-
-function handleAddressInput(input) {
-  clearFieldError('inputAddress');
-  if (input.value.trim() === '') {
-    document.getElementById('searchResult').innerHTML = '';
-    modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
-  }
-}
-
-// ===== 네이버 매장명 검색 (주소 자동완성) =====
-let naverPlaceSearchTimer = null;
-function onPlaceNameInput(value) {
-  searchExistingPlaces(value);
+function searchPlaceUnified() {
+  const q = document.getElementById('inputName').value.trim();
+  const listEl = document.getElementById('placeResultsList');
+  if (!q) { showFieldError('inputName'); return; }
   clearFieldError('inputName');
 
-  clearTimeout(naverPlaceSearchTimer);
-  const q = value.trim();
-  if (q.length < 2) {
-    document.getElementById('naverPlaceResults').innerHTML = '';
-    return;
-  }
-  naverPlaceSearchTimer = setTimeout(() => fetchNaverPlaceSuggestions(q), 400);
+  modalSelectedPlaceId = null;
+  modalIsNewPlace = true;
+  modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
+  modalSelectedResultKey = null;
+  lastNaverResults = [];
+
+  listEl.innerHTML = '<div class="search-hint">검색 중...</div>';
+
+  fetch('/api/search-place?query=' + encodeURIComponent(q))
+    .then(res => res.ok ? res.json() : [])
+    .catch(() => [])
+    .then(items => {
+      lastNaverResults = items;
+      renderPlaceResults(q);
+    });
 }
 
-async function fetchNaverPlaceSuggestions(query) {
-  const container = document.getElementById('naverPlaceResults');
-  try {
-    const res = await fetch('/api/search-place?query=' + encodeURIComponent(query));
-    if (!res.ok) { container.innerHTML = ''; return; }
-    const items = await res.json();
-    if (!items.length) { container.innerHTML = ''; return; }
-    container.innerHTML = items.map(item => {
-      const addr = (item.roadAddress || item.address).replace(/'/g, "\\'");
-      const name = item.name.replace(/'/g, "\\'");
-      return `
-        <div class="search-item" onclick="selectNaverPlace('${name}', '${addr}')">
-          <div class="item-name">${item.name}</div>
-          <div class="item-sub">${item.roadAddress || item.address}</div>
-        </div>`;
-    }).join('');
-  } catch (e) {
-    container.innerHTML = '';
-  }
-}
-
-function selectNaverPlace(name, address) {
-  document.getElementById('naverPlaceResults').innerHTML = '';
-  document.getElementById('inputName').value = name;
-  document.getElementById('inputAddress').value = address;
-  clearFieldError('inputName');
-  searchExistingPlaces(name, false);
-
-  const resultDiv = document.getElementById('searchResult');
-  resultDiv.innerHTML = '<div class="search-hint">주소 확인 중...</div>';
-  naver.maps.Service.geocode({ query: address }, function(status, response) {
-    if (status !== naver.maps.Service.Status.OK || !response.v2.addresses?.length) {
-      resultDiv.innerHTML = '<div class="search-hint error">주소를 찾을 수 없어요. 직접 검색해주세요.</div>';
-      return;
-    }
-    const item = response.v2.addresses[0];
-    selectAddress(item.roadAddress || item.jibunAddress, item.y, item.x, item.jibunAddress || '');
-  });
-}
-
-// ===== 기존 장소 검색 =====
-function searchExistingPlaces(name, keepSelection = false) {
-  const q = name.trim();
-  if (!keepSelection && modalSelectedPlaceId !== null) {
-    // 장소명을 다시 수정하면 기존 장소 선택이 풀리므로, 잠겨있던 주소 입력도 함께 해제
-    modalSelectedPlaceId = null;
-    modalIsNewPlace = true;
-    document.getElementById('inputAddress').value = '';
-    document.getElementById('searchResult').innerHTML = '';
-    modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
-    setAddressLocked(false);
-  }
-  if (q.length < 2) { document.getElementById('existingPlacesSection').style.display = 'none'; return; }
-
+function renderPlaceResults(query) {
+  const listEl = document.getElementById('placeResultsList');
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
-  const nq = normalize(q);
-  const matches = places.filter(p => {
+  const nq = normalize(query);
+  const existingMatches = places.filter(p => {
     const np = normalize(p.name);
     return np.includes(nq) || nq.includes(np);
   });
-  if (!matches.length) { document.getElementById('existingPlacesSection').style.display = 'none'; return; }
 
-  document.getElementById('existingPlacesSection').style.display = 'block';
-  document.getElementById('existingPlacesList').innerHTML = matches.map(p => `
-    <div class="existing-item ${modalSelectedPlaceId === p.id ? 'selected' : ''}" onclick="selectExistingPlace(${p.id})">
-      <div class="existing-item-info">
-        <div class="existing-name">${p.name}</div>
-        <div class="existing-addr">${p.address}</div>
-      </div>
-      <span class="existing-item-check ${modalSelectedPlaceId === p.id ? 'selected' : ''}">✓</span>
-    </div>`).join('');
-}
+  const existingRows = existingMatches.map(p => {
+    const key = `existing:${p.id}`;
+    const selected = modalSelectedResultKey === key;
+    return `
+      <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectExistingPlace(${p.id})">
+        <div class="place-result-info">
+          <div class="place-result-name">${p.name}</div>
+          <div class="place-result-addr">${p.address}</div>
+        </div>
+        <span class="place-result-check ${selected ? 'selected' : ''}">✓</span>
+      </div>`;
+  }).join('');
 
-function setAddressLocked(locked) {
-  document.getElementById('inputAddress').disabled = locked;
-  document.getElementById('btnSearchAddr').disabled = locked;
+  const naverRows = lastNaverResults.map((item, i) => {
+    const key = `naver:${i}`;
+    const selected = modalSelectedResultKey === key;
+    const addr = (item.roadAddress || item.address).replace(/'/g, "\\'");
+    const name = item.name.replace(/'/g, "\\'");
+    return `
+      <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectNaverPlace(${i}, '${name}', '${addr}')">
+        <div class="place-result-info">
+          <div class="place-result-name">${item.name}</div>
+          <div class="place-result-addr">${item.roadAddress || item.address}</div>
+        </div>
+        <span class="place-result-check ${selected ? 'selected' : ''}">✓</span>
+      </div>`;
+  }).join('');
+
+  if (!existingRows && !naverRows) {
+    listEl.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>';
+    return;
+  }
+  listEl.innerHTML = existingRows + naverRows;
 }
 
 function selectExistingPlace(placeId) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
+  const key = `existing:${placeId}`;
 
-  if (modalSelectedPlaceId === placeId) {
+  if (modalSelectedResultKey === key) {
     modalSelectedPlaceId = null;
     modalIsNewPlace = true;
-    modalSelectedAddress = null;
-    modalSelectedLat = null;
-    modalSelectedLng = null;
-    document.getElementById('inputAddress').value = '';
-    document.getElementById('searchResult').innerHTML = '';
-    setAddressLocked(false);
-    searchExistingPlaces(place.name, false);
+    modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
+    modalSelectedResultKey = null;
+    renderPlaceResults(document.getElementById('inputName').value.trim());
     return;
   }
 
   modalSelectedPlaceId = placeId;
   modalIsNewPlace = false;
-  document.getElementById('inputName').value = place.name;
-  document.getElementById('inputAddress').value = place.address;
-  document.getElementById('naverPlaceResults').innerHTML = '';
   modalSelectedAddress = place.address;
   modalSelectedLat = place.lat;
   modalSelectedLng = place.lng;
-  document.getElementById('searchResult').innerHTML = `<div class="selected-addr">${place.address}</div>`;
+  modalSelectedResultKey = key;
+  document.getElementById('inputName').value = place.name;
   clearFieldError('inputName');
-  clearFieldError('inputAddress');
-  // 기존 장소는 주소가 이미 확정되어 있으므로, 다른 주소로 바뀌어
-  // 같은 이름의 장소가 중복 등록되는 것을 막기 위해 주소 입력을 잠근다
-  setAddressLocked(true);
-  searchExistingPlaces(place.name, true);
+  renderPlaceResults(place.name);
 }
 
-function clearExistingSelection() {
-  modalSelectedPlaceId = null;
-  modalIsNewPlace = true;
-  // 장소명은 사용자가 입력한 값을 그대로 유지 (새 장소로 등록할 이름이므로 지우지 않음)
-  document.getElementById('inputAddress').value = '';
-  document.getElementById('searchResult').innerHTML = '';
-  document.getElementById('naverPlaceResults').innerHTML = '';
-  modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
-  document.getElementById('existingPlacesSection').style.display = 'none';
-  setAddressLocked(false);
+function selectNaverPlace(index, name, address) {
+  const key = `naver:${index}`;
+
+  if (modalSelectedResultKey === key) {
+    modalSelectedPlaceId = null;
+    modalIsNewPlace = true;
+    modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
+    modalSelectedResultKey = null;
+    renderPlaceResults(document.getElementById('inputName').value.trim());
+    return;
+  }
+
+  document.getElementById('inputName').value = name;
+  clearFieldError('inputName');
+
+  naver.maps.Service.geocode({ query: address }, function(status, response) {
+    if (status !== naver.maps.Service.Status.OK || !response.v2.addresses?.length) {
+      showToast('주소를 확인할 수 없어요. 다른 매장을 선택해주세요.');
+      return;
+    }
+    const item = response.v2.addresses[0];
+    const finalAddr = item.roadAddress || item.jibunAddress;
+    const lat = parseFloat(item.y), lng = parseFloat(item.x);
+
+    // 가까운 좌표에 이미 등록된 장소 확인 (50m 이내)
+    const sameAddr = places.find(p => {
+      const dLat = (p.lat - lat) * 111000;
+      const dLng = (p.lng - lng) * 88000;
+      return Math.sqrt(dLat * dLat + dLng * dLng) < 50;
+    });
+    if (sameAddr) {
+      selectExistingPlace(sameAddr.id);
+      showToast(`이미 등록된 장소예요: ${sameAddr.name}`);
+      return;
+    }
+
+    modalSelectedPlaceId = null;
+    modalIsNewPlace = true;
+    modalSelectedAddress = finalAddr;
+    modalSelectedLat = lat;
+    modalSelectedLng = lng;
+    modalSelectedResultKey = key;
+    renderPlaceResults(name);
+  });
 }
 
 // ===== 모달 =====
@@ -1070,9 +995,10 @@ function resetModal() {
   clearAllFieldErrors();
   modalSelectedPlaceId = null; modalIsNewPlace = true;
   modalSelectedLat = null; modalSelectedLng = null; modalSelectedAddress = '';
+  modalSelectedResultKey = null; lastNaverResults = [];
   document.getElementById('step1').style.display = 'flex';
   document.getElementById('step2').style.display = 'none';
-  ['inputName','inputAddress','inputContent','inputHours','inputNickname','inputEmail']
+  ['inputName','inputContent','inputHours','inputNickname','inputEmail']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('inputCategory').value = '';
   syncSelectTrigger('inputCategory');
@@ -1096,9 +1022,7 @@ function resetModal() {
     step1Body.scrollTop = 0;
   }
   resetDateSelects();
-  setAddressLocked(false);
-  document.getElementById('searchResult').innerHTML = '';
-  document.getElementById('existingPlacesSection').style.display = 'none';
+  document.getElementById('placeResultsList').innerHTML = '';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
 }
 
@@ -1144,10 +1068,17 @@ function clearAllFieldErrors() {
 }
 
 function goStep2() {
-  let valid = true;
-  if (!document.getElementById('inputName').value.trim()) { showFieldError('inputName'); valid = false; }
-  if (!modalSelectedLat) { showFieldError('inputAddress'); valid = false; }
-  if (!valid) return;
+  const nameVal = document.getElementById('inputName').value.trim();
+  if (!nameVal) {
+    document.getElementById('inputNameError').textContent = '장소명을 입력해주세요.';
+    showFieldError('inputName');
+    return;
+  }
+  if (!modalSelectedLat) {
+    document.getElementById('inputNameError').textContent = '검색 결과에서 매장을 선택해주세요.';
+    showFieldError('inputName');
+    return;
+  }
 
   document.getElementById('step1').style.display = 'none';
   document.getElementById('step2').style.display = 'flex';

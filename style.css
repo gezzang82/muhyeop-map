@@ -821,6 +821,24 @@ body.pc-report-mode .holiday-checkbox.active {
 }
 .existing-new-arrow { font-size: 14px; color: #555; }
 
+/* 매장 검색 결과 (통합) */
+.place-results-list { margin-top: 8px; }
+.place-result-item {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 16px 4px;
+  border-bottom: 1px solid #ececec;
+  cursor: pointer; transition: color 0.1s;
+}
+.place-result-item:last-child { border-bottom: none; }
+@media (hover: hover) { .place-result-item:hover { background: #fafafa; } }
+.place-result-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.place-result-name { font-size: 16px; font-weight: 600; color: #000; }
+.place-result-addr { font-size: 14px; font-weight: 400; color: #777; }
+.place-result-item.selected .place-result-name,
+.place-result-item.selected .place-result-addr { color: #006cff; }
+.place-result-check { color: #006cff; font-size: 18px; opacity: 0; flex-shrink: 0; }
+.place-result-check.selected { opacity: 1; }
+
 /* 선택된 장소 뱃지 */
 .place-badge {
   background: #f5f5f0; padding: 10px 14px;

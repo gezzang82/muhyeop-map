@@ -213,32 +213,14 @@
           </div>
           <div class="form-group">
             <label>장소명 <span class="required">*</span></label>
-            <input type="text" id="inputName" placeholder="스타벅스 강남점" oninput="onPlaceNameInput(this.value)">
-            <span class="field-error-msg" id="inputNameError">장소명을 입력해주세요.</span>
-            <div id="naverPlaceResults" class="search-result"></div>
-          </div>
-
-          <div id="existingPlacesSection" style="display:none;">
-            <div class="existing-label">이미 등록된 장소가 있어요</div>
-            <div id="existingPlacesList"></div>
-            <div class="existing-new" onclick="clearExistingSelection()">새 장소로 등록하기 <span class="existing-new-arrow">›</span></div>
-          </div>
-
-          <div class="form-group">
-            <label>주소 검색 <span class="required">*</span></label>
             <div class="addr-row">
-              <input type="text" id="inputAddress" placeholder="강남구 테헤란로" oninput="handleAddressInput(this)">
-              <button class="btn-search-addr" id="btnSearchAddr" onclick="searchAddress()">검색</button>
+              <input type="text" id="inputName" placeholder="스타벅스 강남점" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPlaceUnified();}">
+              <button class="btn-search-addr" id="btnSearchAddr" onclick="searchPlaceUnified()">검색</button>
             </div>
-            <span class="field-error-msg" id="inputAddressError">주소를 검색하고 선택해주세요.</span>
-            <div id="searchResult" class="search-result"></div>
-            <div class="field-hint">
-              <ul>
-                <li>주소 검색은 건물 단위까지만 찾아져서, 같은 건물에 다른 매장이 있으면 중복 등록 경고가 뜰 수 있어요.</li>
-                <li>상세주소(층/호)는 네이버지도 또는 플랫폼에서 확인해주세요.</li>
-              </ul>
-            </div>
+            <span class="field-error-msg" id="inputNameError">장소명을 입력해주세요.</span>
           </div>
+
+          <div id="placeResultsList" class="place-results-list"></div>
         </div>
         <div class="modal-footer">
           <button class="btn-cancel" onclick="closeModal()">취소</button>
