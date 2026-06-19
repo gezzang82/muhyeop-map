@@ -133,6 +133,11 @@ function hasActiveCampaign(placeId) {
   return getActiveCampaigns(placeId).length > 0;
 }
 
+function hasPlatformAlready(placeId, platform) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return campaigns.some(c => c.placeId === placeId && c.platform === platform && new Date(c.deadline) >= today);
+}
+
 function getDeadlineText(deadline) {
   if (!deadline) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1250,7 +1255,13 @@ async function submitCampaign() {
   let valid = true;
   if (!channels.length) { showFieldError('channel'); valid = false; }
   if (!category) { showFieldError('inputCategory'); valid = false; }
-  if (!platform) { showFieldError('inputPlatform'); valid = false; }
+  if (!platform) {
+    document.getElementById('inputPlatformError').textContent = '플랫폼을 선택해주세요.';
+    showFieldError('inputPlatform'); valid = false;
+  } else if (!modalIsNewPlace && hasPlatformAlready(modalSelectedPlaceId, platform)) {
+    document.getElementById('inputPlatformError').textContent = `이미 ${platform}로 등록된 협찬이 있어요. 다른 플랫폼을 선택해주세요.`;
+    showFieldError('inputPlatform'); valid = false;
+  }
   if (!content) { showFieldError('inputContent'); valid = false; }
   if (!valid) return;
 
@@ -1783,6 +1794,13 @@ function pickSelectItem(selectId, value, label) {
     if (selectId === 'inputDeadlineYear' || selectId === 'inputDeadlineMonth') {
       updateDayOptions(y, m);
       syncDateTriggers();
+    }
+  } else if (selectId === 'inputPlatform') {
+    if (!modalIsNewPlace && hasPlatformAlready(modalSelectedPlaceId, value)) {
+      document.getElementById('inputPlatformError').textContent = `이미 ${value}로 등록된 협찬이 있어요. 다른 플랫폼을 선택해주세요.`;
+      showFieldError('inputPlatform');
+    } else {
+      clearFieldError('inputPlatform');
     }
   } else {
     clearFieldError(selectId);
