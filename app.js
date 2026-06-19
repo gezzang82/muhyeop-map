@@ -961,12 +961,6 @@ function searchAddress() {
 }
 
 function selectAddress(address, lat, lng) {
-  modalSelectedAddress = address;
-  modalSelectedLat = parseFloat(lat);
-  modalSelectedLng = parseFloat(lng);
-  clearFieldError('inputAddress');
-  document.getElementById('inputAddress').value = address;
-
   // 가까운 좌표에 이미 등록된 장소 확인 (50m 이내)
   const parsedLat = parseFloat(lat), parsedLng = parseFloat(lng);
   const sameAddr = places.find(p => {
@@ -974,6 +968,20 @@ function selectAddress(address, lat, lng) {
     const dLng = (p.lng - parsedLng) * 88000;
     return Math.sqrt(dLat * dLat + dLng * dLng) < 50;
   });
+
+  // 기존 장소를 선택한 상태에서 주소를 다른 곳(그 장소가 아닌 곳)으로 바꾸면
+  // 더 이상 그 장소가 아니므로 새 장소 등록 모드로 전환해 변경된 주소가 그대로 반영되게 한다
+  if (modalSelectedPlaceId !== null && (!sameAddr || sameAddr.id !== modalSelectedPlaceId)) {
+    modalSelectedPlaceId = null;
+    modalIsNewPlace = true;
+  }
+
+  modalSelectedAddress = address;
+  modalSelectedLat = parsedLat;
+  modalSelectedLng = parsedLng;
+  clearFieldError('inputAddress');
+  document.getElementById('inputAddress').value = address;
+
   if (sameAddr) {
     document.getElementById('searchResult').innerHTML =
       `<div class="selected-addr">${address}</div>
