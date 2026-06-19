@@ -1032,7 +1032,7 @@ function searchExistingPlaces(name, keepSelection = false) {
   const nq = normalize(q);
   const matches = places.filter(p => {
     const np = normalize(p.name);
-    return np.includes(nq) || nq.includes(np) || np.includes(nq.slice(0, 3));
+    return np.includes(nq) || nq.includes(np);
   });
   if (!matches.length) { document.getElementById('existingPlacesSection').style.display = 'none'; return; }
 
