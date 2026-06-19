@@ -1711,6 +1711,8 @@ document.addEventListener('DOMContentLoaded', setupClearButtons);
 window.addEventListener('load', async function() {
   await loadInitialData();
   if (!document.getElementById('map')) return;
+  const statCountEl = document.getElementById('pcStatCount');
+  if (statCountEl) statCountEl.textContent = campaigns.length.toLocaleString();
   initMap();
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   startLiveAlerts();

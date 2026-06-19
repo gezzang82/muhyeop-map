@@ -65,12 +65,20 @@ body {
   right: 100px;
   z-index: 500;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   pointer-events: none;
 }
 .pc-map-top > * { pointer-events: auto; }
+
+.pc-map-top-row1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  pointer-events: none;
+}
+.pc-map-top-row1 > * { pointer-events: auto; }
 
 .pc-search-wrap {
   width: 320px;
@@ -92,6 +100,23 @@ body {
   color: #333; background: none;
 }
 .pc-search-wrap input::placeholder { color: #bbb; }
+
+.pc-stat-pill {
+  flex-shrink: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 6px;
+  font-size: 18px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  white-space: nowrap;
+}
+.pc-stat-pill span { color: #555; }
+.pc-stat-pill strong { color: #000; font-weight: 700; }
 
 .pc-chips-row {
   display: flex;
