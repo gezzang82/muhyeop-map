@@ -795,6 +795,29 @@ function initSidebarScrollExpand() {
 let modalSelectedResultKey = null;
 let lastNaverResults = [];
 
+function renderActivePlaceCampaigns(placeId) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const active = campaigns.filter(c => c.placeId === placeId && new Date(c.deadline) >= today);
+  if (!active.length) {
+    return '<div class="place-campaign-preview"><div class="place-campaign-preview-empty">현재 진행중인 협찬이 없어요. 새 협찬을 등록해주세요.</div></div>';
+  }
+  const itemsHtml = active.map(c => {
+    const dl = getDeadlineText(c.deadline);
+    const color = getPlatformColor(c.platform);
+    return `
+      <div class="place-campaign-preview-item">
+        <span class="place-campaign-tag" style="background:${color}29;color:${color}">${c.platform}</span>
+        <span class="place-campaign-content">${c.content}</span>
+        ${dl ? `<span class="place-campaign-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : ''}
+      </div>`;
+  }).join('');
+  return `
+    <div class="place-campaign-preview">
+      <div class="place-campaign-preview-label">진행중인 협찬 ${active.length}건</div>
+      ${itemsHtml}
+    </div>`;
+}
+
 function searchPlaceUnified() {
   const q = document.getElementById('inputName').value.trim();
   const listEl = document.getElementById('placeResultsList');
@@ -830,7 +853,7 @@ function renderPlaceResults(query) {
   const existingRows = existingMatches.map(p => {
     const key = `existing:${p.id}`;
     const selected = modalSelectedResultKey === key;
-    return `
+    const rowHtml = `
       <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectExistingPlace(${p.id})">
         <div class="place-result-info">
           <div class="place-result-name">${p.name}</div>
@@ -838,6 +861,7 @@ function renderPlaceResults(query) {
         </div>
         <span class="place-result-check ${selected ? 'selected' : ''}">✓</span>
       </div>`;
+    return selected ? rowHtml + renderActivePlaceCampaigns(p.id) : rowHtml;
   }).join('');
 
   const naverRows = lastNaverResults.map((item, i) => {
