@@ -73,7 +73,7 @@ body {
 
 .pc-map-top-row1 {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
