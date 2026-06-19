@@ -147,13 +147,6 @@ body {
 .filter-chip:hover { border-color: #bbb; }
 .filter-chip.active { background: #383838; border-color: #383838; color: white; font-weight: 700; }
 
-/* 데스크탑이지만 좁아진 창에서 칩이 한 줄에 다 안 들어가는 경우 칩 크기를 줄여 잘림 없이 맞춘다 */
-@media (min-width: 641px) and (max-width: 1000px) {
-  .pc-chips-row { gap: 4px; }
-  .pc-chips-row .filter-chip { height: 34px; padding: 0 10px; font-size: 13px; gap: 3px; }
-  .pc-chips-row .filter-chip img { width: 16px; height: 16px; }
-}
-
 /* ===== PC 제보 모드: 모달을 왼쪽 사이드 패널로 전환 ===== */
 body.pc-report-mode .sidebar { display: none !important; }
 body.pc-report-mode .pc-map-top { display: none; }
