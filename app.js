@@ -712,6 +712,17 @@ function searchRegion() {
   const query = document.getElementById('regionSearch').value.trim();
   if (!query) return;
 
+  // 1. 등록된 매장명과 정확히 일치하면 그 장소로 바로 이동 + 카드 오픈
+  const normalize = s => s.replace(/\s/g, '').toLowerCase();
+  const nq = normalize(query);
+  const placeMatch = places.find(p => normalize(p.name) === nq);
+  if (placeMatch) {
+    setSelectedMarker(placeMatch.id);
+    focusPlace(placeMatch.id);
+    return;
+  }
+
+  // 2. 주소/지역명 검색 (geocode)
   function trySearch(q, fallback) {
     naver.maps.Service.geocode({ query: q }, function(status, response) {
       const items = response?.v2?.addresses;
@@ -721,13 +732,37 @@ function searchRegion() {
       } else if (fallback) {
         trySearch(fallback, null);
       } else {
-        showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
+        // 3. 역명 등 POI는 geocode로 안 잡히는 경우가 많아 네이버 지역검색으로 폴백
+        searchRegionViaLocalSearch(query);
       }
     });
   }
 
   const alreadyPrefixed = /^서울|^경기|^인천|^부산|^대구|^광주|^대전/.test(query);
   trySearch(query, alreadyPrefixed ? null : '서울 ' + query);
+}
+
+async function searchRegionViaLocalSearch(query) {
+  try {
+    const res = await fetch('/api/search-place?query=' + encodeURIComponent(query));
+    const items = res.ok ? await res.json() : [];
+    if (!items.length) {
+      showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
+      return;
+    }
+    const addr = items[0].roadAddress || items[0].address;
+    naver.maps.Service.geocode({ query: addr }, function(status, response) {
+      const item = response?.v2?.addresses?.[0];
+      if (status === naver.maps.Service.Status.OK && item) {
+        map.setCenter(new naver.maps.LatLng(parseFloat(item.y), parseFloat(item.x)));
+        map.setZoom(15);
+      } else {
+        showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
+      }
+    });
+  } catch (e) {
+    showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
+  }
 }
 
 function searchRegionMobile() {
