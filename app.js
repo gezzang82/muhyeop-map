@@ -1042,7 +1042,8 @@ function selectExistingPlace(placeId) {
 function clearExistingSelection() {
   modalSelectedPlaceId = null;
   modalIsNewPlace = true;
-  ['inputName', 'inputAddress'].forEach(id => document.getElementById(id).value = '');
+  // 장소명은 사용자가 입력한 값을 그대로 유지 (새 장소로 등록할 이름이므로 지우지 않음)
+  document.getElementById('inputAddress').value = '';
   document.getElementById('searchResult').innerHTML = '';
   modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
   document.getElementById('existingPlacesSection').style.display = 'none';
