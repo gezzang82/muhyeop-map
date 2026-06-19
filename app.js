@@ -1799,13 +1799,21 @@ function openSelectSheet(selectId, title) {
     </div>`;
   }).filter((_, i) => sel.options[i].value !== '').join(''); // 빈 placeholder 제외
 
+  const panel = document.getElementById('selectSheetPanel');
+  panel.style.display = '';
   document.getElementById('selectSheetOverlay').classList.add('show');
-  requestAnimationFrame(() => document.getElementById('selectSheetPanel').classList.add('show'));
+  requestAnimationFrame(() => panel.classList.add('show'));
 }
 
 function closeSelectSheet() {
-  document.getElementById('selectSheetPanel').classList.remove('show');
-  setTimeout(() => document.getElementById('selectSheetOverlay').classList.remove('show'), 300);
+  const panel = document.getElementById('selectSheetPanel');
+  panel.classList.remove('show');
+  // PC 모드 등 일부 환경에서 transform 닫힘이 시각적으로 반영되지 않는 경우가 있어
+  // 트랜지션이 끝나면 display:none으로 확실히 화면에서 제거한다
+  setTimeout(() => {
+    document.getElementById('selectSheetOverlay').classList.remove('show');
+    panel.style.display = 'none';
+  }, 300);
   _selectSheetTarget = null;
 }
 
