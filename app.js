@@ -961,6 +961,12 @@ function searchAddress() {
 }
 
 function selectAddress(address, lat, lng) {
+  modalSelectedAddress = address;
+  modalSelectedLat = parseFloat(lat);
+  modalSelectedLng = parseFloat(lng);
+  clearFieldError('inputAddress');
+  document.getElementById('inputAddress').value = address;
+
   // 가까운 좌표에 이미 등록된 장소 확인 (50m 이내)
   const parsedLat = parseFloat(lat), parsedLng = parseFloat(lng);
   const sameAddr = places.find(p => {
@@ -968,20 +974,6 @@ function selectAddress(address, lat, lng) {
     const dLng = (p.lng - parsedLng) * 88000;
     return Math.sqrt(dLat * dLat + dLng * dLng) < 50;
   });
-
-  // 기존 장소를 선택한 상태에서 주소를 다른 곳(그 장소가 아닌 곳)으로 바꾸면
-  // 더 이상 그 장소가 아니므로 새 장소 등록 모드로 전환해 변경된 주소가 그대로 반영되게 한다
-  if (modalSelectedPlaceId !== null && (!sameAddr || sameAddr.id !== modalSelectedPlaceId)) {
-    modalSelectedPlaceId = null;
-    modalIsNewPlace = true;
-  }
-
-  modalSelectedAddress = address;
-  modalSelectedLat = parsedLat;
-  modalSelectedLng = parsedLng;
-  clearFieldError('inputAddress');
-  document.getElementById('inputAddress').value = address;
-
   if (sameAddr) {
     document.getElementById('searchResult').innerHTML =
       `<div class="selected-addr">${address}</div>
@@ -1018,6 +1010,11 @@ function searchExistingPlaces(name, keepSelection = false) {
     </div>`).join('');
 }
 
+function setAddressLocked(locked) {
+  document.getElementById('inputAddress').disabled = locked;
+  document.getElementById('btnSearchAddr').disabled = locked;
+}
+
 function selectExistingPlace(placeId) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
@@ -1030,6 +1027,7 @@ function selectExistingPlace(placeId) {
     modalSelectedLng = null;
     document.getElementById('inputAddress').value = '';
     document.getElementById('searchResult').innerHTML = '';
+    setAddressLocked(false);
     searchExistingPlaces(place.name, false);
     return;
   }
@@ -1044,6 +1042,9 @@ function selectExistingPlace(placeId) {
   document.getElementById('searchResult').innerHTML = `<div class="selected-addr">${place.address}</div>`;
   clearFieldError('inputName');
   clearFieldError('inputAddress');
+  // 기존 장소는 주소가 이미 확정되어 있으므로, 다른 주소로 바뀌어
+  // 같은 이름의 장소가 중복 등록되는 것을 막기 위해 주소 입력을 잠근다
+  setAddressLocked(true);
   searchExistingPlaces(place.name, true);
 }
 
@@ -1055,6 +1056,7 @@ function clearExistingSelection() {
   document.getElementById('searchResult').innerHTML = '';
   modalSelectedAddress = ''; modalSelectedLat = null; modalSelectedLng = null;
   document.getElementById('existingPlacesSection').style.display = 'none';
+  setAddressLocked(false);
 }
 
 // ===== 모달 =====
@@ -1145,6 +1147,7 @@ function resetModal() {
     step1Body.scrollTop = 0;
   }
   resetDateSelects();
+  setAddressLocked(false);
   document.getElementById('searchResult').innerHTML = '';
   document.getElementById('existingPlacesSection').style.display = 'none';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));

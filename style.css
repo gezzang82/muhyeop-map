@@ -728,6 +728,7 @@ body.pc-report-mode .holiday-checkbox.active {
 
 .addr-row { display: flex; gap: 8px; }
 .addr-row input { flex: 1; min-width: 0; }
+.addr-row input:disabled { background: #f5f5f5; color: #999; cursor: not-allowed; }
 
 .btn-search-addr {
   width: 80px; height: 56px; background: white; color: #000;
@@ -737,6 +738,7 @@ body.pc-report-mode .holiday-checkbox.active {
   flex-shrink: 0;
 }
 .btn-search-addr:hover { background: #f5f5f5; }
+.btn-search-addr:disabled { background: #f5f5f5; color: #999; border-color: #ccc; cursor: not-allowed; }
 
 /* 검색 결과 */
 .search-result { margin-top: 0; max-height: 200px; overflow-y: auto; }
