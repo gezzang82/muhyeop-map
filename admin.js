@@ -1,7 +1,7 @@
 // ===== 무협맵 어드민 =====
 // app.js의 places/campaigns 배열을 공유하며, 변경 시 /api/places, /api/campaigns로 동기화
 
-const ADMIN_PASSWORD = 'muhyeop2024'; // Firebase Auth로 교체 예정
+const ADMIN_PASSWORD = 'wonu1982'; // Firebase Auth로 교체 예정
 const dataReady = loadInitialData();
 
 // ===== 로그인 =====
