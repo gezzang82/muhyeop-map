@@ -1,0 +1,11 @@
+{
+  "name": "muhyeop-map",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0"
+  }
+}
