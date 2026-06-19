@@ -124,6 +124,9 @@ body {
   gap: 6px;
   overflow-x: auto;
   flex-wrap: nowrap;
+  box-sizing: border-box;
+  width: calc(100% + 20px);
+  padding-right: 20px;
 }
 .pc-chips-row::-webkit-scrollbar { display: none; }
 
