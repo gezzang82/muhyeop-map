@@ -389,6 +389,7 @@ body.pc-reportissue-mode #reportOverlay .modal-header h2 {
   font-size: 18px !important;
   font-weight: 600 !important;
   letter-spacing: normal !important;
+  line-height: 24px !important;
 }
 body.pc-reportissue-mode #reportOverlay .modal-footer {
   position: static !important;
@@ -843,7 +844,6 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* 폼 */
 .form-group { display: flex; flex-direction: column; gap: 8px; }
 .form-group label { font-size: 14px; font-weight: 400; color: #777; }
-.report-label-primary { color: #1a1a1a !important; }
 .required { color: #E82A2D; }
 .label-sub { font-size: 14px; color: #777; font-weight: 400; }
 
