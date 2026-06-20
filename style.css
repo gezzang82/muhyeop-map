@@ -459,7 +459,6 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   background: white;
   display: flex; flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid #f0f0f0;
 }
 
 /* 제보하기 버튼 (사이드 패널 헤더) */
@@ -923,10 +922,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .select-sheet-overlay {
   display: none; position: absolute; inset: 0;
   background: rgba(0,0,0,0.4); z-index: 1000;
-  border-radius: 16px;
 }
 .select-sheet-overlay.show { display: block; }
-body[class*="pc-"] .select-sheet-overlay { border-radius: 0; }
 .select-sheet-panel {
   position: absolute; left: 0; right: 0; bottom: 0;
   background: #fff; border-radius: 20px 20px 0 0;
