@@ -1427,7 +1427,7 @@ function showFieldError(fieldId) {
   const el = document.getElementById(fieldId === 'channel' ? 'channelError' : fieldId + 'Error');
   if (el) el.classList.add('show');
   const input = document.getElementById(fieldId === 'channel' ? null : fieldId + 'Trigger') ||
-                document.getElementById(fieldId);
+                document.getElementById(fieldId === 'reportTarget' ? 'reportSearchInput' : fieldId);
   if (input) input.classList.add('input-error');
 }
 
@@ -1435,7 +1435,7 @@ function clearFieldError(fieldId) {
   const el = document.getElementById(fieldId === 'channel' ? 'channelError' : fieldId + 'Error');
   if (el) el.classList.remove('show');
   const trigger = document.getElementById(fieldId + 'Trigger');
-  const input = document.getElementById(fieldId);
+  const input = document.getElementById(fieldId === 'reportTarget' ? 'reportSearchInput' : fieldId);
   if (trigger) trigger.classList.remove('input-error');
   if (input) input.classList.remove('input-error');
 }
