@@ -1553,18 +1553,21 @@ function buildLiveMessagePool() {
 let _liveMessages = [];
 let _liveIdx = 0;
 let _liveBubbleTimer = null;
-const _chFrames = ['image/img_ch_01.png','image/img_ch_02.png','image/img_ch_03.png','image/img_ch_04.png','image/img_ch_05.png'];
+const _chFramesPC = ['image/img_ch_01.png','image/img_ch_02.png','image/img_ch_03.png','image/img_ch_04.png','image/img_ch_05.png'];
+const _chFramesMobile = ['image/img_ch_m_01.png','image/img_ch_m_02.png','image/img_ch_m_03.png','image/img_ch_m_04.png','image/img_ch_m_05.png'];
+function getChFrames() { return window.innerWidth <= 640 ? _chFramesMobile : _chFramesPC; }
 
 function playCharacterAnim() {
   const el = document.getElementById('liveCharacter');
   if (!el) return;
+  const frames = getChFrames();
   let f = 0;
   const tick = setInterval(() => {
-    el.src = _chFrames[f % _chFrames.length];
+    el.src = frames[f % frames.length];
     f++;
-    if (f >= _chFrames.length * 2) { // 2회 순환 후 마지막 프레임 고정
+    if (f >= frames.length * 2) { // 2회 순환 후 마지막 프레임 고정
       clearInterval(tick);
-      el.src = _chFrames[0];
+      el.src = frames[0];
     }
   }, 100);
 }
@@ -1594,6 +1597,8 @@ function showLiveBubble(data) {
 }
 
 function startLiveAlerts() {
+  const charEl = document.getElementById('liveCharacter');
+  if (charEl) charEl.src = getChFrames()[0];
   _liveMessages = buildLiveMessagePool();
   if (_liveMessages.length === 0) return;
   const delays = [4000, 12000, 22000, 34000, 48000, 64000, 82000];
