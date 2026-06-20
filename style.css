@@ -680,16 +680,21 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
 
 /* ===== 공지/이벤트 배너 팝업 ===== */
 .banner-popup-overlay {
-  display: none; position: fixed; inset: 0;
+  display: flex; position: fixed; inset: 0;
   background: rgba(0,0,0,0.5); z-index: 1500;
   align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 0.25s ease;
 }
-.banner-popup-overlay.show { display: flex; }
+.banner-popup-overlay.show { opacity: 1; visibility: visible; pointer-events: auto; }
 .banner-popup {
   background: #fff; border-radius: 16px;
   width: 320px; max-width: 90vw;
   display: flex; flex-direction: column; overflow: hidden;
+  transform: translateY(16px) scale(0.96);
+  transition: transform 0.25s ease;
 }
+.banner-popup-overlay.show .banner-popup { transform: translateY(0) scale(1); }
 .banner-popup-image { width: 100%; display: block; }
 .banner-popup-actions {
   display: flex; border-top: 1px solid #eee;
@@ -708,7 +713,9 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
     width: 100%; max-width: 100%;
     border-radius: 16px 16px 0 0;
     padding-bottom: env(safe-area-inset-bottom);
+    transform: translateY(100%);
   }
+  .banner-popup-overlay.show .banner-popup { transform: translateY(0); }
 }
 
 #step1, #step2 {
