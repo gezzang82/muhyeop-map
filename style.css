@@ -1506,7 +1506,8 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   min-width: 0;
   display: flex;
   background: white;
-  border: none;
+  border: 1px solid transparent;
+  box-sizing: border-box;
   border-radius: 8px;
   box-shadow: 0 0 8px rgba(0,0,0,0.16);
   height: 56px;
@@ -1516,8 +1517,8 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   position: relative;
 }
 .mobile-header-search:focus-within {
-  outline: 2px solid #e82a2d;
-  outline-offset: -2px;
+  border-color: #e82a2d;
+  box-shadow: 0 0 8px rgba(232,42,45,0.4);
 }
 .mobile-header-search input { padding-right: 40px; box-sizing: border-box; }
 .mobile-header-search .btn-input-clear {
