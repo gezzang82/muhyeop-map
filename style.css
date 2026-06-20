@@ -699,7 +699,7 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px; color: #555; cursor: pointer;
 }
-.banner-popup-btn:first-child { border-right: 1px solid #eee; text-align: left; }
+.banner-popup-btn:first-child { text-align: left; }
 .banner-popup-btn:last-child { text-align: right; }
 .banner-popup-btn:hover { background: #f9f9f9; }
 @media (max-width: 640px) {
