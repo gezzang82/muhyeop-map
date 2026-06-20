@@ -1582,10 +1582,10 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
 .side-menu-overlay {
   position: fixed; inset: 0; z-index: 2000;
   background: rgba(0,0,0,0.5);
-  opacity: 0; visibility: hidden; pointer-events: none;
+  opacity: 0; pointer-events: none;
   transition: opacity 0.25s ease;
 }
-.side-menu-overlay.open { opacity: 1; visibility: visible; pointer-events: auto; }
+.side-menu-overlay.open { opacity: 1; pointer-events: auto; }
 .side-menu {
   position: absolute; top: 0; right: 0; height: 100%;
   width: 280px; max-width: 80vw;
