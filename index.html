@@ -157,14 +157,19 @@
   <div class="side-menu-overlay" id="sideMenuOverlay" onclick="closeSideMenu()">
     <div class="side-menu" onclick="event.stopPropagation()">
       <div class="side-menu-header">
-        <span class="side-menu-title">메뉴</span>
-        <button class="side-menu-close" onclick="closeSideMenu()">✕</button>
+        <img src="image/nhmap_menu_ci.svg" alt="무협맵" class="side-menu-logo">
+        <button class="side-menu-close" onclick="closeSideMenu()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1L11 11M11 1L1 11" stroke="#222" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </button>
       </div>
       <div class="side-menu-list">
         <button class="side-menu-item" onclick="closeSideMenu(); openModal();">제보하기</button>
         <button class="side-menu-item" onclick="closeSideMenu(); openAbout();">서비스 소개</button>
-        <button class="side-menu-item" onclick="closeSideMenu(); openPolicy('terms');">이용약관</button>
-        <button class="side-menu-item" onclick="closeSideMenu(); openPolicy('privacy');">개인정보처리방침</button>
+      </div>
+      <div class="side-menu-footer">
+        <button class="side-menu-footer-link" onclick="closeSideMenu(); openPolicy('terms');">이용약관</button>
+        <span class="side-menu-footer-divider"></span>
+        <button class="side-menu-footer-link" onclick="closeSideMenu(); openPolicy('privacy');">개인정보처리방침</button>
       </div>
     </div>
   </div>
