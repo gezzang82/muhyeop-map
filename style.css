@@ -1652,6 +1652,8 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   .sidebar.expanded { height: 50vh; }
   .sidebar.expanded-full { height: calc(100dvh - 120px); }
 
+  .sidebar-list .empty-state { min-height: 100%; justify-content: center; padding: 20px; box-sizing: border-box; }
+
   .sidebar-header {
     cursor: pointer;
     border-radius: 16px 16px 0 0;
