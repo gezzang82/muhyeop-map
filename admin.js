@@ -95,9 +95,9 @@ function renderDashboard() {
         <span class="stat-num">${n}개</span>
       </div>`).join('') || '<div class="empty-msg">데이터 없음</div>';
 
-  // 마감 임박 (7일 이내)
-  const d7 = today + 7 * 86400000;
-  const urgent = active.filter(c => deadlineToUTC(c.deadline) <= d7)
+  // 마감 임박 (D-2 이내)
+  const d2 = today + 2 * 86400000;
+  const urgent = active.filter(c => deadlineToUTC(c.deadline) <= d2)
     .sort((a,b) => deadlineToUTC(a.deadline)-deadlineToUTC(b.deadline));
   document.getElementById('urgentList').innerHTML = urgent.length
     ? urgent.map(c => {

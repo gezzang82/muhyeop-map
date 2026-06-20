@@ -678,7 +678,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .iw-name-text-group { display: flex; flex: 1; min-width: 0; gap: 8px; align-items: center; }
 .iw-name {
   font-size: 16px; font-weight: 500; color: #000;
-  flex: 1; min-width: 0;
+  flex-shrink: 1; min-width: 0;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
   overflow: hidden; text-overflow: ellipsis;
   white-space: normal; word-break: break-all;
@@ -1389,7 +1389,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   .detail-name-row { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; }
   .detail-name {
     font-size: 16px; font-weight: 500; color: #000;
-    flex: 1; min-width: 0;
+    flex-shrink: 1; min-width: 0;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
     overflow: hidden; text-overflow: ellipsis;
     white-space: normal; word-break: break-all;
