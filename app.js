@@ -236,6 +236,10 @@ function initMap() {
   // ~2 notch당 1 zoom으로 조절 (naver.com 지도와 유사한 감도)
   let _wheelAccum = 0;
   document.getElementById('map').addEventListener('wheel', function(e) {
+    if (document.getElementById('modalOverlay').classList.contains('open') ||
+        document.getElementById('aboutOverlay').classList.contains('open')) {
+      return;
+    }
     e.preventDefault();
     let delta = e.deltaY;
     if (e.deltaMode === 1) delta *= 30;
