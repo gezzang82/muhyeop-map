@@ -1439,10 +1439,15 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
     width: 64px;
     height: 64px;
     flex-shrink: 0;
+    background: transparent;
+    border-radius: 0;
+    overflow: visible;
+    box-shadow: none;
   }
   .live-character {
     width: 64px;
     height: 64px;
+    object-fit: contain;
   }
   .live-cta-btn {
     display: inline-flex;
