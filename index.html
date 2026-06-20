@@ -145,7 +145,8 @@
     </div>
     <div class="live-character-group">
       <div class="live-character-wrap" onclick="openModal()">
-        <img src="image/img_ch_01.png" alt="무협맵 캐릭터" class="live-character" id="liveCharacter">
+        <img alt="무협맵 캐릭터" class="live-character" id="liveCharacter">
+        <script>document.getElementById('liveCharacter').src = window.innerWidth <= 640 ? 'image/img_ch_m_01.png' : 'image/img_ch_01.png';</script>
       </div>
       <button class="live-cta-btn" onclick="openModal()">제보하기</button>
     </div>
