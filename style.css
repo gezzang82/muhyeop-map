@@ -547,12 +547,12 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
 /* ===== 클러스터 마커 ===== */
 .cluster-marker {
   width: 44px; height: 44px; border-radius: 50%;
-  background: #1a1a2e; border: 3px solid #e8c96d;
+  background: #e82a2d;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 .cluster-count {
-  color: #e8c96d; font-size: 13px; font-weight: 800;
+  color: #fff; font-size: 15px; font-weight: 700;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
