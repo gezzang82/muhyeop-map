@@ -1821,13 +1821,12 @@ function initSheetSwipeToDismiss() {
   sheet.addEventListener('touchend', onTouchEnd);
 }
 
-// 검색창 외 영역 터치 시 키보드 닫기
+// 지도 영역 터치 시 검색창 포커스 해제 및 키보드 닫기
 document.addEventListener('click', (e) => {
-  const searchInput = document.getElementById('regionSearchMobileTop');
-  if (searchInput && document.activeElement === searchInput) {
-    if (!e.target.closest('.mobile-header-search')) {
-      searchInput.blur();
-    }
+  if (!e.target.closest('#map')) return;
+  const active = document.activeElement;
+  if (active && (active.id === 'regionSearchMobileOverlay' || active.id === 'regionSearchPC')) {
+    active.blur();
   }
 });
 
