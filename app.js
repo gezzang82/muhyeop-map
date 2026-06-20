@@ -1525,17 +1525,23 @@ function showToast(msg) {
 }
 
 // ===== 실시간 제보 알림 =====
-// { nick, place } 형식 — 말풍선에서 장소명 볼드 처리
-const _liveMessages = [
-  { nick: '뷰티로그', place: '올리브영 강남본점' },
-  { nick: '홍대러버', place: '카페 노티드 홍대' },
-  { nick: '성수탐험가', place: '애프터블로우 성수점' },
-  { nick: '강남미식가', place: '교촌치킨 역삼점' },
-  { nick: '명동뷰티', place: '이니스프리 명동점' },
-  { nick: '잠실일상', place: '스타벅스 잠실롯데점' },
-  { nick: '어퍼컷', place: 'BBQ 합정점' },
-  { nick: '디저트마니아', place: '런던베이글 연남점' },
-];
+// 실제 등록된 캠페인 기반: 유저 실제 제보를 우선으로, 부족하면 어드민 등록분을 익명으로 채워 최신 10건 풀을 구성
+function buildLiveMessagePool() {
+  const withPlace = (c) => {
+    const place = places.find(p => p.id === c.placeId);
+    return place ? { nick: c.source === 'user' ? (c.reporterNickname || '익명') : '익명', place: place.name, createdAt: c.createdAt || '' } : null;
+  };
+  const userOnes = campaigns.filter(c => c.source === 'user').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const otherOnes = campaigns.filter(c => c.source !== 'user').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const pool = [...userOnes, ...otherOnes].slice(0, 10).map(withPlace).filter(Boolean);
+  // 셔플 (Fisher-Yates) — 매번 같은 순서로 도는 느낌 방지
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
+}
+let _liveMessages = [];
 let _liveIdx = 0;
 let _liveBubbleTimer = null;
 const _chFrames = ['image/img_ch_01.png','image/img_ch_02.png','image/img_ch_03.png','image/img_ch_04.png','image/img_ch_05.png'];
@@ -1579,6 +1585,8 @@ function showLiveBubble(data) {
 }
 
 function startLiveAlerts() {
+  _liveMessages = buildLiveMessagePool();
+  if (_liveMessages.length === 0) return;
   const delays = [4000, 12000, 22000, 34000, 48000, 64000, 82000];
   delays.forEach((delay, i) => {
     setTimeout(() => {
