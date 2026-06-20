@@ -486,7 +486,7 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
 .sb-deadline {
   margin-left: auto; flex-shrink: 0;
   height: 26px; padding: 0 10px; border-radius: 13px;
-  font-size: 15px; display: flex; align-items: center;
+  font-size: 13px; display: flex; align-items: center;
   background: #eee; color: #777;
 }
 .sb-deadline.urgent { background: #e82a2d; color: white; }
