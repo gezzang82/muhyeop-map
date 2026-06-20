@@ -1515,6 +1515,10 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   gap: 8px;
   position: relative;
 }
+.mobile-header-search:focus-within {
+  outline: 2px solid #e82a2d;
+  outline-offset: -2px;
+}
 .mobile-header-search input { padding-right: 40px; box-sizing: border-box; }
 .mobile-header-search .btn-input-clear {
   position: absolute;
@@ -1523,10 +1527,10 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   transform: translateY(-50%);
 }
 .mobile-search-icon {
-  font-size: 16px;
   color: #bbb;
   flex-shrink: 0;
 }
+.mobile-header-search:focus-within .mobile-search-icon { color: #e82a2d; }
 .mobile-header-search input {
   flex: 1; min-width: 0; background: none; border: none; outline: none;
   color: #333;
