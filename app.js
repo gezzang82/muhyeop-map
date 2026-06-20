@@ -1194,7 +1194,7 @@ function resetReportModal() {
   document.getElementById('reportSearchInput').value = '';
   document.getElementById('reportResultsList').innerHTML = '';
   document.getElementById('reportDetail').value = '';
-  document.querySelectorAll('#reportReasonBtns .channel-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('reportReasonSelect').selectedIndex = 0;
   clearFieldError('reportTarget');
   clearFieldError('reportReason');
 }
@@ -1244,10 +1244,8 @@ function selectReportTarget(campaignId) {
   renderReportResults();
 }
 
-function selectReportReason(btn) {
-  document.querySelectorAll('#reportReasonBtns .channel-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  reportSelectedReason = btn.dataset.reason;
+function selectReportReason(select) {
+  reportSelectedReason = select.value;
   clearFieldError('reportReason');
 }
 

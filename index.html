@@ -278,7 +278,7 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>신고할 협찬 <span class="required">*</span></label>
+          <label class="report-label-primary">신고할 협찬 <span class="required">*</span></label>
           <div class="addr-row">
             <input type="text" id="reportSearchInput" placeholder="매장명으로 검색" autocomplete="off" oninput="searchReportTarget()">
           </div>
@@ -287,12 +287,13 @@
         </div>
         <div class="form-group">
           <label>신고 이유 <span class="required">*</span></label>
-          <div class="channel-btns" id="reportReasonBtns">
-            <button type="button" class="channel-btn" data-reason="허위정보" onclick="selectReportReason(this)">허위정보</button>
-            <button type="button" class="channel-btn" data-reason="마감된 캠페인" onclick="selectReportReason(this)">마감된 캠페인</button>
-            <button type="button" class="channel-btn" data-reason="중복 등록" onclick="selectReportReason(this)">중복 등록</button>
-            <button type="button" class="channel-btn" data-reason="기타" onclick="selectReportReason(this)">기타</button>
-          </div>
+          <select id="reportReasonSelect" onchange="selectReportReason(this)">
+            <option value="" disabled selected>선택하세요</option>
+            <option value="허위정보">허위정보</option>
+            <option value="마감된 캠페인">마감된 캠페인</option>
+            <option value="중복 등록">중복 등록</option>
+            <option value="기타">기타</option>
+          </select>
           <span class="field-error-msg" id="reportReasonError">신고 이유를 선택해주세요.</span>
         </div>
         <div class="form-group">

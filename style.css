@@ -378,7 +378,7 @@ body.pc-reportissue-mode #reportOverlay .modal {
 }
 
 body.pc-reportissue-mode #reportOverlay .modal-header {
-  padding: 37px 20px 20px !important;
+  padding: 32px 20px 20px !important;
   align-items: flex-start !important;
 }
 body.pc-reportissue-mode #reportOverlay .modal-header h2 {
@@ -394,6 +394,20 @@ body.pc-reportissue-mode #reportOverlay .modal-footer {
   background: white !important;
   padding: 12px 20px 24px !important;
   flex-shrink: 0 !important;
+}
+body.pc-reportissue-mode #reportOverlay .form-group input,
+body.pc-reportissue-mode #reportOverlay .form-group select {
+  height: 48px !important;
+  font-size: 16px !important;
+}
+body.pc-reportissue-mode #reportOverlay textarea#reportDetail {
+  height: 120px !important;
+  font-size: 16px !important;
+}
+body.pc-reportissue-mode #reportOverlay .btn-cancel,
+body.pc-reportissue-mode #reportOverlay .btn-next {
+  height: 56px !important;
+  font-size: 18px !important;
 }
 
 /* ===== 레이아웃 ===== */
@@ -826,6 +840,7 @@ body.pc-reportissue-mode #reportOverlay .modal-footer {
 /* 폼 */
 .form-group { display: flex; flex-direction: column; gap: 8px; }
 .form-group label { font-size: 14px; font-weight: 400; color: #777; }
+.report-label-primary { color: #1a1a1a !important; }
 .required { color: #E82A2D; }
 .label-sub { font-size: 14px; color: #777; font-weight: 400; }
 
