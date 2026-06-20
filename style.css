@@ -1468,7 +1468,7 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
     background-size: 200% 100%;
     box-shadow: 0 4px 10px rgba(232,42,45,0.35);
     animation: liveCtaGradient 3s ease infinite;
-    transform: translate(-4px, -3px);
+    transform: translate(-2px, -3px);
   }
 }
 
