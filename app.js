@@ -1901,6 +1901,13 @@ function updateStatCount() {
 }
 
 document.addEventListener('DOMContentLoaded', setupClearButtons);
+
+document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
+document.addEventListener('touchmove', function(e) {
+  if (e.touches.length > 1 && !e.target.closest('#map')) e.preventDefault();
+}, { passive: false });
+
 window.addEventListener('load', async function() {
   await loadInitialData();
   if (!document.getElementById('map')) return;
