@@ -648,7 +648,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .pc-card-arrow {
   position: absolute;
   right: -10px;
-  top: 50%;
+  top: calc(50% - 20px);
   transform: translateY(-50%);
   width: 10px; height: 15px;
   pointer-events: none;
