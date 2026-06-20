@@ -464,14 +464,54 @@ function processExcelFile(file) {
   reader.readAsBinaryString(file);
 }
 
+const EXCEL_CATEGORY_OPTIONS = ['음식점','카페','뷰티','숙박/여가','문화','의류','안경/잡화','기타'];
+const EXCEL_PLATFORM_OPTIONS = ['레뷰','리뷰노트','디너의여왕','서울오빠','리뷰플레이스','포블로그','링블','미블','강남맛집체험단','체험뷰','기타'];
+const EXCEL_CHANNEL_OPTIONS = ['블로그','클립','인스타그램','유튜브'];
+
+function updateExcelCategory(idx, value) {
+  parsedRows[idx][2] = value;
+}
+function updateExcelPlatform(idx, value) {
+  parsedRows[idx][3] = value;
+}
+function toggleExcelChannel(idx, channel, checked) {
+  let chans = String(parsedRows[idx][4] || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (checked) {
+    if (!chans.includes(channel)) chans.push(channel);
+  } else {
+    chans = chans.filter(c => c !== channel);
+  }
+  parsedRows[idx][4] = chans.join(',');
+}
+
 function renderExcelPreview(headers, rows) {
   document.getElementById('previewSection').style.display = 'block';
   document.getElementById('previewCount').textContent = `${rows.length}행 감지`;
   document.getElementById('previewHead').innerHTML =
     '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
-  document.getElementById('previewBody').innerHTML = rows.slice(0, 10).map(row =>
-    '<tr>' + row.map(v => `<td>${v}</td>`).join('') + '</tr>'
-  ).join('') + (rows.length > 10 ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#aaa">...외 ${rows.length-10}행</td></tr>` : '');
+  document.getElementById('previewBody').innerHTML = rows.slice(0, 10).map((row, idx) =>
+    '<tr>' + row.map((v, colIdx) => {
+      if (colIdx === 2) {
+        return `<td><select class="excel-cell-select" onchange="updateExcelCategory(${idx}, this.value)">` +
+          EXCEL_CATEGORY_OPTIONS.map(opt => `<option value="${opt}"${String(v).trim() === opt ? ' selected' : ''}>${opt}</option>`).join('') +
+          `</select></td>`;
+      }
+      if (colIdx === 3) {
+        return `<td><select class="excel-cell-select" onchange="updateExcelPlatform(${idx}, this.value)">` +
+          EXCEL_PLATFORM_OPTIONS.map(opt => `<option value="${opt}"${String(v).trim() === opt ? ' selected' : ''}>${opt}</option>`).join('') +
+          `</select></td>`;
+      }
+      if (colIdx === 4) {
+        const selected = String(v).split(',').map(s => s.trim()).filter(Boolean);
+        return `<td><div class="excel-cell-channels">` +
+          EXCEL_CHANNEL_OPTIONS.map(opt =>
+            `<label class="excel-channel-chip"><input type="checkbox" ${selected.includes(opt) ? 'checked' : ''} onchange="toggleExcelChannel(${idx}, '${opt}', this.checked)">${opt}</label>`
+          ).join('') +
+          `</div></td>`;
+      }
+      return `<td>${v}</td>`;
+    }).join('') + '</tr>'
+  ).join('') + (rows.length > 10 ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#aaa">...외 ${rows.length-10}행 (수정은 최초 10행만 가능)</td></tr>` : '');
 }
 
 function geocodeAddress(addr) {
