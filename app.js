@@ -238,7 +238,8 @@ function initMap() {
   let _wheelAccum = 0;
   document.getElementById('map').addEventListener('wheel', function(e) {
     if (document.getElementById('modalOverlay').classList.contains('open') ||
-        document.getElementById('aboutOverlay').classList.contains('open')) {
+        document.getElementById('aboutOverlay').classList.contains('open') ||
+        document.getElementById('reportOverlay').classList.contains('open')) {
       return;
     }
     e.preventDefault();
@@ -1198,6 +1199,7 @@ function resetReportModal() {
   syncSelectTrigger('reportReasonSelect');
   clearFieldError('reportTarget');
   clearFieldError('reportReason');
+  document.querySelectorAll('#reportOverlay .btn-input-clear').forEach(b => b.classList.remove('show'));
 }
 
 function searchReportTarget() {
@@ -1370,6 +1372,7 @@ function resetModal() {
   resetDateSelects();
   document.getElementById('placeResultsList').innerHTML = '';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#modalOverlay .btn-input-clear').forEach(b => b.classList.remove('show'));
 }
 
 function updateStepDots(step) {
