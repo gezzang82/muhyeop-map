@@ -474,23 +474,36 @@ function renderExcelPreview(headers, rows) {
   ).join('') + (rows.length > 10 ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#aaa">...외 ${rows.length-10}행</td></tr>` : '');
 }
 
+function geocodeAddress(addr) {
+  return new Promise(resolve => {
+    naver.maps.Service.geocode({ query: addr }, (status, res) => {
+      if (status === naver.maps.Service.Status.OK && res?.v2?.addresses?.length) {
+        const r = res.v2.addresses[0];
+        resolve({ lat: parseFloat(r.y), lng: parseFloat(r.x) });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
 async function importExcelData() {
   let added = 0, skipped = 0;
   for (const row of parsedRows) {
-    const [name, address, latRaw, lngRaw, category, platform, channelRaw, content, deadline, hours] = row;
-    if (!name || !platform || !content || !deadline) { skipped++; continue; }
+    const [name, address, category, platform, channelRaw, content, deadline, hours] = row;
+    if (!name || !address || !platform || !content || !deadline) { skipped++; continue; }
 
-    const lat = parseFloat(latRaw) || 0;
-    const lng = parseFloat(lngRaw) || 0;
     const channels = String(channelRaw).split(',').map(s => s.trim()).filter(Boolean);
 
     // 기존 장소 or 신규
     let place = places.find(p => p.name.replace(/\s/g,'') === String(name).replace(/\s/g,''));
     if (!place) {
+      const coords = await geocodeAddress(String(address));
+      if (!coords) { skipped++; continue; }
       const res = await fetch('/api/places', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: String(name), address: String(address), lat, lng, category: String(category) || '기타' })
+        body: JSON.stringify({ name: String(name), address: String(address), lat: coords.lat, lng: coords.lng, category: String(category) || '기타' })
       });
       place = await res.json();
       places.push(place);
@@ -521,9 +534,9 @@ function resetExcel() {
 
 function downloadTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
-    ['장소명','주소','위도','경도','카테고리','플랫폼','채널','협찬내용','마감일','영업시간'],
-    ['스시코우지 강남','서울 강남구 테헤란로 152','37.5000','127.0370','음식점','레뷰','블로그,클립','오마카세 1인 체험','2026-07-31','12:00~22:00'],
-    ['카페 노티드 청담','서울 강남구 압구정로 428','37.5247','127.0430','카페','미블','인스타그램','음료 2잔 체험','2026-07-15','10:00~22:00'],
+    ['장소명','주소','카테고리','플랫폼','채널','협찬내용','마감일','영업시간'],
+    ['스시코우지 강남','서울 강남구 테헤란로 152','음식점','레뷰','블로그,클립','오마카세 1인 체험','2026-07-31','12:00~22:00'],
+    ['카페 노티드 청담','서울 강남구 압구정로 428','카페','미블','인스타그램','음료 2잔 체험','2026-07-15','10:00~22:00'],
   ]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '무협맵 업로드');

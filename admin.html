@@ -289,7 +289,7 @@
               <table class="guide-table">
                 <thead>
                   <tr>
-                    <th>장소명</th><th>주소</th><th>위도</th><th>경도</th><th>카테고리</th>
+                    <th>장소명</th><th>주소</th><th>카테고리</th>
                     <th>플랫폼</th><th>채널</th><th>협찬내용</th><th>마감일</th><th>영업시간</th>
                   </tr>
                 </thead>
@@ -297,8 +297,6 @@
                   <tr>
                     <td>스시코우지 강남</td>
                     <td>서울 강남구 테헤란로 152</td>
-                    <td>37.5000</td>
-                    <td>127.0370</td>
                     <td>음식점</td>
                     <td>레뷰</td>
                     <td>블로그,클립</td>
@@ -312,7 +310,7 @@
             <ul class="guide-notes">
               <li>채널은 쉼표로 구분해서 입력 (예: <code>블로그,클립</code>)</li>
               <li>마감일은 <code>YYYY-MM-DD</code> 형식</li>
-              <li>위도/경도를 모르면 비워두면 주소로 자동 변환 시도 (네트워크 필요)</li>
+              <li>주소를 기준으로 좌표를 자동 변환합니다 (네트워크 필요, 주소를 못 찾으면 해당 행은 건너뜁니다)</li>
               <li>기존에 같은 장소명이 있으면 캠페인만 추가됩니다</li>
             </ul>
             <button class="btn-download" onclick="downloadTemplate()">⬇️ 양식 다운로드</button>
