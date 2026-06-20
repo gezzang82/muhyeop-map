@@ -296,6 +296,21 @@ function initMap() {
   initSidebarScrollExpand();
   initSidebarSwipeToDismiss();
   initSheetSwipeToDismiss();
+  tryInitialLocation();
+}
+
+// 최초 진입 시 내 위치로 지도 중심 이동 (권한 거부/실패 시 기본 위치 유지)
+function tryInitialLocation() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      map.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
+      map.setZoom(15);
+      renderSidebar();
+    },
+    () => {},
+    { timeout: 5000 }
+  );
 }
 
 // ===== 마커 렌더 =====
