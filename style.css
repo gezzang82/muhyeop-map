@@ -926,6 +926,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   border-radius: 16px;
 }
 .select-sheet-overlay.show { display: block; }
+body[class*="pc-"] .select-sheet-overlay { border-radius: 0; }
 .select-sheet-panel {
   position: absolute; left: 0; right: 0; bottom: 0;
   background: #fff; border-radius: 20px 20px 0 0;
