@@ -743,9 +743,8 @@ function panToCard(place) {
   const latlng = new naver.maps.LatLng(place.lat, place.lng);
   const proj = map.getProjection();
   const mapWidth = document.getElementById('map').offsetWidth;
-  // 넓은 화면: 핀을 맵 중앙으로 (panTo 그대로)
-  // 좁은 화면(<780px): 카드(0~350px) 오른쪽인 390px에 핀 고정
-  const pinTargetX = Math.max(Math.round(mapWidth / 2), 390);
+  // 카드(0~350px) 오른쪽인 390px에 항상 핀 고정 (화면 너비와 무관하게 카드-핀이 한 쌍으로 보이도록)
+  const pinTargetX = 390;
   const deltaX = Math.round(mapWidth / 2) - pinTargetX;
   if (proj && deltaX !== 0) {
     const off = proj.fromCoordToOffset(latlng);
