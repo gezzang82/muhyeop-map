@@ -102,8 +102,8 @@ body {
   position: relative;
 }
 .pc-search-wrap:focus-within {
-  border-color: #e82a2d;
-  gap: 8px;
+  outline: 2px solid #e82a2d;
+  outline-offset: -2px;
 }
 .pc-search-icon { color: #bbb; }
 .pc-search-wrap:focus-within .pc-search-icon { color: #e82a2d; }
