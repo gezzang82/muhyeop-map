@@ -1195,6 +1195,7 @@ function resetReportModal() {
   document.getElementById('reportResultsList').innerHTML = '';
   document.getElementById('reportDetail').value = '';
   document.getElementById('reportReasonSelect').selectedIndex = 0;
+  syncSelectTrigger('reportReasonSelect');
   clearFieldError('reportTarget');
   clearFieldError('reportReason');
 }
@@ -2092,6 +2093,15 @@ function openSelectSheet(selectId, title) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
   _selectSheetTarget = selectId;
+
+  // 셀렉트가 속한 모달로 바텀시트를 이동시켜 해당 모달 영역 안에 정확히 표시되도록 함
+  const hostModal = sel.closest('.modal');
+  const sheetOverlay = document.getElementById('selectSheetOverlay');
+  const sheetPanel = document.getElementById('selectSheetPanel');
+  if (hostModal && !hostModal.contains(sheetPanel)) {
+    hostModal.appendChild(sheetOverlay);
+    hostModal.appendChild(sheetPanel);
+  }
 
   document.getElementById('selectSheetTitle').textContent = title;
 
