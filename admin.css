@@ -69,7 +69,7 @@ body { font-family: 'Noto Sans KR', -apple-system, sans-serif; background: #f4f5
   flex: 1; overflow-y: auto; padding: 32px;
   background: #f4f5f7;
 }
-.admin-page { max-width: 1000px; }
+.admin-page { width: 100%; }
 .page-title { font-size: 22px; font-weight: 800; margin-bottom: 24px; color: #1a1a2e; }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 .page-header .page-title { margin-bottom: 0; }
