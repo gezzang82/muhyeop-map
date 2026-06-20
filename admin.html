@@ -39,6 +39,7 @@
         <a class="nav-item" onclick="showTab('add')" id="tab-add">➕ 캠페인 등록</a>
         <a class="nav-item" onclick="showTab('excel')" id="tab-excel">📂 엑셀 업로드</a>
         <a class="nav-item" onclick="showTab('places')" id="tab-places">📍 장소 목록</a>
+        <a class="nav-item" onclick="showTab('banners')" id="tab-banners">📢 이벤트 팝업</a>
       </nav>
       <div class="admin-logout" onclick="logout()">🚪 로그아웃</div>
     </aside>
@@ -349,6 +350,50 @@
               </tr>
             </thead>
             <tbody id="placeTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 이벤트 팝업 -->
+      <div id="page-banners" class="admin-page" style="display:none;">
+        <h1 class="page-title">이벤트 팝업</h1>
+        <div class="form-card">
+          <div class="form-section-title">📢 팝업 등록</div>
+          <div class="form-row">
+            <div class="form-group full">
+              <label>이미지 URL *</label>
+              <input type="text" id="bannerImageUrl" placeholder="https://...">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group full">
+              <label>이동 URL <span class="hint">이미지 클릭 시 이동 (선택)</span></label>
+              <input type="text" id="bannerLinkUrl" placeholder="https://...">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>시작일 *</label>
+              <input type="date" id="bannerStartDate">
+            </div>
+            <div class="form-group">
+              <label>종료일 *</label>
+              <input type="date" id="bannerEndDate">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-submit" onclick="submitBanner()">✅ 등록하기</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>이미지</th><th>이동 URL</th><th>시작일</th><th>종료일</th><th>상태</th><th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="bannerTableBody"></tbody>
           </table>
         </div>
       </div>

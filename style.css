@@ -677,6 +677,38 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   position: relative;
 }
 
+/* ===== 공지/이벤트 배너 팝업 ===== */
+.banner-popup-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 1500;
+  align-items: center; justify-content: center;
+}
+.banner-popup-overlay.show { display: flex; }
+.banner-popup {
+  background: #fff; border-radius: 16px;
+  width: 320px; max-width: 90vw;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.banner-popup-image { width: 100%; display: block; }
+.banner-popup-actions {
+  display: flex; border-top: 1px solid #eee;
+}
+.banner-popup-btn {
+  flex: 1; padding: 14px 0; border: none; background: #fff;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px; color: #555; cursor: pointer;
+}
+.banner-popup-btn:first-child { border-right: 1px solid #eee; }
+.banner-popup-btn:hover { background: #f9f9f9; }
+@media (max-width: 640px) {
+  .banner-popup-overlay { align-items: flex-end; }
+  .banner-popup {
+    width: 100%; max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 #step1, #step2 {
   display: flex; flex-direction: column;
   flex: 1; overflow: hidden; min-height: 0;

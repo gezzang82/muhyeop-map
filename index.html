@@ -465,6 +465,17 @@
   </div>
   <div id="mobileSheetOverlay" class="mobile-sheet-overlay" onclick="closeMobileSheet()"></div>
 
+  <!-- 공지/이벤트 배너 팝업 -->
+  <div id="bannerPopupOverlay" class="banner-popup-overlay">
+    <div class="banner-popup">
+      <img id="bannerPopupImage" class="banner-popup-image" src="" alt="공지/이벤트">
+      <div class="banner-popup-actions">
+        <button class="banner-popup-btn" onclick="closeBannerPopup()">닫기</button>
+        <button class="banner-popup-btn" onclick="dismissBannerToday()">오늘 그만 보기</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js?v=20"></script>
 </body>
 </html>

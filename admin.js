@@ -34,6 +34,7 @@ function showTab(tab) {
   if (tab === 'campaigns') renderCampaignList();
   if (tab === 'places') renderPlaceList();
   if (tab === 'add') populatePlaceSelect();
+  if (tab === 'banners') renderBannerList();
 }
 
 // ===== 초기화 =====
@@ -152,6 +153,52 @@ function renderPlaceList() {
   }).join('') || `<tr><td colspan="8" class="empty-msg">등록된 장소 없음</td></tr>`;
 }
 
+// ===== 이벤트 팝업 =====
+function renderBannerList() {
+  const today = getKSTTodayUTC();
+  const tbody = document.getElementById('bannerTableBody');
+  tbody.innerHTML = banners.map(b => {
+    const isActive = deadlineToUTC(b.startDate) <= today && today <= deadlineToUTC(b.endDate);
+    return `<tr>
+      <td class="td-id">${b.id}</td>
+      <td><img src="${b.imageUrl}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:6px;"></td>
+      <td>${b.linkUrl || '-'}</td>
+      <td>${b.startDate}</td>
+      <td>${b.endDate}</td>
+      <td><span class="badge-status ${isActive?'active':'expired'}">${isActive?'노출 중':'기간 외'}</span></td>
+      <td>
+        <button class="btn-del-sm" onclick="confirmDelete('banner', ${b.id})">삭제</button>
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" class="empty-msg">등록된 팝업 없음</td></tr>`;
+}
+
+async function submitBanner() {
+  const imageUrl = document.getElementById('bannerImageUrl').value.trim();
+  const linkUrl = document.getElementById('bannerLinkUrl').value.trim();
+  const startDate = document.getElementById('bannerStartDate').value;
+  const endDate = document.getElementById('bannerEndDate').value;
+
+  if (!imageUrl || !startDate || !endDate) {
+    adminToast('이미지 URL, 시작일, 종료일은 필수예요!'); return;
+  }
+
+  const res = await fetch('/api/banners', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageUrl, linkUrl, startDate, endDate })
+  });
+  const banner = await res.json();
+  banners.unshift(banner);
+
+  adminToast('이벤트 팝업 등록 완료 ✅');
+  document.getElementById('bannerImageUrl').value = '';
+  document.getElementById('bannerLinkUrl').value = '';
+  document.getElementById('bannerStartDate').value = '';
+  document.getElementById('bannerEndDate').value = '';
+  renderBannerList();
+}
+
 // ===== 캠페인 등록 =====
 function populatePlaceSelect() {
   const sel = document.getElementById('addPlaceSelect');
@@ -255,6 +302,8 @@ let confirmCallback = null;
 function confirmDelete(type, id) {
   const name = type === 'campaign'
     ? `캠페인 ID ${id} (${campaigns.find(c=>c.id===id)?.content?.slice(0,20)}...)`
+    : type === 'banner'
+    ? `이벤트 팝업 ID ${id}`
     : `장소 "${places.find(p=>p.id===id)?.name}"`;
   document.getElementById('confirmMsg').textContent = `${name}을 삭제할까요?`;
   document.getElementById('confirmModal').style.display = 'flex';
@@ -265,6 +314,12 @@ function confirmDelete(type, id) {
       if (idx > -1) campaigns.splice(idx, 1);
       adminToast('캠페인 삭제 완료');
       renderCampaignList();
+    } else if (type === 'banner') {
+      await fetch(`/api/banners?id=${id}`, { method: 'DELETE' });
+      const idx = banners.findIndex(b => b.id === id);
+      if (idx > -1) banners.splice(idx, 1);
+      adminToast('이벤트 팝업 삭제 완료');
+      renderBannerList();
     } else {
       await fetch(`/api/places?id=${id}`, { method: 'DELETE' });
       const idx = places.findIndex(p => p.id === id);

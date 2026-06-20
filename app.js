@@ -4,17 +4,20 @@
 // 실제 데이터는 loadInitialData()가 /api/places, /api/campaigns에서 받아와 채운다.
 let places = [];
 let campaigns = [];
+let banners = [];
 
 let _dataLoadPromise = null;
 function loadInitialData() {
   if (!_dataLoadPromise) {
     _dataLoadPromise = (async () => {
-      const [placesRes, campaignsRes] = await Promise.all([
+      const [placesRes, campaignsRes, bannersRes] = await Promise.all([
         fetch('/api/places'),
-        fetch('/api/campaigns')
+        fetch('/api/campaigns'),
+        fetch('/api/banners')
       ]);
       places = await placesRes.json();
       campaigns = await campaignsRes.json();
+      banners = await bannersRes.json();
     })();
   }
   return _dataLoadPromise;
@@ -297,6 +300,7 @@ function initMap() {
   initSidebarSwipeToDismiss();
   initSheetSwipeToDismiss();
   tryInitialLocation();
+  showBannerPopup();
 }
 
 // 최초 진입 시 내 위치로 지도 중심 이동 (권한 거부/실패 시 기본 위치 유지)
@@ -311,6 +315,37 @@ function tryInitialLocation() {
     () => {},
     { timeout: 5000 }
   );
+}
+
+// ===== 공지/이벤트 배너 팝업 =====
+function getActiveBanner() {
+  const today = getKSTTodayUTC();
+  return banners.find(b => deadlineToUTC(b.startDate) <= today && today <= deadlineToUTC(b.endDate));
+}
+
+function showBannerPopup() {
+  const banner = getActiveBanner();
+  if (!banner) return;
+  const dismissedDate = localStorage.getItem('bannerDismissedDate');
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+  if (dismissedDate === todayStr) return;
+
+  const overlay = document.getElementById('bannerPopupOverlay');
+  const img = document.getElementById('bannerPopupImage');
+  img.src = banner.imageUrl;
+  img.onclick = () => { if (banner.linkUrl) window.open(banner.linkUrl, '_blank'); };
+  img.style.cursor = banner.linkUrl ? 'pointer' : 'default';
+  overlay.classList.add('show');
+}
+
+function closeBannerPopup() {
+  document.getElementById('bannerPopupOverlay').classList.remove('show');
+}
+
+function dismissBannerToday() {
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+  localStorage.setItem('bannerDismissedDate', todayStr);
+  closeBannerPopup();
 }
 
 // ===== 마커 렌더 =====
