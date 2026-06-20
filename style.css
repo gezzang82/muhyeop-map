@@ -58,19 +58,6 @@ body {
 .pc-nav-tab.active { color: #39395c; background: white; }
 .pc-nav-tab:hover:not(.active) { color: rgba(255,255,255,0.7); }
 
-.pc-nav-legal {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 8px; padding-bottom: 20px; flex-shrink: 0;
-}
-.pc-nav-legal button {
-  border: none; background: none; cursor: pointer;
-  color: rgba(255,255,255,0.4);
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 9px; line-height: 1.4; text-align: center;
-  padding: 0; width: 68px; white-space: nowrap;
-}
-.pc-nav-legal button:hover { color: rgba(255,255,255,0.7); text-decoration: underline; }
-
 /* ===== 개인정보처리방침 / 이용약관 팝업 ===== */
 .policy-modal { max-width: 480px; }
 .policy-modal .modal-body p { font-size: 14px; line-height: 1.6; color: #555; }
@@ -1154,6 +1141,23 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
 .about-legal {
   padding: 16px 0 4px; font-size: 11px; color: #aaa; line-height: 1.7; text-align: center;
 }
+.about-legal p { margin: 0 0 4px; }
+.about-legal p:last-child { margin-bottom: 0; }
+
+.about-list { margin: 0 0 10px; padding-left: 18px; }
+.about-list li { font-size: 13px; color: #555; line-height: 1.7; }
+
+.about-policy-links {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 0 4px;
+}
+.about-policy-links button {
+  border: none; background: none; cursor: pointer; padding: 0;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px; color: #999;
+}
+.about-policy-links button:hover { color: #555; text-decoration: underline; }
+.about-policy-sep { font-size: 11px; color: #ddd; }
 
 .about-section { padding: 14px 0; border-bottom: 1px solid #f5f5f0; }
 .about-section:last-child { border-bottom: none; }
