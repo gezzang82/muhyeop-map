@@ -83,7 +83,7 @@
       <div class="pc-map-top-row1">
         <div class="pc-search-wrap" onclick="event.stopPropagation(); document.getElementById('regionSearchPC').focus()">
           <svg class="pc-search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11 2.5C15.9706 2.5 20 6.52944 20 11.5C20 13.3146 19.4609 15.0025 18.5371 16.416L21.7178 19.5967C22.3032 20.1825 22.3034 21.1321 21.7178 21.7178C21.1321 22.3034 20.1825 22.3032 19.5967 21.7178L16.5 18.6211C14.9788 19.7977 13.072 20.5 11 20.5C6.02944 20.5 2 16.4706 2 11.5C2 6.52944 6.02944 2.5 11 2.5ZM11 5.5C7.68629 5.5 5 8.18629 5 11.5C5 14.8137 7.68629 17.5 11 17.5C14.3137 17.5 17 14.8137 17 11.5C17 8.18629 14.3137 5.5 11 5.5Z" fill="currentColor"/></svg>
-          <input type="text" id="regionSearchPC" placeholder="지역, 매장명, 역명으로 검색" onkeydown="if(event.key==='Enter') searchRegionPC()">
+          <input type="text" id="regionSearchPC" placeholder="지역, 매장명, 역명으로 검색" autocomplete="off" onkeydown="if(event.key==='Enter') searchRegionPC()">
         </div>
         <div class="pc-stat-pill">
           <div class="pc-stat-label">
@@ -115,7 +115,7 @@
     <div class="mobile-map-overlay">
       <div class="mobile-row1">
         <div class="mobile-header-search">
-          <input type="text" id="regionSearchMobileOverlay" placeholder="지역, 매장명, 역명으로 검색" enterkeyhint="search" onkeydown="if(event.key==='Enter'){event.preventDefault();searchRegionMobileOverlay();}">
+          <input type="text" id="regionSearchMobileOverlay" placeholder="지역, 매장명, 역명으로 검색" enterkeyhint="search" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();searchRegionMobileOverlay();}">
         </div>
         <button class="mobile-icon-btn mobile-icon-add" onclick="openModal()" title="협찬 제보하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4V20M4 12H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
       </div>
@@ -271,7 +271,7 @@
           <div class="form-group">
             <label>매장명 <span class="required">*</span></label>
             <div class="addr-row">
-              <input type="text" id="inputName" placeholder="예) 스타OO 강남점" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPlaceUnified();}">
+              <input type="text" id="inputName" placeholder="예) 스타OO 강남점" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPlaceUnified();}">
               <button class="btn-search-addr" id="btnSearchAddr" onclick="searchPlaceUnified()">검색</button>
             </div>
             <span class="field-error-msg" id="inputNameError">매장명을 입력해주세요.</span>
