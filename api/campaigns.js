@@ -17,7 +17,8 @@ function toCampaign(row) {
     reporterBlog: row.reporter_blog || '',
     reporterInstagram: row.reporter_instagram || '',
     reporterUrl: row.reporter_url || '',
-    source: row.source || 'unknown'
+    source: row.source || 'unknown',
+    createdAt: row.created_at
   };
 }
 
@@ -59,7 +60,8 @@ module.exports = async function handler(req, res) {
       operatingDays: operatingDays || [], operatingHours: operatingHours || '', excludeHoliday: !!excludeHoliday,
       reporterNickname: reporterNickname || '', reporterEmail: reporterEmail || '',
       reporterBlog: reporterBlog || '', reporterInstagram: reporterInstagram || '', reporterUrl: reporterUrl || '',
-      source: source === 'admin' ? 'admin' : 'user'
+      source: source === 'admin' ? 'admin' : 'user',
+      createdAt: new Date().toISOString().slice(0, 19).replace('T', ' ')
     });
   }
 

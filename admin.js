@@ -54,9 +54,19 @@ function renderDashboard() {
   document.getElementById('statActive').textContent = active.length;
   document.getElementById('statExpired').textContent = expired.length;
 
-  const userReported = campaigns.filter(c => c.source === 'user').length;
+  const userCampaigns = campaigns.filter(c => c.source === 'user');
   const statUserEl = document.getElementById('statUserReported');
-  if (statUserEl) statUserEl.textContent = userReported;
+  if (statUserEl) statUserEl.textContent = userCampaigns.length;
+
+  const todayParts = getKSTDateParts();
+  const isCreatedToday = (createdAt) => {
+    if (!createdAt) return false;
+    const d = new Date(createdAt.replace(' ', 'T') + 'Z');
+    const p = getKSTDateParts(d);
+    return p.y === todayParts.y && p.m === todayParts.m && p.d === todayParts.d;
+  };
+  const statUserTodayEl = document.getElementById('statUserReportedToday');
+  if (statUserTodayEl) statUserTodayEl.textContent = userCampaigns.filter(c => isCreatedToday(c.createdAt)).length;
 
   // 플랫폼별
   const platformCount = {};
