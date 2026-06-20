@@ -117,7 +117,7 @@
         <div class="mobile-header-search">
           <input type="text" id="regionSearchMobileOverlay" placeholder="지역, 매장명, 역명으로 검색" enterkeyhint="search" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();searchRegionMobileOverlay();}">
         </div>
-        <button class="mobile-icon-btn mobile-icon-add" onclick="openModal()" title="협찬 제보하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4V20M4 12H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+        <button class="mobile-icon-btn mobile-icon-add" onclick="openSideMenu()" title="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6H20M4 12H20M4 18H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
       </div>
       <div class="mobile-chips-row">
         <button class="filter-chip active" data-channel="전체" onclick="filterChannel('전체')">전체</button>
@@ -145,6 +145,22 @@
     </div>
     <div class="live-character-wrap" onclick="openModal()">
       <img src="image/img_ch_01.png" alt="무협맵 캐릭터" class="live-character" id="liveCharacter">
+    </div>
+  </div>
+
+  <!-- 우측 슬라이드 메뉴 -->
+  <div class="side-menu-overlay" id="sideMenuOverlay" onclick="closeSideMenu()">
+    <div class="side-menu" onclick="event.stopPropagation()">
+      <div class="side-menu-header">
+        <span class="side-menu-title">메뉴</span>
+        <button class="side-menu-close" onclick="closeSideMenu()">✕</button>
+      </div>
+      <div class="side-menu-list">
+        <button class="side-menu-item" onclick="closeSideMenu(); openModal();">제보하기</button>
+        <button class="side-menu-item" onclick="closeSideMenu(); openAbout();">서비스 소개</button>
+        <button class="side-menu-item" onclick="closeSideMenu(); openPolicy('terms');">이용약관</button>
+        <button class="side-menu-item" onclick="closeSideMenu(); openPolicy('privacy');">개인정보처리방침</button>
+      </div>
     </div>
   </div>
 

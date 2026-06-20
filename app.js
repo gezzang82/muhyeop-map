@@ -1146,6 +1146,14 @@ function closePolicy() {
   document.getElementById('policyOverlay').classList.remove('open');
 }
 
+// ===== 우측 슬라이드 메뉴 =====
+function openSideMenu() {
+  document.getElementById('sideMenuOverlay').classList.add('open');
+}
+function closeSideMenu() {
+  document.getElementById('sideMenuOverlay').classList.remove('open');
+}
+
 // ===== 모달 =====
 function openAbout() {
   if (window.innerWidth > 640) {
