@@ -937,6 +937,7 @@ function searchPlaceUnified() {
   const listEl = document.getElementById('placeResultsList');
   if (!q) { showFieldError('inputName'); return; }
   clearFieldError('inputName');
+  document.getElementById('inputName').blur();
 
   modalSelectedPlaceId = null;
   modalIsNewPlace = true;
