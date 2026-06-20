@@ -1031,10 +1031,17 @@ function selectNaverPlace(index, name, address) {
 
 // ===== 모달 =====
 function openAbout() {
+  if (window.innerWidth > 640) {
+    switchPcTab('about');
+    return;
+  }
   document.getElementById('aboutOverlay').classList.add('open');
 }
 function closeAbout() {
   document.getElementById('aboutOverlay').classList.remove('open');
+  if (window.innerWidth > 640 && pcTabActive === 'about') {
+    switchPcTab('campaigns');
+  }
 }
 
 // ===== PC 탭 전환 =====
@@ -1043,20 +1050,26 @@ function switchPcTab(tab) {
 
   const campaignsTab = document.getElementById('tabCampaigns');
   const reportTab = document.getElementById('tabReport');
+  const aboutTab = document.getElementById('tabAbout');
+
+  pcTabActive = tab;
+  campaignsTab?.classList.toggle('active', tab === 'campaigns');
+  reportTab?.classList.toggle('active', tab === 'report');
+  aboutTab?.classList.toggle('active', tab === 'about');
+  document.body.classList.toggle('pc-report-mode', tab === 'report');
+  document.body.classList.toggle('pc-about-mode', tab === 'about');
 
   if (tab === 'report') {
-    pcTabActive = 'report';
-    document.body.classList.add('pc-report-mode');
-    campaignsTab?.classList.remove('active');
-    reportTab?.classList.add('active');
     document.getElementById('modalOverlay').classList.add('open');
     resetModal();
   } else {
-    pcTabActive = 'campaigns';
-    document.body.classList.remove('pc-report-mode');
-    campaignsTab?.classList.add('active');
-    reportTab?.classList.remove('active');
     document.getElementById('modalOverlay').classList.remove('open');
+  }
+
+  if (tab === 'about') {
+    document.getElementById('aboutOverlay').classList.add('open');
+  } else {
+    document.getElementById('aboutOverlay').classList.remove('open');
   }
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 50);
 }
