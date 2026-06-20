@@ -208,7 +208,6 @@ body.pc-report-mode .modal {
   height: 100dvh !important;
   max-height: 100dvh !important;
   border-radius: 0 !important;
-  border-right: 1px solid #f0f0f0 !important;
   box-shadow: none !important;
 }
 
@@ -327,7 +326,6 @@ body.pc-about-mode #aboutOverlay .modal {
   height: 100dvh !important;
   max-height: 100dvh !important;
   border-radius: 0 !important;
-  border-right: 1px solid #f0f0f0 !important;
   box-shadow: none !important;
 }
 
@@ -373,7 +371,6 @@ body.pc-reportissue-mode #reportOverlay .modal {
   height: 100dvh !important;
   max-height: 100dvh !important;
   border-radius: 0 !important;
-  border-right: 1px solid #f0f0f0 !important;
   box-shadow: none !important;
 }
 
