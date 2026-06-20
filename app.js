@@ -1175,11 +1175,18 @@ let reportSelectedCampaignId = null;
 let reportSelectedReason = null;
 
 function openReportModal() {
+  if (window.innerWidth > 640) {
+    switchPcTab('reportissue');
+    return;
+  }
   resetReportModal();
   document.getElementById('reportOverlay').classList.add('open');
 }
 function closeReportModal() {
   document.getElementById('reportOverlay').classList.remove('open');
+  if (window.innerWidth > 640 && pcTabActive === 'reportissue') {
+    switchPcTab('campaigns');
+  }
 }
 function resetReportModal() {
   reportSelectedCampaignId = null;
@@ -1270,13 +1277,16 @@ function switchPcTab(tab) {
 
   const campaignsTab = document.getElementById('tabCampaigns');
   const reportTab = document.getElementById('tabReport');
+  const reportIssueTab = document.getElementById('tabReportIssue');
   const aboutTab = document.getElementById('tabAbout');
 
   pcTabActive = tab;
   campaignsTab?.classList.toggle('active', tab === 'campaigns');
   reportTab?.classList.toggle('active', tab === 'report');
+  reportIssueTab?.classList.toggle('active', tab === 'reportissue');
   aboutTab?.classList.toggle('active', tab === 'about');
   document.body.classList.toggle('pc-report-mode', tab === 'report');
+  document.body.classList.toggle('pc-reportissue-mode', tab === 'reportissue');
   document.body.classList.toggle('pc-about-mode', tab === 'about');
 
   if (tab === 'report') {
@@ -1284,6 +1294,13 @@ function switchPcTab(tab) {
     resetModal();
   } else {
     document.getElementById('modalOverlay').classList.remove('open');
+  }
+
+  if (tab === 'reportissue') {
+    document.getElementById('reportOverlay').classList.add('open');
+    resetReportModal();
+  } else {
+    document.getElementById('reportOverlay').classList.remove('open');
   }
 
   if (tab === 'about') {

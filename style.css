@@ -343,6 +343,59 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   letter-spacing: normal !important;
 }
 
+/* ===== PC 신고하기 모드: 모달을 왼쪽 사이드 패널로 전환 ===== */
+body.pc-reportissue-mode .sidebar { display: none !important; }
+body.pc-reportissue-mode .pc-map-top { display: none; }
+body.pc-reportissue-mode #map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 500;
+}
+
+body.pc-reportissue-mode #reportOverlay.open {
+  position: fixed !important;
+  left: 72px !important;
+  right: auto !important;
+  width: 360px !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  background: none !important;
+  z-index: 300 !important;
+  padding: 0 !important;
+  align-items: stretch !important;
+}
+
+body.pc-reportissue-mode #reportOverlay .modal {
+  width: 360px !important;
+  max-width: 360px !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  border-radius: 0 !important;
+  border-right: 1px solid #f0f0f0 !important;
+  box-shadow: none !important;
+}
+
+body.pc-reportissue-mode #reportOverlay .modal-header {
+  padding: 37px 20px 20px !important;
+  align-items: flex-start !important;
+}
+body.pc-reportissue-mode #reportOverlay .modal-header h2 {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+}
+body.pc-reportissue-mode #reportOverlay .modal-footer {
+  position: static !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  background: white !important;
+  padding: 12px 20px 24px !important;
+  flex-shrink: 0 !important;
+}
+
 /* ===== 레이아웃 ===== */
 #map { flex: 1; min-width: 0; z-index: 1; position: relative; touch-action: none; }
 .mobile-search-bar { display: none; }
