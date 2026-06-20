@@ -641,14 +641,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   left: 20px;
   z-index: 400;
   width: 320px;
-  max-height: calc(100% - 280px);
-  overflow-y: auto;
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.16);
 }
 .pc-card.visible { display: block; }
-.pc-card::-webkit-scrollbar { width: 4px; }
-.pc-card::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
 .pc-card-arrow {
   position: absolute;
   right: -10px;
