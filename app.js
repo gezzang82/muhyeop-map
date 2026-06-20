@@ -1420,7 +1420,10 @@ function handleStep2Scroll() {
 }
 
 // ===== 제보 제출 =====
+let _submittingCampaign = false;
 async function submitCampaign() {
+  if (_submittingCampaign) return;
+
   const channels = [...document.querySelectorAll('.channel-btn.active')].map(b => b.dataset.channel);
   const platform = document.getElementById('inputPlatform').value;
   const content = document.getElementById('inputContent').value.trim();
@@ -1442,11 +1445,16 @@ async function submitCampaign() {
   if (!content) { showFieldError('inputContent'); valid = false; }
   if (!valid) return;
 
+  _submittingCampaign = true;
+  const submitBtn = document.querySelector('.btn-submit');
+  if (submitBtn) submitBtn.disabled = true;
+
   const reporterUrl = buildReporterUrl();
   const reporterNickname = document.getElementById('inputNickname').value.trim();
   const reporterEmail = document.getElementById('inputEmail').value.trim();
 
   let placeId;
+  try {
   if (modalIsNewPlace) {
     const newPlace = await fetch('/api/places', {
       method: 'POST',
@@ -1494,6 +1502,10 @@ async function submitCampaign() {
   map.setCenter(new naver.maps.LatLng(place.lat, place.lng));
   map.setZoom(16);
   showToast(`${place.name} 제보 완료!`);
+  } finally {
+    _submittingCampaign = false;
+    if (submitBtn) submitBtn.disabled = false;
+  }
 }
 
 // ===== 토스트 =====
