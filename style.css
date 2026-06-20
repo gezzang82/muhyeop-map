@@ -1567,7 +1567,7 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
 }
 .mobile-icon-btn.mobile-icon-add {
   width: 56px; height: 56px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #383838;
   color: white;
   font-size: 28px;
