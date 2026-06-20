@@ -490,10 +490,12 @@ function geocodeAddress(addr) {
 async function importExcelData() {
   let added = 0, skipped = 0;
   for (const row of parsedRows) {
-    const [name, address, category, platform, channelRaw, content, deadline, hours] = row;
+    const [name, address, category, platform, channelRaw, content, deadline, hours, daysRaw, excludeHolidayRaw] = row;
     if (!name || !address || !platform || !content || !deadline) { skipped++; continue; }
 
     const channels = String(channelRaw).split(',').map(s => s.trim()).filter(Boolean);
+    const operatingDays = String(daysRaw || '').split(',').map(s => s.trim()).filter(Boolean);
+    const excludeHoliday = String(excludeHolidayRaw || '').trim().toUpperCase() === 'Y';
 
     // 기존 장소 or 신규
     let place = places.find(p => p.name.replace(/\s/g,'') === String(name).replace(/\s/g,''));
@@ -515,7 +517,7 @@ async function importExcelData() {
       body: JSON.stringify({
         placeId: place.id, platform: String(platform), channels,
         content: String(content), deadline: String(deadline), link: '',
-        operatingDays: [], operatingHours: String(hours) || '', source: 'admin'
+        operatingDays, operatingHours: String(hours) || '', excludeHoliday, source: 'admin'
       })
     });
     campaigns.push(await res.json());
@@ -534,9 +536,9 @@ function resetExcel() {
 
 function downloadTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
-    ['장소명','주소','카테고리','플랫폼','채널','협찬내용','마감일','영업시간'],
-    ['스시코우지 강남','서울 강남구 테헤란로 152','음식점','레뷰','블로그,클립','오마카세 1인 체험','2026-07-31','12:00~22:00'],
-    ['카페 노티드 청담','서울 강남구 압구정로 428','카페','미블','인스타그램','음료 2잔 체험','2026-07-15','10:00~22:00'],
+    ['장소명','주소','카테고리','플랫폼','채널','협찬내용','마감일','영업시간','가능요일','공휴일불가'],
+    ['스시코우지 강남','서울 강남구 테헤란로 152','음식점','레뷰','블로그,클립','오마카세 1인 체험','2026-07-31','12:00~22:00','월,화,수,목,금','Y'],
+    ['카페 노티드 청담','서울 강남구 압구정로 428','카페','미블','인스타그램','음료 2잔 체험','2026-07-15','10:00~22:00','',''],
   ]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '무협맵 업로드');
