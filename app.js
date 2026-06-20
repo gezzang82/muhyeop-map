@@ -1824,6 +1824,7 @@ function initSheetSwipeToDismiss() {
 // 지도 영역 터치 시 검색창 포커스 해제 및 키보드 닫기
 document.addEventListener('click', (e) => {
   if (!e.target.closest('#map')) return;
+  if (e.target.closest('.mobile-header-search') || e.target.closest('.pc-search-wrap')) return;
   const active = document.activeElement;
   if (active && (active.id === 'regionSearchMobileOverlay' || active.id === 'regionSearchPC')) {
     active.blur();
