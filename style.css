@@ -289,6 +289,7 @@ body.pc-report-mode .holiday-checkbox.active {
 
 /* ===== PC 서비스소개 모드: 모달을 왼쪽 사이드 패널로 전환 ===== */
 body.pc-about-mode .sidebar { display: none !important; }
+body.pc-about-mode .pc-map-top { display: none; }
 body.pc-about-mode #map::after {
   content: '';
   position: absolute;
