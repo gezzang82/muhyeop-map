@@ -899,8 +899,8 @@ body.pc-report-mode .holiday-checkbox.active {
 .place-campaign-preview-item { display: flex; align-items: center; gap: 8px; }
 .place-campaign-tag { font-size: 12px; font-weight: 700; height: 22px; padding: 0 6px; border-radius: 4px; display: inline-flex; align-items: center; flex-shrink: 0; }
 .place-campaign-content { font-size: 14px; color: #333; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.place-campaign-dday { font-size: 13px; height: 22px; padding: 0 8px; border-radius: 11px; display: flex; align-items: center; background: #eee; color: #777; flex-shrink: 0; }
-.place-campaign-dday.urgent { background: #e82a2d; color: white; }
+.place-campaign-dday { font-size: 14px; font-weight: 400; height: 24px; padding: 0 10px; border-radius: 13px; display: flex; align-items: center; background: white; border: 1px solid #ddd; color: #777; flex-shrink: 0; }
+.place-campaign-dday.urgent { background: #e82a2d; border-color: #e82a2d; color: white; }
 
 /* 선택된 장소 뱃지 */
 .place-badge {
