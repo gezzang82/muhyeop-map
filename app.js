@@ -1029,6 +1029,68 @@ function selectNaverPlace(index, name, address) {
   });
 }
 
+// ===== 개인정보처리방침 / 이용약관 =====
+const POLICY_CONTENT = {
+  privacy: {
+    title: '개인정보처리방침',
+    body: `
+      <p>무협맵(이하 '서비스')은 이용자의 개인정보를 중요시하며, 「개인정보 보호법」을 준수하고 있습니다.</p>
+      <div class="about-section">
+        <div class="about-section-title">1. 수집하는 개인정보 항목</div>
+        <p class="about-desc">서비스는 협찬 제보 시 닉네임, 이메일(선택) 등 최소한의 정보를 수집합니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">2. 개인정보의 수집 및 이용 목적</div>
+        <p class="about-desc">제보 내용 확인, 문의 응대, 부정 이용 방지를 위한 목적으로만 이용됩니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">3. 개인정보의 보유 및 이용 기간</div>
+        <p class="about-desc">수집된 정보는 목적 달성 후 지체 없이 파기하며, 관계 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">4. 개인정보의 제3자 제공</div>
+        <p class="about-desc">서비스는 이용자의 개인정보를 원칙적으로 외부에 제공하지 않습니다.</p>
+      </div>
+      <div class="about-legal">
+        <p>본 방침은 서비스 운영상 필요에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.</p>
+      </div>`
+  },
+  terms: {
+    title: '이용약관',
+    body: `
+      <div class="about-section">
+        <div class="about-section-title">제1조 (목적)</div>
+        <p class="about-desc">본 약관은 무협맵(이하 '서비스')이 제공하는 협찬 정보 탐색 서비스의 이용 조건 및 절차를 규정함을 목적으로 합니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">제2조 (서비스의 성격)</div>
+        <p class="about-desc">서비스는 여러 플랫폼에 흩어진 협찬 정보를 지도 위에서 탐색할 수 있도록 도와주는 정보 제공 서비스이며, 협찬의 신청·진행·이행에 직접 관여하지 않습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">제3조 (이용자의 의무)</div>
+        <p class="about-desc">이용자는 협찬 정보 제보 시 사실에 기반한 정확한 정보를 등록해야 하며, 허위 정보 등록 시 서비스 이용이 제한될 수 있습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">제4조 (책임의 제한)</div>
+        <p class="about-desc">서비스에 게시된 협찬 정보는 이용자의 제보를 기반으로 하며, 정보의 정확성·최신성에 대해 서비스는 보증하지 않습니다. 협찬 신청 및 진행과 관련한 권리와 책임은 각 플랫폼 및 업체에 있습니다.</p>
+      </div>
+      <div class="about-legal">
+        <p>본 약관은 서비스 운영상 필요에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.</p>
+      </div>`
+  }
+};
+
+function openPolicy(type) {
+  const data = POLICY_CONTENT[type];
+  if (!data) return;
+  document.getElementById('policyTitle').textContent = data.title;
+  document.getElementById('policyBody').innerHTML = data.body;
+  document.getElementById('policyOverlay').classList.add('open');
+}
+function closePolicy() {
+  document.getElementById('policyOverlay').classList.remove('open');
+}
+
 // ===== 모달 =====
 function openAbout() {
   if (window.innerWidth > 640) {

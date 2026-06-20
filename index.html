@@ -41,7 +41,25 @@
         <span>서비스 소개</span>
       </button>
     </div>
+    <div class="pc-nav-legal">
+      <button onclick="openPolicy('privacy')">개인정보처리방침</button>
+      <button onclick="openPolicy('terms')">이용약관</button>
+    </div>
   </nav>
+
+  <!-- 개인정보처리방침 / 이용약관 팝업 -->
+  <div class="modal-overlay" id="policyOverlay" onclick="closePolicy()">
+    <div class="modal policy-modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="policyTitle"></h2>
+        <button class="modal-close" onclick="closePolicy()">✕</button>
+      </div>
+      <div class="modal-body" id="policyBody"></div>
+      <div class="modal-footer policy-footer">
+        <button class="btn-next" onclick="closePolicy()" style="width:100%">닫기</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 사이드바 (PC: 왼쪽 패널 / 모바일: 바텀시트) -->
   <div class="sidebar" id="sidebar" onclick="toggleBottomSheet(event)">

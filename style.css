@@ -58,6 +58,24 @@ body {
 .pc-nav-tab.active { color: #39395c; background: white; }
 .pc-nav-tab:hover:not(.active) { color: rgba(255,255,255,0.7); }
 
+.pc-nav-legal {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding-bottom: 20px; flex-shrink: 0;
+}
+.pc-nav-legal button {
+  border: none; background: none; cursor: pointer;
+  color: rgba(255,255,255,0.4);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 9px; line-height: 1.4; text-align: center;
+  padding: 0; width: 68px; white-space: nowrap;
+}
+.pc-nav-legal button:hover { color: rgba(255,255,255,0.7); text-decoration: underline; }
+
+/* ===== 개인정보처리방침 / 이용약관 팝업 ===== */
+.policy-modal { max-width: 480px; }
+.policy-modal .modal-body p { font-size: 14px; line-height: 1.6; color: #555; }
+.policy-modal .modal-body .about-section-title { font-size: 15px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; }
+
 /* ===== PC 지도 상단 검색 + 칩 바 ===== */
 .pc-map-top {
   position: absolute;
