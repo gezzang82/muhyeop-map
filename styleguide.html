@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>무협맵 스타일가이드</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  /* ===== 가이드 페이지 전용 레이아웃 (sg- 접두사로 실제 클래스와 충돌 방지) ===== */
+  body { margin: 0; background: #fafafa; font-family: 'Pretendard', sans-serif; }
+  .sg-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 120px; }
+  .sg-title { font-size: 28px; font-weight: 700; margin: 0 0 4px; }
+  .sg-desc { color: #777; font-size: 14px; margin: 0 0 40px; }
+  .sg-section { margin-bottom: 56px; }
+  .sg-section h2 { font-size: 18px; font-weight: 700; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-bottom: 20px; }
+  .sg-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+  .sg-item { background: white; border: 1px solid #eee; border-radius: 8px; padding: 16px; }
+  .sg-item-label { font-size: 12px; color: #999; margin-bottom: 10px; font-family: monospace; }
+  .sg-note { font-size: 13px; color: #E82A2D; background: #fff5f5; border: 1px solid #ffd9d9; border-radius: 6px; padding: 8px 12px; margin-top: 8px; }
+  .sg-modal-demo { width: 320px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; background: white; }
+  .sg-modal-demo .modal-header,
+  .sg-modal-demo .modal-scroll-header,
+  .sg-modal-demo .modal-sticky-header { position: relative; }
+  .sg-modal-demo .modal-body { padding: 24px 20px; }
+</style>
+</head>
+<body>
+<div class="sg-wrap">
+  <h1 class="sg-title">무협맵 스타일가이드</h1>
+  <p class="sg-desc">반복 사용되는 UI 패턴을 한 곳에 모아둔 정적 참조 페이지입니다. style.css를 그대로 불러오므로 실제 화면과 항상 동기화됩니다. 새 모달/필드를 추가하거나 기존 패턴을 수정할 때 여기서 먼저 확인하세요.</p>
+
+  <!-- ===================== 모달 타이틀 ===================== -->
+  <div class="sg-section">
+    <h2>모달 타이틀</h2>
+    <p class="sg-note">데스크탑: 정적 .modal-header만 사용 (26px → PC 모드에서 18px/600 override). 모바일: .modal-header는 JS로 숨기고, 본문과 함께 스크롤되는 .modal-scroll-header(26px/500)를 대신 사용. 스크롤 시 .modal-sticky-header(18px)가 상단에 고정 노출됨. 이 3개가 한 세트로 항상 같이 다녀야 함 — 신고하기에서 한 번 빠뜨려서 타이틀 크기가 어긋난 적 있음.</p>
+    <div class="sg-row">
+      <div class="sg-item">
+        <div class="sg-item-label">.modal-header h2 (데스크탑 기본 / PC모드 X)</div>
+        <div class="sg-modal-demo"><div class="modal-header" style="padding:24px 20px;"><h2>협찬 제보하기</h2></div></div>
+      </div>
+      <div class="sg-item">
+        <div class="sg-item-label">.modal-scroll-header h2 (모바일 본문 내 타이틀)</div>
+        <div class="sg-modal-demo"><div class="modal-body" style="padding:24px 20px;"><div class="modal-scroll-header"><h2>협찬 제보하기</h2><div class="step-dots"><span class="step-dot active">1</span><span class="step-dot-sep"></span><span class="step-dot">2</span></div></div></div></div>
+      </div>
+      <div class="sg-item">
+        <div class="sg-item-label">.modal-sticky-header (모바일 스크롤 시 고정)</div>
+        <div class="sg-modal-demo"><div class="modal-sticky-header show" style="position:relative;"><span>협찬 제보하기</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 폼 필드 ===================== -->
+  <div class="sg-section">
+    <h2>폼 필드</h2>
+    <p class="sg-note">텍스트 input/textarea는 모바일에서 줌 방지를 위해 16px로 강제 고정됨. .custom-select-trigger는 div라서 그 규칙이 안 먹기 때문에 모바일 전용으로 16px를 별도 지정해놨음 — 안 그러면 셀렉트만 18px(PC 기준)로 커보임.</p>
+    <div class="sg-row">
+      <div class="sg-item" style="width:280px;">
+        <div class="sg-item-label">.form-group label / input</div>
+        <div class="form-group">
+          <label>매장명 <span class="required">*</span></label>
+          <input type="text" placeholder="예) 스타OO 강남점">
+        </div>
+      </div>
+      <div class="sg-item" style="width:280px;">
+        <div class="sg-item-label">.custom-select-trigger (바텀시트 트리거)</div>
+        <div class="form-group">
+          <label>플랫폼 <span class="required">*</span></label>
+          <div class="custom-select-trigger"><span class="custom-select-value">선택하세요</span></div>
+        </div>
+      </div>
+      <div class="sg-item" style="width:280px;">
+        <div class="sg-item-label">.form-group textarea</div>
+        <div class="form-group">
+          <label>상세 내용 <span class="hint">(선택)</span></label>
+          <textarea placeholder="내용을 입력해주세요" rows="3"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="sg-row">
+      <div class="sg-item" style="width:280px;">
+        <div class="sg-item-label">오류 상태: .input-error + .field-error-msg.show</div>
+        <div class="form-group">
+          <label>신고할 협찬 <span class="required">*</span></label>
+          <input type="text" class="input-error" placeholder="매장명으로 검색">
+          <span class="field-error-msg show">신고할 협찬을 선택해주세요.</span>
+        </div>
+      </div>
+      <div class="sg-item" style="width:280px;">
+        <div class="sg-item-label">오류 상태: 커스텀 셀렉트</div>
+        <div class="form-group">
+          <label>신고 이유 <span class="required">*</span></label>
+          <div class="custom-select-trigger input-error"><span class="custom-select-value">선택하세요</span></div>
+          <span class="field-error-msg show">신고 이유를 선택해주세요.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 버튼 ===================== -->
+  <div class="sg-section">
+    <h2>버튼</h2>
+    <div class="sg-row">
+      <div class="sg-item"><div class="sg-item-label">.btn-cancel + .btn-next (모달 푸터, 항상 한 쌍)</div>
+        <div style="display:flex; gap:8px; width:280px;"><button class="btn-cancel">취소</button><button class="btn-next">제출하기</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 칩 / 필터 ===================== -->
+  <div class="sg-section">
+    <h2>칩 / 필터</h2>
+    <div class="sg-row">
+      <div class="sg-item"><div class="sg-item-label">.filter-chip (active / 기본)</div>
+        <div style="display:flex; gap:8px;">
+          <button class="filter-chip active">전체</button>
+          <button class="filter-chip">블로그</button>
+        </div>
+      </div>
+      <div class="sg-item"><div class="sg-item-label">.channel-btn (active / 기본)</div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="channel-btn active">블로그</button>
+          <button type="button" class="channel-btn">클립</button>
+        </div>
+      </div>
+      <div class="sg-item"><div class="sg-item-label">.day-btn (active / 기본)</div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="day-btn active">월</button>
+          <button type="button" class="day-btn">화</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 스텝 인디케이터 ===================== -->
+  <div class="sg-section">
+    <h2>스텝 인디케이터</h2>
+    <div class="sg-row">
+      <div class="sg-item"><div class="sg-item-label">.step-dots (done / active / 대기)</div>
+        <div class="step-dots">
+          <span class="step-dot done">✓</span>
+          <span class="step-dot-sep"></span>
+          <span class="step-dot active">2</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
