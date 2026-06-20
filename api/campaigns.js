@@ -18,6 +18,7 @@ function toCampaign(row) {
     reporterInstagram: row.reporter_instagram || '',
     reporterUrl: row.reporter_url || '',
     source: row.source || 'unknown',
+    hidden: !!row.hidden,
     createdAt: row.created_at
   };
 }
@@ -26,6 +27,11 @@ module.exports = async function handler(req, res) {
   const db = getDb();
   try {
     await db.execute("ALTER TABLE campaigns ADD COLUMN source TEXT DEFAULT 'unknown'");
+  } catch (e) {
+    // 컬럼이 이미 있으면 무시
+  }
+  try {
+    await db.execute("ALTER TABLE campaigns ADD COLUMN hidden INTEGER DEFAULT 0");
   } catch (e) {
     // 컬럼이 이미 있으면 무시
   }

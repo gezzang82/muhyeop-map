@@ -40,6 +40,7 @@
         <a class="nav-item" onclick="showTab('excel')" id="tab-excel">📂 엑셀 업로드</a>
         <a class="nav-item" onclick="showTab('places')" id="tab-places">📍 장소 목록</a>
         <a class="nav-item" onclick="showTab('banners')" id="tab-banners">📢 이벤트 팝업</a>
+        <a class="nav-item" onclick="showTab('reports')" id="tab-reports">🚩 신고 목록</a>
       </nav>
       <div class="admin-logout" onclick="logout()">🚪 로그아웃</div>
     </aside>
@@ -405,6 +406,21 @@
               </tr>
             </thead>
             <tbody id="bannerTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 신고 목록 -->
+      <div id="page-reports" class="admin-page" style="display:none;">
+        <h1 class="page-title">신고 목록</h1>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>장소명</th><th>캠페인명</th><th>신고이유</th><th>상세내용</th><th>신고일시</th><th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody"></tbody>
           </table>
         </div>
       </div>

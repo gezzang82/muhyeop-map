@@ -135,6 +135,7 @@ function getActiveCampaigns(placeId) {
   const today = getKSTTodayUTC();
   return campaigns.filter(c => {
     if (c.placeId !== placeId) return false;
+    if (c.hidden) return false;
     if (deadlineToUTC(c.deadline) < today) return false;
     if (currentChannelFilter !== '전체' && !(c.channels || []).includes(currentChannelFilter)) return false;
     return true;
@@ -156,7 +157,7 @@ function hasActiveCampaign(placeId) {
 
 function hasPlatformAlready(placeId, platform) {
   const today = getKSTTodayUTC();
-  return campaigns.some(c => c.placeId === placeId && c.platform === platform && deadlineToUTC(c.deadline) >= today);
+  return campaigns.some(c => c.placeId === placeId && !c.hidden && c.platform === platform && deadlineToUTC(c.deadline) >= today);
 }
 
 function getDeadlineText(deadline) {
@@ -911,7 +912,7 @@ const EXISTING_RESULTS_PAGE_SIZE = 10;
 
 function renderActivePlaceCampaigns(placeId) {
   const today = getKSTTodayUTC();
-  const active = campaigns.filter(c => c.placeId === placeId && deadlineToUTC(c.deadline) >= today);
+  const active = campaigns.filter(c => c.placeId === placeId && !c.hidden && deadlineToUTC(c.deadline) >= today);
   if (!active.length) {
     return '<div class="place-campaign-preview"><div class="place-campaign-preview-empty">현재 진행중인 협찬이 없어요. 새 협찬을 등록해주세요.</div></div>';
   }
@@ -1167,6 +1168,100 @@ function closeAbout() {
   if (window.innerWidth > 640 && pcTabActive === 'about') {
     switchPcTab('campaigns');
   }
+}
+
+// ===== 신고 모달 =====
+let reportSelectedCampaignId = null;
+let reportSelectedReason = null;
+
+function openReportModal() {
+  resetReportModal();
+  document.getElementById('reportOverlay').classList.add('open');
+}
+function closeReportModal() {
+  document.getElementById('reportOverlay').classList.remove('open');
+}
+function resetReportModal() {
+  reportSelectedCampaignId = null;
+  reportSelectedReason = null;
+  document.getElementById('reportSearchInput').value = '';
+  document.getElementById('reportResultsList').innerHTML = '';
+  document.getElementById('reportDetail').value = '';
+  document.querySelectorAll('#reportReasonBtns .channel-btn').forEach(b => b.classList.remove('active'));
+  clearFieldError('reportTarget');
+  clearFieldError('reportReason');
+}
+
+function searchReportTarget() {
+  reportSelectedCampaignId = null;
+  clearFieldError('reportTarget');
+  renderReportResults();
+}
+
+function renderReportResults() {
+  const q = document.getElementById('reportSearchInput').value.trim();
+  const listEl = document.getElementById('reportResultsList');
+  if (!q) { listEl.innerHTML = ''; return; }
+
+  const normalize = s => s.replace(/\s/g, '').toLowerCase();
+  const nq = normalize(q);
+  const matches = campaigns.filter(c => {
+    if (c.hidden) return false;
+    const place = places.find(p => p.id === c.placeId);
+    if (!place) return false;
+    return normalize(place.name).includes(nq);
+  });
+
+  if (!matches.length) {
+    listEl.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>';
+    return;
+  }
+
+  listEl.innerHTML = matches.map(c => {
+    const place = places.find(p => p.id === c.placeId);
+    const selected = reportSelectedCampaignId === c.id;
+    return `
+      <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectReportTarget(${c.id})">
+        <div class="place-result-info">
+          <div class="place-result-name">${place.name} · ${c.platform}</div>
+          <div class="place-result-addr">${c.content}</div>
+        </div>
+        <span class="place-result-check ${selected ? 'selected' : ''}">✓</span>
+      </div>`;
+  }).join('');
+}
+
+function selectReportTarget(campaignId) {
+  reportSelectedCampaignId = reportSelectedCampaignId === campaignId ? null : campaignId;
+  clearFieldError('reportTarget');
+  renderReportResults();
+}
+
+function selectReportReason(btn) {
+  document.querySelectorAll('#reportReasonBtns .channel-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  reportSelectedReason = btn.dataset.reason;
+  clearFieldError('reportReason');
+}
+
+function submitReport() {
+  let valid = true;
+  if (!reportSelectedCampaignId) { showFieldError('reportTarget'); valid = false; }
+  if (!reportSelectedReason) { showFieldError('reportReason'); valid = false; }
+  if (!valid) return;
+
+  const detail = document.getElementById('reportDetail').value.trim();
+  fetch('/api/reports', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ campaignId: reportSelectedCampaignId, reason: reportSelectedReason, detail })
+  })
+    .then(res => res.ok ? res.json() : Promise.reject())
+    .then(() => {
+      closeReportModal();
+      showToast('신고가 접수되었어요. 확인 후 처리할게요.');
+    })
+    .catch(() => showToast('신고 접수에 실패했어요. 다시 시도해주세요.'));
 }
 
 // ===== PC 탭 전환 =====
@@ -1540,8 +1635,8 @@ function buildLiveMessagePool() {
     const place = places.find(p => p.id === c.placeId);
     return place ? { nick: c.source === 'user' ? (c.reporterNickname || '익명') : '익명', place: place.name, createdAt: c.createdAt || '' } : null;
   };
-  const userOnes = campaigns.filter(c => c.source === 'user').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  const otherOnes = campaigns.filter(c => c.source !== 'user').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const userOnes = campaigns.filter(c => c.source === 'user' && !c.hidden).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const otherOnes = campaigns.filter(c => c.source !== 'user' && !c.hidden).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   const pool = [...userOnes, ...otherOnes].slice(0, 10).map(withPlace).filter(Boolean);
   // 셔플 (Fisher-Yates) — 매번 같은 순서로 도는 느낌 방지
   for (let i = pool.length - 1; i > 0; i--) {

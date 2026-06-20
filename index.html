@@ -40,6 +40,12 @@
         </svg>
         <span>서비스 소개</span>
       </button>
+      <button class="pc-nav-tab" id="tabReportIssue" onclick="openReportModal()">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M11 6C10.4477 6 10 6.44772 10 7V33C10 33.5523 10.4477 34 11 34C11.5523 34 12 33.5523 12 33V23H29C29.8044 23 30.2773 22.0938 29.832 21.4453L26.668 16.7773C26.5523 16.6055 26.5523 16.3945 26.668 16.2227L29.832 11.5547C30.2773 10.9062 29.8044 10 29 10H12V7C12 6.44772 11.5523 6 11 6Z" fill="currentColor"/>
+        </svg>
+        <span>신고하기</span>
+      </button>
     </div>
   </nav>
 
@@ -165,6 +171,7 @@
       <div class="side-menu-list">
         <button class="side-menu-item" onclick="closeSideMenu(); openModal();">제보하기</button>
         <button class="side-menu-item" onclick="closeSideMenu(); openAbout();">서비스 소개</button>
+        <button class="side-menu-item" onclick="closeSideMenu(); openReportModal();">신고하기</button>
       </div>
       <div class="side-menu-footer">
         <button class="side-menu-footer-link" onclick="closeSideMenu(); openPolicy('terms');">이용약관</button>
@@ -258,6 +265,44 @@
       </div>
       <div class="modal-footer about-footer">
         <button class="btn-next" onclick="closeAbout()" style="width:100%">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 신고 모달 -->
+  <div class="modal-overlay" id="reportOverlay" onclick="closeReportModal()">
+    <div class="modal report-modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2>신고하기</h2>
+        <button class="modal-close" onclick="closeReportModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>신고할 협찬 <span class="required">*</span></label>
+          <div class="addr-row">
+            <input type="text" id="reportSearchInput" placeholder="매장명으로 검색" autocomplete="off" oninput="searchReportTarget()">
+          </div>
+          <div id="reportResultsList" class="place-results-list"></div>
+          <span class="field-error-msg" id="reportTargetError">신고할 협찬을 선택해주세요.</span>
+        </div>
+        <div class="form-group">
+          <label>신고 이유 <span class="required">*</span></label>
+          <div class="channel-btns" id="reportReasonBtns">
+            <button type="button" class="channel-btn" data-reason="허위정보" onclick="selectReportReason(this)">허위정보</button>
+            <button type="button" class="channel-btn" data-reason="마감된 캠페인" onclick="selectReportReason(this)">마감된 캠페인</button>
+            <button type="button" class="channel-btn" data-reason="중복 등록" onclick="selectReportReason(this)">중복 등록</button>
+            <button type="button" class="channel-btn" data-reason="기타" onclick="selectReportReason(this)">기타</button>
+          </div>
+          <span class="field-error-msg" id="reportReasonError">신고 이유를 선택해주세요.</span>
+        </div>
+        <div class="form-group">
+          <label>상세 내용 <span class="hint">(선택)</span></label>
+          <textarea id="reportDetail" placeholder="신고 내용을 자세히 적어주시면 확인에 도움이 돼요." rows="4"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeReportModal()">취소</button>
+        <button class="btn-next" onclick="submitReport()">제출하기</button>
       </div>
     </div>
   </div>

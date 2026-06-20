@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
   reporter_instagram TEXT DEFAULT '',
   reporter_url TEXT DEFAULT '',
   source TEXT DEFAULT 'user',
+  hidden INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -43,3 +44,13 @@ CREATE TABLE IF NOT EXISTS banners (
   end_date TEXT NOT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  campaign_id INTEGER NOT NULL REFERENCES campaigns(id),
+  reason TEXT NOT NULL,
+  detail TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_campaign_id ON reports(campaign_id);

@@ -35,6 +35,7 @@ function showTab(tab) {
   if (tab === 'places') renderPlaceList();
   if (tab === 'add') populatePlaceSelect();
   if (tab === 'banners') renderBannerList();
+  if (tab === 'reports') renderReportList();
 }
 
 // ===== 초기화 =====
@@ -212,6 +213,39 @@ async function submitBanner() {
   document.getElementById('bannerStartDate').value = '';
   document.getElementById('bannerEndDate').value = '';
   renderBannerList();
+}
+
+// ===== 신고 목록 =====
+let reports = [];
+async function renderReportList() {
+  const tbody = document.getElementById('reportTableBody');
+  reports = await (await fetch('/api/reports')).json();
+  tbody.innerHTML = reports.map(r => `<tr>
+      <td class="td-id">${r.id}</td>
+      <td>${r.placeName || '-'}</td>
+      <td>${(r.content || '').slice(0, 20)}</td>
+      <td>${r.reason}</td>
+      <td>${r.detail || '-'}</td>
+      <td>${r.createdAt}</td>
+      <td>
+        <button class="btn-del-sm" onclick="resolveReport(${r.id}, ${r.campaignId}, true)">숨기기</button>
+        <button class="btn-del-sm" onclick="resolveReport(${r.id}, ${r.campaignId}, false)">무시</button>
+      </td>
+    </tr>`).join('') || `<tr><td colspan="7" class="empty-msg">신고 내역 없음</td></tr>`;
+}
+
+async function resolveReport(id, campaignId, hide) {
+  if (hide && !confirm('해당 캠페인을 숨김 처리할까요?')) return;
+  const url = hide ? `/api/reports?id=${id}&hide=true&campaignId=${campaignId}` : `/api/reports?id=${id}`;
+  await fetch(url, { method: 'DELETE' });
+  const idx = reports.findIndex(r => r.id === id);
+  if (idx > -1) reports.splice(idx, 1);
+  if (hide) {
+    const c = campaigns.find(c => c.id === campaignId);
+    if (c) c.hidden = true;
+  }
+  adminToast(hide ? '캠페인을 숨김 처리했어요.' : '신고를 무시했어요.');
+  renderReportList();
 }
 
 // ===== 캠페인 등록 =====
