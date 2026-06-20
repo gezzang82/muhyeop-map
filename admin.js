@@ -483,6 +483,7 @@ function processExcelFile(file) {
 const EXCEL_CATEGORY_OPTIONS = ['음식점','카페','뷰티','숙박/여가','문화','의류','안경/잡화','기타'];
 const EXCEL_PLATFORM_OPTIONS = ['레뷰','리뷰노트','디너의여왕','서울오빠','리뷰플레이스','포블로그','링블','미블','강남맛집체험단','체험뷰','기타'];
 const EXCEL_CHANNEL_OPTIONS = ['블로그','클립','인스타그램','유튜브'];
+const EXCEL_DAY_OPTIONS = ['월','화','수','목','금','토','일'];
 
 function updateExcelCategory(idx, value) {
   parsedRows[idx][2] = value;
@@ -498,6 +499,16 @@ function toggleExcelChannel(idx, channel, checked) {
     chans = chans.filter(c => c !== channel);
   }
   parsedRows[idx][4] = chans.join(',');
+}
+function toggleExcelDay(idx, day, checked) {
+  const current = String(parsedRows[idx][8] || '').trim();
+  let days = current ? current.split(',').map(s => s.trim()).filter(Boolean) : EXCEL_DAY_OPTIONS.slice();
+  if (checked) {
+    if (!days.includes(day)) days.push(day);
+  } else {
+    days = days.filter(d => d !== day);
+  }
+  parsedRows[idx][8] = days.join(',');
 }
 
 function renderExcelPreview(headers, rows) {
@@ -522,6 +533,15 @@ function renderExcelPreview(headers, rows) {
         return `<td><div class="excel-cell-channels">` +
           EXCEL_CHANNEL_OPTIONS.map(opt =>
             `<label class="excel-channel-chip"><input type="checkbox" ${selected.includes(opt) ? 'checked' : ''} onchange="toggleExcelChannel(${idx}, '${opt}', this.checked)">${opt}</label>`
+          ).join('') +
+          `</div></td>`;
+      }
+      if (colIdx === 8) {
+        const raw = String(v).trim();
+        const selected = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : EXCEL_DAY_OPTIONS.slice();
+        return `<td><div class="excel-cell-channels">` +
+          EXCEL_DAY_OPTIONS.map(opt =>
+            `<label class="excel-channel-chip"><input type="checkbox" ${selected.includes(opt) ? 'checked' : ''} onchange="toggleExcelDay(${idx}, '${opt}', this.checked)">${opt}</label>`
           ).join('') +
           `</div></td>`;
       }
