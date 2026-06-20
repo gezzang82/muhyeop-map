@@ -382,6 +382,9 @@ body.pc-reportissue-mode #reportOverlay .modal-sticky-header,
 body.pc-reportissue-mode #reportOverlay .modal-scroll-header {
   display: none !important;
 }
+body.pc-reportissue-mode #reportOverlay .modal-body {
+  padding-top: 16px !important;
+}
 body.pc-reportissue-mode #reportOverlay .modal-header h2 {
   font-size: 18px !important;
   font-weight: 600 !important;
