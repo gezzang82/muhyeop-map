@@ -149,7 +149,8 @@ body {
   flex-wrap: nowrap;
   box-sizing: border-box;
   width: calc(100% + 20px);
-  padding-right: 20px;
+  padding: 6px 20px 10px 0;
+  margin: -6px 0 -10px;
 }
 .pc-chips-row::-webkit-scrollbar { display: none; }
 
@@ -1537,6 +1538,8 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   -webkit-overflow-scrolling: touch;
   min-width: 0;
   width: 100%;
+  padding: 6px 0 10px;
+  margin: -6px 0 -10px;
 }
 .mobile-chips-row::-webkit-scrollbar { display: none; }
 .mobile-chips-row .filter-chip {

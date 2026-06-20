@@ -1498,6 +1498,7 @@ async function submitCampaign() {
     })
   }).then(r => r.json());
   campaigns.push(newCampaign);
+  updateStatCount();
 
   closeModal();
   renderAll();
@@ -1872,12 +1873,16 @@ function bindClearBtn(btn, input) {
   });
 }
 
+function updateStatCount() {
+  const statCountEl = document.getElementById('pcStatCount');
+  if (statCountEl) statCountEl.textContent = campaigns.length.toLocaleString();
+}
+
 document.addEventListener('DOMContentLoaded', setupClearButtons);
 window.addEventListener('load', async function() {
   await loadInitialData();
   if (!document.getElementById('map')) return;
-  const statCountEl = document.getElementById('pcStatCount');
-  if (statCountEl) statCountEl.textContent = campaigns.length.toLocaleString();
+  updateStatCount();
   initMap();
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   startLiveAlerts();
