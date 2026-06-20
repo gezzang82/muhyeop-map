@@ -450,15 +450,31 @@ function handleFileSelect(e) {
   if (file) processExcelFile(file);
 }
 
+function normalizeDeadline(value) {
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const str = String(value || '').trim();
+  const m = str.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})$/);
+  if (m) {
+    return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  }
+  return str;
+}
+
 function processExcelFile(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
-    const wb = XLSX.read(e.target.result, { type: 'binary' });
+    const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
     if (data.length < 2) { adminToast('데이터가 없어요'); return; }
     const headers = data[0];
     parsedRows = data.slice(1).filter(row => row.some(v => v !== ''));
+    parsedRows.forEach(row => { row[6] = normalizeDeadline(row[6]); });
     renderExcelPreview(headers, parsedRows);
   };
   reader.readAsBinaryString(file);
@@ -528,13 +544,19 @@ function geocodeAddress(addr) {
 }
 
 async function importExcelData() {
+  const btn = document.getElementById('excelImportBtn');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = '가져오는 중...';
+
   let added = 0, skipped = 0;
   for (const row of parsedRows) {
     const [name, address, category, platform, channelRaw, content, deadline, hours, daysRaw, excludeHolidayRaw] = row;
     if (!name || !address || !platform || !content || !deadline) { skipped++; continue; }
 
     const channels = String(channelRaw).split(',').map(s => s.trim()).filter(Boolean);
-    const operatingDays = String(daysRaw || '').split(',').map(s => s.trim()).filter(Boolean);
+    const daysParsed = String(daysRaw || '').split(',').map(s => s.trim()).filter(Boolean);
+    const operatingDays = daysParsed.length ? daysParsed : ['월','화','수','목','금','토','일'];
     const excludeHoliday = String(excludeHolidayRaw || '').trim().toUpperCase() === 'Y';
 
     // 기존 장소 or 신규
@@ -564,6 +586,8 @@ async function importExcelData() {
     added++;
   }
   adminToast(`✅ ${added}개 등록 완료${skipped ? ` (${skipped}개 건너뜀)` : ''}`);
+  btn.disabled = false;
+  btn.textContent = '✅ 전체 가져오기';
   resetExcel();
   renderDashboard();
 }
