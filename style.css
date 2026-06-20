@@ -695,11 +695,12 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   display: flex; border-top: 1px solid #eee;
 }
 .banner-popup-btn {
-  flex: 1; padding: 14px 0; border: none; background: #fff;
+  flex: 1; padding: 14px 16px; border: none; background: #fff;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px; color: #555; cursor: pointer;
 }
-.banner-popup-btn:first-child { border-right: 1px solid #eee; }
+.banner-popup-btn:first-child { border-right: 1px solid #eee; text-align: left; }
+.banner-popup-btn:last-child { text-align: right; }
 .banner-popup-btn:hover { background: #f9f9f9; }
 @media (max-width: 640px) {
   .banner-popup-overlay { align-items: flex-end; }
