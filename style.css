@@ -214,8 +214,8 @@ body.pc-report-mode .modal-footer {
 }
 
 body.pc-report-mode .modal-header {
-  padding: 32px 20px 20px !important;
-  align-items: center !important;
+  padding: 37px 20px 20px !important;
+  align-items: flex-start !important;
 }
 body.pc-report-mode .modal-header h2 {
   font-size: 18px !important;
