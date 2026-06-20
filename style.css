@@ -706,7 +706,7 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
 }
 .banner-popup-btn:first-child { text-align: left; }
 .banner-popup-btn:last-child { text-align: right; }
-.banner-popup-btn:hover { background: #f9f9f9; }
+.banner-popup-btn:hover { color: #000; }
 @media (max-width: 640px) {
   .banner-popup-overlay { align-items: flex-end; }
   .banner-popup {
