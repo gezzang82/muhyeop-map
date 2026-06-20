@@ -378,6 +378,10 @@ body.pc-reportissue-mode #reportOverlay .modal-header {
   padding: 37px 20px 20px !important;
   align-items: flex-start !important;
 }
+body.pc-reportissue-mode #reportOverlay .modal-sticky-header,
+body.pc-reportissue-mode #reportOverlay .modal-scroll-header {
+  display: none !important;
+}
 body.pc-reportissue-mode #reportOverlay .modal-header h2 {
   font-size: 18px !important;
   font-weight: 600 !important;
@@ -1177,14 +1181,16 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 .selected-place-badge .badge-text strong { color: #000; font-weight: 600; }
 
-/* step2 스크롤 헤더 (body 안에서 같이 스크롤됨) */
+/* 모바일 공통: 모달 body 안에서 같이 스크롤되는 타이틀 헤더 (스크롤 시 sticky 헤더로 대체됨) */
 .step1-scroll-header,
-.step2-scroll-header {
+.step2-scroll-header,
+.modal-scroll-header {
   display: flex; justify-content: space-between; align-items: center;
   flex-shrink: 0;
 }
 .step1-scroll-header h2,
-.step2-scroll-header h2 {
+.step2-scroll-header h2,
+.modal-scroll-header h2 {
   font-size: 26px; font-weight: 500; color: #000;
   letter-spacing: -0.52px; line-height: normal;
 }
@@ -1891,9 +1897,6 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
   /* 모달 */
   .modal-header h2 { font-size: 18px; }
-  /* 신고하기: 제보하기 타이틀(step1-scroll-header)과 위치/크기 통일 */
-  #reportOverlay .modal-header { padding: 24px 20px 0; }
-  #reportOverlay .modal-header h2 { font-size: 26px; }
   .custom-select-trigger { font-size: 16px; }
   .form-group label { font-size: 14px; }
   .step-indicator .step { font-size: 13px; }

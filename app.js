@@ -1181,6 +1181,8 @@ function openReportModal() {
     return;
   }
   resetReportModal();
+  syncMobileModalHeader('#reportOverlay');
+  bindMobileScrollHeader('reportBody', 'reportScrollHeader', 'reportStickyHeader');
   document.getElementById('reportOverlay').classList.add('open');
 }
 function closeReportModal() {
@@ -1200,6 +1202,33 @@ function resetReportModal() {
   clearFieldError('reportTarget');
   clearFieldError('reportReason');
   document.querySelectorAll('#reportOverlay .btn-input-clear').forEach(b => b.classList.remove('show'));
+  document.getElementById('reportStickyHeader').classList.remove('show');
+  const reportBody = document.getElementById('reportBody');
+  if (reportBody) reportBody.scrollTop = 0;
+}
+
+// 모바일 공통: 모달 body 스크롤 시 .modal-scroll-header가 사라지면 sticky 헤더 노출
+function bindMobileScrollHeader(bodyId, scrollHeaderId, stickyHeaderId) {
+  const body = document.getElementById(bodyId);
+  const scrollHeader = document.getElementById(scrollHeaderId);
+  const stickyHeader = document.getElementById(stickyHeaderId);
+  if (!body || !scrollHeader || !stickyHeader) return;
+  const handler = () => {
+    if (window.innerWidth > 640) return;
+    const threshold = scrollHeader.offsetTop + scrollHeader.offsetHeight;
+    stickyHeader.classList.toggle('show', body.scrollTop > threshold);
+  };
+  if (body._mobileScrollHeaderHandler) {
+    body.removeEventListener('scroll', body._mobileScrollHeaderHandler);
+  }
+  body._mobileScrollHeaderHandler = handler;
+  body.addEventListener('scroll', handler, { passive: true });
+}
+
+// 모바일 공통: 정적 .modal-header는 모바일에서 숨기고 .modal-scroll-header로 대체
+function syncMobileModalHeader(modalSelector) {
+  const mh = document.querySelector(modalSelector + ' .modal-header');
+  if (mh) mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
 }
 
 function searchReportTarget() {
