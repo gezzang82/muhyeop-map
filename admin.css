@@ -81,7 +81,7 @@ body { font-family: 'Noto Sans KR', -apple-system, sans-serif; background: #f4f5
 
 /* ===== 대시보드 ===== */
 .stat-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
   margin-bottom: 24px;
 }
 .stat-card {

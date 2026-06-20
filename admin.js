@@ -54,6 +54,10 @@ function renderDashboard() {
   document.getElementById('statActive').textContent = active.length;
   document.getElementById('statExpired').textContent = expired.length;
 
+  const userReported = campaigns.filter(c => c.source === 'user').length;
+  const statUserEl = document.getElementById('statUserReported');
+  if (statUserEl) statUserEl.textContent = userReported;
+
   // 플랫폼별
   const platformCount = {};
   active.forEach(c => { platformCount[c.platform] = (platformCount[c.platform] || 0) + 1; });
@@ -123,13 +127,14 @@ function renderCampaignList() {
       <td>${c.deadline}</td>
       <td>${c.reporterNickname || '-'}</td>
       <td>${c.reporterEmail || '-'}</td>
+      <td>${c.source === 'user' ? '<span class="badge-status active">유저</span>' : c.source === 'admin' ? '<span class="badge-status expired">어드민</span>' : '-'}</td>
       <td><span class="badge-status ${isActive?'active':'expired'}">${isActive?'모집 중':'마감'}</span></td>
       <td>
         <button class="btn-edit-sm" onclick="editCampaign(${c.id})">수정</button>
         <button class="btn-del-sm" onclick="confirmDelete('campaign', ${c.id})">삭제</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="10" class="empty-msg">해당하는 캠페인 없음</td></tr>`;
+  }).join('') || `<tr><td colspan="11" class="empty-msg">해당하는 캠페인 없음</td></tr>`;
 }
 
 // ===== 장소 목록 =====
@@ -270,7 +275,7 @@ async function submitAdminCampaign() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       placeId, platform, channels, content, deadline, link: '',
-      operatingDays: days, operatingHours: hours, excludeHoliday
+      operatingDays: days, operatingHours: hours, excludeHoliday, source: 'admin'
     })
   });
   const campaign = await res.json();
@@ -453,7 +458,7 @@ async function importExcelData() {
       body: JSON.stringify({
         placeId: place.id, platform: String(platform), channels,
         content: String(content), deadline: String(deadline), link: '',
-        operatingDays: [], operatingHours: String(hours) || ''
+        operatingDays: [], operatingHours: String(hours) || '', source: 'admin'
       })
     });
     campaigns.push(await res.json());

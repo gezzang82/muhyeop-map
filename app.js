@@ -1494,7 +1494,7 @@ async function submitCampaign() {
       operatingDays: [...document.querySelectorAll('.day-btn.active')].map(b => b.textContent),
       excludeHoliday: document.getElementById('holidayExclude')?.classList.contains('active') ?? false,
       operatingHours: document.getElementById('inputHours').value.trim(),
-      reporterNickname, reporterEmail, reporterUrl
+      reporterNickname, reporterEmail, reporterUrl, source: 'user'
     })
   }).then(r => r.json());
   campaigns.push(newCampaign);

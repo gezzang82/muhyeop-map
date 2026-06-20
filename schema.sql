@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
   reporter_blog TEXT DEFAULT '',
   reporter_instagram TEXT DEFAULT '',
   reporter_url TEXT DEFAULT '',
+  source TEXT DEFAULT 'user',
   created_at TEXT DEFAULT (datetime('now'))
 );
 
