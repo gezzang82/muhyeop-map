@@ -1039,8 +1039,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
 /* 매장 검색 결과 (통합) */
 .place-results-list { margin-top: 8px; }
-#reportResultsList:empty { display: none; }
-#reportResultsList:not(:empty) { margin-top: -16px; }
+.place-results-list:empty { display: none; }
+.place-results-list:not(:empty) { margin-top: -16px; }
 .place-result-item {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 16px 4px;
