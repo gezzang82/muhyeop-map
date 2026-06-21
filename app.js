@@ -127,6 +127,7 @@ function getKSTTodayUTC() {
   return Date.UTC(y, m - 1, d);
 }
 function deadlineToUTC(deadline) {
+  if (!deadline) return Infinity;
   const [y, m, d] = deadline.split('-').map(Number);
   return Date.UTC(y, m - 1, d);
 }
@@ -486,8 +487,6 @@ function createInfoContent(place) {
 
   const campaignsHtml = active.length > 0
     ? active.map((c, i) => {
-        const dl = getDeadlineText(c.deadline);
-        const ddayHtml = dl ? `<span class="iw-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : '';
         const color = getPlatformColor(c.platform);
 
         let daysHtml = '';
@@ -537,11 +536,10 @@ function createInfoContent(place) {
               <div style="flex:1;min-width:0;">
                 <span class="iw-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
               </div>
-              ${ddayHtml}
+              <span class="iw-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>
             </div>
             <p class="iw-content">${c.content}</p>
             <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
-            <div class="iw-report-row"><span class="iw-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span></div>
           </div>`;
       }).join('')
     : '<div class="iw-empty">현재 모집 중인 캠페인이 없어요</div>';
@@ -595,8 +593,6 @@ function createMobileDetailContent(place) {
   const WEEKEND = new Set(['토','일']);
 
   const campaignsHtml = active.map((c, i) => {
-    const dl = getDeadlineText(c.deadline);
-    const ddayHtml = dl ? `<span class="detail-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : '';
     const color = getPlatformColor(c.platform);
 
     // 요일 렌더
@@ -649,11 +645,10 @@ function createMobileDetailContent(place) {
           <div class="detail-campaign-tag-wrap">
             <span class="detail-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
           </div>
-          ${ddayHtml}
+          <span class="detail-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>
         </div>
         <p class="detail-content">${c.content}</p>
         <div class="detail-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
-        <div class="detail-report-row"><span class="detail-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span></div>
       </div>`;
   }).join('');
 

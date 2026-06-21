@@ -47,14 +47,14 @@ module.exports = async function handler(req, res) {
       operatingDays, operatingHours, excludeHoliday,
       reporterNickname, reporterEmail, reporterBlog, reporterInstagram, reporterUrl, source
     } = req.body || {};
-    if (!placeId || !platform || !content || !deadline || !channels?.length) {
-      return res.status(400).json({ error: 'placeId, platform, content, deadline, channels는 필수입니다.' });
+    if (!placeId || !platform || !content || !channels?.length) {
+      return res.status(400).json({ error: 'placeId, platform, content, channels는 필수입니다.' });
     }
     const result = await db.execute({
       sql: `INSERT INTO campaigns (place_id, platform, channels, content, deadline, link, operating_days, operating_hours, exclude_holiday, reporter_nickname, reporter_email, reporter_blog, reporter_instagram, reporter_url, source)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
-        placeId, platform, JSON.stringify(channels || []), content, deadline, link || '',
+        placeId, platform, JSON.stringify(channels || []), content, deadline || '', link || '',
         JSON.stringify(operatingDays || []), operatingHours || '', excludeHoliday ? 1 : 0,
         reporterNickname || '', reporterEmail || '', reporterBlog || '', reporterInstagram || '', reporterUrl || '',
         source === 'admin' ? 'admin' : 'user'
@@ -62,7 +62,7 @@ module.exports = async function handler(req, res) {
     });
     const id = Number(result.lastInsertRowid);
     return res.status(201).json({
-      id, placeId, platform, channels: channels || [], content, deadline, link: link || '',
+      id, placeId, platform, channels: channels || [], content, deadline: deadline || '', link: link || '',
       operatingDays: operatingDays || [], operatingHours: operatingHours || '', excludeHoliday: !!excludeHoliday,
       reporterNickname: reporterNickname || '', reporterEmail: reporterEmail || '',
       reporterBlog: reporterBlog || '', reporterInstagram: reporterInstagram || '', reporterUrl: reporterUrl || '',
@@ -84,11 +84,11 @@ module.exports = async function handler(req, res) {
       sql: `UPDATE campaigns SET platform = ?, channels = ?, content = ?, deadline = ?, link = ?,
             operating_days = ?, operating_hours = ?, exclude_holiday = ? WHERE id = ?`,
       args: [
-        platform, JSON.stringify(channels || []), content, deadline, link || '',
+        platform, JSON.stringify(channels || []), content, deadline || '', link || '',
         JSON.stringify(operatingDays || []), operatingHours || '', excludeHoliday ? 1 : 0, id
       ]
     });
-    return res.status(200).json({ id, platform, channels: channels || [], content, deadline, link: link || '', operatingDays: operatingDays || [], operatingHours: operatingHours || '', excludeHoliday: !!excludeHoliday });
+    return res.status(200).json({ id, platform, channels: channels || [], content, deadline: deadline || '', link: link || '', operatingDays: operatingDays || [], operatingHours: operatingHours || '', excludeHoliday: !!excludeHoliday });
   }
 
   if (req.method === 'DELETE') {

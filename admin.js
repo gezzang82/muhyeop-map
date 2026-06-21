@@ -504,8 +504,8 @@ async function submitAdminCampaign() {
   const hours = document.getElementById('addHours').value.trim();
   const days = [...document.querySelectorAll('.day-item.on')].map(el => el.textContent.trim());
 
-  if (!platform || !channels.length || !content || !deadline) {
-    adminToast('플랫폼, 채널, 협찬내용, 마감일은 필수예요!'); return;
+  if (!platform || !channels.length || !content) {
+    adminToast('플랫폼, 채널, 협찬내용은 필수예요!'); return;
   }
 
   let placeId;
@@ -812,7 +812,7 @@ async function importExcelData() {
   let added = 0, skipped = 0;
   for (const row of parsedRows) {
     const [name, address, category, platform, channelRaw, content, deadline, hours, daysRaw, excludeHolidayRaw] = row;
-    if (!name || !address || !platform || !content || !deadline) { skipped++; continue; }
+    if (!name || !address || !platform || !content) { skipped++; continue; }
 
     const channels = String(channelRaw).split(',').map(s => s.trim()).filter(Boolean);
     const daysParsed = String(daysRaw || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -838,7 +838,7 @@ async function importExcelData() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         placeId: place.id, platform: String(platform), channels,
-        content: String(content), deadline: String(deadline), link: '',
+        content: String(content), deadline: deadline ? String(deadline) : '', link: '',
         operatingDays, operatingHours: String(hours) || '', excludeHoliday, source: 'admin'
       })
     });
