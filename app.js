@@ -1060,6 +1060,13 @@ function selectExistingPlace(placeId) {
   renderPlaceResults();
 }
 
+function isSimilarPlaceName(a, b) {
+  const na = String(a || '').replace(/\s/g, '').toLowerCase();
+  const nb = String(b || '').replace(/\s/g, '').toLowerCase();
+  if (!na || !nb) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
 function selectNaverPlace(index, name, address) {
   const key = `naver:${index}`;
 
@@ -1084,11 +1091,13 @@ function selectNaverPlace(index, name, address) {
     const finalAddr = item.roadAddress || item.jibunAddress;
     const lat = parseFloat(item.y), lng = parseFloat(item.x);
 
-    // 가까운 좌표에 이미 등록된 장소 확인 (50m 이내)
+    // 가까운 좌표(50m 이내) + 매장명까지 비슷해야 같은 장소로 판단
+    // (코엑스/백화점처럼 한 건물에 여러 매장이 있으면 주소 geocoding이 건물 단위로 뭉쳐서 좌표만으론 구분 불가)
     const sameAddr = places.find(p => {
       const dLat = (p.lat - lat) * 111000;
       const dLng = (p.lng - lng) * 88000;
-      return Math.sqrt(dLat * dLat + dLng * dLng) < 50;
+      const closeEnough = Math.sqrt(dLat * dLat + dLng * dLng) < 50;
+      return closeEnough && isSimilarPlaceName(p.name, name);
     });
     if (sameAddr) {
       selectExistingPlace(sameAddr.id);
