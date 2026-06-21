@@ -163,16 +163,6 @@ function hasPlatformAlready(placeId, platform) {
   return campaigns.some(c => c.placeId === placeId && !c.hidden && c.platform === platform && deadlineToUTC(c.deadline) >= today);
 }
 
-function getDeadlineText(deadline) {
-  if (!deadline) return null;
-  const today = getKSTTodayUTC();
-  const diff = Math.round((deadlineToUTC(deadline) - today) / 86400000);
-  if (diff < 0) return null;
-  if (diff === 0) return { text: 'D-DAY', urgent: true };
-  if (diff <= 2) return { text: `D-${diff}`, urgent: true };
-  return { text: `D-${diff}`, urgent: false };
-}
-
 // ===== 날짜 셀렉트 초기화 =====
 function initDateSelects() {
   const { y, m, d } = getKSTDateParts();
@@ -688,10 +678,10 @@ function renderSidebar() {
     ? places.filter(p => bounds.hasLatLng(new naver.maps.LatLng(p.lat, p.lng)))
     : places;
 
-  const earliestDeadline = p => getActiveCampaigns(p.id).reduce((min, c) => new Date(c.deadline) < new Date(min.deadline) ? c : min).deadline;
+  const earliestDeadlineUTC = p => Math.min(...getActiveCampaigns(p.id).map(c => deadlineToUTC(c.deadline)));
   const activePlaces = visiblePlaces
     .filter(p => hasActiveCampaign(p.id))
-    .sort((a, b) => new Date(earliestDeadline(a)) - new Date(earliestDeadline(b)));
+    .sort((a, b) => earliestDeadlineUTC(a) - earliestDeadlineUTC(b));
   countEl.textContent = activePlaces.length;
 
   if (activePlaces.length === 0) {
@@ -706,8 +696,6 @@ function renderSidebar() {
 
   list.innerHTML = activePlaces.map(place => {
     const active = getActiveCampaigns(place.id);
-    const earliest = active.reduce((min, c) => new Date(c.deadline) < new Date(min.deadline) ? c : min);
-    const dl = getDeadlineText(earliest.deadline);
 
     // 채널 아이콘 (중복 제거)
     const channels = [...new Set(active.flatMap(c => c.channels))];
@@ -730,7 +718,6 @@ function renderSidebar() {
         <div class="sb-row-name">
           <span class="sb-name">${place.name}</span>
           <div class="sb-channels">${channelIconsHtml}</div>
-          ${dl ? `<span class="sb-deadline ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : ''}
         </div>
         <div class="sb-address">${place.address}</div>
         ${campaignsHtml}
@@ -964,13 +951,11 @@ function renderActivePlaceCampaigns(placeId) {
     return '<div class="place-campaign-preview"><div class="place-campaign-preview-empty">현재 진행중인 협찬이 없어요. 새 협찬을 등록해주세요.</div></div>';
   }
   const itemsHtml = active.map(c => {
-    const dl = getDeadlineText(c.deadline);
     const color = getPlatformColor(c.platform);
     return `
       <div class="place-campaign-preview-item">
         <span class="place-campaign-tag" style="background:${color}29;color:${color}">${c.platform}</span>
         <span class="place-campaign-content">${c.content}</span>
-        ${dl ? `<span class="place-campaign-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : ''}
       </div>`;
   }).join('');
   return `
