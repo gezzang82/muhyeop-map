@@ -1644,7 +1644,7 @@ async function submitCampaign() {
   const channels = [...document.querySelectorAll('.channel-btn.active')].map(b => b.dataset.channel);
   const platform = document.getElementById('inputPlatform').value;
   const content = document.getElementById('inputContent').value.trim();
-  const deadline = getSelectedDeadline();
+  const deadline = '';
   const link = '';
 
   const category = document.getElementById('inputCategory').value;
