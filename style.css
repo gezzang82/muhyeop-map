@@ -713,6 +713,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .iw-dday.urgent { background: #e82a2d; color: white; }
 .iw-content { font-size: 15px; color: #000; line-height: normal; }
 .iw-info-rows { display: flex; flex-direction: column; }
+.iw-report-row { display: flex; justify-content: flex-end; margin-top: 4px; }
+.iw-report-btn { font-size: 12px; color: #999; text-decoration: underline; cursor: pointer; }
 .iw-info-row { display: flex; align-items: flex-start; gap: 8px; min-height: 26px; }
 .iw-info-label-group { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .iw-info-label { font-size: 14px; color: #777; flex-shrink: 0; }
@@ -1423,6 +1425,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   .detail-content { font-size: 15px; font-weight: 400; color: #000; line-height: normal; }
 
   .detail-info-rows { display: flex; flex-direction: column; }
+  .detail-report-row { display: flex; justify-content: flex-end; margin-top: 4px; }
+  .detail-report-btn { font-size: 12px; color: #999; text-decoration: underline; cursor: pointer; }
   .detail-info-row { display: flex; align-items: flex-start; gap: 8px; min-height: 26px; }
   .detail-info-label-group { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .detail-info-icon { flex-shrink: 0; }

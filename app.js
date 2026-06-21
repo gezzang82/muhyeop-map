@@ -541,6 +541,7 @@ function createInfoContent(place) {
             </div>
             <p class="iw-content">${c.content}</p>
             <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
+            <div class="iw-report-row"><span class="iw-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span></div>
           </div>`;
       }).join('')
     : '<div class="iw-empty">현재 모집 중인 캠페인이 없어요</div>';
@@ -652,6 +653,7 @@ function createMobileDetailContent(place) {
         </div>
         <p class="detail-content">${c.content}</p>
         <div class="detail-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
+        <div class="detail-report-row"><span class="detail-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span></div>
       </div>`;
   }).join('');
 
@@ -1253,6 +1255,16 @@ function openReportModal() {
   syncMobileModalHeader('#reportOverlay');
   bindMobileScrollHeader('reportBody', 'reportScrollHeader', 'reportStickyHeader');
   document.getElementById('reportOverlay').classList.add('open');
+}
+function openReportModalForCampaign(campaignId) {
+  const c = campaigns.find(c => c.id === campaignId);
+  const place = c ? places.find(p => p.id === c.placeId) : null;
+  openReportModal();
+  if (c && place) {
+    reportSelectedCampaignId = campaignId;
+    document.getElementById('reportSearchInput').value = place.name;
+    renderReportResults();
+  }
 }
 function closeReportModal() {
   document.getElementById('reportOverlay').classList.remove('open');
