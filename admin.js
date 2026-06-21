@@ -85,7 +85,7 @@ function renderDashboard() {
   // 채널별
   const channelCount = {};
   active.forEach(c => (c.channels||[]).forEach(ch => { channelCount[ch] = (channelCount[ch]||0)+1; }));
-  const chIcons = { '블로그':'📝','클립':'🎬','인스타그램':'📸' };
+  const chIcons = { '블로그':'📝','클립':'🎬','인스타그램':'📸','릴스':'🎞️','유튜브':'🎥' };
   document.getElementById('channelStats').innerHTML = Object.entries(channelCount)
     .sort((a,b) => b[1]-a[1])
     .map(([ch,n]) => `
@@ -357,7 +357,7 @@ function searchAdminAddress() {
 async function submitAdminCampaign() {
   const selectedPlaceId = document.getElementById('addPlaceSelect').value;
   const platform = document.getElementById('addPlatform').value;
-  const channels = ['블로그','클립','인스타그램','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
+  const channels = ['블로그','클립','인스타그램','릴스','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
   const content = document.getElementById('addContent').value.trim();
   const link = document.getElementById('addLink').value.trim();
   const deadline = document.getElementById('addDeadline').value;
@@ -416,7 +416,7 @@ function resetAddForm() {
   document.getElementById('addPlatform').value = '';
   document.getElementById('addCategory').value = '';
   document.getElementById('addDeadline').value = '';
-  ['블로그','클립','인스타그램','유튜브'].forEach(ch => {
+  ['블로그','클립','인스타그램','릴스','유튜브'].forEach(ch => {
     const el = document.getElementById(`ach_${ch}`); if(el) el.checked = false;
   });
   document.querySelectorAll('.day-item').forEach(d => d.classList.remove('on'));
@@ -492,7 +492,7 @@ function editCampaign(id) {
     btn.textContent = '✅ 수정 완료';
     btn.onclick = async () => {
       c.platform = document.getElementById('addPlatform').value;
-      c.channels = ['블로그','클립','인스타그램','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
+      c.channels = ['블로그','클립','인스타그램','릴스','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
       c.content = document.getElementById('addContent').value.trim();
       c.link = document.getElementById('addLink').value.trim();
       c.deadline = document.getElementById('addDeadline').value;
@@ -563,7 +563,7 @@ function processExcelFile(file) {
 
 const EXCEL_CATEGORY_OPTIONS = ['음식점','카페','뷰티','숙박/여가','문화','의류','안경/잡화','기타'];
 const EXCEL_PLATFORM_OPTIONS = ['레뷰','리뷰노트','디너의여왕','서울오빠','리뷰플레이스','포블로그','링블','미블','강남맛집체험단','체험뷰','기타'];
-const EXCEL_CHANNEL_OPTIONS = ['블로그','클립','인스타그램','유튜브'];
+const EXCEL_CHANNEL_OPTIONS = ['블로그','클립','인스타그램','릴스','유튜브'];
 const EXCEL_DAY_OPTIONS = ['월','화','수','목','금','토','일'];
 
 function updateExcelCategory(idx, value) {

@@ -14,7 +14,7 @@
 <body>
 
   <!-- 검색 입력 (JS에서 참조, PC 위치 미정) -->
-  <input type="text" id="regionSearch" style="display:none" onkeydown="if(event.key==='Enter') searchRegion()">
+  <input type="text" id="regionSearch" style="display:none" onkeydown="if(event.key==='Enter' && !event.isComposing) searchRegion()">
 
   <!-- PC 네브바 (모바일에서 숨김) -->
   <nav class="pc-nav">
@@ -89,7 +89,7 @@
       <div class="pc-map-top-row1">
         <div class="pc-search-wrap" onclick="event.stopPropagation(); document.getElementById('regionSearchPC').focus()">
           <svg class="pc-search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11 2.5C15.9706 2.5 20 6.52944 20 11.5C20 13.3146 19.4609 15.0025 18.5371 16.416L21.7178 19.5967C22.3032 20.1825 22.3034 21.1321 21.7178 21.7178C21.1321 22.3034 20.1825 22.3032 19.5967 21.7178L16.5 18.6211C14.9788 19.7977 13.072 20.5 11 20.5C6.02944 20.5 2 16.4706 2 11.5C2 6.52944 6.02944 2.5 11 2.5ZM11 5.5C7.68629 5.5 5 8.18629 5 11.5C5 14.8137 7.68629 17.5 11 17.5C14.3137 17.5 17 14.8137 17 11.5C17 8.18629 14.3137 5.5 11 5.5Z" fill="currentColor"/></svg>
-          <input type="text" id="regionSearchPC" placeholder="지역, 매장명, 역명으로 검색" autocomplete="off" onkeydown="if(event.key==='Enter') searchRegionPC()">
+          <input type="text" id="regionSearchPC" placeholder="지역, 매장명, 역명으로 검색" autocomplete="off" onkeydown="if(event.key==='Enter' && !event.isComposing) searchRegionPC()">
         </div>
         <div class="pc-stat-pill">
           <div class="pc-stat-label">
@@ -107,6 +107,7 @@
         <button class="filter-chip" data-channel="블로그" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="20" height="20">블로그</button>
         <button class="filter-chip" data-channel="클립" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="20" height="20">클립</button>
         <button class="filter-chip" data-channel="인스타그램" onclick="filterChannel('인스타그램')"><img src="image/ic_instagram_20.png" width="20" height="20">인스타</button>
+        <button class="filter-chip" data-channel="릴스" onclick="filterChannel('릴스')"><img src="image/ic_reels_20.png" width="20" height="20">릴스</button>
         <button class="filter-chip" data-channel="유튜브" onclick="filterChannel('유튜브')"><img src="image/ic_youtube_20.png" width="20" height="20">유튜브</button>
       </div>
     </div>
@@ -122,7 +123,7 @@
       <div class="mobile-row1">
         <div class="mobile-header-search">
           <svg class="mobile-search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11 2.5C15.9706 2.5 20 6.52944 20 11.5C20 13.3146 19.4609 15.0025 18.5371 16.416L21.7178 19.5967C22.3032 20.1825 22.3034 21.1321 21.7178 21.7178C21.1321 22.3034 20.1825 22.3032 19.5967 21.7178L16.5 18.6211C14.9788 19.7977 13.072 20.5 11 20.5C6.02944 20.5 2 16.4706 2 11.5C2 6.52944 6.02944 2.5 11 2.5ZM11 5.5C7.68629 5.5 5 8.18629 5 11.5C5 14.8137 7.68629 17.5 11 17.5C14.3137 17.5 17 14.8137 17 11.5C17 8.18629 14.3137 5.5 11 5.5Z" fill="currentColor"/></svg>
-          <input type="text" id="regionSearchMobileOverlay" placeholder="지역, 매장명, 역명으로 검색" enterkeyhint="search" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();searchRegionMobileOverlay();}">
+          <input type="text" id="regionSearchMobileOverlay" placeholder="지역, 매장명, 역명으로 검색" enterkeyhint="search" autocomplete="off" onkeydown="if(event.key==='Enter' && !event.isComposing){event.preventDefault();searchRegionMobileOverlay();}">
         </div>
         <button class="mobile-icon-btn mobile-icon-add" onclick="openSideMenu()" title="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6H20M4 12H20M4 18H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
       </div>
@@ -131,6 +132,7 @@
         <button class="filter-chip" data-channel="블로그" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="16" height="16">블로그</button>
         <button class="filter-chip" data-channel="클립" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="16" height="16">클립</button>
         <button class="filter-chip" data-channel="인스타그램" onclick="filterChannel('인스타그램')"><img src="image/ic_instagram_20.png" width="16" height="16">인스타</button>
+        <button class="filter-chip" data-channel="릴스" onclick="filterChannel('릴스')"><img src="image/ic_reels_20.png" width="16" height="16">릴스</button>
         <button class="filter-chip" data-channel="유튜브" onclick="filterChannel('유튜브')"><img src="image/ic_youtube_20.png" width="16" height="16">유튜브</button>
       </div>
     </div>
@@ -195,7 +197,7 @@
           <div class="about-hero-title">무협맵</div>
           <div class="about-hero-sub">협찬 사냥꾼들의 지도</div>
           <div class="about-hero-desc">여러 플랫폼에 흩어진 협찬 정보를 지도 위에서 한눈에.</div>
-          <div class="about-hero-desc">무협맵은 블로그, 클립, 인스타그램, 유튜브 체험단 정보를 지도 기반으로 모아 보여주는 서비스입니다.</div>
+          <div class="about-hero-desc">무협맵은 블로그, 클립, 인스타그램, 릴스, 유튜브 체험단 정보를 지도 기반으로 모아 보여주는 서비스입니다.</div>
           <div class="about-hero-desc">가고 싶은 지역의 협찬을 찾고, 주변 협찬까지 함께 탐색하며 효율적인 협찬 동선을 계획해보세요.</div>
         </div>
 
@@ -236,7 +238,7 @@
               <span class="step-num">3</span>
               <div>
                 <strong>내 채널만 보기</strong>
-                <p>블로그, 클립, 인스타그램, 유튜브 등 운영 중인 채널만 선택하여 확인할 수 있습니다.</p>
+                <p>블로그, 클립, 인스타그램, 릴스, 유튜브 등 운영 중인 채널만 선택하여 확인할 수 있습니다.</p>
               </div>
             </div>
           </div>
@@ -351,7 +353,7 @@
           <div class="form-group">
             <label>매장명 <span class="required">*</span></label>
             <div class="addr-row">
-              <input type="text" id="inputName" placeholder="예) 스타OO 강남점" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPlaceUnified();}">
+              <input type="text" id="inputName" placeholder="예) 스타OO 강남점" autocomplete="off" onkeydown="if(event.key==='Enter' && !event.isComposing){event.preventDefault();searchPlaceUnified();}">
               <button class="btn-search-addr" id="btnSearchAddr" onclick="searchPlaceUnified()">검색</button>
             </div>
             <span class="field-error-msg" id="inputNameError">매장명을 입력해주세요.</span>
@@ -388,6 +390,7 @@
               <button type="button" class="channel-btn" data-channel="블로그" onclick="toggleChannel(this); clearFieldError('channel')">블로그</button>
               <button type="button" class="channel-btn" data-channel="클립" onclick="toggleChannel(this); clearFieldError('channel')">클립</button>
               <button type="button" class="channel-btn" data-channel="인스타그램" onclick="toggleChannel(this); clearFieldError('channel')">인스타</button>
+              <button type="button" class="channel-btn" data-channel="릴스" onclick="toggleChannel(this); clearFieldError('channel')">릴스</button>
               <button type="button" class="channel-btn" data-channel="유튜브" onclick="toggleChannel(this); clearFieldError('channel')">유튜브</button>
             </div>
             <span class="field-error-msg" id="channelError">게시 채널을 선택해주세요.</span>

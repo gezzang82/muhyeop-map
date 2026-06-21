@@ -638,6 +638,7 @@ const CHANNEL_ICONS = {
   '블로그': 'image/ic_naver_blog_20.png',
   '클립': 'image/ic_clip_20.png',
   '인스타그램': 'image/ic_instagram_20.png',
+  '릴스': 'image/ic_reels_20.png',
   '유튜브': 'image/ic_youtube_20.png',
 };
 
