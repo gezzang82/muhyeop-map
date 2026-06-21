@@ -397,6 +397,30 @@ function populatePlaceSelect() {
     places.map(p => `<option value="${p.id}">${p.name} (${p.category})</option>`).join('');
 }
 
+function findDuplicatePlace(name) {
+  const norm = String(name || '').replace(/\s/g, '');
+  if (!norm) return null;
+  return places.find(p => p.name.replace(/\s/g, '') === norm) || null;
+}
+
+function checkDuplicatePlaceName() {
+  const name = document.getElementById('addName').value;
+  const warnEl = document.getElementById('addNameDupWarn');
+  const dup = findDuplicatePlace(name);
+  if (dup) {
+    warnEl.innerHTML = `이미 등록된 장소예요: "${dup.name}"<button type="button" onclick="useDuplicatePlace(${dup.id})">이 장소 사용</button>`;
+    warnEl.style.display = '';
+  } else {
+    warnEl.style.display = 'none';
+  }
+}
+
+function useDuplicatePlace(id) {
+  document.getElementById('addPlaceSelect').value = id;
+  onPlaceSelect();
+  document.getElementById('addNameDupWarn').style.display = 'none';
+}
+
 function onPlaceSelect() {
   const val = document.getElementById('addPlaceSelect').value;
   document.getElementById('newPlaceFields').style.opacity = val ? '0.4' : '1';
@@ -444,6 +468,10 @@ async function submitAdminCampaign() {
     const lng = parseFloat(document.getElementById('addLng').value);
     if (!name || !address || !category || isNaN(lat) || isNaN(lng)) {
       adminToast('신규 장소는 장소명, 주소, 카테고리, 좌표가 필요해요!'); return;
+    }
+    const dup = findDuplicatePlace(name);
+    if (dup && !confirm(`"${dup.name}"이 이미 등록되어 있어요. 그래도 새 장소로 등록할까요?`)) {
+      return;
     }
     const res = await fetch('/api/places', {
       method: 'POST',
