@@ -1914,6 +1914,9 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   /* 모달 */
   .modal-header h2 { font-size: 18px; }
   .custom-select-trigger { font-size: 16px; }
+  .channel-btn { font-size: 16px; }
+  .day-btn { font-size: 16px; }
+  .holiday-check-row span { font-size: 16px; }
   .form-group label { font-size: 14px; }
   .step-indicator .step { font-size: 13px; }
   .optional-section-title { font-size: 14px; }

@@ -1018,9 +1018,20 @@ function renderPlaceResults() {
 
   if (!existingRows && !naverRows) {
     listEl.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>';
+    fixIosScrollReflow();
     return;
   }
   listEl.innerHTML = existingRows + moreButtonHtml + naverRows;
+  fixIosScrollReflow();
+}
+
+// iOS Safari: -webkit-overflow-scrolling:touch 컨테이너에 동적으로 콘텐츠를
+// 주입하면 스크롤 가능 영역이 재계산되지 않아 터치 스크롤이 안 먹는 버그 우회
+function fixIosScrollReflow() {
+  const body = document.getElementById('step1Body');
+  if (!body) return;
+  body.style.webkitOverflowScrolling = 'auto';
+  requestAnimationFrame(() => { body.style.webkitOverflowScrolling = 'touch'; });
 }
 
 function selectExistingPlace(placeId) {
