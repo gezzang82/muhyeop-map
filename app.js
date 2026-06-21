@@ -1252,6 +1252,22 @@ function renderReportResults() {
   const listEl = document.getElementById('reportResultsList');
   if (!q) { listEl.innerHTML = ''; return; }
 
+  if (reportSelectedCampaignId) {
+    const c = campaigns.find(c => c.id === reportSelectedCampaignId);
+    const place = c ? places.find(p => p.id === c.placeId) : null;
+    if (c && place) {
+      listEl.innerHTML = `
+        <div class="place-result-item selected" onclick="selectReportTarget(${c.id})">
+          <div class="place-result-info">
+            <div class="place-result-name">${place.name} · ${c.platform}</div>
+            <div class="place-result-addr">${c.content}</div>
+          </div>
+          <span class="place-result-check selected">✓</span>
+        </div>`;
+      return;
+    }
+  }
+
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(q);
   const matches = campaigns.filter(c => {
