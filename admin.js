@@ -113,6 +113,8 @@ function renderDashboard() {
 }
 
 // ===== 캠페인 목록 =====
+let selectedExpiredIds = new Set();
+
 function renderCampaignList() {
   const today = getKSTTodayUTC();
   const statusFilter = document.getElementById('filterStatus').value;
@@ -129,6 +131,7 @@ function renderCampaignList() {
     const place = places.find(p => p.id === c.placeId);
     const isActive = deadlineToUTC(c.deadline) >= today;
     return `<tr class="${isActive ? '' : 'row-expired'}">
+      <td>${isActive ? '' : `<input type="checkbox" class="row-select" data-id="${c.id}" ${selectedExpiredIds.has(c.id) ? 'checked' : ''} onchange="toggleSelectExpired(${c.id}, this.checked)">`}</td>
       <td class="td-id">${c.id}</td>
       <td><strong>${place?.name || '-'}</strong></td>
       <td><span class="badge-platform">${c.platform}</span></td>
@@ -141,11 +144,86 @@ function renderCampaignList() {
       <td>${c.source === 'user' ? '<span class="badge-status active">유저</span>' : c.source === 'admin' ? '<span class="badge-status expired">어드민</span>' : '-'}</td>
       <td><span class="badge-status ${isActive?'active':'expired'}">${isActive?'모집 중':'마감'}</span></td>
       <td>
+        ${isActive ? '' : `<button class="btn-edit-sm" onclick="openReactivateModal(false, ${c.id})">재등록</button>`}
         <button class="btn-edit-sm" onclick="editCampaign(${c.id})">수정</button>
         <button class="btn-del-sm" onclick="confirmDelete('campaign', ${c.id})">삭제</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="11" class="empty-msg">해당하는 캠페인 없음</td></tr>`;
+  }).join('') || `<tr><td colspan="13" class="empty-msg">해당하는 캠페인 없음</td></tr>`;
+
+  document.getElementById('selectAllExpiredCb').checked = false;
+  updateBulkReactivateBar();
+}
+
+function toggleSelectExpired(id, checked) {
+  if (checked) selectedExpiredIds.add(id);
+  else selectedExpiredIds.delete(id);
+  updateBulkReactivateBar();
+}
+
+function toggleSelectAllExpired(checked) {
+  document.querySelectorAll('#campaignTableBody .row-select').forEach(cb => {
+    cb.checked = checked;
+    const id = parseInt(cb.dataset.id);
+    if (checked) selectedExpiredIds.add(id);
+    else selectedExpiredIds.delete(id);
+  });
+  updateBulkReactivateBar();
+}
+
+function updateBulkReactivateBar() {
+  const bar = document.getElementById('bulkReactivateBar');
+  const count = selectedExpiredIds.size;
+  document.getElementById('bulkSelCount').textContent = count;
+  bar.style.display = count > 0 ? 'flex' : 'none';
+}
+
+// ===== 재등록(마감일 변경) =====
+let reactivateTargetIds = [];
+
+function openReactivateModal(bulk, id) {
+  reactivateTargetIds = bulk ? [...selectedExpiredIds] : [id];
+  if (!reactivateTargetIds.length) return;
+  const msg = bulk
+    ? `선택한 ${reactivateTargetIds.length}개 캠페인의 새 마감일을 정해주세요.`
+    : (() => {
+        const c = campaigns.find(c => c.id === id);
+        const place = places.find(p => p.id === c?.placeId);
+        return `"${place?.name || '-'}" (${c?.content?.slice(0,20) || ''}) 캠페인의 새 마감일을 정해주세요.`;
+      })();
+  document.getElementById('reactivateMsg').textContent = msg;
+  document.getElementById('reactivateDateInput').value = '';
+  document.getElementById('reactivateModal').style.display = 'flex';
+}
+
+function closeReactivateModal() {
+  document.getElementById('reactivateModal').style.display = 'none';
+  reactivateTargetIds = [];
+}
+
+async function confirmReactivate() {
+  const newDeadline = document.getElementById('reactivateDateInput').value;
+  if (!newDeadline) { adminToast('새 마감일을 선택해주세요.'); return; }
+
+  for (const id of reactivateTargetIds) {
+    const c = campaigns.find(c => c.id === id);
+    if (!c) continue;
+    c.deadline = newDeadline;
+    await fetch(`/api/campaigns?id=${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform: c.platform, channels: c.channels, content: c.content, deadline: newDeadline,
+        link: c.link || '', operatingDays: c.operatingDays, operatingHours: c.operatingHours,
+        excludeHoliday: c.excludeHoliday
+      })
+    });
+    selectedExpiredIds.delete(id);
+  }
+
+  adminToast(`✅ ${reactivateTargetIds.length}개 캠페인 재등록 완료`);
+  closeReactivateModal();
+  renderCampaignList();
 }
 
 // ===== 장소 목록 =====
