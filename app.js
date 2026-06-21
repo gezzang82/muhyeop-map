@@ -354,6 +354,42 @@ function dismissBannerToday() {
   closeBannerPopup();
 }
 
+// 좌표가 거의 같은 장소(한 건물에 여러 매장 입점 등)는 마커가 완전히 겹치므로
+// 같은 그룹끼리 작은 원형으로 살짝 흩어서(jitter) 항상 클릭 가능하게 한다
+function getJitteredPositions(activePlaces) {
+  const OVERLAP_THRESHOLD_M = 8;
+  const SPREAD_RADIUS_M = 15;
+  const result = {};
+  const used = new Set();
+
+  activePlaces.forEach(place => {
+    if (used.has(place.id)) return;
+    const group = activePlaces.filter(p => {
+      const dLat = (p.lat - place.lat) * 111000;
+      const dLng = (p.lng - place.lng) * 88000;
+      return Math.sqrt(dLat * dLat + dLng * dLng) < OVERLAP_THRESHOLD_M;
+    });
+    group.forEach(p => used.add(p.id));
+
+    if (group.length === 1) {
+      result[place.id] = { lat: place.lat, lng: place.lng };
+      return;
+    }
+
+    const centerLat = group.reduce((s, p) => s + p.lat, 0) / group.length;
+    const centerLng = group.reduce((s, p) => s + p.lng, 0) / group.length;
+    group.forEach((p, i) => {
+      const angle = (2 * Math.PI * i) / group.length;
+      result[p.id] = {
+        lat: centerLat + (SPREAD_RADIUS_M / 111000) * Math.cos(angle),
+        lng: centerLng + (SPREAD_RADIUS_M / 88000) * Math.sin(angle)
+      };
+    });
+  });
+
+  return result;
+}
+
 // ===== 마커 렌더 =====
 function renderMarkers() {
   if (markerCluster) { markerCluster.setMap(null); markerCluster = null; }
@@ -362,15 +398,17 @@ function renderMarkers() {
   markerMap = {};
   selectedMarkerId = null;
 
-  places.forEach(place => {
-    const active = hasActiveCampaign(place.id);
-    const icon = getCategoryPin(place.category);
+  const activePlaces = places.filter(place => hasActiveCampaign(place.id));
+  const jitteredPositions = getJitteredPositions(activePlaces);
 
-    // 활성 캠페인 없으면 마커 미노출
-    if (!active) return;
+  activePlaces.forEach(place => {
+    const icon = getCategoryPin(place.category);
+    const pos = jitteredPositions[place.id];
+    place.displayLat = pos.lat;
+    place.displayLng = pos.lng;
 
     const marker = new naver.maps.Marker({
-      position: new naver.maps.LatLng(place.lat, place.lng),
+      position: new naver.maps.LatLng(pos.lat, pos.lng),
       icon: {
         content: `<div class="map-pin">${icon}</div>`,
         anchor: new naver.maps.Point(17, 17)
@@ -722,7 +760,7 @@ function focusPlace(placeId) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
 
-  map.setCenter(new naver.maps.LatLng(place.lat, place.lng));
+  map.setCenter(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
   map.setZoom(16);
 
   if (window.innerWidth <= 640) {
@@ -744,7 +782,7 @@ function focusPlace(placeId) {
 }
 
 function panToCard(place) {
-  const latlng = new naver.maps.LatLng(place.lat, place.lng);
+  const latlng = new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng);
   const proj = map.getProjection();
   const mapWidth = document.getElementById('map').offsetWidth;
   // 핀을 지도 정중앙에 두고, 카드는 핀 기준 좌측에 고정 간격(370px)으로 따라붙음.
@@ -1685,7 +1723,7 @@ async function submitCampaign() {
   renderAll();
 
   const place = places.find(p => p.id === placeId);
-  map.setCenter(new naver.maps.LatLng(place.lat, place.lng));
+  map.setCenter(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
   map.setZoom(16);
   showToast(`${place.name} 제보 완료!`);
   } finally {
@@ -1823,7 +1861,7 @@ function openMobileSheet(place) {
   // 핀을 바텀시트 위 영역 중앙으로 이동 (시트에 가리지 않게 위로 올림)
   const proj = map.getProjection();
   if (proj) {
-    const off = proj.fromCoordToOffset(new naver.maps.LatLng(place.lat, place.lng));
+    const off = proj.fromCoordToOffset(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
     off.y += 150;
     map.panTo(proj.fromOffsetToCoord(off));
   }
