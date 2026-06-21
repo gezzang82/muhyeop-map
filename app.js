@@ -890,8 +890,8 @@ function initSidebarScrollExpand() {
 let modalSelectedResultKey = null;
 let lastNaverResults = [];
 let lastSearchQuery = '';
-let existingResultsVisibleCount = 10;
-const EXISTING_RESULTS_PAGE_SIZE = 10;
+let placeResultsVisibleCount = 10;
+const PLACE_RESULTS_PAGE_SIZE = 10;
 
 function renderActivePlaceCampaigns(placeId) {
   const today = getKSTTodayUTC();
@@ -927,7 +927,7 @@ function searchPlaceUnified() {
   modalSelectedResultKey = null;
   lastNaverResults = [];
   lastSearchQuery = q;
-  existingResultsVisibleCount = EXISTING_RESULTS_PAGE_SIZE;
+  placeResultsVisibleCount = PLACE_RESULTS_PAGE_SIZE;
 
   listEl.innerHTML = '<div class="search-hint">검색 중...</div>';
 
@@ -940,8 +940,8 @@ function searchPlaceUnified() {
     });
 }
 
-function loadMoreExistingResults() {
-  existingResultsVisibleCount += EXISTING_RESULTS_PAGE_SIZE;
+function loadMorePlaceResults() {
+  placeResultsVisibleCount += PLACE_RESULTS_PAGE_SIZE;
   renderPlaceResults();
 }
 
@@ -949,37 +949,39 @@ function renderPlaceResults() {
   const listEl = document.getElementById('placeResultsList');
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(lastSearchQuery);
-  const allExistingMatches = places.filter(p => {
+  const existingMatches = places.filter(p => {
     const np = normalize(p.name);
     return np.includes(nq) || nq.includes(np);
   });
-  const existingMatches = allExistingMatches.slice(0, existingResultsVisibleCount);
 
-  const existingRows = existingMatches.map(p => {
-    const key = `existing:${p.id}`;
-    const selected = modalSelectedResultKey === key;
-    const rowHtml = `
-      <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectExistingPlace(${p.id})">
-        <div class="place-result-info">
-          <div class="place-result-name">${p.name}</div>
-          <div class="place-result-addr">${p.address}</div>
-        </div>
-        <span class="place-result-check ${selected ? 'selected' : ''}">✓</span>
-      </div>`;
-    return selected ? rowHtml + renderActivePlaceCampaigns(p.id) : rowHtml;
-  }).join('');
+  const combined = [
+    ...existingMatches.map(p => ({ type: 'existing', place: p })),
+    ...lastNaverResults.map((item, i) => ({ type: 'naver', item, index: i }))
+  ];
+  const visibleEntries = combined.slice(0, placeResultsVisibleCount);
 
-  const moreButtonHtml = allExistingMatches.length > existingResultsVisibleCount
-    ? `<div class="place-result-more-wrap"><div class="place-result-more" onclick="loadMoreExistingResults()">더보기</div></div>`
-    : '';
-
-  const naverRows = lastNaverResults.map((item, i) => {
-    const key = `naver:${i}`;
+  const rowsHtml = visibleEntries.map(entry => {
+    if (entry.type === 'existing') {
+      const p = entry.place;
+      const key = `existing:${p.id}`;
+      const selected = modalSelectedResultKey === key;
+      const rowHtml = `
+        <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectExistingPlace(${p.id})">
+          <div class="place-result-info">
+            <div class="place-result-name">${p.name}</div>
+            <div class="place-result-addr">${p.address}</div>
+          </div>
+          <span class="place-result-check ${selected ? 'selected' : ''}">✓</span>
+        </div>`;
+      return selected ? rowHtml + renderActivePlaceCampaigns(p.id) : rowHtml;
+    }
+    const { item, index } = entry;
+    const key = `naver:${index}`;
     const selected = modalSelectedResultKey === key;
     const addr = (item.roadAddress || item.address).replace(/'/g, "\\'");
     const name = item.name.replace(/'/g, "\\'");
     return `
-      <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectNaverPlace(${i}, '${name}', '${addr}')">
+      <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectNaverPlace(${index}, '${name}', '${addr}')">
         <div class="place-result-info">
           <div class="place-result-name">${item.name}</div>
           <div class="place-result-addr">${item.roadAddress || item.address}</div>
@@ -988,15 +990,15 @@ function renderPlaceResults() {
       </div>`;
   }).join('');
 
-  if (!existingRows && !naverRows) {
+  if (!rowsHtml) {
     listEl.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>';
     fixIosScrollReflow();
     return;
   }
-  const naverSectionLabel = (existingRows && naverRows)
-    ? '<div class="place-result-section-label">네이버 검색 결과</div>'
+  const moreButtonHtml = combined.length > placeResultsVisibleCount
+    ? `<div class="place-result-more-wrap"><div class="place-result-more" onclick="loadMorePlaceResults()">더보기</div></div>`
     : '';
-  listEl.innerHTML = existingRows + moreButtonHtml + naverSectionLabel + naverRows;
+  listEl.innerHTML = rowsHtml + moreButtonHtml;
   fixIosScrollReflow();
 }
 
@@ -1401,7 +1403,7 @@ function resetModal() {
   modalSelectedPlaceId = null; modalIsNewPlace = true;
   modalSelectedLat = null; modalSelectedLng = null; modalSelectedAddress = '';
   modalSelectedResultKey = null; lastNaverResults = [];
-  lastSearchQuery = ''; existingResultsVisibleCount = EXISTING_RESULTS_PAGE_SIZE;
+  lastSearchQuery = ''; placeResultsVisibleCount = PLACE_RESULTS_PAGE_SIZE;
   document.getElementById('step1').style.display = 'flex';
   document.getElementById('step2').style.display = 'none';
   ['inputName','inputContent','inputHours','inputNickname','inputEmail']
