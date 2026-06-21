@@ -281,10 +281,10 @@ body.pc-report-mode .custom-select-trigger.date-trigger {
   font-size: 14px !important;
 }
 body.pc-report-mode .optional-section-title {
-  font-size: 14px !important;
+  font-size: 16px !important;
 }
 body.pc-report-mode .optional-section-desc {
-  font-size: 13px !important;
+  font-size: 14px !important;
 }
 body.pc-report-mode .holiday-check-row span {
   font-size: 16px !important;
@@ -1039,6 +1039,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
 /* 매장 검색 결과 (통합) */
 .place-results-list { margin-top: 8px; }
+#reportResultsList { margin-top: -16px; }
 .place-result-item {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 16px 4px;
