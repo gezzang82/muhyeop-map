@@ -83,12 +83,12 @@ function renderDashboard() {
   // 채널별
   const channelCount = {};
   active.forEach(c => (c.channels||[]).forEach(ch => { channelCount[ch] = (channelCount[ch]||0)+1; }));
-  const chIcons = { '블로그':'📝','클립':'🎬','인스타그램':'📸','릴스':'🎞️','유튜브':'🎥' };
+  const chIcons = { '블로그':'icon-blog','클립':'icon-clip','인스타그램':'icon-instagram','릴스':'icon-reels','유튜브':'icon-youtube' };
   document.getElementById('channelStats').innerHTML = Object.entries(channelCount)
     .sort((a,b) => b[1]-a[1])
     .map(([ch,n]) => `
       <div class="stat-row">
-        <span class="stat-ch">${chIcons[ch]||''} ${ch}</span>
+        <span class="stat-ch">${chIcons[ch] ? `<svg class="icon"><use href="#${chIcons[ch]}"></use></svg>` : ''} ${ch}</span>
         <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(n/active.length*100)}%;background:#1a1a2e"></div></div>
         <span class="stat-num">${n}개</span>
       </div>`).join('') || '<div class="empty-msg">데이터 없음</div>';
@@ -180,7 +180,7 @@ function searchEditPlaceAddress() {
       const r = res.v2.addresses[0];
       document.getElementById('editPlaceLat').value = parseFloat(r.y).toFixed(6);
       document.getElementById('editPlaceLng').value = parseFloat(r.x).toFixed(6);
-      adminToast('좌표 검색 완료 ✅');
+      adminToast('좌표 검색 완료');
     } else {
       adminToast('주소를 찾을 수 없어요. 직접 입력해주세요.');
     }
@@ -212,7 +212,7 @@ async function confirmEditPlace() {
   p.name = name; p.category = category; p.address = address;
   if (addressChanged) { p.lat = lat; p.lng = lng; }
 
-  adminToast('장소 수정 완료 ✅');
+  adminToast('장소 수정 완료');
   closeEditPlaceModal();
   renderPlaceList();
 }
@@ -255,7 +255,7 @@ async function submitBanner() {
   const banner = await res.json();
   banners.unshift(banner);
 
-  adminToast('이벤트 팝업 등록 완료 ✅');
+  adminToast('이벤트 팝업 등록 완료');
   document.getElementById('bannerImageUrl').value = '';
   document.getElementById('bannerLinkUrl').value = '';
   document.getElementById('bannerStartDate').value = '';
@@ -391,7 +391,7 @@ function searchAdminAddress() {
       const r = res.v2.addresses[0];
       document.getElementById('addLat').value = parseFloat(r.y).toFixed(6);
       document.getElementById('addLng').value = parseFloat(r.x).toFixed(6);
-      adminToast('좌표 검색 완료 ✅');
+      adminToast('좌표 검색 완료');
     } else {
       adminToast('주소를 찾을 수 없어요. 직접 입력해주세요.');
     }
@@ -452,7 +452,7 @@ async function submitAdminCampaign() {
   const campaign = await res.json();
   campaigns.push(campaign);
 
-  adminToast('캠페인 등록 완료 ✅');
+  adminToast('캠페인 등록 완료');
   resetAddForm();
 }
 
@@ -552,7 +552,7 @@ function editCampaign(id) {
     if (excludeEl) excludeEl.checked = c.excludeHoliday || false;
     // 등록 버튼을 수정 모드로
     const btn = document.querySelector('.btn-submit');
-    btn.textContent = '✅ 수정 완료';
+    btn.textContent = '수정 완료';
     btn.onclick = async () => {
       c.platform = document.getElementById('addPlatform').value;
       c.channels = ['블로그','클립','인스타그램','릴스','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
@@ -571,8 +571,8 @@ function editCampaign(id) {
           excludeHoliday: c.excludeHoliday
         })
       });
-      adminToast('캠페인 수정 완료 ✅');
-      btn.textContent = '✅ 등록하기';
+      adminToast('캠페인 수정 완료');
+      btn.textContent = '등록하기';
       btn.onclick = submitAdminCampaign;
       resetAddForm();
     };
@@ -749,9 +749,9 @@ async function importExcelData() {
     campaigns.push(await res.json());
     added++;
   }
-  adminToast(`✅ ${added}개 등록 완료${skipped ? ` (${skipped}개 건너뜀)` : ''}`);
+  adminToast(`${added}개 등록 완료${skipped ? ` (${skipped}개 건너뜀)` : ''}`);
   btn.disabled = false;
-  btn.textContent = '✅ 전체 가져오기';
+  btn.textContent = '전체 가져오기';
   resetExcel();
   renderDashboard();
 }
