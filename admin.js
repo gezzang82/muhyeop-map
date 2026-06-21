@@ -48,12 +48,10 @@ function initAdmin() {
 function renderDashboard() {
   const today = getKSTTodayUTC();
   const active = campaigns.filter(c => deadlineToUTC(c.deadline) >= today);
-  const expired = campaigns.filter(c => deadlineToUTC(c.deadline) < today);
 
   document.getElementById('statPlaces').textContent = places.length;
   document.getElementById('statCampaigns').textContent = campaigns.length;
   document.getElementById('statActive').textContent = active.length;
-  document.getElementById('statExpired').textContent = expired.length;
 
   const userCampaigns = campaigns.filter(c => c.source === 'user');
   const statUserEl = document.getElementById('statUserReported');

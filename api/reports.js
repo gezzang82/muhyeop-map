@@ -58,13 +58,6 @@ module.exports = async function handler(req, res) {
     if (!id) {
       return res.status(400).json({ error: 'id는 필수입니다.' });
     }
-    if (req.query.hide === 'true') {
-      const campaignId = Number(req.query.campaignId);
-      if (!campaignId) {
-        return res.status(400).json({ error: '숨기기 처리에는 campaignId가 필요합니다.' });
-      }
-      await db.execute({ sql: 'UPDATE campaigns SET hidden = 1 WHERE id = ?', args: [campaignId] });
-    }
     await db.execute({ sql: 'DELETE FROM reports WHERE id = ?', args: [id] });
     return res.status(200).json({ id });
   }

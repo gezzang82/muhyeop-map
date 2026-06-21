@@ -163,56 +163,6 @@ function hasPlatformAlready(placeId, platform) {
   return campaigns.some(c => c.placeId === placeId && !c.hidden && c.platform === platform && deadlineToUTC(c.deadline) >= today);
 }
 
-// ===== 날짜 셀렉트 초기화 =====
-function initDateSelects() {
-  const { y, m, d } = getKSTDateParts();
-
-  const yearSel = document.getElementById('inputDeadlineYear');
-  const monthSel = document.getElementById('inputDeadlineMonth');
-  const daySel = document.getElementById('inputDeadlineDay');
-
-  for (let i = y; i <= y + 1; i++) {
-    yearSel.innerHTML += `<option value="${i}" ${i === y ? 'selected' : ''}>${i}</option>`;
-  }
-  for (let i = 1; i <= 12; i++) {
-    monthSel.innerHTML += `<option value="${i}" ${i === m ? 'selected' : ''}>${i}</option>`;
-  }
-  updateDayOptions(y, m, d);
-  setTimeout(syncDateTriggers, 0);
-
-  yearSel.addEventListener('change', () => updateDayOptions(
-    parseInt(yearSel.value), parseInt(monthSel.value)
-  ));
-  monthSel.addEventListener('change', () => updateDayOptions(
-    parseInt(yearSel.value), parseInt(monthSel.value)
-  ));
-}
-
-function updateDayOptions(year, month, selectedDay) {
-  const daySel = document.getElementById('inputDeadlineDay');
-  const current = selectedDay || parseInt(daySel.value) || 1;
-  const maxDay = new Date(year, month, 0).getDate();
-  daySel.innerHTML = '';
-  for (let i = 1; i <= maxDay; i++) {
-    daySel.innerHTML += `<option value="${i}" ${i === current ? 'selected' : ''}>${i}</option>`;
-  }
-}
-
-function getSelectedDeadline() {
-  const y = document.getElementById('inputDeadlineYear').value;
-  const m = String(document.getElementById('inputDeadlineMonth').value).padStart(2, '0');
-  const d = String(document.getElementById('inputDeadlineDay').value).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function resetDateSelects() {
-  const today = getKSTDateParts();
-  document.getElementById('inputDeadlineYear').value = today.y;
-  document.getElementById('inputDeadlineMonth').value = today.m;
-  updateDayOptions(today.y, today.m, today.d);
-  setTimeout(syncDateTriggers, 0);
-}
-
 // ===== 지도 초기화 =====
 function initMap() {
   map = new naver.maps.Map('map', {
@@ -293,7 +243,6 @@ function initMap() {
     closePcCard();
   });
 
-  initDateSelects();
   renderAll();
   initSidebarScrollExpand();
   initSidebarSwipeToDismiss();
@@ -485,7 +434,7 @@ function createInfoContent(place) {
             const isActive = c.operatingDays.includes(d);
             return `<span style="color:${isActive ? '#000' : '#ccc'}">${d}</span>`;
           }).join(' ');
-          const holidayBadge = c.excludeHoliday ? ` <span style="color:#aaa">/ 공휴일 불가</span>` : '';
+          const holidayBadge = c.excludeHoliday ? ` <span style="color:#000">/ 공휴일 불가</span>` : '';
           daysHtml = `
             <div class="iw-info-row">
               <div class="iw-info-label-group">
@@ -1459,7 +1408,6 @@ function resetModal() {
     step1Body.addEventListener('scroll', handleStep1Scroll, { passive: true });
     step1Body.scrollTop = 0;
   }
-  resetDateSelects();
   document.getElementById('placeResultsList').innerHTML = '';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('#modalOverlay .btn-input-clear').forEach(b => b.classList.remove('show'));
@@ -1542,7 +1490,7 @@ function goStep2() {
     syncSelectTrigger('inputCategory');
     document.getElementById('founderSection').style.display = 'flex';
     document.getElementById('founderSectionTitle').textContent = '내 이름 남기기';
-    document.getElementById('founderSectionDesc').textContent = '마감일까지 이 캠페인 제보자로 표시돼요';
+    document.getElementById('founderSectionDesc').textContent = '이 캠페인의 제보자로 표시돼요';
     document.getElementById('selectedPlaceBadge').innerHTML =
       `<div class="selected-place-badge"><div class="badge-icon"></div><span class="badge-text"><strong>${place.name}</strong>에 새 캠페인 추가</span></div>`;
   } else {
@@ -2257,15 +2205,7 @@ function pickSelectItem(selectId, value, label) {
   if (selectId === 'inputUrlPlatform') updateUrlPlatform(value);
 
   // 오류 메시지 클리어
-  if (selectId.startsWith('inputDeadline')) {
-    clearFieldError('deadline');
-    const y = parseInt(document.getElementById('inputDeadlineYear').value);
-    const m = parseInt(document.getElementById('inputDeadlineMonth').value);
-    if (selectId === 'inputDeadlineYear' || selectId === 'inputDeadlineMonth') {
-      updateDayOptions(y, m);
-      syncDateTriggers();
-    }
-  } else if (selectId === 'inputPlatform') {
+  if (selectId === 'inputPlatform') {
     if (!modalIsNewPlace && hasPlatformAlready(modalSelectedPlaceId, value)) {
       document.getElementById('inputPlatformError').textContent = `이미 ${value}로 등록된 협찬이 있어요. 다른 플랫폼을 선택해주세요.`;
       showFieldError('inputPlatform');
@@ -2278,18 +2218,6 @@ function pickSelectItem(selectId, value, label) {
 
   closeSelectSheet();
   sel.dispatchEvent(new Event('change'));
-}
-
-function syncDateTriggers() {
-  ['inputDeadlineYear', 'inputDeadlineMonth', 'inputDeadlineDay'].forEach(id => {
-    const sel = document.getElementById(id);
-    const valueEl = document.getElementById(id + 'Value');
-    if (sel && valueEl && sel.value) {
-      const opt = sel.options[sel.selectedIndex];
-      valueEl.textContent = opt ? opt.textContent : sel.value;
-      valueEl.classList.add('selected');
-    }
-  });
 }
 
 function syncSelectTrigger(selectId) {
