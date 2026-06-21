@@ -828,6 +828,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
 .modal-body {
   padding: 24px 20px 104px; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex; flex-direction: column; gap: 24px;
   flex: 1; min-height: 0;
 }
