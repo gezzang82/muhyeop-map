@@ -511,7 +511,7 @@ function resetAddForm() {
   ['블로그','클립','인스타그램','릴스','유튜브'].forEach(ch => {
     const el = document.getElementById(`ach_${ch}`); if(el) el.checked = false;
   });
-  document.querySelectorAll('.day-item').forEach(d => d.classList.remove('on'));
+  document.querySelectorAll('.day-item').forEach(d => d.classList.add('on'));
   const excludeEl = document.getElementById('addExcludeHoliday'); if(excludeEl) excludeEl.checked = false;
   document.getElementById('newPlaceFields').style.opacity = '1';
   document.getElementById('newPlaceFields').style.pointerEvents = '';
@@ -575,7 +575,7 @@ function editCampaign(id) {
     document.getElementById('addDeadline').value = c.deadline;
     document.getElementById('addHours').value = c.operatingHours || '';
     document.querySelectorAll('.day-item').forEach(d => {
-      if ((c.operatingDays||[]).includes(d.textContent.trim())) d.classList.add('on');
+      d.classList.toggle('on', (c.operatingDays||[]).includes(d.textContent.trim()));
     });
     const excludeEl = document.getElementById('addExcludeHoliday');
     if (excludeEl) excludeEl.checked = c.excludeHoliday || false;
