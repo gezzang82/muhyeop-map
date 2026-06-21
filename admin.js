@@ -359,6 +359,7 @@ async function submitAdminCampaign() {
   const platform = document.getElementById('addPlatform').value;
   const channels = ['블로그','클립','인스타그램','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
   const content = document.getElementById('addContent').value.trim();
+  const link = document.getElementById('addLink').value.trim();
   const deadline = document.getElementById('addDeadline').value;
   const hours = document.getElementById('addHours').value.trim();
   const days = [...document.querySelectorAll('.day-item.on')].map(el => el.textContent.trim());
@@ -396,7 +397,7 @@ async function submitAdminCampaign() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      placeId, platform, channels, content, deadline, link: '',
+      placeId, platform, channels, content, deadline, link,
       operatingDays: days, operatingHours: hours, excludeHoliday, source: 'admin'
     })
   });
@@ -408,7 +409,7 @@ async function submitAdminCampaign() {
 }
 
 function resetAddForm() {
-  ['addName','addAddress','addContent','addHours','addLat','addLng'].forEach(id => {
+  ['addName','addAddress','addContent','addLink','addHours','addLat','addLng'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
   document.getElementById('addPlaceSelect').value = '';
@@ -478,6 +479,7 @@ function editCampaign(id) {
       const el = document.getElementById(`ach_${ch}`); if(el) el.checked = true;
     });
     document.getElementById('addContent').value = c.content;
+    document.getElementById('addLink').value = c.link || '';
     document.getElementById('addDeadline').value = c.deadline;
     document.getElementById('addHours').value = c.operatingHours || '';
     document.querySelectorAll('.day-item').forEach(d => {
@@ -492,6 +494,7 @@ function editCampaign(id) {
       c.platform = document.getElementById('addPlatform').value;
       c.channels = ['블로그','클립','인스타그램','유튜브'].filter(ch => document.getElementById(`ach_${ch}`)?.checked);
       c.content = document.getElementById('addContent').value.trim();
+      c.link = document.getElementById('addLink').value.trim();
       c.deadline = document.getElementById('addDeadline').value;
       c.operatingHours = document.getElementById('addHours').value.trim();
       c.operatingDays = [...document.querySelectorAll('.day-item.on')].map(el => el.textContent.trim());
