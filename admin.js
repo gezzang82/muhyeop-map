@@ -241,10 +241,74 @@ function renderPlaceList() {
       <td>${p.founderNickname || '-'}</td>
       <td>${p.founderEmail || '-'}</td>
       <td>
+        <button class="btn-edit-sm" onclick="openEditPlaceModal(${p.id})">수정</button>
         <button class="btn-del-sm" onclick="confirmDelete('place', ${p.id})">삭제</button>
       </td>
     </tr>`;
   }).join('') || `<tr><td colspan="8" class="empty-msg">등록된 장소 없음</td></tr>`;
+}
+
+let editPlaceTargetId = null;
+function openEditPlaceModal(id) {
+  const p = places.find(p => p.id === id);
+  if (!p) return;
+  editPlaceTargetId = id;
+  document.getElementById('editPlaceName').value = p.name;
+  document.getElementById('editPlaceCategory').value = p.category;
+  document.getElementById('editPlaceAddress').value = p.address;
+  document.getElementById('editPlaceLat').value = p.lat;
+  document.getElementById('editPlaceLng').value = p.lng;
+  document.getElementById('editPlaceModal').style.display = 'flex';
+}
+
+function closeEditPlaceModal() {
+  document.getElementById('editPlaceModal').style.display = 'none';
+  editPlaceTargetId = null;
+}
+
+function searchEditPlaceAddress() {
+  const addr = document.getElementById('editPlaceAddress').value.trim();
+  if (!addr) { adminToast('주소를 입력해주세요'); return; }
+  naver.maps.Service.geocode({ query: addr }, (status, res) => {
+    if (status === naver.maps.Service.Status.OK && res?.v2?.addresses?.length) {
+      const r = res.v2.addresses[0];
+      document.getElementById('editPlaceLat').value = parseFloat(r.y).toFixed(6);
+      document.getElementById('editPlaceLng').value = parseFloat(r.x).toFixed(6);
+      adminToast('좌표 검색 완료 ✅');
+    } else {
+      adminToast('주소를 찾을 수 없어요. 직접 입력해주세요.');
+    }
+  });
+}
+
+async function confirmEditPlace() {
+  const id = editPlaceTargetId;
+  if (!id) return;
+  const name = document.getElementById('editPlaceName').value.trim();
+  const category = document.getElementById('editPlaceCategory').value;
+  const address = document.getElementById('editPlaceAddress').value.trim();
+  const lat = parseFloat(document.getElementById('editPlaceLat').value);
+  const lng = parseFloat(document.getElementById('editPlaceLng').value);
+  if (!name || !category || !address) { adminToast('장소명, 카테고리, 주소는 필수예요!'); return; }
+
+  const p = places.find(p => p.id === id);
+  const addressChanged = address !== p.address;
+  if (addressChanged && (isNaN(lat) || isNaN(lng))) {
+    adminToast('주소를 변경했으면 좌표 검색을 다시 눌러주세요!'); return;
+  }
+
+  await fetch(`/api/places?id=${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, category, address, lat: addressChanged ? lat : undefined, lng: addressChanged ? lng : undefined })
+  });
+
+  p.name = name; p.category = category; p.address = address;
+  if (addressChanged) { p.lat = lat; p.lng = lng; }
+
+  adminToast('장소 수정 완료 ✅');
+  closeEditPlaceModal();
+  renderPlaceList();
 }
 
 // ===== 이벤트 팝업 =====

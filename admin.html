@@ -469,6 +469,48 @@
     </div>
   </div>
 
+  <!-- 장소 수정 모달 -->
+  <div id="editPlaceModal" class="modal-overlay" style="display:none;">
+    <div class="confirm-box">
+      <div class="confirm-title">✏️ 장소 수정</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>장소명 *</label>
+          <input type="text" id="editPlaceName">
+        </div>
+        <div class="form-group">
+          <label>카테고리 *</label>
+          <select id="editPlaceCategory">
+            <option value="음식점">🍽️ 음식점</option>
+            <option value="카페">☕ 카페</option>
+            <option value="뷰티">💄 뷰티</option>
+            <option value="숙박/여가">🏨 숙박/여가</option>
+            <option value="문화">🎭 문화</option>
+            <option value="의류">👗 의류</option>
+            <option value="안경/잡화">👓 안경/잡화</option>
+            <option value="기타">📦 기타</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>주소 *</label>
+          <input type="text" id="editPlaceAddress">
+        </div>
+        <div class="form-group addr-row">
+          <label>&nbsp;</label>
+          <button class="btn-search" onclick="searchEditPlaceAddress()">🔍 좌표 검색</button>
+        </div>
+      </div>
+      <input type="hidden" id="editPlaceLat">
+      <input type="hidden" id="editPlaceLng">
+      <div class="confirm-actions">
+        <button class="btn-cancel-sm" onclick="closeEditPlaceModal()">취소</button>
+        <button class="btn-edit-sm" onclick="confirmEditPlace()">저장</button>
+      </div>
+    </div>
+  </div>
+
   <div id="adminToast" class="admin-toast"></div>
 
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>

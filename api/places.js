@@ -38,12 +38,21 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'PATCH') {
     const id = Number(req.query.id);
-    const { category } = req.body || {};
-    if (!id || !category) {
-      return res.status(400).json({ error: 'id, category는 필수입니다.' });
+    const { name, address, category, lat, lng } = req.body || {};
+    if (!id || (!name && !address && !category)) {
+      return res.status(400).json({ error: 'id와 수정할 항목(name, address, category 중 하나 이상)이 필요합니다.' });
     }
-    await db.execute({ sql: 'UPDATE places SET category = ? WHERE id = ?', args: [category, id] });
-    return res.status(200).json({ id, category });
+    const fields = [];
+    const args = [];
+    if (name) { fields.push('name = ?'); args.push(name); }
+    if (category) { fields.push('category = ?'); args.push(category); }
+    if (address) {
+      fields.push('address = ?'); args.push(address);
+      if (lat != null && lng != null) { fields.push('lat = ?', 'lng = ?'); args.push(lat, lng); }
+    }
+    args.push(id);
+    await db.execute({ sql: `UPDATE places SET ${fields.join(', ')} WHERE id = ?`, args });
+    return res.status(200).json({ id, name, address, category, lat, lng });
   }
 
   if (req.method === 'DELETE') {
