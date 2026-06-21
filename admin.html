@@ -121,15 +121,10 @@
             </select>
           </div>
         </div>
-        <div id="bulkReactivateBar" class="bulk-reactivate-bar" style="display:none;">
-          <span>선택된 마감 캠페인 <strong id="bulkSelCount">0</strong>개</span>
-          <button class="btn-edit-sm" onclick="openReactivateModal(true)">선택 항목 재등록</button>
-        </div>
         <div class="table-wrap">
           <table class="admin-table" id="campaignTable">
             <thead>
               <tr>
-                <th><input type="checkbox" id="selectAllExpiredCb" onchange="toggleSelectAllExpired(this.checked)"></th>
                 <th>ID</th>
                 <th>장소명</th>
                 <th>플랫폼</th>
@@ -456,19 +451,6 @@
       <div class="confirm-actions">
         <button class="btn-cancel-sm" onclick="closeConfirm()">취소</button>
         <button class="btn-delete-sm" id="confirmOkBtn">삭제</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 재등록(마감일 변경) 모달 -->
-  <div id="reactivateModal" class="modal-overlay" style="display:none;">
-    <div class="confirm-box">
-      <div class="confirm-title">🔁 재등록</div>
-      <div class="confirm-msg" id="reactivateMsg"></div>
-      <input type="date" id="reactivateDateInput" class="reactivate-date-input">
-      <div class="confirm-actions">
-        <button class="btn-cancel-sm" onclick="closeReactivateModal()">취소</button>
-        <button class="btn-edit-sm" id="reactivateOkBtn" onclick="confirmReactivate()">새 마감일로 재등록</button>
       </div>
     </div>
   </div>
