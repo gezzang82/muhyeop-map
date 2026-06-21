@@ -94,22 +94,6 @@ function renderDashboard() {
         <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(n/active.length*100)}%;background:#1a1a2e"></div></div>
         <span class="stat-num">${n}개</span>
       </div>`).join('') || '<div class="empty-msg">데이터 없음</div>';
-
-  // 마감 임박 (D-2 이내)
-  const d2 = today + 2 * 86400000;
-  const urgent = active.filter(c => deadlineToUTC(c.deadline) <= d2)
-    .sort((a,b) => deadlineToUTC(a.deadline)-deadlineToUTC(b.deadline));
-  document.getElementById('urgentList').innerHTML = urgent.length
-    ? urgent.map(c => {
-        const place = places.find(p => p.id === c.placeId);
-        const diff = Math.round((deadlineToUTC(c.deadline)-today)/86400000);
-        return `<div class="urgent-item">
-          <span class="urgent-place">${place?.name || '-'}</span>
-          <span class="urgent-platform">${c.platform}</span>
-          <span class="urgent-dl ${diff<=3?'red':''}">${diff === 0 ? 'D-Day' : `D-${diff}`} · ${c.deadline}</span>
-        </div>`;
-      }).join('')
-    : '<div class="empty-msg">임박한 캠페인 없음</div>';
 }
 
 // ===== 캠페인 목록 =====
