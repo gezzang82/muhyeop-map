@@ -72,7 +72,7 @@ function renderDashboard() {
   // 플랫폼별
   const platformCount = {};
   active.forEach(c => { platformCount[c.platform] = (platformCount[c.platform] || 0) + 1; });
-  const platformColors = { '레뷰':'#1D9E75','리뷰노트':'#185FA5','미블':'#854F0B','강남맛집':'#993556','디너의여왕':'#E05C00','기타':'#666' };
+  const platformColors = { '레뷰':'#1D9E75','리뷰노트':'#185FA5','미블':'#854F0B','강남맛집':'#993556','디너의여왕':'#E05C00','서울오빠':'#E8173A','리뷰플레이스':'#5B3EC8','포블로그':'#0066CC','링블':'#00A86B','체험뷰':'#FF6B00','기타':'#666' };
   document.getElementById('platformStats').innerHTML = Object.entries(platformCount)
     .sort((a,b) => b[1]-a[1])
     .map(([p,n]) => `
@@ -654,7 +654,7 @@ function processExcelFile(file) {
 }
 
 const EXCEL_CATEGORY_OPTIONS = ['음식점','카페','뷰티','숙박/여가','문화','의류','안경/잡화','기타'];
-const EXCEL_PLATFORM_OPTIONS = ['레뷰','리뷰노트','디너의여왕','서울오빠','리뷰플레이스','포블로그','링블','미블','강남맛집체험단','체험뷰','기타'];
+const EXCEL_PLATFORM_OPTIONS = ['레뷰','리뷰노트','디너의여왕','서울오빠','리뷰플레이스','포블로그','링블','미블','강남맛집체험단','체험뷰'];
 const EXCEL_CHANNEL_OPTIONS = ['블로그','클립','인스타그램','릴스','유튜브'];
 const EXCEL_DAY_OPTIONS = ['월','화','수','목','금','토','일'];
 

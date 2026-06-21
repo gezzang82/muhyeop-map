@@ -717,6 +717,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .iw-info-label-group { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .iw-info-label { font-size: 14px; color: #777; flex-shrink: 0; }
 .iw-info-value { font-size: 15px; color: #000; }
+.iw-reporter-group { display: flex; align-items: center; gap: 2px; }
 .iw-reporter-link { font-size: 15px; color: #000; text-decoration: none; }
 .iw-empty { font-size: 14px; color: #bbb; text-align: center; padding: 8px 0; }
 
@@ -1430,6 +1431,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   .detail-info-value .day-active { color: #000; }
   .detail-info-value .day-dim { color: #ccc; }
   .holiday-badge-active { color: #000; }
+  .detail-reporter-group { display: flex; align-items: center; gap: 2px; }
   .detail-info-reporter-link { font-size: 15px; color: #000; text-decoration: none; }
   .detail-reporter-chevron { display: block; flex-shrink: 0; }
 }

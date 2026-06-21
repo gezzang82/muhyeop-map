@@ -522,7 +522,7 @@ function createInfoContent(place) {
               <span class="iw-info-label">제보</span>
             </div>
             ${reporterUrl
-              ? `<a class="iw-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" style="display:block;flex-shrink:0;" alt="">`
+              ? `<div class="iw-reporter-group"><a class="iw-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" style="display:block;flex-shrink:0;" alt=""></div>`
               : `<span class="iw-info-value">${c.reporterNickname}</span>`}
           </div>` : '';
 
@@ -633,7 +633,7 @@ function createMobileDetailContent(place) {
           <span class="detail-info-label">제보</span>
         </div>
         ${reporterUrl
-          ? `<a class="detail-info-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" class="detail-reporter-chevron" alt="">`
+          ? `<div class="detail-reporter-group"><a class="detail-info-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" class="detail-reporter-chevron" alt=""></div>`
           : `<span class="detail-info-value">${c.reporterNickname}</span>`}
       </div>` : '';
 
