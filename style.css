@@ -1066,6 +1066,12 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 @media (hover: hover) { .place-result-more:hover { background: #ebebeb; } }
 
+.place-result-section-label {
+  font-size: 13px; font-weight: 600; color: #999;
+  padding: 16px 4px 8px;
+  border-top: 1px solid #ececec;
+}
+
 .place-campaign-preview {
   display: flex; flex-direction: column; gap: 8px;
   margin: 0 0 12px; padding: 16px;

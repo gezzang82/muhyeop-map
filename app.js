@@ -993,7 +993,10 @@ function renderPlaceResults() {
     fixIosScrollReflow();
     return;
   }
-  listEl.innerHTML = existingRows + moreButtonHtml + naverRows;
+  const naverSectionLabel = (existingRows && naverRows)
+    ? '<div class="place-result-section-label">네이버 검색 결과</div>'
+    : '';
+  listEl.innerHTML = existingRows + moreButtonHtml + naverSectionLabel + naverRows;
   fixIosScrollReflow();
 }
 
