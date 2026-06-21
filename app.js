@@ -2096,6 +2096,26 @@ window.addEventListener('resize', function() {
     }
   }
 
+  if (_prevIsMobile && !isMobile) {
+    // 모바일 → PC: 모바일에서 열어둔 모달이 있으면 PC 모드 스타일로 전환 (입력 중인 폼은 유지)
+    if (document.getElementById('modalOverlay')?.classList.contains('open')) {
+      pcTabActive = 'report';
+      document.body.classList.add('pc-report-mode');
+      document.getElementById('tabCampaigns')?.classList.remove('active');
+      document.getElementById('tabReport')?.classList.add('active');
+    } else if (document.getElementById('reportOverlay')?.classList.contains('open')) {
+      pcTabActive = 'reportissue';
+      document.body.classList.add('pc-reportissue-mode');
+      document.getElementById('tabCampaigns')?.classList.remove('active');
+      document.getElementById('tabReportIssue')?.classList.add('active');
+    } else if (document.getElementById('aboutOverlay')?.classList.contains('open')) {
+      pcTabActive = 'about';
+      document.body.classList.add('pc-about-mode');
+      document.getElementById('tabCampaigns')?.classList.remove('active');
+      document.getElementById('tabAbout')?.classList.add('active');
+    }
+  }
+
   _prevIsMobile = isMobile;
 
   if (openPcCardPlace && window.innerWidth > 640) {
