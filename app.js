@@ -650,7 +650,10 @@ function renderSidebar() {
     ? places.filter(p => bounds.hasLatLng(new naver.maps.LatLng(p.lat, p.lng)))
     : places;
 
-  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id));
+  const earliestDeadline = p => getActiveCampaigns(p.id).reduce((min, c) => new Date(c.deadline) < new Date(min.deadline) ? c : min).deadline;
+  const activePlaces = visiblePlaces
+    .filter(p => hasActiveCampaign(p.id))
+    .sort((a, b) => new Date(earliestDeadline(a)) - new Date(earliestDeadline(b)));
   countEl.textContent = activePlaces.length;
 
   if (activePlaces.length === 0) {
