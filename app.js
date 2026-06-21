@@ -627,10 +627,10 @@ function renderSidebar() {
     ? places.filter(p => bounds.hasLatLng(new naver.maps.LatLng(p.lat, p.lng)))
     : places;
 
-  const earliestDeadlineUTC = p => Math.min(...getActiveCampaigns(p.id).map(c => deadlineToUTC(c.deadline)));
+  const latestCreatedAt = p => getActiveCampaigns(p.id).reduce((max, c) => c.createdAt > max ? c.createdAt : max, '');
   const activePlaces = visiblePlaces
     .filter(p => hasActiveCampaign(p.id))
-    .sort((a, b) => earliestDeadlineUTC(a) - earliestDeadlineUTC(b));
+    .sort((a, b) => latestCreatedAt(b).localeCompare(latestCreatedAt(a)));
   countEl.textContent = activePlaces.length;
 
   if (activePlaces.length === 0) {
