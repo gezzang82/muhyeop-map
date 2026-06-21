@@ -238,14 +238,16 @@ function renderPlaceList() {
       <td>${p.category}</td>
       <td class="td-addr">${p.address}</td>
       <td><span class="badge-count ${activeCnt>0?'active':''}">${activeCnt}개</span></td>
+      <td>${p.hidden ? '<span class="badge-count">숨김</span>' : '노출'}</td>
       <td>${p.founderNickname || '-'}</td>
       <td>${p.founderEmail || '-'}</td>
       <td>
         <button class="btn-edit-sm" onclick="openEditPlaceModal(${p.id})">수정</button>
+        <button class="btn-edit-sm" onclick="togglePlaceHidden(${p.id})">${p.hidden ? '숨김 해제' : '숨김'}</button>
         <button class="btn-del-sm" onclick="confirmDelete('place', ${p.id})">삭제</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="8" class="empty-msg">등록된 장소 없음</td></tr>`;
+  }).join('') || `<tr><td colspan="9" class="empty-msg">등록된 장소 없음</td></tr>`;
 }
 
 let editPlaceTargetId = null;
@@ -369,25 +371,75 @@ async function renderReportList() {
       <td>${r.reason}</td>
       <td>${r.detail || '-'}</td>
       <td>${r.createdAt}</td>
-      <td>
-        <button class="btn-del-sm" onclick="resolveReport(${r.id}, ${r.campaignId}, true)">숨기기</button>
-        <button class="btn-del-sm" onclick="resolveReport(${r.id}, ${r.campaignId}, false)">무시</button>
-      </td>
+      <td>${reportActionButtons(r)}</td>
     </tr>`).join('') || `<tr><td colspan="7" class="empty-msg">신고 내역 없음</td></tr>`;
 }
 
-async function resolveReport(id, campaignId, hide) {
-  if (hide && !confirm('해당 캠페인을 숨김 처리할까요?')) return;
-  const url = hide ? `/api/reports?id=${id}&hide=true&campaignId=${campaignId}` : `/api/reports?id=${id}`;
-  await fetch(url, { method: 'DELETE' });
+function reportActionButtons(r) {
+  if (r.reason === '캠페인 정보 변경') {
+    return `
+      <button class="btn-edit-sm" onclick="reportEditCampaign(${r.id}, ${r.campaignId})">캠페인 수정</button>
+      <button class="btn-del-sm" onclick="reportDeleteCampaign(${r.id}, ${r.campaignId})">캠페인 삭제</button>
+      <button class="btn-del-sm" onclick="dismissReport(${r.id})">무시</button>`;
+  }
+  if (r.reason === '협찬 종료') {
+    return `
+      <button class="btn-edit-sm" onclick="reportHidePlace(${r.id}, ${r.placeId})">매장 숨김</button>
+      <button class="btn-del-sm" onclick="reportDeletePlace(${r.id}, ${r.placeId})">매장 영구삭제</button>
+      <button class="btn-del-sm" onclick="dismissReport(${r.id})">무시</button>`;
+  }
+  if (r.reason === '허위 정보') {
+    return `
+      <button class="btn-edit-sm" onclick="reportEditCampaign(${r.id}, ${r.campaignId})">캠페인 수정</button>
+      <button class="btn-del-sm" onclick="reportDeleteCampaign(${r.id}, ${r.campaignId})">캠페인 삭제</button>
+      <button class="btn-edit-sm" onclick="reportHidePlace(${r.id}, ${r.placeId})">매장 숨김</button>
+      <button class="btn-del-sm" onclick="dismissReport(${r.id})">무시</button>`;
+  }
+  return `<button class="btn-del-sm" onclick="dismissReport(${r.id})">무시</button>`;
+}
+
+async function dismissReport(id) {
+  await fetch(`/api/reports?id=${id}`, { method: 'DELETE' });
   const idx = reports.findIndex(r => r.id === id);
   if (idx > -1) reports.splice(idx, 1);
-  if (hide) {
-    const c = campaigns.find(c => c.id === campaignId);
-    if (c) c.hidden = true;
-  }
-  adminToast(hide ? '캠페인을 숨김 처리했어요.' : '신고를 무시했어요.');
   renderReportList();
+}
+
+function reportEditCampaign(reportId, campaignId) {
+  editCampaign(campaignId);
+  dismissReport(reportId);
+}
+
+async function reportDeleteCampaign(reportId, campaignId) {
+  if (!confirm('이 캠페인을 삭제할까요?')) return;
+  await fetch(`/api/campaigns?id=${campaignId}`, { method: 'DELETE' });
+  const idx = campaigns.findIndex(c => c.id === campaignId);
+  if (idx > -1) campaigns.splice(idx, 1);
+  adminToast('캠페인 삭제 완료');
+  dismissReport(reportId);
+}
+
+async function reportHidePlace(reportId, placeId) {
+  if (!confirm('이 매장을 지도에서 숨길까요? (캠페인은 유지되고, 장소 목록에서 언제든 숨김 해제할 수 있어요)')) return;
+  await fetch(`/api/places?id=${placeId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hidden: true })
+  });
+  const p = places.find(p => p.id === placeId);
+  if (p) p.hidden = true;
+  adminToast('장소를 숨김 처리했어요.');
+  dismissReport(reportId);
+}
+
+async function reportDeletePlace(reportId, placeId) {
+  if (!confirm('이 장소와 모든 캠페인을 영구 삭제할까요?')) return;
+  await fetch(`/api/places?id=${placeId}`, { method: 'DELETE' });
+  const idx = places.findIndex(p => p.id === placeId);
+  if (idx > -1) places.splice(idx, 1);
+  campaigns.splice(0, campaigns.length, ...campaigns.filter(c => c.placeId !== placeId));
+  adminToast('장소 및 관련 캠페인 삭제 완료');
+  dismissReport(reportId);
 }
 
 // ===== 캠페인 등록 =====
@@ -519,6 +571,21 @@ function resetAddForm() {
 
 // ===== 삭제 =====
 let confirmCallback = null;
+async function togglePlaceHidden(id) {
+  const p = places.find(p => p.id === id);
+  if (!p) return;
+  const nextHidden = !p.hidden;
+  if (nextHidden && !confirm(`"${p.name}"을 지도에서 숨길까요? (캠페인은 그대로 유지되고, 언제든 다시 노출할 수 있어요)`)) return;
+  await fetch(`/api/places?id=${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hidden: nextHidden })
+  });
+  p.hidden = nextHidden;
+  adminToast(nextHidden ? '장소를 숨김 처리했어요.' : '장소 숨김을 해제했어요.');
+  renderPlaceList();
+}
+
 function confirmDelete(type, id) {
   const name = type === 'campaign'
     ? `캠페인 ID ${id} (${campaigns.find(c=>c.id===id)?.content?.slice(0,20)}...)`

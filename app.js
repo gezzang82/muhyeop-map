@@ -152,6 +152,8 @@ function filterChannel(channel) {
 }
 
 function hasActiveCampaign(placeId) {
+  const place = places.find(p => p.id === placeId);
+  if (place && place.hidden) return false;
   return getActiveCampaigns(placeId).length > 0;
 }
 

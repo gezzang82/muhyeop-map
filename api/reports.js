@@ -4,6 +4,7 @@ function toReport(row) {
   return {
     id: row.id,
     campaignId: row.campaign_id,
+    placeId: row.place_id,
     reason: row.reason,
     detail: row.detail || '',
     createdAt: row.created_at,
@@ -30,7 +31,7 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     const result = await db.execute(`
-      SELECT r.*, c.platform AS platform, c.content AS content, p.name AS place_name
+      SELECT r.*, c.platform AS platform, c.content AS content, p.id AS place_id, p.name AS place_name
       FROM reports r
       JOIN campaigns c ON c.id = r.campaign_id
       JOIN places p ON p.id = c.place_id

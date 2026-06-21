@@ -10,12 +10,18 @@ function toPlace(row) {
     category: row.category,
     founderNickname: row.founder_nickname || '',
     founderEmail: row.founder_email || '',
-    founderUrl: row.founder_url || ''
+    founderUrl: row.founder_url || '',
+    hidden: !!row.hidden
   };
 }
 
 module.exports = async function handler(req, res) {
   const db = getDb();
+  try {
+    await db.execute("ALTER TABLE places ADD COLUMN hidden INTEGER DEFAULT 0");
+  } catch (e) {
+    // 컬럼이 이미 있으면 무시
+  }
 
   if (req.method === 'GET') {
     const result = await db.execute('SELECT * FROM places');
@@ -38,9 +44,9 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'PATCH') {
     const id = Number(req.query.id);
-    const { name, address, category, lat, lng } = req.body || {};
-    if (!id || (!name && !address && !category)) {
-      return res.status(400).json({ error: 'id와 수정할 항목(name, address, category 중 하나 이상)이 필요합니다.' });
+    const { name, address, category, lat, lng, hidden } = req.body || {};
+    if (!id || (!name && !address && !category && hidden === undefined)) {
+      return res.status(400).json({ error: 'id와 수정할 항목(name, address, category, hidden 중 하나 이상)이 필요합니다.' });
     }
     const fields = [];
     const args = [];
@@ -50,9 +56,10 @@ module.exports = async function handler(req, res) {
       fields.push('address = ?'); args.push(address);
       if (lat != null && lng != null) { fields.push('lat = ?', 'lng = ?'); args.push(lat, lng); }
     }
+    if (hidden !== undefined) { fields.push('hidden = ?'); args.push(hidden ? 1 : 0); }
     args.push(id);
     await db.execute({ sql: `UPDATE places SET ${fields.join(', ')} WHERE id = ?`, args });
-    return res.status(200).json({ id, name, address, category, lat, lng });
+    return res.status(200).json({ id, name, address, category, lat, lng, hidden });
   }
 
   if (req.method === 'DELETE') {
