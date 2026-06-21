@@ -1706,7 +1706,7 @@ function showToast(msg) {
 function buildLiveMessagePool() {
   const withPlace = (c) => {
     const place = places.find(p => p.id === c.placeId);
-    return place ? { nick: c.source === 'user' ? (c.reporterNickname || '익명') : '익명', place: place.name, createdAt: c.createdAt || '' } : null;
+    return place ? { nick: c.source === 'user' ? (c.reporterNickname || '익명') : '익명', place: place.name, placeId: place.id, createdAt: c.createdAt || '' } : null;
   };
   const userOnes = campaigns.filter(c => c.source === 'user' && !c.hidden).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   const otherOnes = campaigns.filter(c => c.source !== 'user' && !c.hidden).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -1749,6 +1749,7 @@ function getEulReul(word) {
   return '를';
 }
 
+let _liveBubblePlaceId = null;
 function showLiveBubble(data) {
   const bubble = document.getElementById('liveBubble');
   const text = document.getElementById('liveBubbleText');
@@ -1758,10 +1759,15 @@ function showLiveBubble(data) {
   setTimeout(() => {
     const particle = getEulReul(data.place);
     text.innerHTML = `${data.nick}님이 <strong>${data.place}</strong>${particle}<br>추가했어요!`;
+    _liveBubblePlaceId = data.placeId;
     bubble.classList.add('show');
     playCharacterAnim();
     _liveBubbleTimer = setTimeout(() => bubble.classList.remove('show'), 5000);
   }, 100);
+}
+
+function clickLiveBubble() {
+  if (_liveBubblePlaceId != null) focusPlace(_liveBubblePlaceId);
 }
 
 function startLiveAlerts() {

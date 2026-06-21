@@ -1479,6 +1479,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   opacity: 0; transform: translateY(8px) scale(0.95);
   transition: opacity 0.3s ease, transform 0.3s ease;
   transform-origin: bottom right;
+  cursor: pointer;
 }
 .live-bubble-tail-mob { display: none; }
 .live-bubble-tail {
@@ -1491,6 +1492,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 .live-bubble.show {
   opacity: 1; transform: translateY(0) scale(1);
+  pointer-events: auto;
 }
 .live-bubble strong { color: #006cff; font-weight: 700; }
 @media (max-width: 640px) {
