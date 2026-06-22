@@ -1888,6 +1888,26 @@ function clickLiveBubble() {
   if (_liveBubblePlaceId != null) focusPlace(_liveBubblePlaceId);
 }
 
+async function renderLeaderboard() {
+  try {
+    const res = await fetch('/api/leaderboard');
+    const data = await res.json();
+    const show = data.count > 0;
+    [
+      ['leaderboardBannerMobile', 'leaderboardNicknameMobile', 'leaderboardCountMobile'],
+      ['leaderboardBannerPC', 'leaderboardNicknamePC', 'leaderboardCountPC']
+    ].forEach(([bannerId, nicknameId, countId]) => {
+      const banner = document.getElementById(bannerId);
+      if (!banner) return;
+      banner.classList.toggle('show', show);
+      if (show) {
+        document.getElementById(nicknameId).textContent = data.nickname;
+        document.getElementById(countId).textContent = data.count;
+      }
+    });
+  } catch (e) {}
+}
+
 function startLiveAlerts() {
   const charEl = document.getElementById('liveCharacter');
   if (charEl) charEl.src = getChFrames()[0];
@@ -2208,6 +2228,8 @@ window.addEventListener('load', async function() {
   initMap();
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   startLiveAlerts();
+  renderLeaderboard();
+  setInterval(renderLeaderboard, 60000);
 });
 
 let _prevIsMobile = window.innerWidth <= 640;

@@ -597,6 +597,23 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   display: none; /* PC에서는 숨김 */
 }
 
+.leaderboard-banner {
+  display: none; align-items: center; gap: 8px;
+  padding: 12px 14px; flex-shrink: 0;
+  background: rgba(232,42,45,0.08); border-radius: 10px;
+}
+.leaderboard-banner.show { display: flex; }
+.leaderboard-banner img { flex-shrink: 0; }
+.leaderboard-text { font-size: 14px; color: #1a1a1a; }
+.leaderboard-text strong { color: #E82A2D; font-weight: 700; }
+.leaderboard-banner.mobile-only { margin: 0 20px 16px; }
+@media (max-width: 640px) {
+  .leaderboard-banner.pc-only { display: none !important; }
+}
+@media (min-width: 641px) {
+  .leaderboard-banner.mobile-only { display: none !important; }
+}
+
 .sidebar-list { flex: 1; min-height: 0; overflow-y: auto; }
 .sidebar-list::-webkit-scrollbar { width: 4px; }
 .sidebar-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
