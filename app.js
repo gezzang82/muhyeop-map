@@ -1161,6 +1161,48 @@ function closeSideMenu() {
   document.getElementById('sideMenuOverlay').classList.remove('open');
 }
 
+// ===== 간편로그인 =====
+let currentUser = null;
+
+async function refreshAuthUI() {
+  try {
+    const res = await fetch('/api/auth/me');
+    const data = await res.json();
+    currentUser = data.user || null;
+  } catch (e) {
+    currentUser = null;
+  }
+  const loggedIn = !!currentUser;
+  const pcLoginBtn = document.getElementById('pcNavLoginBtn');
+  const pcUser = document.getElementById('pcNavUser');
+  const sideLoginBtn = document.getElementById('sideMenuLoginBtn');
+  const sideUser = document.getElementById('sideMenuUser');
+  if (pcLoginBtn) pcLoginBtn.style.display = loggedIn ? 'none' : '';
+  if (pcUser) pcUser.style.display = loggedIn ? 'flex' : 'none';
+  if (sideLoginBtn) sideLoginBtn.style.display = loggedIn ? 'none' : '';
+  if (sideUser) sideUser.style.display = loggedIn ? 'flex' : 'none';
+  if (loggedIn) {
+    const name = `${currentUser.nickname || ''}님`;
+    const pcName = document.getElementById('pcNavUserName');
+    const sideName = document.getElementById('sideMenuUserName');
+    if (pcName) pcName.textContent = name;
+    if (sideName) sideName.textContent = name;
+  }
+}
+
+function openLoginSheet() {
+  document.getElementById('loginOverlay').classList.add('open');
+}
+function closeLoginSheet() {
+  document.getElementById('loginOverlay').classList.remove('open');
+}
+
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  currentUser = null;
+  refreshAuthUI();
+}
+
 // ===== 모달 =====
 function openAbout() {
   if (window.innerWidth > 640) {
@@ -1432,6 +1474,10 @@ function resetModal() {
   document.getElementById('placeResultsList').innerHTML = '';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('#modalOverlay .btn-input-clear').forEach(b => b.classList.remove('show'));
+  if (currentUser) {
+    const nicknameEl = document.getElementById('inputNickname');
+    if (nicknameEl) nicknameEl.value = currentUser.nickname || '';
+  }
 }
 
 function updateStepDots(step) {
@@ -2089,6 +2135,7 @@ document.addEventListener('touchmove', function(e) {
 
 window.addEventListener('load', async function() {
   await loadInitialData();
+  refreshAuthUI();
   if (!document.getElementById('map')) return;
   updateStatCount();
   initMap();

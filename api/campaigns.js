@@ -1,4 +1,5 @@
 const { getDb } = require('./_db');
+const { readSession } = require('./auth/_session');
 
 function toCampaign(row) {
   return {
@@ -35,6 +36,11 @@ module.exports = async function handler(req, res) {
   } catch (e) {
     // 컬럼이 이미 있으면 무시
   }
+  try {
+    await db.execute("ALTER TABLE campaigns ADD COLUMN user_id INTEGER REFERENCES users(id)");
+  } catch (e) {
+    // 컬럼이 이미 있으면 무시
+  }
 
   if (req.method === 'GET') {
     const result = await db.execute('SELECT * FROM campaigns');
@@ -45,19 +51,23 @@ module.exports = async function handler(req, res) {
     const {
       placeId, platform, channels, content, deadline, link,
       operatingDays, operatingHours, excludeHoliday,
-      reporterNickname, reporterEmail, reporterBlog, reporterInstagram, reporterUrl, source
+      reporterBlog, reporterInstagram, reporterUrl, source
     } = req.body || {};
     if (!placeId || !platform || !content || !channels?.length) {
       return res.status(400).json({ error: 'placeId, platform, content, channels는 필수입니다.' });
     }
+    const session = readSession(req);
+    const reporterNickname = session ? session.nickname : (req.body?.reporterNickname || '');
+    const reporterEmail = req.body?.reporterEmail || '';
+    const userId = session ? session.userId : null;
     const result = await db.execute({
-      sql: `INSERT INTO campaigns (place_id, platform, channels, content, deadline, link, operating_days, operating_hours, exclude_holiday, reporter_nickname, reporter_email, reporter_blog, reporter_instagram, reporter_url, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO campaigns (place_id, platform, channels, content, deadline, link, operating_days, operating_hours, exclude_holiday, reporter_nickname, reporter_email, reporter_blog, reporter_instagram, reporter_url, source, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         placeId, platform, JSON.stringify(channels || []), content, deadline || '', link || '',
         JSON.stringify(operatingDays || []), operatingHours || '', excludeHoliday ? 1 : 0,
         reporterNickname || '', reporterEmail || '', reporterBlog || '', reporterInstagram || '', reporterUrl || '',
-        source === 'admin' ? 'admin' : 'user'
+        source === 'admin' ? 'admin' : 'user', userId
       ]
     });
     const id = Number(result.lastInsertRowid);

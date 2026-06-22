@@ -1,4 +1,5 @@
 const { getDb } = require('./_db');
+const { readSession } = require('./auth/_session');
 
 function toPlace(row) {
   return {
@@ -22,6 +23,11 @@ module.exports = async function handler(req, res) {
   } catch (e) {
     // 컬럼이 이미 있으면 무시
   }
+  try {
+    await db.execute("ALTER TABLE places ADD COLUMN founder_user_id INTEGER REFERENCES users(id)");
+  } catch (e) {
+    // 컬럼이 이미 있으면 무시
+  }
 
   if (req.method === 'GET') {
     const result = await db.execute('SELECT * FROM places');
@@ -29,14 +35,17 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, address, lat, lng, category, founderNickname, founderEmail, founderUrl } = req.body || {};
+    const { name, address, lat, lng, category, founderEmail, founderUrl } = req.body || {};
     if (!name || !address || lat == null || lng == null || !category) {
       return res.status(400).json({ error: 'name, address, lat, lng, category는 필수입니다.' });
     }
+    const session = readSession(req);
+    const founderNickname = session ? session.nickname : (req.body?.founderNickname || '');
+    const founderUserId = session ? session.userId : null;
     const result = await db.execute({
-      sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [name, address, lat, lng, category, founderNickname || '', founderEmail || '', founderUrl || '']
+      sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [name, address, lat, lng, category, founderNickname || '', founderEmail || '', founderUrl || '', founderUserId]
     });
     const id = Number(result.lastInsertRowid);
     return res.status(201).json({ id, name, address, lat, lng, category, founderNickname: founderNickname || '', founderEmail: founderEmail || '', founderUrl: founderUrl || '' });

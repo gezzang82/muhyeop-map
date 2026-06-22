@@ -1,3 +1,13 @@
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  provider TEXT NOT NULL,
+  provider_user_id TEXT NOT NULL,
+  nickname TEXT DEFAULT '',
+  email TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(provider, provider_user_id)
+);
+
 CREATE TABLE IF NOT EXISTS places (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -8,6 +18,7 @@ CREATE TABLE IF NOT EXISTS places (
   founder_nickname TEXT DEFAULT '',
   founder_email TEXT DEFAULT '',
   founder_url TEXT DEFAULT '',
+  founder_user_id INTEGER REFERENCES users(id),
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -31,6 +42,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
   reporter_url TEXT DEFAULT '',
   source TEXT DEFAULT 'user',
   hidden INTEGER DEFAULT 0,
+  user_id INTEGER REFERENCES users(id),
   created_at TEXT DEFAULT (datetime('now'))
 );
 
