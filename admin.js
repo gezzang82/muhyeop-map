@@ -295,9 +295,10 @@ async function renderReportList() {
       <td>${(r.content || '').slice(0, 20)}</td>
       <td>${r.reason}</td>
       <td>${r.detail || '-'}</td>
+      <td>${r.reporterNickname || '비회원'}</td>
       <td>${r.createdAt}</td>
       <td>${reportActionButtons(r)}</td>
-    </tr>`).join('') || `<tr><td colspan="7" class="empty-msg">신고 내역 없음</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="8" class="empty-msg">신고 내역 없음</td></tr>`;
 }
 
 function reportActionButtons(r) {

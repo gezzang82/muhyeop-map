@@ -1,4 +1,5 @@
 const { getDb } = require('./_db');
+const { readSession } = require('./auth/_session');
 
 function toReport(row) {
   return {
@@ -10,7 +11,8 @@ function toReport(row) {
     createdAt: row.created_at,
     placeName: row.place_name || '',
     platform: row.platform || '',
-    content: row.content || ''
+    content: row.content || '',
+    reporterNickname: row.reporter_nickname || ''
   };
 }
 
@@ -28,13 +30,19 @@ module.exports = async function handler(req, res) {
   } catch (e) {
     // 컬럼이 이미 있으면 무시
   }
+  try {
+    await db.execute("ALTER TABLE reports ADD COLUMN user_id INTEGER REFERENCES users(id)");
+  } catch (e) {
+    // 컬럼이 이미 있으면 무시
+  }
 
   if (req.method === 'GET') {
     const result = await db.execute(`
-      SELECT r.*, c.platform AS platform, c.content AS content, p.id AS place_id, p.name AS place_name
+      SELECT r.*, c.platform AS platform, c.content AS content, p.id AS place_id, p.name AS place_name, u.nickname AS reporter_nickname
       FROM reports r
       JOIN campaigns c ON c.id = r.campaign_id
       JOIN places p ON p.id = c.place_id
+      LEFT JOIN users u ON u.id = r.user_id
       ORDER BY r.id DESC
     `);
     return res.status(200).json(result.rows.map(toReport));
@@ -45,9 +53,11 @@ module.exports = async function handler(req, res) {
     if (!campaignId || !reason) {
       return res.status(400).json({ error: 'campaignId, reason은 필수입니다.' });
     }
+    const session = readSession(req);
+    const userId = session ? session.userId : null;
     const result = await db.execute({
-      sql: `INSERT INTO reports (campaign_id, reason, detail) VALUES (?, ?, ?)`,
-      args: [campaignId, reason, detail || '']
+      sql: `INSERT INTO reports (campaign_id, reason, detail, user_id) VALUES (?, ?, ?, ?)`,
+      args: [campaignId, reason, detail || '', userId]
     });
     const id = Number(result.lastInsertRowid);
     return res.status(201).json({ id, campaignId, reason, detail: detail || '' });

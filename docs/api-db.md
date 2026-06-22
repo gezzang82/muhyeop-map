@@ -23,7 +23,7 @@
   - `deadline`은 빈 문자열 허용(마감일 없음), `source`는 `'user'` 등으로 등록 경로 구분
   - `user_id`/`founder_user_id`는 로그인 사용자 식별용 nullable FK (`users.id`). 비로그인 제보도 계속 허용하므로 NULL 가능
 - `banners(id, image_url, link_url, start_date, end_date, created_at)`
-- `reports(id, campaign_id, reason, detail, created_at)`
+- `reports(id, campaign_id, reason, detail, user_id, created_at)` — `user_id`는 로그인 사용자가 신고 시 세션에서 조용히 채워짐(입력 필드 없음). 비로그인 신고는 NULL
 
 ## 데이터 매핑 규칙
 - DB 컬럼은 snake_case, API 응답은 camelCase로 변환 (`toCampaign()`, `toPlace()` 같은 변환 함수가 각 핸들러 상단에 있음)

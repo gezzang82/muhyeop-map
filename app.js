@@ -1495,7 +1495,7 @@ function resetModal() {
   lastSearchQuery = ''; placeResultsVisibleCount = PLACE_RESULTS_PAGE_SIZE;
   document.getElementById('step1').style.display = 'flex';
   document.getElementById('step2').style.display = 'none';
-  ['inputName','inputContent','inputHours','inputNickname','inputEmail']
+  ['inputName','inputContent','inputHours','inputNickname']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('inputCategory').value = '';
   syncSelectTrigger('inputCategory');
@@ -1521,20 +1521,31 @@ function resetModal() {
   document.getElementById('placeResultsList').innerHTML = '';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('#modalOverlay .btn-input-clear').forEach(b => b.classList.remove('show'));
-  const emailGroup = document.getElementById('inputEmailGroup');
+  const nicknameEl = document.getElementById('inputNickname');
+  const urlTrigger = document.getElementById('inputUrlPlatformTrigger');
+  const urlIdEl = document.getElementById('inputUrlId');
+  const lockedHint = document.getElementById('inputLockedHint');
   if (currentUser) {
-    const nicknameEl = document.getElementById('inputNickname');
-    if (nicknameEl) nicknameEl.value = currentUser.nickname || '';
-    if (emailGroup) emailGroup.style.display = 'none';
+    if (nicknameEl) { nicknameEl.value = currentUser.nickname || ''; nicknameEl.readOnly = true; }
     if (currentUser.urlPlatform && currentUser.urlId) {
       const sel = document.getElementById('inputUrlPlatform');
       sel.value = currentUser.urlPlatform;
       syncSelectTrigger('inputUrlPlatform');
       updateUrlPlatform(currentUser.urlPlatform, 'input', true);
       document.getElementById('inputUrlId').value = currentUser.urlId;
+      if (urlTrigger) urlTrigger.classList.add('locked');
+      if (urlIdEl) urlIdEl.readOnly = true;
+      if (lockedHint) lockedHint.style.display = 'block';
+    } else {
+      if (urlTrigger) urlTrigger.classList.remove('locked');
+      if (urlIdEl) urlIdEl.readOnly = false;
+      if (lockedHint) lockedHint.style.display = 'none';
     }
-  } else if (emailGroup) {
-    emailGroup.style.display = '';
+  } else {
+    if (nicknameEl) nicknameEl.readOnly = false;
+    if (urlTrigger) urlTrigger.classList.remove('locked');
+    if (urlIdEl) urlIdEl.readOnly = false;
+    if (lockedHint) lockedHint.style.display = 'none';
   }
 }
 
@@ -1741,7 +1752,6 @@ async function submitCampaign() {
 
   const reporterUrl = buildReporterUrl();
   const reporterNickname = document.getElementById('inputNickname').value.trim();
-  const reporterEmail = document.getElementById('inputEmail').value.trim();
 
   let placeId;
   try {
@@ -1755,7 +1765,6 @@ async function submitCampaign() {
         lat: modalSelectedLat, lng: modalSelectedLng,
         category,
         founderNickname: reporterNickname,
-        founderEmail: reporterEmail,
         founderUrl: reporterUrl
       })
     }).then(r => r.json());
@@ -1780,7 +1789,7 @@ async function submitCampaign() {
       operatingDays: [...document.querySelectorAll('.day-btn.active')].map(b => b.textContent),
       excludeHoliday: document.getElementById('holidayExclude')?.classList.contains('active') ?? false,
       operatingHours: document.getElementById('inputHours').value.trim(),
-      reporterNickname, reporterEmail, reporterUrl, source: 'user'
+      reporterNickname, reporterUrl, source: 'user'
     })
   }).then(r => r.json());
   campaigns.push(newCampaign);

@@ -573,10 +573,6 @@
                 <label>닉네임</label>
                 <input type="text" id="inputNickname" placeholder="맛집탐험가">
               </div>
-              <div class="form-group" id="inputEmailGroup">
-                <label>이메일</label>
-                <input type="email" id="inputEmail" placeholder="muhyeop-map@gmail.com">
-              </div>
               <div class="form-group">
                 <label>내 링크 (블로그 또는 인스타그램)</label>
                 <select id="inputUrlPlatform" style="display:none">
@@ -594,6 +590,7 @@
                   <span class="url-domain-prefix" id="inputUrlDomainPrefix"></span>
                   <input type="text" id="inputUrlId" class="url-id-input" placeholder="아이디 입력">
                 </div>
+                <div class="locked-hint" id="inputLockedHint" style="display:none">로그인 계정 정보가 자동으로 입력돼요. <a onclick="closeModal(); openProfileSheet();">프로필 설정</a>에서 변경할 수 있어요.</div>
               </div>
             </div>
           </div>

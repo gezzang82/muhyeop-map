@@ -927,6 +927,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .form-group input::placeholder { color: #bbb; opacity: 1; }
 .form-group input:focus,
 .form-group select:focus { border-color: rgba(0,0,0,0.87); }
+.form-group input[readonly] { background: #f5f5f5; color: #777; cursor: not-allowed; }
+.url-platform-trigger.locked { background: #f5f5f5; color: #777; cursor: not-allowed; }
+.locked-hint { font-size: 13px; color: #999; }
+.locked-hint a { color: #E82A2D; cursor: pointer; text-decoration: underline; }
 
 .form-group textarea {
   padding: 14px 16px; min-height: 100px; border: 1px solid rgba(221,221,221,0.87);

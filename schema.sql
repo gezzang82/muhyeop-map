@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS reports (
   campaign_id INTEGER NOT NULL REFERENCES campaigns(id),
   reason TEXT NOT NULL,
   detail TEXT DEFAULT '',
+  user_id INTEGER REFERENCES users(id),
   created_at TEXT DEFAULT (datetime('now'))
 );
 
