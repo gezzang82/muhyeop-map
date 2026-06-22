@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS users (
   provider_user_id TEXT NOT NULL,
   nickname TEXT DEFAULT '',
   email TEXT DEFAULT '',
+  url_platform TEXT DEFAULT '',
+  url_id TEXT DEFAULT '',
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE(provider, provider_user_id)
 );

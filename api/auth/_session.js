@@ -25,8 +25,8 @@ function parseCookies(header) {
   );
 }
 
-function createSessionCookie({ userId, nickname, provider }) {
-  const payload = { userId, nickname, provider, exp: Date.now() + MAX_AGE_SECONDS * 1000 };
+function createSessionCookie({ userId, nickname, provider, email }) {
+  const payload = { userId, nickname, provider, email: email || '', exp: Date.now() + MAX_AGE_SECONDS * 1000 };
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const sig = sign(payloadB64);
   return `${COOKIE_NAME}=${payloadB64}.${sig}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${MAX_AGE_SECONDS}`;

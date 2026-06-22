@@ -11,13 +11,13 @@
 - `api/banners.js` — 상단 배너 관리
 - `api/search-place.js` — 장소명 검색 (네이버 장소 검색 연동으로 추정, 협찬 제보하기 step1 매장명 검색에 사용)
 - `api/auth/` — 카카오/네이버 간편로그인
-  - `login.js` (`GET ?provider=kakao&redirectTo=...` → OAuth authorize URL로 302), `callback.js` (code 교환 → `users` upsert → 세션 쿠키 발급), `logout.js`, `me.js` (현재 로그인 사용자 조회), `delete-account.js` (`POST`, 세션 필요 → `users` row 삭제 + `campaigns.user_id`/`places.founder_user_id` NULL 처리 + 세션 쿠키 삭제)
-  - `_session.js`/`_state.js`: Node 내장 `crypto` HMAC로 세션/CSRF state를 직접 서명 (jsonwebtoken 등 의존성 추가 없음). `SESSION_SECRET` 환경변수 필요
+  - `login.js` (`GET ?provider=kakao&redirectTo=...` → OAuth authorize URL로 302), `callback.js` (code 교환 → `users` upsert → 세션 쿠키 발급), `logout.js`, `me.js` (현재 로그인 사용자 조회, DB에서 `url_platform`/`url_id` 조회해 함께 응답), `profile.js` (`POST`, 세션 필요 → `users.url_platform`/`url_id` 갱신 — 제보/신고 시 블로그·인스타그램 링크 자동 입력용), `delete-account.js` (`POST`, 세션 필요 → `users` row 삭제 + `campaigns.user_id`/`places.founder_user_id` NULL 처리 + 세션 쿠키 삭제)
+  - `_session.js`/`_state.js`: Node 내장 `crypto` HMAC로 세션/CSRF state를 직접 서명 (jsonwebtoken 등 의존성 추가 없음). `SESSION_SECRET` 환경변수 필요. 세션 쿠키 payload에 `email`도 포함되어 있어, 로그인 사용자의 제보/신고 시 이메일을 매번 입력받지 않고 세션 값을 그대로 사용 (`api/campaigns.js`, `api/places.js`)
   - `_provider.js`: provider별 OAuth 설정(엔드포인트, clientId/secret, 프로필 파싱)을 모아둔 곳. 새 provider 추가 시 여기에 설정 객체만 추가
   - 세션 쿠키는 `HttpOnly; Secure; SameSite=Lax`. 로그인 사용자의 `reporter_nickname`/`founder_nickname`은 클라이언트 입력 대신 세션 닉네임을 우선 사용 (`api/campaigns.js`, `api/places.js`)
 
 ## 테이블 스키마 요약 (`schema.sql`)
-- `users(id, provider, provider_user_id, nickname, email, created_at)` — 카카오/네이버 로그인 사용자. `(provider, provider_user_id)` UNIQUE
+- `users(id, provider, provider_user_id, nickname, email, url_platform, url_id, created_at)` — 카카오/네이버 로그인 사용자. `(provider, provider_user_id)` UNIQUE. `url_platform`/`url_id`는 프로필 설정에서 미리 등록해두는 블로그/인스타그램 링크(제보·신고 폼 자동입력용)
 - `places(id, name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id, created_at)`
 - `campaigns(id, place_id, platform, channels, content, deadline, link, operating_days, operating_hours, exclude_holiday, reporter_nickname, reporter_email, reporter_blog, reporter_instagram, reporter_url, source, hidden, user_id, created_at)`
   - `deadline`은 빈 문자열 허용(마감일 없음), `source`는 `'user'` 등으로 등록 경로 구분

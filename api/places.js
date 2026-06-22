@@ -41,14 +41,15 @@ module.exports = async function handler(req, res) {
     }
     const session = readSession(req);
     const founderNickname = session ? session.nickname : (req.body?.founderNickname || '');
+    const finalFounderEmail = session ? (session.email || '') : (founderEmail || '');
     const founderUserId = session ? session.userId : null;
     const result = await db.execute({
       sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [name, address, lat, lng, category, founderNickname || '', founderEmail || '', founderUrl || '', founderUserId]
+      args: [name, address, lat, lng, category, founderNickname || '', finalFounderEmail, founderUrl || '', founderUserId]
     });
     const id = Number(result.lastInsertRowid);
-    return res.status(201).json({ id, name, address, lat, lng, category, founderNickname: founderNickname || '', founderEmail: founderEmail || '', founderUrl: founderUrl || '' });
+    return res.status(201).json({ id, name, address, lat, lng, category, founderNickname: founderNickname || '', founderEmail: finalFounderEmail, founderUrl: founderUrl || '' });
   }
 
   if (req.method === 'PATCH') {

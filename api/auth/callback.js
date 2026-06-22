@@ -11,9 +11,17 @@ async function ensureUsersTable(db) {
     provider_user_id TEXT NOT NULL,
     nickname TEXT DEFAULT '',
     email TEXT DEFAULT '',
+    url_platform TEXT DEFAULT '',
+    url_id TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),
     UNIQUE(provider, provider_user_id)
   )`);
+  try {
+    await db.execute("ALTER TABLE users ADD COLUMN url_platform TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
+    await db.execute("ALTER TABLE users ADD COLUMN url_id TEXT DEFAULT ''");
+  } catch (e) {}
 }
 
 module.exports = async function handler(req, res) {
@@ -81,7 +89,7 @@ module.exports = async function handler(req, res) {
       userId = Number(inserted.lastInsertRowid);
     }
 
-    const sessionCookie = createSessionCookie({ userId, nickname: profile.nickname, provider: stateData.provider });
+    const sessionCookie = createSessionCookie({ userId, nickname: profile.nickname, provider: stateData.provider, email: profile.email });
     res.setHeader('Set-Cookie', [sessionCookie, clearStateCookie()]);
     res.writeHead(302, { Location: stateData.redirectTo || '/' });
     res.end();

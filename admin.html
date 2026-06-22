@@ -141,6 +141,7 @@
         <a class="nav-item" onclick="showTab('places')" id="tab-places"><svg class="icon"><use href="#icon-pin"></use></svg> 장소 목록</a>
         <a class="nav-item" onclick="showTab('banners')" id="tab-banners"><svg class="icon"><use href="#icon-megaphone"></use></svg> 이벤트 팝업</a>
         <a class="nav-item" onclick="showTab('reports')" id="tab-reports"><svg class="icon"><use href="#icon-flag"></use></svg> 신고 목록</a>
+        <a class="nav-item" onclick="showTab('users')" id="tab-users"><svg class="icon"><use href="#icon-user"></use></svg> 회원 목록</a>
       </nav>
       <div class="admin-logout" onclick="logout()"><svg class="icon"><use href="#icon-logout"></use></svg> 로그아웃</div>
     </aside>
@@ -176,6 +177,11 @@
             <div class="stat-icon"><svg class="icon"><use href="#icon-sparkle"></use></svg></div>
             <div class="stat-value" id="statUserReportedToday">0</div>
             <div class="stat-label">유저 실제 제보 (오늘)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg class="icon"><use href="#icon-user"></use></svg></div>
+            <div class="stat-value" id="statMembers">0</div>
+            <div class="stat-label">가입 회원</div>
           </div>
         </div>
 
@@ -531,6 +537,21 @@
               </tr>
             </thead>
             <tbody id="reportTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 회원 목록 -->
+      <div id="page-users" class="admin-page" style="display:none;">
+        <h1 class="page-title">회원 목록</h1>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>로그인 방식</th><th>닉네임</th><th>이메일</th><th>블로그/인스타</th><th>가입일시</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody"></tbody>
           </table>
         </div>
       </div>

@@ -36,6 +36,7 @@ function showTab(tab) {
   if (tab === 'add') populatePlaceSelect();
   if (tab === 'banners') renderBannerList();
   if (tab === 'reports') renderReportList();
+  if (tab === 'users') renderUserList();
 }
 
 // ===== 초기화 =====
@@ -66,6 +67,11 @@ function renderDashboard() {
   };
   const statUserTodayEl = document.getElementById('statUserReportedToday');
   if (statUserTodayEl) statUserTodayEl.textContent = userCampaigns.filter(c => isCreatedToday(c.createdAt)).length;
+
+  const statMembersEl = document.getElementById('statMembers');
+  if (statMembersEl) {
+    fetch('/api/users').then(r => r.json()).then(users => { statMembersEl.textContent = users.length; }).catch(() => {});
+  }
 
   // 플랫폼별
   const platformCount = {};
@@ -261,6 +267,21 @@ async function submitBanner() {
   document.getElementById('bannerStartDate').value = '';
   document.getElementById('bannerEndDate').value = '';
   renderBannerList();
+}
+
+// ===== 회원 목록 =====
+const PROVIDER_LABELS = { kakao: '카카오', naver: '네이버' };
+async function renderUserList() {
+  const tbody = document.getElementById('userTableBody');
+  const users = await (await fetch('/api/users')).json();
+  tbody.innerHTML = users.map(u => `<tr>
+      <td class="td-id">${u.id}</td>
+      <td>${PROVIDER_LABELS[u.provider] || u.provider}</td>
+      <td>${u.nickname || '-'}</td>
+      <td>${u.email || '-'}</td>
+      <td>${u.urlPlatform && u.urlId ? `${u.urlPlatform}: ${u.urlId}` : '-'}</td>
+      <td>${u.createdAt}</td>
+    </tr>`).join('') || `<tr><td colspan="6" class="empty-msg">가입한 회원 없음</td></tr>`;
 }
 
 // ===== 신고 목록 =====

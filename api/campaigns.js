@@ -58,7 +58,7 @@ module.exports = async function handler(req, res) {
     }
     const session = readSession(req);
     const reporterNickname = session ? session.nickname : (req.body?.reporterNickname || '');
-    const reporterEmail = req.body?.reporterEmail || '';
+    const reporterEmail = session ? (session.email || '') : (req.body?.reporterEmail || '');
     const userId = session ? session.userId : null;
     const result = await db.execute({
       sql: `INSERT INTO campaigns (place_id, platform, channels, content, deadline, link, operating_days, operating_hours, exclude_holiday, reporter_nickname, reporter_email, reporter_blog, reporter_instagram, reporter_url, source, user_id)

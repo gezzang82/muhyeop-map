@@ -1203,6 +1203,37 @@ async function logout() {
   refreshAuthUI();
 }
 
+function openProfileSheet() {
+  if (!currentUser) { openLoginSheet(); return; }
+  const sel = document.getElementById('profileUrlPlatform');
+  sel.value = currentUser.urlPlatform || '';
+  syncSelectTrigger('profileUrlPlatform');
+  updateUrlPlatform(currentUser.urlPlatform || '', 'profile', true);
+  document.getElementById('profileUrlId').value = currentUser.urlId || '';
+  document.getElementById('profileOverlay').classList.add('open');
+}
+function closeProfileSheet() {
+  document.getElementById('profileOverlay').classList.remove('open');
+}
+
+async function saveProfile() {
+  const urlPlatform = document.getElementById('profileUrlPlatform').value;
+  const urlId = document.getElementById('profileUrlId').value.trim();
+  try {
+    const res = await fetch('/api/auth/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urlPlatform, urlId })
+    });
+    if (!res.ok) { alert('저장 중 오류가 발생했습니다.'); return; }
+    await refreshAuthUI();
+    closeProfileSheet();
+    showToast('프로필을 저장했어요.');
+  } catch (e) {
+    alert('저장 중 오류가 발생했습니다.');
+  }
+}
+
 async function deleteAccount() {
   if (!confirm('정말 회원 탈퇴하시겠어요? 로그인 계정 정보가 삭제되며 복구할 수 없습니다.')) return;
   try {
@@ -1490,9 +1521,20 @@ function resetModal() {
   document.getElementById('placeResultsList').innerHTML = '';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('#modalOverlay .btn-input-clear').forEach(b => b.classList.remove('show'));
+  const emailGroup = document.getElementById('inputEmailGroup');
   if (currentUser) {
     const nicknameEl = document.getElementById('inputNickname');
     if (nicknameEl) nicknameEl.value = currentUser.nickname || '';
+    if (emailGroup) emailGroup.style.display = 'none';
+    if (currentUser.urlPlatform && currentUser.urlId) {
+      const sel = document.getElementById('inputUrlPlatform');
+      sel.value = currentUser.urlPlatform;
+      syncSelectTrigger('inputUrlPlatform');
+      updateUrlPlatform(currentUser.urlPlatform, 'input', true);
+      document.getElementById('inputUrlId').value = currentUser.urlId;
+    }
+  } else if (emailGroup) {
+    emailGroup.style.display = '';
   }
 }
 
@@ -2207,17 +2249,17 @@ window.addEventListener('resize', function() {
 const URL_PLATFORM_DOMAINS = { '블로그': 'blog.naver.com/', '인스타그램': 'instagram.com/' };
 const URL_PLATFORM_ICONS = { '블로그': 'image/ic_naver_blog_20.png', '인스타그램': 'image/ic_instagram_20.png' };
 
-function updateUrlPlatform(platform) {
-  const rowEl = document.getElementById('inputUrlIdRow');
-  const prefixEl = document.getElementById('inputUrlDomainPrefix');
-  const idInput = document.getElementById('inputUrlId');
-  const iconEl = document.getElementById('inputUrlPlatformIcon');
+function updateUrlPlatform(platform, prefix = 'input', keepId = false) {
+  const rowEl = document.getElementById(`${prefix}UrlIdRow`);
+  const prefixEl = document.getElementById(`${prefix}UrlDomainPrefix`);
+  const idInput = document.getElementById(`${prefix}UrlId`);
+  const iconEl = document.getElementById(`${prefix}UrlPlatformIcon`);
   if (!rowEl || !prefixEl || !idInput || !iconEl) return;
   const domain = URL_PLATFORM_DOMAINS[platform] || '';
 
   rowEl.style.display = domain ? 'flex' : 'none';
   prefixEl.textContent = domain;
-  idInput.value = '';
+  if (!keepId) idInput.value = '';
 
   // 바텀시트 닫힘 애니메이션(300ms) 끝난 뒤 입력칸이 화면에 들어오도록 스크롤
   if (domain) {
@@ -2229,12 +2271,16 @@ function updateUrlPlatform(platform) {
   else { iconEl.removeAttribute('src'); iconEl.style.display = 'none'; }
 }
 
-function buildReporterUrl() {
-  const platform = document.getElementById('inputUrlPlatform').value;
-  const id = document.getElementById('inputUrlId').value.trim();
+function buildUrlFromInputs(prefix = 'input') {
+  const platform = document.getElementById(`${prefix}UrlPlatform`).value;
+  const id = document.getElementById(`${prefix}UrlId`).value.trim();
   const domain = URL_PLATFORM_DOMAINS[platform];
   if (!domain || !id) return '';
   return `https://${domain}${id}`;
+}
+
+function buildReporterUrl() {
+  return buildUrlFromInputs('input');
 }
 
 // ===== 커스텀 셀렉트 바텀시트 =====
@@ -2292,7 +2338,7 @@ function pickSelectItem(selectId, value, label) {
     valueEl.classList.add('selected');
   }
 
-  if (selectId === 'inputUrlPlatform') updateUrlPlatform(value);
+  if (selectId.endsWith('UrlPlatform')) updateUrlPlatform(value, selectId.replace('UrlPlatform', ''));
 
   // 오류 메시지 클리어
   if (selectId === 'inputPlatform') {
