@@ -443,7 +443,7 @@ function createInfoContent(place) {
           : `<span class="iw-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>`;
 
         let daysHtml = '';
-        if (c.operatingDays !== undefined) {
+        if (c.operatingDays && c.operatingDays.length > 0) {
           const daysFormatted = ALL_DAYS.map(d => {
             const isActive = c.operatingDays.includes(d);
             return `<span style="color:${isActive ? '#000' : '#ccc'}">${d}</span>`;
@@ -554,7 +554,7 @@ function createMobileDetailContent(place) {
 
     // 요일 렌더
     let daysHtml = '';
-    if (c.operatingDays !== undefined) {
+    if (c.operatingDays && c.operatingDays.length > 0) {
       const daysFormatted = ALL_DAYS
         .map(d => {
           const active = c.operatingDays.includes(d);
