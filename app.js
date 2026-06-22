@@ -1890,7 +1890,7 @@ function clickLiveBubble() {
 
 async function renderLeaderboard() {
   try {
-    const res = await fetch('/api/leaderboard');
+    const res = await fetch('/api/users?leaderboard=1');
     const data = await res.json();
     const show = data.count > 0;
     [

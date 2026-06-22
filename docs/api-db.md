@@ -10,6 +10,7 @@
 - `api/reports.js` — 신고 처리 (`DELETE`는 단순 삭제만)
 - `api/banners.js` — 상단 배너 관리
 - `api/search-place.js` — 장소명 검색 (네이버 장소 검색 연동으로 추정, 협찬 제보하기 step1 매장명 검색에 사용)
+- `api/users.js` — `GET`만 지원. 기본은 회원 전체 목록(어드민 회원 목록용, 이메일 포함), `?leaderboard=1` 쿼리 시 매장 등록 수 1위 회원의 닉네임/개수만 반환(공개 화면의 "제보왕" 배너용, PII 노출 없음). 별도 엔드포인트로 분리하지 않고 합친 이유는 Vercel Hobby 플랜의 서버리스 함수 12개 제한 때문 (아래 참고)
 - `api/auth/` — 카카오/네이버 간편로그인
   - `login.js` (`GET ?provider=kakao&redirectTo=...` → OAuth authorize URL로 302), `callback.js` (code 교환 → `users` upsert → 세션 쿠키 발급), `logout.js`, `me.js` (현재 로그인 사용자 조회, DB에서 `url_platform`/`url_id` 조회해 함께 응답), `profile.js` (`POST`, 세션 필요 → `users.url_platform`/`url_id` 갱신 — 제보/신고 시 블로그·인스타그램 링크 자동 입력용), `delete-account.js` (`POST`, 세션 필요 → `users` row 삭제 + `campaigns.user_id`/`places.founder_user_id` NULL 처리 + 세션 쿠키 삭제)
   - `_session.js`/`_state.js`: Node 내장 `crypto` HMAC로 세션/CSRF state를 직접 서명 (jsonwebtoken 등 의존성 추가 없음). `SESSION_SECRET` 환경변수 필요. 세션 쿠키 payload에 `email`도 포함되어 있어, 로그인 사용자의 제보/신고 시 이메일을 매번 입력받지 않고 세션 값을 그대로 사용 (`api/campaigns.js`, `api/places.js`)
@@ -30,6 +31,10 @@
 
 ## ⚠️ 운영 DB 직결 주의
 - 로컬 `vercel dev`도 동일한 운영 DB를 본다. [[workflow]] 문서의 DB 안전 규칙을 반드시 따른다.
+
+## ⚠️ Vercel Hobby 플랜 서버리스 함수 12개 제한
+- `api/` 디렉토리의 `*.js` 파일(`_`로 시작하는 헬퍼 제외) 하나당 서버리스 함수 1개로 카운트됨. Hobby 플랜은 배포당 최대 12개까지만 허용 (`vercel --prod` 시 13개째부터 `deploy_failed`로 배포 자체가 실패).
+- 새 엔드포인트가 필요할 때는 새 파일을 만들기보다 **기존 파일에 쿼리 파라미터/메서드 분기로 합치는 것을 우선 검토**할 것 (예: `api/users.js`의 `?leaderboard=1` 분기).
 
 ## 시드 데이터
 - `scripts/seed.js` — 초기 장소/캠페인 시드 스크립트

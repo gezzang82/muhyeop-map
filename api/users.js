@@ -19,6 +19,22 @@ module.exports = async function handler(req, res) {
   }
 
   const db = getDb();
+
+  if (req.query.leaderboard) {
+    const result = await db.execute(`
+      SELECT u.nickname AS nickname, COUNT(*) AS count
+      FROM places p
+      JOIN users u ON u.id = p.founder_user_id
+      WHERE p.founder_user_id IS NOT NULL
+      GROUP BY p.founder_user_id
+      ORDER BY count DESC, MIN(p.created_at) ASC
+      LIMIT 1
+    `);
+    const top = result.rows[0];
+    if (!top) return res.status(200).json({ nickname: '', count: 0 });
+    return res.status(200).json({ nickname: top.nickname || '', count: Number(top.count) });
+  }
+
   const result = await db.execute('SELECT * FROM users ORDER BY id DESC');
   return res.status(200).json(result.rows.map(toUser));
 };
