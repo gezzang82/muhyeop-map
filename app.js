@@ -132,6 +132,16 @@ function deadlineToUTC(deadline) {
   return Date.UTC(y, m - 1, d);
 }
 
+function getDeadlineText(deadline) {
+  if (!deadline) return null;
+  const today = getKSTTodayUTC();
+  const diff = Math.round((deadlineToUTC(deadline) - today) / 86400000);
+  if (diff < 0) return null;
+  if (diff === 0) return { text: 'D-DAY', urgent: true };
+  if (diff <= 2) return { text: `D-${diff}`, urgent: true };
+  return { text: `D-${diff}`, urgent: false };
+}
+
 function getActiveCampaigns(placeId) {
   const today = getKSTTodayUTC();
   return campaigns.filter(c => {
@@ -427,6 +437,10 @@ function createInfoContent(place) {
   const campaignsHtml = active.length > 0
     ? active.map((c, i) => {
         const color = getPlatformColor(c.platform);
+        const dl = getDeadlineText(c.deadline);
+        const rightBtnHtml = dl
+          ? `<span class="iw-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>`
+          : `<span class="iw-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>`;
 
         let daysHtml = '';
         if (c.operatingDays !== undefined) {
@@ -475,7 +489,7 @@ function createInfoContent(place) {
               <div style="flex:1;min-width:0;">
                 <span class="iw-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
               </div>
-              <span class="iw-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>
+              ${rightBtnHtml}
             </div>
             <p class="iw-content">${c.content}</p>
             <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
@@ -533,6 +547,10 @@ function createMobileDetailContent(place) {
 
   const campaignsHtml = active.map((c, i) => {
     const color = getPlatformColor(c.platform);
+    const dl = getDeadlineText(c.deadline);
+    const rightBtnHtml = dl
+      ? `<span class="detail-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>`
+      : `<span class="detail-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>`;
 
     // 요일 렌더
     let daysHtml = '';
@@ -584,7 +602,7 @@ function createMobileDetailContent(place) {
           <div class="detail-campaign-tag-wrap">
             <span class="detail-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
           </div>
-          <span class="detail-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>
+          ${rightBtnHtml}
         </div>
         <p class="detail-content">${c.content}</p>
         <div class="detail-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
