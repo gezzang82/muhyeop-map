@@ -61,6 +61,7 @@
       <div class="pc-nav-user" id="pcNavUser" style="display:none">
         <span class="pc-nav-user-name" id="pcNavUserName"></span>
         <button class="pc-nav-logout-btn" onclick="logout()">로그아웃</button>
+        <button class="pc-nav-withdraw-btn" onclick="deleteAccount()">회원탈퇴</button>
       </div>
     </div>
   </nav>
@@ -204,7 +205,10 @@
         <button class="side-menu-login-btn" id="sideMenuLoginBtn" onclick="closeSideMenu(); openLoginSheet();">로그인</button>
         <div class="side-menu-user" id="sideMenuUser" style="display:none">
           <span class="side-menu-user-name" id="sideMenuUserName"></span>
-          <button class="side-menu-logout-btn" onclick="logout()">로그아웃</button>
+          <div class="side-menu-user-actions">
+            <button class="side-menu-logout-btn" onclick="logout()">로그아웃</button>
+            <button class="side-menu-withdraw-btn" onclick="deleteAccount()">회원탈퇴</button>
+          </div>
         </div>
       </div>
       <div class="side-menu-list">

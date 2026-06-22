@@ -83,6 +83,18 @@ body {
   padding: 4px 6px;
   border-radius: 4px;
 }
+.pc-nav-withdraw-btn {
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  height: 18px;
+  padding: 0;
+  text-decoration: underline;
+}
 .pc-nav-user {
   display: flex;
   flex-direction: column;
@@ -1757,10 +1769,16 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 16px; font-weight: 700; color: #1a1a1a;
 }
+.side-menu-user-actions { display: flex; align-items: center; gap: 10px; }
 .side-menu-logout-btn {
   border: none; background: none; cursor: pointer; padding: 0;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13px; color: #999;
+}
+.side-menu-withdraw-btn {
+  border: none; background: none; cursor: pointer; padding: 0;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px; color: #ccc; text-decoration: underline;
 }
 .side-menu-list {
   display: flex; flex-direction: column; flex: 1 0 0; min-height: 0;

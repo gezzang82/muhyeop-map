@@ -11,7 +11,7 @@
 - `api/banners.js` — 상단 배너 관리
 - `api/search-place.js` — 장소명 검색 (네이버 장소 검색 연동으로 추정, 협찬 제보하기 step1 매장명 검색에 사용)
 - `api/auth/` — 카카오/네이버 간편로그인
-  - `login.js` (`GET ?provider=kakao&redirectTo=...` → OAuth authorize URL로 302), `callback.js` (code 교환 → `users` upsert → 세션 쿠키 발급), `logout.js`, `me.js` (현재 로그인 사용자 조회)
+  - `login.js` (`GET ?provider=kakao&redirectTo=...` → OAuth authorize URL로 302), `callback.js` (code 교환 → `users` upsert → 세션 쿠키 발급), `logout.js`, `me.js` (현재 로그인 사용자 조회), `delete-account.js` (`POST`, 세션 필요 → `users` row 삭제 + `campaigns.user_id`/`places.founder_user_id` NULL 처리 + 세션 쿠키 삭제)
   - `_session.js`/`_state.js`: Node 내장 `crypto` HMAC로 세션/CSRF state를 직접 서명 (jsonwebtoken 등 의존성 추가 없음). `SESSION_SECRET` 환경변수 필요
   - `_provider.js`: provider별 OAuth 설정(엔드포인트, clientId/secret, 프로필 파싱)을 모아둔 곳. 새 provider 추가 시 여기에 설정 객체만 추가
   - 세션 쿠키는 `HttpOnly; Secure; SameSite=Lax`. 로그인 사용자의 `reporter_nickname`/`founder_nickname`은 클라이언트 입력 대신 세션 닉네임을 우선 사용 (`api/campaigns.js`, `api/places.js`)

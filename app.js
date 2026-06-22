@@ -1203,6 +1203,22 @@ async function logout() {
   refreshAuthUI();
 }
 
+async function deleteAccount() {
+  if (!confirm('정말 회원 탈퇴하시겠어요? 로그인 계정 정보가 삭제되며 복구할 수 없습니다.')) return;
+  try {
+    const res = await fetch('/api/auth/delete-account', { method: 'POST' });
+    if (!res.ok) {
+      alert('탈퇴 처리 중 오류가 발생했습니다.');
+      return;
+    }
+    currentUser = null;
+    refreshAuthUI();
+    alert('탈퇴가 완료되었습니다.');
+  } catch (e) {
+    alert('탈퇴 처리 중 오류가 발생했습니다.');
+  }
+}
+
 // ===== 모달 =====
 function openAbout() {
   if (window.innerWidth > 640) {
