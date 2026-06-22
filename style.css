@@ -663,7 +663,13 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .sb-content {
   font-size: 15px; color: #000;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; min-width: 0;
 }
+.sb-dday {
+  font-size: 13px; height: 22px; padding: 0 8px; border-radius: 11px;
+  display: flex; align-items: center; background: #eee; color: #777; flex-shrink: 0;
+}
+.sb-dday.urgent { background: #e82a2d; color: white; }
 
 /* 기존 sidebar-card 호환 유지 */
 .sidebar-card {
@@ -934,6 +940,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .form-group { display: flex; flex-direction: column; gap: 8px; }
 .form-group label { font-size: 14px; font-weight: 400; color: #777; }
 .required { color: #E82A2D; }
+.optional { color: #999; font-weight: 400; }
 .label-sub { font-size: 14px; color: #777; font-weight: 400; }
 
 .form-group input,

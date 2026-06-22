@@ -673,10 +673,13 @@ function renderSidebar() {
     // 캠페인 행들
     const campaignsHtml = active.map(c => {
       const color = getPlatformColor(c.platform);
+      const dl = getDeadlineText(c.deadline);
+      const ddayHtml = dl ? `<span class="sb-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : '';
       return `
         <div class="sb-campaign">
           <span class="sb-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
           <span class="sb-content">${c.content}</span>
+          ${ddayHtml}
         </div>`;
     }).join('');
 
@@ -1505,8 +1508,26 @@ function closeModal() {
   }
 }
 
+function initDeadlineSelects() {
+  const yearSel = document.getElementById('inputDeadlineYear');
+  if (!yearSel || yearSel.options.length) return;
+  const monthSel = document.getElementById('inputDeadlineMonth');
+  const daySel = document.getElementById('inputDeadlineDay');
+  const { y: curY } = getKSTDateParts();
+  yearSel.innerHTML = `<option value="">선택</option>` + Array.from({ length: 3 }, (_, i) => curY + i).map(y => `<option value="${y}">${y}</option>`).join('');
+  monthSel.innerHTML = `<option value="">선택</option>` + Array.from({ length: 12 }, (_, i) => i + 1).map(m => `<option value="${m}">${m}</option>`).join('');
+  daySel.innerHTML = `<option value="">선택</option>` + Array.from({ length: 31 }, (_, i) => i + 1).map(d => `<option value="${d}">${d}</option>`).join('');
+}
+
 function resetModal() {
   clearAllFieldErrors();
+  initDeadlineSelects();
+  ['inputDeadlineYear', 'inputDeadlineMonth', 'inputDeadlineDay'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) sel.value = '';
+    const valueEl = document.getElementById(id + 'Value');
+    if (valueEl) { valueEl.textContent = '-'; valueEl.classList.remove('selected'); }
+  });
   modalSelectedPlaceId = null; modalIsNewPlace = true;
   modalSelectedLat = null; modalSelectedLng = null; modalSelectedAddress = '';
   modalSelectedResultKey = null; lastNaverResults = [];
@@ -1746,7 +1767,10 @@ async function submitCampaign() {
   const channels = [...document.querySelectorAll('.channel-btn.active')].map(b => b.dataset.channel);
   const platform = document.getElementById('inputPlatform').value;
   const content = document.getElementById('inputContent').value.trim();
-  const deadline = '';
+  const dY = document.getElementById('inputDeadlineYear').value;
+  const dM = document.getElementById('inputDeadlineMonth').value;
+  const dD = document.getElementById('inputDeadlineDay').value;
+  const deadline = (dY && dM && dD) ? `${dY}-${String(dM).padStart(2, '0')}-${String(dD).padStart(2, '0')}` : '';
   const link = '';
 
   const category = document.getElementById('inputCategory').value;
