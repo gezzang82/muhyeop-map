@@ -162,10 +162,9 @@ body {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
   .login-modal-handle-wrap {
-    display: flex; justify-content: center;
+    display: block;
     height: 20px; padding: 8px 10px;
   }
-  .login-modal-handle-bar { width: 48px; height: 4px; background: rgba(0,0,0,0.1); border-radius: 2px; }
   .login-modal-header { padding-top: 0; }
 }
 
