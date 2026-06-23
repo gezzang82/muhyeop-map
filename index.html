@@ -68,15 +68,78 @@
   </nav>
 
   <!-- 간편로그인 시트 -->
-  <div class="modal-overlay" id="loginOverlay" onclick="closeLoginSheet()">
+  <div class="modal-overlay login-overlay" id="loginOverlay" onclick="closeLoginSheet()">
     <div class="modal login-modal" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h2>간편로그인</h2>
-        <button class="modal-close" onclick="closeLoginSheet()">✕</button>
+      <div class="login-modal-handle-wrap">
+        <div class="login-modal-handle-bar"></div>
+      </div>
+      <div class="login-modal-header">
+        <h2>간편 로그인</h2>
+        <button class="modal-close" onclick="closeLoginSheet()"><img src="image/ic_popup_close_16.svg" alt="닫기" width="16" height="16"></button>
       </div>
       <div class="modal-body login-modal-body">
-        <a class="login-provider-btn login-provider-kakao" href="/api/auth/login?provider=kakao">카카오로 로그인</a>
-        <a class="login-provider-btn login-provider-naver" href="/api/auth/login?provider=naver">네이버로 로그인</a>
+        <a class="login-provider-btn login-provider-kakao" href="/api/auth/login?provider=kakao">
+          <img src="image/ic_login_kakao_24.svg" alt="" width="24" height="24">
+          <span>카카오로 로그인</span>
+          <span class="login-provider-spacer"></span>
+        </a>
+        <a class="login-provider-btn login-provider-naver" href="/api/auth/login?provider=naver">
+          <img src="image/ic_login_naver_24.svg" alt="" width="24" height="24">
+          <span>네이버로 로그인</span>
+          <span class="login-provider-spacer"></span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 간편로그인 추가 정보 입력 (가입 직후 1회) -->
+  <div class="fullpage-overlay" id="signupInfoOverlay">
+    <div class="signup-page">
+      <div class="signup-content">
+        <div class="signup-title-wrap">
+          <h2>추가 정보 입력</h2>
+          <p class="signup-subtitle">원활한 활동을 위하여 내 SNS계정을 등록해주세요!</p>
+        </div>
+        <div class="form-group">
+          <label>나의 SNS계정 (블로그 또는 인스타그램)</label>
+          <select id="signupUrlPlatform" style="display:none">
+            <option value="">선택하세요</option>
+            <option value="블로그">블로그</option>
+            <option value="인스타그램">인스타그램</option>
+          </select>
+          <div class="custom-select-trigger url-platform-trigger" id="signupUrlPlatformTrigger" onclick="openSelectSheet('signupUrlPlatform', '링크 플랫폼')">
+            <span class="url-platform-trigger-left">
+              <img src="" alt="" width="20" height="20" id="signupUrlPlatformIcon" class="url-platform-icon" style="display:none">
+              <span class="custom-select-value" id="signupUrlPlatformValue">선택하세요</span>
+            </span>
+          </div>
+          <div class="url-id-row" id="signupUrlIdRow" style="display:none">
+            <span class="url-domain-prefix" id="signupUrlDomainPrefix"></span>
+            <input type="text" id="signupUrlId" class="url-id-input" placeholder="아이디 입력">
+          </div>
+        </div>
+        <div class="signup-hint">
+          <img src="image/ic_info_16.svg" alt="" width="16" height="16">
+          <span>등록해두면 협찬 제보·신고 시 링크를 매번 입력하지 않아도 자동으로 채워져서 더 빠르게 활동할 수 있어요.</span>
+        </div>
+      </div>
+      <div class="signup-footer">
+        <button class="signup-btn-cancel" onclick="skipSignupInfo()">취소</button>
+        <button class="signup-btn-confirm" onclick="confirmSignupInfo()">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 간편로그인 가입완료 -->
+  <div class="fullpage-overlay" id="signupDoneOverlay">
+    <div class="signup-page signup-done-page">
+      <div class="signup-content signup-done-content">
+        <div class="signup-done-circle"></div>
+        <h2>무협맵 가입이 완료되었습니다.</h2>
+        <p class="signup-subtitle">이제 지도에서 협찬을 찾고, 직접 제보도 남겨보세요!</p>
+      </div>
+      <div class="signup-footer">
+        <button class="signup-btn-confirm" style="flex:1" onclick="closeSignupDone()">확인</button>
       </div>
     </div>
   </div>
@@ -111,6 +174,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn-submit" style="width:100%" onclick="saveProfile()">저장</button>
+        <button class="profile-withdraw-link" onclick="deleteAccount()">회원탈퇴</button>
       </div>
     </div>
   </div>
@@ -199,7 +263,7 @@
           <svg class="mobile-search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11 2.5C15.9706 2.5 20 6.52944 20 11.5C20 13.3146 19.4609 15.0025 18.5371 16.416L21.7178 19.5967C22.3032 20.1825 22.3034 21.1321 21.7178 21.7178C21.1321 22.3034 20.1825 22.3032 19.5967 21.7178L16.5 18.6211C14.9788 19.7977 13.072 20.5 11 20.5C6.02944 20.5 2 16.4706 2 11.5C2 6.52944 6.02944 2.5 11 2.5ZM11 5.5C7.68629 5.5 5 8.18629 5 11.5C5 14.8137 7.68629 17.5 11 17.5C14.3137 17.5 17 14.8137 17 11.5C17 8.18629 14.3137 5.5 11 5.5Z" fill="currentColor"/></svg>
           <input type="text" id="regionSearchMobileOverlay" placeholder="지역, 매장명, 역명으로 검색" enterkeyhint="search" autocomplete="off" onkeydown="if(event.key==='Enter' && !event.isComposing){event.preventDefault();searchRegionMobileOverlay();}">
         </div>
-        <button class="mobile-icon-btn mobile-icon-add" onclick="openSideMenu()" title="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6H20M4 12H20M4 18H20" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+        <button class="mobile-icon-btn mobile-icon-add" onclick="openSideMenu()" title="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 14C9.5523 14 10 14.4477 10 15V23C10 23.5523 9.5523 24 9 24H1C0.4477 24 0 23.5523 0 23V15C0 14.4477 0.4477 14 1 14H9ZM23 14C23.5523 14 24 14.4477 24 15V23C24 23.5523 23.5523 24 23 24H15C14.4477 24 14 23.5523 14 23V15C14 14.4477 14.4477 14 15 14H23ZM9 0C9.5523 0 10 0.4477 10 1V9C10 9.5523 9.5523 10 9 10H1C0.4477 10 0 9.5523 0 9V1C0 0.4477 0.4477 0 1 0H9ZM23 0C23.5523 0 24 0.4477 24 1V9C24 9.5523 23.5523 10 23 10H15C14.4477 10 14 9.5523 14 9V1C14 0.4477 14.4477 0 15 0H23Z" fill="#E82A2D"/></svg></button>
       </div>
       <div class="mobile-chips-row">
         <button class="filter-chip active" data-channel="전체" onclick="filterChannel('전체')">전체</button>
@@ -239,26 +303,41 @@
   <div class="side-menu-overlay" id="sideMenuOverlay" onclick="closeSideMenu()">
     <div class="side-menu" onclick="event.stopPropagation()">
       <div class="side-menu-header">
-        <img src="image/nhmap_menu_ci.svg" alt="무협맵" class="side-menu-logo">
+        <div class="side-menu-logo-wrap">
+          <img src="image/nhmap_menu_ci.svg" alt="무협맵" class="side-menu-logo">
+          <span class="side-menu-tagline">무료협찬맵</span>
+        </div>
         <button class="side-menu-close" onclick="closeSideMenu()">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1L11 11M11 1L1 11" stroke="#222" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <img src="image/ic_popup_close_16.svg" alt="닫기" width="16" height="16">
         </button>
       </div>
-      <div class="side-menu-auth" id="sideMenuAuth">
-        <button class="side-menu-login-btn" id="sideMenuLoginBtn" onclick="closeSideMenu(); openLoginSheet();">로그인</button>
-        <div class="side-menu-user" id="sideMenuUser" style="display:none">
-          <span class="side-menu-user-name" id="sideMenuUserName"></span>
-          <div class="side-menu-user-actions">
-            <button class="side-menu-profile-btn" onclick="closeSideMenu(); openProfileSheet();">프로필 설정</button>
-            <button class="side-menu-logout-btn" onclick="logout()">로그아웃</button>
-            <button class="side-menu-withdraw-btn" onclick="deleteAccount()">회원탈퇴</button>
+      <div class="side-menu-content">
+        <div class="side-menu-auth" id="sideMenuAuth">
+          <div class="side-menu-profile-card" id="sideMenuLoginCard">
+            <div class="side-menu-profile-info">
+              <p class="side-menu-login-text"><strong>로그인</strong>이 필요합니다.</p>
+            </div>
+            <button class="side-menu-pill-btn" id="sideMenuLoginBtn" onclick="closeSideMenu(); openLoginSheet();">로그인</button>
+          </div>
+          <div class="side-menu-profile-card" id="sideMenuUser" style="display:none">
+            <div class="side-menu-profile-info">
+              <div class="side-menu-profile-name-row">
+                <img src="" alt="" id="sideMenuProviderIcon" class="side-menu-provider-icon" width="16" height="16">
+                <span class="side-menu-user-name"><strong id="sideMenuUserName"></strong>님</span>
+              </div>
+              <button class="side-menu-myinfo-link" onclick="closeSideMenu(); openProfileSheet();">
+                <span>내 정보</span>
+                <svg width="6" height="10" viewBox="0 0 5.5 10" fill="none"><path d="M0.5 0.5L5 5L0.5 9.5" stroke="#555" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+            <button class="side-menu-pill-btn" onclick="logout()">로그아웃</button>
           </div>
         </div>
-      </div>
-      <div class="side-menu-list">
-        <button class="side-menu-item" onclick="closeSideMenu(); openModal();">제보하기</button>
-        <button class="side-menu-item" onclick="closeSideMenu(); openAbout();">서비스 소개</button>
-        <button class="side-menu-item" onclick="closeSideMenu(); openReportModal();">신고하기</button>
+        <div class="side-menu-list">
+          <button class="side-menu-item" onclick="closeSideMenu(); openModal();">제보하기</button>
+          <button class="side-menu-item" onclick="closeSideMenu(); openReportModal();">신고하기</button>
+          <button class="side-menu-item" onclick="closeSideMenu(); openAbout();">무협맵 소개</button>
+        </div>
       </div>
       <div class="side-menu-footer">
         <button class="side-menu-footer-link" onclick="closeSideMenu(); openPolicy('terms');">이용약관</button>

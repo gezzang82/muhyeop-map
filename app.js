@@ -1196,18 +1196,22 @@ async function refreshAuthUI() {
   const loggedIn = !!currentUser;
   const pcLoginBtn = document.getElementById('pcNavLoginBtn');
   const pcUser = document.getElementById('pcNavUser');
-  const sideLoginBtn = document.getElementById('sideMenuLoginBtn');
+  const sideLoginCard = document.getElementById('sideMenuLoginCard');
   const sideUser = document.getElementById('sideMenuUser');
   if (pcLoginBtn) pcLoginBtn.style.display = loggedIn ? 'none' : '';
   if (pcUser) pcUser.style.display = loggedIn ? 'flex' : 'none';
-  if (sideLoginBtn) sideLoginBtn.style.display = loggedIn ? 'none' : '';
+  if (sideLoginCard) sideLoginCard.style.display = loggedIn ? 'none' : '';
   if (sideUser) sideUser.style.display = loggedIn ? 'flex' : 'none';
   if (loggedIn) {
     const name = `${currentUser.nickname || ''}님`;
     const pcName = document.getElementById('pcNavUserName');
     const sideName = document.getElementById('sideMenuUserName');
     if (pcName) pcName.textContent = name;
-    if (sideName) sideName.textContent = name;
+    if (sideName) sideName.textContent = currentUser.nickname || '';
+    const sideProviderIcon = document.getElementById('sideMenuProviderIcon');
+    if (sideProviderIcon) {
+      sideProviderIcon.src = currentUser.provider === 'kakao' ? 'image/ic_login_kakao_16.svg' : 'image/ic_login_naver_16.svg';
+    }
   }
 }
 
@@ -1216,6 +1220,43 @@ function openLoginSheet() {
 }
 function closeLoginSheet() {
   document.getElementById('loginOverlay').classList.remove('open');
+}
+
+function openSignupInfoSheet() {
+  document.getElementById('signupUrlPlatform').value = '';
+  syncSelectTrigger('signupUrlPlatform');
+  updateUrlPlatform('', 'signup');
+  document.getElementById('signupUrlId').value = '';
+  document.getElementById('signupInfoOverlay').classList.add('open');
+}
+function closeSignupInfoSheet() {
+  document.getElementById('signupInfoOverlay').classList.remove('open');
+}
+function skipSignupInfo() {
+  closeSignupInfoSheet();
+  openSignupDone();
+}
+async function confirmSignupInfo() {
+  const urlPlatform = document.getElementById('signupUrlPlatform').value;
+  const urlId = document.getElementById('signupUrlId').value.trim();
+  if (urlPlatform && urlId) {
+    try {
+      await fetch('/api/auth/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urlPlatform, urlId })
+      });
+      await refreshAuthUI();
+    } catch (e) {}
+  }
+  closeSignupInfoSheet();
+  openSignupDone();
+}
+function openSignupDone() {
+  document.getElementById('signupDoneOverlay').classList.add('open');
+}
+function closeSignupDone() {
+  document.getElementById('signupDoneOverlay').classList.remove('open');
 }
 
 async function logout() {
@@ -2264,7 +2305,13 @@ document.addEventListener('touchmove', function(e) {
 
 window.addEventListener('load', async function() {
   await loadInitialData();
-  refreshAuthUI();
+  await refreshAuthUI();
+  const url = new URL(location.href);
+  if (url.searchParams.get('signup') === '1') {
+    url.searchParams.delete('signup');
+    history.replaceState(null, '', url.toString());
+    openSignupInfoSheet();
+  }
   if (!document.getElementById('map')) return;
   updateStatCount();
   initMap();
@@ -2365,7 +2412,7 @@ function openSelectSheet(selectId, title) {
   _selectSheetTarget = selectId;
 
   // 셀렉트가 속한 모달로 바텀시트를 이동시켜 해당 모달 영역 안에 정확히 표시되도록 함
-  const hostModal = sel.closest('.modal');
+  const hostModal = sel.closest('.modal, .signup-page');
   const sheetOverlay = document.getElementById('selectSheetOverlay');
   const sheetPanel = document.getElementById('selectSheetPanel');
   if (hostModal && !hostModal.contains(sheetPanel)) {

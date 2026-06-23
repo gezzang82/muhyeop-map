@@ -74,6 +74,7 @@ module.exports = async function handler(req, res) {
       args: [stateData.provider, profile.providerUserId]
     });
 
+    const isNewUser = !existing.rows.length;
     let userId;
     if (existing.rows.length) {
       userId = existing.rows[0].id;
@@ -91,7 +92,11 @@ module.exports = async function handler(req, res) {
 
     const sessionCookie = createSessionCookie({ userId, nickname: profile.nickname, provider: stateData.provider, email: profile.email });
     res.setHeader('Set-Cookie', [sessionCookie, clearStateCookie()]);
-    res.writeHead(302, { Location: stateData.redirectTo || '/' });
+    let redirectTo = stateData.redirectTo || '/';
+    if (isNewUser) {
+      redirectTo += redirectTo.includes('?') ? '&signup=1' : '?signup=1';
+    }
+    res.writeHead(302, { Location: redirectTo });
     res.end();
   } catch (e) {
     res.status(500).send('로그인 처리 중 오류가 발생했습니다.');
