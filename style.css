@@ -161,6 +161,25 @@ body {
 .login-provider-naver { background: #08C659; color: white; }
 
 /* ===== 회원탈퇴 바텀시트 ===== */
+/* 열기/닫기 애니메이션 (오버레이 페이드 + 시트 슬라이드/스케일) */
+.modal-overlay.withdraw-overlay {
+  display: flex;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+.modal-overlay.withdraw-overlay.open { opacity: 1; visibility: visible; pointer-events: auto; }
+.modal-overlay.withdraw-overlay .login-modal {
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (max-width: 640px) {
+  .modal-overlay.withdraw-overlay .login-modal { transform: translateY(100%); }
+  .modal-overlay.withdraw-overlay.open .login-modal { transform: translateY(0); }
+}
+@media (min-width: 641px) {
+  .modal-overlay.withdraw-overlay .login-modal { transform: scale(0.96); }
+  .modal-overlay.withdraw-overlay.open .login-modal { transform: scale(1); }
+}
+
 .withdraw-message {
   display: flex; flex-direction: column; gap: 8px;
   padding: 16px 20px 32px; width: 100%; text-align: center;
