@@ -1415,8 +1415,11 @@ function renderReportResults() {
       listEl.innerHTML = `
         <div class="place-result-item selected" onclick="selectReportTarget(${c.id})">
           <div class="place-result-info">
-            <div class="place-result-name">${place.name} · ${c.platform}</div>
-            <div class="place-result-addr">${c.content}</div>
+            <div class="place-result-name">${place.name}</div>
+            <div class="place-result-meta">
+              ${reportPlatformTag(c.platform)}
+              <span class="place-result-addr">${c.content}</span>
+            </div>
           </div>
           <span class="place-result-check selected">✓</span>
         </div>`;
@@ -1444,12 +1447,21 @@ function renderReportResults() {
     return `
       <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectReportTarget(${c.id})">
         <div class="place-result-info">
-          <div class="place-result-name">${place.name} · ${c.platform}</div>
-          <div class="place-result-addr">${c.content}</div>
+          <div class="place-result-name">${place.name}</div>
+          <div class="place-result-meta">
+            ${reportPlatformTag(c.platform)}
+            <span class="place-result-addr">${c.content}</span>
+          </div>
         </div>
         <span class="place-result-check ${selected ? 'selected' : ''}">✓</span>
       </div>`;
   }).join('');
+}
+
+function reportPlatformTag(platform) {
+  if (!platform) return '';
+  const color = getPlatformColor(platform);
+  return `<span class="report-platform-tag" style="background:${color}29;color:${color}">${platform}</span>`;
 }
 
 function selectReportTarget(campaignId) {
