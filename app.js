@@ -1677,7 +1677,7 @@ function resetModal() {
     if (urlTrigger) urlTrigger.classList.remove('locked');
     if (urlIdEl) urlIdEl.readOnly = false;
     if (lockedHint) lockedHint.style.display = 'none';
-    if (guestHint) guestHint.style.display = 'block';
+    if (guestHint) guestHint.style.display = 'flex';
   }
 }
 
