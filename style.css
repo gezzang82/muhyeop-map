@@ -1881,14 +1881,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .side-menu-header {
   display: flex; align-items: center; justify-content: space-between;
   height: 72px; flex-shrink: 0;
-  padding: 10px 20px; border-bottom: 1px solid #eee;
+  padding: 10px 20px;
 }
 .side-menu-logo-wrap { display: flex; align-items: center; gap: 6px; flex: 1 0 0; min-width: 0; }
 .side-menu-logo { height: 24px; width: auto; }
-.side-menu-tagline {
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 12px; font-weight: 400; color: #999; white-space: nowrap;
-}
 .side-menu-close {
   border: none; background: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
