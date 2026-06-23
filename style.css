@@ -1284,9 +1284,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .place-results-list { margin-top: 8px; }
 .place-results-list:empty { display: none; }
 .place-results-list:not(:empty) { margin-top: -16px; }
-/* 협찬 제보하기 step1 / 신고하기: 검색 결과 리스트 하단 여백 (컨텐츠 영역 하단 여백 확보) */
+/* 협찬 제보하기 step1: 검색 결과 리스트 하단 여백 (컨텐츠 영역 하단 여백 확보) */
 #placeResultsList:not(:empty) { margin-bottom: 100px; }
-#reportResultsList:not(:empty) { margin-bottom: 100px; }
+/* 신고하기: 상세 내용 인풋(마지막 요소) 아래 100px 여백 */
+.form-group:has(> #reportDetail) { margin-bottom: 100px; }
 .place-result-item {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 16px 4px;
