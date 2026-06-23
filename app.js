@@ -1645,26 +1645,55 @@ function resetModal() {
     if (nicknameEl) { nicknameEl.value = currentUser.nickname || ''; nicknameEl.readOnly = true; }
     if (guestHint) guestHint.style.display = 'none';
     if (currentUser.urlPlatform && currentUser.urlId) {
+      // 로그인 + SNS 등록: 파란 요약 카드로 표시 (입력 필드 숨김)
       const sel = document.getElementById('inputUrlPlatform');
-      sel.value = currentUser.urlPlatform;
-      syncSelectTrigger('inputUrlPlatform');
-      updateUrlPlatform(currentUser.urlPlatform, 'input', true);
-      document.getElementById('inputUrlId').value = currentUser.urlId;
-      if (urlTrigger) urlTrigger.classList.add('locked');
-      if (urlIdEl) urlIdEl.readOnly = true;
-      if (lockedHint) lockedHint.style.display = 'block';
+      if (sel) { sel.value = currentUser.urlPlatform; syncSelectTrigger('inputUrlPlatform'); }
+      if (urlIdEl) urlIdEl.value = currentUser.urlId;
+      showFounderSummary(currentUser);
     } else {
+      hideFounderSummary();
       if (urlTrigger) urlTrigger.classList.remove('locked');
       if (urlIdEl) urlIdEl.readOnly = false;
       if (lockedHint) lockedHint.style.display = 'none';
     }
   } else {
+    hideFounderSummary();
     if (nicknameEl) nicknameEl.readOnly = false;
     if (urlTrigger) urlTrigger.classList.remove('locked');
     if (urlIdEl) urlIdEl.readOnly = false;
     if (lockedHint) lockedHint.style.display = 'none';
     if (guestHint) guestHint.style.display = 'block';
   }
+}
+
+function showFounderSummary(user) {
+  const card = document.getElementById('founderSummaryCard');
+  const fields = document.getElementById('founderInputFields');
+  const nick = document.getElementById('founderSummaryNick');
+  const sns = document.getElementById('founderSummarySns');
+  const icon = document.getElementById('founderSummaryIcon');
+  const url = document.getElementById('founderSummaryUrl');
+  if (nick) nick.textContent = user.nickname || '';
+  const domain = URL_PLATFORM_DOMAINS[user.urlPlatform] || '';
+  const ic = URL_PLATFORM_ICONS[user.urlPlatform];
+  if (sns) {
+    if (domain && user.urlId) {
+      if (url) url.textContent = domain + user.urlId;
+      if (icon) { if (ic) { icon.src = ic; icon.style.display = 'block'; } else icon.style.display = 'none'; }
+      sns.style.display = 'flex';
+    } else {
+      sns.style.display = 'none';
+    }
+  }
+  if (card) card.style.display = 'flex';
+  if (fields) fields.style.display = 'none';
+}
+
+function hideFounderSummary() {
+  const card = document.getElementById('founderSummaryCard');
+  const fields = document.getElementById('founderInputFields');
+  if (card) card.style.display = 'none';
+  if (fields) fields.style.display = '';
 }
 
 function updateStepDots(step) {
@@ -2335,6 +2364,25 @@ function updateStatCount() {
 
 document.addEventListener('DOMContentLoaded', setupClearButtons);
 
+// ===== 초기 로딩 애니메이션 =====
+let _loadingAnim = null;
+function initAppLoading() {
+  const el = document.getElementById('appLoadingAnim');
+  if (el && window.lottie && !_loadingAnim) {
+    _loadingAnim = window.lottie.loadAnimation({
+      container: el, renderer: 'svg', loop: true, autoplay: true,
+      path: 'image/loading.json'
+    });
+  }
+}
+function hideAppLoading() {
+  const el = document.getElementById('appLoading');
+  if (!el) return;
+  el.classList.add('hide');
+  setTimeout(() => { el.style.display = 'none'; if (_loadingAnim) { _loadingAnim.destroy(); _loadingAnim = null; } }, 400);
+}
+document.addEventListener('DOMContentLoaded', initAppLoading);
+
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
 document.addEventListener('touchmove', function(e) {
@@ -2342,6 +2390,7 @@ document.addEventListener('touchmove', function(e) {
 }, { passive: false });
 
 window.addEventListener('load', async function() {
+  initAppLoading();
   await loadInitialData();
   await refreshAuthUI();
   const url = new URL(location.href);
@@ -2350,13 +2399,14 @@ window.addEventListener('load', async function() {
     history.replaceState(null, '', url.toString());
     openSignupInfoSheet();
   }
-  if (!document.getElementById('map')) return;
+  if (!document.getElementById('map')) { hideAppLoading(); return; }
   updateStatCount();
   initMap();
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   startLiveAlerts();
   renderLeaderboard();
   setInterval(renderLeaderboard, 60000);
+  hideAppLoading();
 });
 
 let _prevIsMobile = window.innerWidth <= 640;

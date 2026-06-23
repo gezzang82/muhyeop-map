@@ -13,6 +13,11 @@
 </head>
 <body>
 
+  <!-- 초기 로딩 오버레이 -->
+  <div id="appLoading" class="app-loading">
+    <div id="appLoadingAnim" class="app-loading-anim"></div>
+  </div>
+
   <!-- 검색 입력 (JS에서 참조, PC 위치 미정) -->
   <input type="text" id="regionSearch" style="display:none" onkeydown="if(event.key==='Enter' && !event.isComposing) searchRegion()">
 
@@ -653,29 +658,40 @@
                 <div id="founderSectionTitle" class="optional-section-title">내 이름 남기기</div>
                 <div id="founderSectionDesc" class="optional-section-desc">이 캠페인의 제보자로 표시돼요</div>
               </div>
-              <div class="form-group">
-                <label>닉네임</label>
-                <input type="text" id="inputNickname" placeholder="맛집탐험가">
+              <!-- 로그인 사용자: 닉네임/SNS 요약 카드 -->
+              <div class="founder-summary-card" id="founderSummaryCard" style="display:none">
+                <div class="founder-summary-nick" id="founderSummaryNick"></div>
+                <div class="founder-summary-sns" id="founderSummarySns" style="display:none">
+                  <img src="" alt="" width="20" height="20" id="founderSummaryIcon">
+                  <span id="founderSummaryUrl"></span>
+                </div>
               </div>
-              <div class="form-group">
-                <label>나의 SNS계정 (블로그 또는 인스타그램)</label>
-                <select id="inputUrlPlatform" style="display:none">
-                  <option value="">선택하세요</option>
-                  <option value="블로그">블로그</option>
-                  <option value="인스타그램">인스타그램</option>
-                </select>
-                <div class="custom-select-trigger url-platform-trigger" id="inputUrlPlatformTrigger" onclick="openSelectSheet('inputUrlPlatform', '링크 플랫폼')">
-                  <span class="url-platform-trigger-left">
-                    <img src="" alt="" width="20" height="20" id="inputUrlPlatformIcon" class="url-platform-icon" style="display:none">
-                    <span class="custom-select-value" id="inputUrlPlatformValue">선택하세요</span>
-                  </span>
+              <!-- 비로그인 사용자: 직접 입력 -->
+              <div id="founderInputFields">
+                <div class="form-group">
+                  <label>닉네임</label>
+                  <input type="text" id="inputNickname" placeholder="맛집탐험가">
                 </div>
-                <div class="url-id-row" id="inputUrlIdRow" style="display:none">
-                  <span class="url-domain-prefix" id="inputUrlDomainPrefix"></span>
-                  <input type="text" id="inputUrlId" class="url-id-input" placeholder="아이디 입력">
+                <div class="form-group">
+                  <label>나의 SNS계정 (블로그 또는 인스타그램)</label>
+                  <select id="inputUrlPlatform" style="display:none">
+                    <option value="">선택하세요</option>
+                    <option value="블로그">블로그</option>
+                    <option value="인스타그램">인스타그램</option>
+                  </select>
+                  <div class="custom-select-trigger url-platform-trigger" id="inputUrlPlatformTrigger" onclick="openSelectSheet('inputUrlPlatform', '링크 플랫폼')">
+                    <span class="url-platform-trigger-left">
+                      <img src="" alt="" width="20" height="20" id="inputUrlPlatformIcon" class="url-platform-icon" style="display:none">
+                      <span class="custom-select-value" id="inputUrlPlatformValue">선택하세요</span>
+                    </span>
+                  </div>
+                  <div class="url-id-row" id="inputUrlIdRow" style="display:none">
+                    <span class="url-domain-prefix" id="inputUrlDomainPrefix"></span>
+                    <input type="text" id="inputUrlId" class="url-id-input" placeholder="아이디 입력">
+                  </div>
+                  <div class="locked-hint" id="inputLockedHint" style="display:none">로그인 계정 정보가 자동으로 입력돼요. <a onclick="closeModal(); openProfileSheet();">프로필 설정</a>에서 변경할 수 있어요.</div>
+                  <div class="guest-hint" id="inputGuestHint" style="display:none"><img src="image/ic_info_16.svg" alt="" width="16" height="16"><span>간편 로그인 후 SNS계정을 등록하면 입력하지 않아도 돼요.</span></div>
                 </div>
-                <div class="locked-hint" id="inputLockedHint" style="display:none">로그인 계정 정보가 자동으로 입력돼요. <a onclick="closeModal(); openProfileSheet();">프로필 설정</a>에서 변경할 수 있어요.</div>
-                <div class="locked-hint" id="inputGuestHint" style="display:none">간편로그인 후 SNS계정을 등록해두면 다음부터 입력하지 않아도 돼요.</div>
               </div>
             </div>
           </div>
@@ -753,7 +769,8 @@
     </div>
   </div>
 
-  <script src="app.js?v=20"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+  <script src="app.js?v=21"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
