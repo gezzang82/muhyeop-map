@@ -2214,6 +2214,22 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   .modal-header { padding-top: max(40px, env(safe-area-inset-top, 40px)); }
   .modal-overlay { align-items: stretch; }
 
+  /* 내 정보: 풀스크린 대신 내용 높이에 맞춘 바텀시트 (내용 길면 스크롤) */
+  .modal.profile-modal {
+    height: auto;
+    max-height: 90dvh;
+    top: auto; bottom: 0;
+    border-radius: 16px 16px 0 0;
+  }
+  .profile-modal .modal-body {
+    flex: 0 1 auto;
+    padding-bottom: 24px;
+  }
+  .profile-modal .modal-footer {
+    position: static;
+    padding-top: 12px;
+  }
+
 
   /* ===== 모바일 폰트 사이즈 전반 업스케일 ===== */
   /* 헤더/필터 */
