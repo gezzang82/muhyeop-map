@@ -1287,6 +1287,11 @@ function openProfileSheet() {
   syncSelectTrigger('profileUrlPlatform');
   updateUrlPlatform(currentUser.urlPlatform || '', 'profile', true);
   document.getElementById('profileUrlId').value = currentUser.urlId || '';
+  syncMobileModalHeader('#profileOverlay');
+  bindMobileScrollHeader('profileBody', 'profileScrollHeader', 'profileStickyHeader');
+  document.getElementById('profileStickyHeader').classList.remove('show');
+  const pBody = document.getElementById('profileBody');
+  if (pBody) pBody.scrollTop = 0;
   document.getElementById('profileOverlay').classList.add('open');
 }
 function closeProfileSheet() {

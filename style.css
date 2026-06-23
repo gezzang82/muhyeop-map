@@ -1438,6 +1438,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   display: flex; justify-content: space-between; align-items: center;
   flex-shrink: 0;
 }
+/* PC에서는 정적 .modal-header가 보이므로 스크롤 헤더는 숨김 (모바일에서만 노출) */
+@media (min-width: 641px) {
+  .profile-modal .modal-scroll-header { display: none; }
+}
 .step1-scroll-header h2,
 .step2-scroll-header h2,
 .modal-scroll-header h2 {

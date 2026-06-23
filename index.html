@@ -150,10 +150,16 @@
   <!-- 내 정보 (가입 정보 + 블로그/인스타그램 등록) -->
   <div class="modal-overlay" id="profileOverlay" onclick="closeProfileSheet()">
     <div class="modal profile-modal" onclick="event.stopPropagation()">
+      <div class="modal-sticky-header" id="profileStickyHeader">
+        <span>내 정보</span>
+      </div>
       <div class="modal-header">
         <h2>내 정보</h2>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" id="profileBody">
+        <div class="modal-scroll-header" id="profileScrollHeader">
+          <h2>내 정보</h2>
+        </div>
         <div class="myinfo-card">
           <div class="myinfo-card-user">
             <img src="" alt="" width="16" height="16" id="myinfoProviderIcon">
