@@ -151,6 +151,24 @@ body {
 .login-provider-kakao { background: #FEE404; color: #1a1a1a; }
 .login-provider-naver { background: #08C659; color: white; }
 
+/* ===== 회원탈퇴 바텀시트 ===== */
+.withdraw-message {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px 20px 32px; width: 100%; text-align: center;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.withdraw-message-title { font-size: 20px; font-weight: 500; letter-spacing: -0.4px; color: #000; }
+.withdraw-message-desc { font-size: 16px; font-weight: 400; color: #333; }
+.withdraw-actions { display: flex; gap: 8px; padding: 0 20px 20px; width: 100%; }
+.withdraw-btn {
+  height: 56px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 20px; border: none; cursor: pointer;
+}
+.withdraw-btn-cancel { width: 140px; flex-shrink: 0; background: #fff; border: 1px solid rgba(170,170,170,0.87); color: #000; font-weight: 400; }
+.withdraw-btn-danger { flex: 1; background: #e82a2d; color: #fff; font-weight: 700; }
+
 @media (max-width: 640px) {
   .modal-overlay.login-overlay { align-items: flex-end; }
   .modal.login-modal {

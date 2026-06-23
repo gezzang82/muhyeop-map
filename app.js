@@ -1296,20 +1296,43 @@ async function saveProfile() {
   }
 }
 
-async function deleteAccount() {
-  if (!confirm('정말 회원 탈퇴하시겠어요? 로그인 계정 정보가 삭제되며 복구할 수 없습니다.')) return;
+function deleteAccount() {
+  openWithdrawConfirm();
+}
+
+function openWithdrawConfirm() {
+  document.getElementById('withdrawConfirmOverlay').classList.add('open');
+}
+function closeWithdrawConfirm() {
+  document.getElementById('withdrawConfirmOverlay').classList.remove('open');
+}
+
+let _withdrawing = false;
+async function confirmWithdraw() {
+  if (_withdrawing) return;
+  _withdrawing = true;
   try {
     const res = await fetch('/api/auth/delete-account', { method: 'POST' });
     if (!res.ok) {
-      alert('탈퇴 처리 중 오류가 발생했습니다.');
+      closeWithdrawConfirm();
+      showToast('탈퇴 처리 중 오류가 발생했어요. 다시 시도해주세요.');
       return;
     }
     currentUser = null;
     refreshAuthUI();
-    alert('탈퇴가 완료되었습니다.');
+    closeWithdrawConfirm();
+    document.getElementById('withdrawDoneOverlay').classList.add('open');
   } catch (e) {
-    alert('탈퇴 처리 중 오류가 발생했습니다.');
+    closeWithdrawConfirm();
+    showToast('탈퇴 처리 중 오류가 발생했어요. 다시 시도해주세요.');
+  } finally {
+    _withdrawing = false;
   }
+}
+
+function finishWithdraw() {
+  document.getElementById('withdrawDoneOverlay').classList.remove('open');
+  location.href = '/';
 }
 
 // ===== 모달 =====
