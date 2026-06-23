@@ -1605,8 +1605,10 @@ function resetModal() {
   const urlTrigger = document.getElementById('inputUrlPlatformTrigger');
   const urlIdEl = document.getElementById('inputUrlId');
   const lockedHint = document.getElementById('inputLockedHint');
+  const guestHint = document.getElementById('inputGuestHint');
   if (currentUser) {
     if (nicknameEl) { nicknameEl.value = currentUser.nickname || ''; nicknameEl.readOnly = true; }
+    if (guestHint) guestHint.style.display = 'none';
     if (currentUser.urlPlatform && currentUser.urlId) {
       const sel = document.getElementById('inputUrlPlatform');
       sel.value = currentUser.urlPlatform;
@@ -1626,6 +1628,7 @@ function resetModal() {
     if (urlTrigger) urlTrigger.classList.remove('locked');
     if (urlIdEl) urlIdEl.readOnly = false;
     if (lockedHint) lockedHint.style.display = 'none';
+    if (guestHint) guestHint.style.display = 'block';
   }
 }
 
