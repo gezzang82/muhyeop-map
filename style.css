@@ -1988,7 +1988,28 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   display: block; width: 100%; text-align: center; margin-top: 4px;
   border: none; background: none; cursor: pointer; padding: 0;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 13px; color: #aaa; text-decoration: underline;
+  font-size: 14px; color: #777; text-decoration: underline;
+}
+/* 내 정보 카드 */
+.myinfo-card {
+  display: flex; flex-direction: column; gap: 16px;
+  background: #f2f6ff; border: 1px solid #006cff; border-radius: 4px;
+  padding: 16px; width: 100%;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.myinfo-card-user { display: flex; align-items: center; gap: 8px; }
+.myinfo-card-user img { flex-shrink: 0; }
+.myinfo-nick { font-size: 16px; font-weight: 600; color: #006cff; }
+.myinfo-rows { display: flex; flex-direction: column; gap: 8px; }
+.myinfo-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.myinfo-label { flex: 1 0 0; min-width: 0; color: #555; }
+.myinfo-value { color: #000; white-space: nowrap; }
+.myinfo-value b { font-size: 16px; font-weight: 700; }
+.btn-change-sns {
+  width: 100%; height: 48px; margin-top: 16px;
+  background: #fff; border: 1px solid rgba(170,170,170,0.87); border-radius: 8px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px; color: #000; cursor: pointer;
 }
 .side-menu-list {
   display: flex; flex-direction: column; flex-shrink: 0;

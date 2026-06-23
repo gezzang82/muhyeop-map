@@ -147,14 +147,30 @@
     </div>
   </div>
 
-  <!-- 프로필 설정 (블로그/인스타그램 미리 등록) -->
+  <!-- 내 정보 (가입 정보 + 블로그/인스타그램 등록) -->
   <div class="modal-overlay" id="profileOverlay" onclick="closeProfileSheet()">
     <div class="modal profile-modal" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <h2>프로필 설정</h2>
+        <h2>내 정보</h2>
         <button class="modal-close" onclick="closeProfileSheet()">✕</button>
       </div>
       <div class="modal-body">
+        <div class="myinfo-card">
+          <div class="myinfo-card-user">
+            <img src="" alt="" width="16" height="16" id="myinfoProviderIcon">
+            <span class="myinfo-nick" id="myinfoNick"></span>
+          </div>
+          <div class="myinfo-rows">
+            <div class="myinfo-row">
+              <span class="myinfo-label">가입일</span>
+              <span class="myinfo-value" id="myinfoJoined">-</span>
+            </div>
+            <div class="myinfo-row">
+              <span class="myinfo-label">협찬 제보 건 수</span>
+              <span class="myinfo-value"><b id="myinfoReportCount">0</b>건</span>
+            </div>
+          </div>
+        </div>
         <div class="form-group">
           <label>나의 SNS계정 (블로그 또는 인스타그램)</label>
           <select id="profileUrlPlatform" style="display:none">
@@ -173,11 +189,12 @@
             <input type="text" id="profileUrlId" class="url-id-input" placeholder="아이디 입력">
           </div>
         </div>
-        <p class="profile-desc">미리 등록해두면 제보·신고 시 링크를 다시 입력하지 않아도 자동으로 채워져요.</p>
+        <div class="guest-hint"><img src="image/ic_info_16.svg" alt="" width="16" height="16"><span>SNS계정을 등록하면 제보·신고할 때 링크를 다시 입력하지 않아도 돼요.</span></div>
+        <button class="btn-change-sns" onclick="saveProfile()">SNS계정 변경</button>
+        <button class="profile-withdraw-link" onclick="deleteAccount()">회원 탈퇴</button>
       </div>
       <div class="modal-footer">
-        <button class="btn-submit" style="width:100%" onclick="saveProfile()">저장</button>
-        <button class="profile-withdraw-link" onclick="deleteAccount()">회원탈퇴</button>
+        <button class="btn-cancel" style="width:100%" onclick="closeProfileSheet()">취소</button>
       </div>
     </div>
   </div>

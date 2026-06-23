@@ -1265,8 +1265,23 @@ async function logout() {
   refreshAuthUI();
 }
 
+function formatJoinDate(raw) {
+  if (!raw) return '-';
+  const d = new Date(String(raw).replace(' ', 'T') + (String(raw).includes('T') || String(raw).length <= 10 ? '' : 'Z'));
+  if (isNaN(d.getTime())) return '-';
+  return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
+}
+
 function openProfileSheet() {
   if (!currentUser) { openLoginSheet(); return; }
+  const icon = document.getElementById('myinfoProviderIcon');
+  if (icon) icon.src = currentUser.provider === 'kakao' ? 'image/ic_login_kakao_16.svg' : 'image/ic_login_naver_16.svg';
+  const nick = document.getElementById('myinfoNick');
+  if (nick) nick.textContent = currentUser.nickname || '';
+  const joined = document.getElementById('myinfoJoined');
+  if (joined) joined.textContent = formatJoinDate(currentUser.createdAt);
+  const cnt = document.getElementById('myinfoReportCount');
+  if (cnt) cnt.textContent = currentUser.reportCount != null ? currentUser.reportCount : 0;
   const sel = document.getElementById('profileUrlPlatform');
   sel.value = currentUser.urlPlatform || '';
   syncSelectTrigger('profileUrlPlatform');
