@@ -159,6 +159,14 @@ body {
 .login-provider-spacer { width: 24px; height: 24px; flex-shrink: 0; }
 .login-provider-kakao { background: #FEE404; color: #1a1a1a; }
 .login-provider-naver { background: #08C659; color: white; }
+.login-modal-header-spacer { display: none; }
+/* PC: Figma 디자인(폭 320px, 타이틀 가운데정렬, 그림자)에 맞춤 */
+@media (min-width: 641px) {
+  .modal.login-modal { width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  .login-modal-header { padding-top: 20px; }
+  .login-modal-header h2 { text-align: center; }
+  .login-modal-header-spacer { display: block; width: 16px; height: 16px; flex-shrink: 0; }
+}
 
 /* ===== 회원탈퇴 바텀시트 ===== */
 /* 열기/닫기 애니메이션 (오버레이 페이드 + 시트 슬라이드/스케일) */
