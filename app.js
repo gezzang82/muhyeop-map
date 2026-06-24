@@ -240,6 +240,16 @@ function initMap() {
     }
   });
 
+  // 지도를 드래그(이동)하면 열려 있는 팝업/시트 닫기
+  naver.maps.Event.addListener(map, 'dragstart', () => {
+    closePcCard();
+    if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
+    const sheet = document.getElementById('mobileSheet');
+    if (window.innerWidth <= 640 && sheet && sheet.classList.contains('show')) {
+      closeMobileSheet();
+    }
+  });
+
   naver.maps.Event.addListener(map, 'zoom_changed', () => {
     if (window.innerWidth > 640) closePcCard();
   });
