@@ -1194,16 +1194,13 @@ async function refreshAuthUI() {
     currentUser = null;
   }
   const loggedIn = !!currentUser;
-  // PC 하단 MY 영역 (아바타 + 닉네임 + 로그인/로그아웃)
-  const pcMyLogin = document.getElementById('pcNavMyLogin');
-  const pcMyLogout = document.getElementById('pcNavMyLogout');
+  // PC 하단 MY 영역 (로그인 전: 간편로그인 안내 / 로그인 후: 아바타+닉네임+로그아웃)
+  const pcMyGuest = document.getElementById('pcNavMyGuest');
+  const pcMyUser = document.getElementById('pcNavMyUser');
   const pcMyName = document.getElementById('pcNavMyName');
-  if (pcMyLogin) pcMyLogin.style.display = loggedIn ? 'none' : '';
-  if (pcMyLogout) pcMyLogout.style.display = loggedIn ? '' : 'none';
-  if (pcMyName) {
-    pcMyName.style.display = loggedIn ? '' : 'none';
-    pcMyName.textContent = loggedIn ? `${currentUser.nickname || ''}님` : '';
-  }
+  if (pcMyGuest) pcMyGuest.style.display = loggedIn ? 'none' : 'flex';
+  if (pcMyUser) pcMyUser.style.display = loggedIn ? 'flex' : 'none';
+  if (pcMyName && loggedIn) pcMyName.textContent = `${currentUser.nickname || ''}님`;
   // 모바일 사이드 메뉴
   const sideLoginCard = document.getElementById('sideMenuLoginCard');
   const sideUser = document.getElementById('sideMenuUser');

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="format-detection" content="telephone=no, address=no, email=no">
   <title>무협맵 - 협찬 사냥꾼들의 지도</title>
-  <link rel="stylesheet" href="style.css?v=20">
+  <link rel="stylesheet" href="style.css?v=21">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -83,12 +83,25 @@
       </button>
     </div>
     <div class="pc-nav-auth" id="pcNavAuth">
-      <button class="pc-nav-my" onclick="switchPcTab('myinfo')" aria-label="내 정보">
-        <span class="pc-nav-my-avatar"><img src="image/img_ch_01.png" alt="" width="32" height="32"></span>
-        <span class="pc-nav-my-name" id="pcNavMyName" style="display:none"></span>
-      </button>
-      <button class="pc-nav-my-link" id="pcNavMyLogin" onclick="openLoginSheet()">로그인</button>
-      <button class="pc-nav-my-link" id="pcNavMyLogout" onclick="logout()" style="display:none">로그아웃</button>
+      <!-- 로그인 전 -->
+      <div class="pc-nav-my-guest" id="pcNavMyGuest">
+        <div class="pc-nav-my-login-group">
+          <div class="pc-nav-my-providers">
+            <img src="image/ic_login_kakao_16.svg" width="16" height="16" alt="카카오">
+            <img src="image/ic_login_naver_16.svg" width="16" height="16" alt="네이버">
+          </div>
+          <p class="pc-nav-my-guest-text"><strong>간편 로그인</strong><br>해주세요</p>
+        </div>
+        <button class="pc-nav-my-btn" onclick="openLoginSheet()">로그인</button>
+      </div>
+      <!-- 로그인 후 -->
+      <div class="pc-nav-my-user" id="pcNavMyUser" style="display:none">
+        <button class="pc-nav-my" onclick="switchPcTab('myinfo')" aria-label="내 정보">
+          <span class="pc-nav-my-avatar"><img src="image/img_ch_01.png" alt="" width="32" height="32"></span>
+          <span class="pc-nav-my-name" id="pcNavMyName"></span>
+        </button>
+        <button class="pc-nav-my-btn" id="pcNavMyLogout" onclick="logout()">로그아웃</button>
+      </div>
     </div>
   </nav>
 
@@ -183,7 +196,7 @@
         </div>
         <!-- 로그인 전: 로그인 유도 (PC 내 정보 패널 전용 / 모바일은 openProfileSheet가 로그인 시트로 우회) -->
         <div id="profileLoggedOut" class="profile-logged-out" style="display:none">
-          <img src="image/img_ch_01.png" alt="" class="profile-lo-char" width="80" height="80">
+          <img src="image/img_list_80.png" alt="" class="profile-lo-char" width="80" height="80">
           <p class="profile-lo-text">로그인이 필요합니다.</p>
           <button class="profile-lo-btn" onclick="openLoginSheet()">간편 로그인하기</button>
         </div>
@@ -836,7 +849,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=23"></script>
+  <script src="app.js?v=24"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

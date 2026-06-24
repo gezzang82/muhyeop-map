@@ -75,14 +75,36 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
   padding-bottom: 24px;
   flex-shrink: 0;
 }
-/* 하단 MY 영역: 아바타 + 닉네임 + 로그인/로그아웃 */
+/* 하단 MY 영역 (로그인 전/후) */
+.pc-nav-my-guest, .pc-nav-my-user {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.pc-nav-my-login-group {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.pc-nav-my-providers { display: flex; align-items: center; gap: 4px; }
+.pc-nav-my-providers img { width: 16px; height: 16px; display: block; }
+.pc-nav-my-guest-text {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px; font-weight: 400; line-height: 16px; color: #fff; text-align: center;
+}
+.pc-nav-my-guest-text strong { font-weight: 700; }
+.pc-nav-my-btn {
+  border: none; cursor: pointer;
+  background: rgba(255,255,255,0.16); color: #fff;
+  border-radius: 4px; height: 24px; padding: 4px 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px; font-weight: 600;
+}
+.pc-nav-my-btn:hover { background: rgba(255,255,255,0.24); }
 .pc-nav-my {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
   border: none; background: none; padding: 0; cursor: pointer;
 }
 .pc-nav-my-avatar {
@@ -94,14 +116,8 @@ body {
 .pc-nav-my-name {
   max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 11px; font-weight: 700; color: #fff;
+  font-size: 12px; font-weight: 700; color: #fff;
 }
-.pc-nav-my-link {
-  border: none; background: none; cursor: pointer; padding: 0;
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.7);
-}
-.pc-nav-my-link:hover { color: #fff; }
 .pc-nav-login-btn, .pc-nav-logout-btn {
   border: none;
   cursor: pointer;
@@ -640,21 +656,22 @@ body.pc-myinfo-mode #profileOverlay .modal-header h2 {
 }
 body.pc-myinfo-mode #profileOverlay .modal-footer { display: none !important; }
 
-/* 내 정보 로그인 전 화면 */
+/* 내 정보 로그인 전 화면 (Figma node 1179:13779) */
 .profile-logged-out {
   display: flex; flex-direction: column; align-items: center; gap: 16px;
-  padding: 64px 20px; text-align: center;
+  padding: 80px 20px; text-align: center;
 }
-.profile-lo-char { width: 80px; height: 80px; object-fit: contain; }
+.profile-lo-char { width: 80px; height: 80px; object-fit: cover; }
 .profile-lo-text {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px; color: #555;
+  font-size: 16px; font-weight: 500; color: #777;
 }
 .profile-lo-btn {
-  height: 48px; padding: 0 24px; border: none; border-radius: 8px;
+  width: 120px; height: 40px; border: none; border-radius: 8px;
   background: #e82a2d; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 15px; font-weight: 600;
+  font-size: 16px; font-weight: 700;
 }
 .profile-lo-btn:active { opacity: 0.9; }
 
