@@ -1280,6 +1280,11 @@ async function logout() {
   await fetch('/api/auth/logout', { method: 'POST' });
   currentUser = null;
   refreshAuthUI();
+  // 제보 모달이 열려 있으면 '내 이름 남기기'를 즉시 비로그인 상태로 갱신
+  const modalOpen = document.getElementById('modalOverlay');
+  if (modalOpen && (modalOpen.classList.contains('open') || modalOpen.classList.contains('show'))) {
+    syncFounderSection();
+  }
 }
 
 function formatJoinDate(raw) {
@@ -1735,6 +1740,12 @@ function resetModal() {
   document.getElementById('placeResultsList').innerHTML = '';
   document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('#modalOverlay .btn-input-clear').forEach(b => b.classList.remove('show'));
+  syncFounderSection();
+}
+
+// 로그인 상태에 따라 '내 이름 남기기' 영역 동기화 (모달 열 때 + step2 진입 시 재평가)
+// 로그인→로그아웃 후 step2로 넘어가도 잔여 로그인 정보가 남지 않도록 정리
+function syncFounderSection() {
   const nicknameEl = document.getElementById('inputNickname');
   const urlTrigger = document.getElementById('inputUrlPlatformTrigger');
   const urlIdEl = document.getElementById('inputUrlId');
@@ -1756,8 +1767,15 @@ function resetModal() {
       if (lockedHint) lockedHint.style.display = 'none';
     }
   } else {
+    // 비로그인: 요약 카드 숨기고 입력 필드 노출. 직전이 로그인 UI였다면 잔여값 정리
+    const wasLoggedInUI = nicknameEl && nicknameEl.readOnly;
     hideFounderSummary();
-    if (nicknameEl) nicknameEl.readOnly = false;
+    if (nicknameEl) { if (wasLoggedInUI) nicknameEl.value = ''; nicknameEl.readOnly = false; }
+    if (wasLoggedInUI) {
+      const sel = document.getElementById('inputUrlPlatform');
+      if (sel) { sel.value = ''; syncSelectTrigger('inputUrlPlatform'); }
+      updateUrlPlatform('', 'input');
+    }
     if (urlTrigger) urlTrigger.classList.remove('locked');
     if (urlIdEl) urlIdEl.readOnly = false;
     if (lockedHint) lockedHint.style.display = 'none';
@@ -1852,6 +1870,8 @@ function goStep2() {
   document.getElementById('step1').style.display = 'none';
   document.getElementById('step2').style.display = 'flex';
   updateStepDots(2);
+  // step1에서 로그인/로그아웃이 바뀌었을 수 있으므로 '내 이름 남기기' 재동기화
+  syncFounderSection();
 
   // step1 → step2: 스크롤 리스너 교체
   const _s1b = document.getElementById('step1Body');
