@@ -627,6 +627,25 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
 /* ===== 레이아웃 ===== */
 #map { flex: 1; min-width: 0; z-index: 1; position: relative; touch-action: none; }
+/* 지도 로딩 실패 안내 (지도 영역만 덮음) */
+.map-error {
+  position: absolute; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: #f2f4f6; padding: 24px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.map-error[hidden] { display: none; }
+.map-error-inner { text-align: center; max-width: 300px; }
+.map-error-icon { display: block; margin: 0 auto; }
+.map-error-title { font-size: 18px; font-weight: 600; color: #1a1a1a; margin: 16px 0 8px; }
+.map-error-desc { font-size: 14px; color: #888; line-height: 1.5; margin: 0 0 20px; }
+.map-error-retry {
+  height: 48px; padding: 0 28px; border-radius: 8px;
+  background: #006cff; color: #fff; border: none; cursor: pointer;
+  font-size: 15px; font-weight: 600;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.map-error-retry:active { opacity: 0.85; }
 .mobile-search-bar { display: none; }
 
 .btn-my-location {
