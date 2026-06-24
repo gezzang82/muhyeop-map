@@ -181,6 +181,7 @@ function closeEditPlaceModal() {
 function searchEditPlaceAddress() {
   const addr = document.getElementById('editPlaceAddress').value.trim();
   if (!addr) { adminToast('주소를 입력해주세요'); return; }
+  if (!isNaverReady()) { adminToast('지도 API 연결 실패로 좌표 검색을 사용할 수 없어요'); showMapApiBanner(); return; }
   naver.maps.Service.geocode({ query: addr }, (status, res) => {
     if (status === naver.maps.Service.Status.OK && res?.v2?.addresses?.length) {
       const r = res.v2.addresses[0];
@@ -408,6 +409,7 @@ function onPlaceSelect() {
 function searchAdminAddress() {
   const addr = document.getElementById('addAddress').value.trim();
   if (!addr) { adminToast('주소를 입력해주세요'); return; }
+  if (!isNaverReady()) { adminToast('지도 API 연결 실패로 좌표 검색을 사용할 수 없어요'); showMapApiBanner(); return; }
   naver.maps.Service.geocode({ query: addr }, (status, res) => {
     if (status === naver.maps.Service.Status.OK && res?.v2?.addresses?.length) {
       const r = res.v2.addresses[0];
@@ -717,6 +719,7 @@ function renderExcelPreview(headers, rows) {
 }
 
 function geocodeAddress(addr) {
+  if (!isNaverReady()) { showMapApiBanner(); return Promise.resolve(null); }
   return new Promise(resolve => {
     naver.maps.Service.geocode({ query: addr }, (status, res) => {
       if (status === naver.maps.Service.Status.OK && res?.v2?.addresses?.length) {
@@ -803,8 +806,19 @@ function adminToast(msg) {
   setTimeout(() => el.classList.remove('show'), 2500);
 }
 
+// 네이버 지도 스크립트(geocoding) 로드 여부 확인 + 실패 안내 배너
+function isNaverReady() {
+  return typeof naver !== 'undefined' && naver.maps && naver.maps.Service;
+}
+function showMapApiBanner() {
+  const b = document.getElementById('mapApiBanner');
+  if (b) b.hidden = false;
+}
+
 // ===== 자동 로그인 체크 =====
 window.addEventListener('DOMContentLoaded', async () => {
+  // 네이버 지도 스크립트가 로드되지 않았으면 상단 안내 배너 노출
+  if (!isNaverReady()) showMapApiBanner();
   if (sessionStorage.getItem('adminLoggedIn') === 'true') {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminApp').style.display = 'flex';

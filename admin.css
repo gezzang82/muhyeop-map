@@ -31,6 +31,24 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* 지도 API 연결 실패 안내 배너 */
+.map-api-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 10px 16px; background: var(--danger-bg); color: var(--danger);
+  border-bottom: 1px solid #f3c4c4; font-size: 14px; font-weight: 500;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.map-api-banner[hidden] { display: none; }
+.map-api-banner button {
+  flex-shrink: 0; border: 1px solid var(--danger); background: #fff; color: var(--danger);
+  border-radius: var(--radius-sm); padding: 5px 14px; cursor: pointer;
+  font-size: 13px; font-weight: 600;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.map-api-banner button:active { opacity: 0.85; }
+
 body {
   font-family: 'Pretendard', -apple-system, sans-serif;
   background: var(--bg);

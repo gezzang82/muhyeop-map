@@ -11,6 +11,12 @@
 </head>
 <body>
 
+  <!-- 지도 API 연결 실패 안내 배너 (스크립트 미로드 / 인증 실패 시 노출) -->
+  <div id="mapApiBanner" class="map-api-banner" hidden>
+    <span>⚠️ 지도 API 연결에 실패했어요. 주소 → 좌표 검색 기능을 사용할 수 없습니다.</span>
+    <button type="button" onclick="location.reload()">새로고침</button>
+  </div>
+
   <!-- 아이콘 스프라이트 -->
   <svg style="display:none">
     <symbol id="icon-dashboard" viewBox="0 0 24 24">
@@ -615,6 +621,14 @@
 
   <div id="adminToast" class="admin-toast"></div>
 
+  <script>
+    // 네이버 지도 인증 실패 시 호출되는 공식 콜백 (maps.js보다 먼저 정의되어야 함)
+    window.navermap_authFailure = function () {
+      var show = function () { var b = document.getElementById('mapApiBanner'); if (b) b.hidden = false; };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', show);
+      else show();
+    };
+  </script>
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
   <script src="app.js"></script>
   <script src="admin.js"></script>
