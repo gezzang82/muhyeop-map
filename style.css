@@ -1426,6 +1426,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* optionalFields / founderSection 내부 간격 */
 #optionalFields { display: flex; flex-direction: column; gap: 24px; }
 #founderSection { display: flex; flex-direction: column; gap: 24px; }
+/* 닉네임/SNS계정 입력란 간격을 다른 항목과 동일하게 (24px) */
+#founderInputFields { display: flex; flex-direction: column; gap: 24px; }
 
 /* 구분선 */
 .section-divider { height: 1px; background: #eee; }
