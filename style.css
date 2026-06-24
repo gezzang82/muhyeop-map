@@ -240,8 +240,8 @@ body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 20px; border: none; cursor: pointer;
 }
-.withdraw-btn-cancel { width: 140px; flex-shrink: 0; background: #fff; border: 1px solid rgba(170,170,170,0.87); color: #000; font-weight: 400; }
-.withdraw-btn-danger { flex: 1; background: #e82a2d; color: #fff; font-weight: 700; }
+.withdraw-btn-cancel { flex: 4 1 0; background: #fff; border: 1px solid rgba(170,170,170,0.87); color: #000; font-weight: 400; }
+.withdraw-btn-danger { flex: 6 1 0; background: #e82a2d; color: #fff; font-weight: 700; }
 
 /* PC 회원탈퇴 팝업: 타이틀 중앙정렬(X 없음) + 메시지/버튼 축소 (Figma 1169:2959) */
 @media (min-width: 641px) {
@@ -302,13 +302,13 @@ body {
   padding: 20px 20px 24px;
 }
 .signup-btn-cancel {
-  width: 140px; flex-shrink: 0; height: 56px;
+  flex: 4 1 0; height: 56px;
   background: #fff; border: 1px solid rgba(170,170,170,0.87); border-radius: 8px;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 18px; font-weight: 400; color: #000; cursor: pointer;
 }
 .signup-btn-confirm {
-  flex: 1; height: 56px;
+  flex: 6 1 0; height: 56px;
   background: #e82a2d; border: none; border-radius: 8px;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 18px; font-weight: 700; color: #fff; cursor: pointer;
@@ -505,7 +505,7 @@ body.pc-report-mode #modalOverlay.open {
   align-items: stretch !important;
 }
 
-body.pc-report-mode .modal {
+body.pc-report-mode #modalOverlay .modal {
   width: 360px !important;
   max-width: 360px !important;
   height: 100dvh !important;
@@ -515,7 +515,7 @@ body.pc-report-mode .modal {
 }
 
 /* PC: 버튼을 콘텐츠 하단에 인플로우로 배치 (플로팅 제거) */
-body.pc-report-mode .modal-footer {
+body.pc-report-mode #modalOverlay .modal-footer {
   position: static !important;
   bottom: auto !important;
   left: auto !important;
@@ -525,11 +525,11 @@ body.pc-report-mode .modal-footer {
   flex-shrink: 0 !important;
 }
 
-body.pc-report-mode .modal-header {
+body.pc-report-mode #modalOverlay .modal-header {
   padding: 37px 20px 20px !important;
   align-items: flex-start !important;
 }
-body.pc-report-mode .modal-header h2 {
+body.pc-report-mode #modalOverlay .modal-header h2 {
   font-size: 18px !important;
   font-weight: 600 !important;
   letter-spacing: normal !important;
@@ -546,7 +546,7 @@ body.pc-report-mode .step2-scroll-header h2 {
   font-weight: 600 !important;
   letter-spacing: normal !important;
 }
-body.pc-report-mode .modal-body {
+body.pc-report-mode #modalOverlay .modal-body {
   padding-top: 16px !important;
   padding-bottom: 20px !important;
 }
@@ -1675,14 +1675,14 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, white 30%);
 }
 .btn-cancel {
-  width: 140px; flex-shrink: 0; height: 64px; background: white;
+  flex: 4 1 0; height: 64px; background: white;
   border: 1px solid rgba(170,170,170,0.87); border-radius: 8px;
   font-size: 20px; font-weight: 400; cursor: pointer; color: #000;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .btn-cancel:hover { background: #f5f5f5; }
 .btn-next, .btn-submit {
-  flex: 1; height: 64px; background: #E82A2D; color: white;
+  flex: 6 1 0; height: 64px; background: #E82A2D; color: white;
   border: none; border-radius: 8px; font-size: 20px; font-weight: 700;
   cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   transition: background 0.2s;
