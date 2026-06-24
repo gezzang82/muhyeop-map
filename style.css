@@ -80,6 +80,28 @@ body {
   padding-bottom: 24px;
   flex-shrink: 0;
 }
+/* 하단 MY 영역: 아바타 + 닉네임 + 로그인/로그아웃 */
+.pc-nav-my {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  border: none; background: none; padding: 0; cursor: pointer;
+}
+.pc-nav-my-avatar {
+  width: 32px; height: 32px; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.16); flex-shrink: 0;
+}
+.pc-nav-my-avatar img { width: 32px; height: 32px; object-fit: cover; }
+.pc-nav-my-name {
+  max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px; font-weight: 700; color: #fff;
+}
+.pc-nav-my-link {
+  border: none; background: none; cursor: pointer; padding: 0;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.7);
+}
+.pc-nav-my-link:hover { color: #fff; }
 .pc-nav-login-btn, .pc-nav-logout-btn {
   border: none;
   cursor: pointer;
@@ -574,6 +596,67 @@ body.pc-about-mode #aboutOverlay .modal-header h2 {
   font-weight: 600 !important;
   letter-spacing: normal !important;
 }
+
+/* ===== PC 내 정보 모드: 프로필 오버레이를 왼쪽 사이드 패널로 전환 ===== */
+body.pc-myinfo-mode .sidebar { display: none !important; }
+body.pc-myinfo-mode .pc-map-top { display: none; }
+body.pc-myinfo-mode #map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 500;
+}
+body.pc-myinfo-mode #profileOverlay.open {
+  position: fixed !important;
+  left: 72px !important;
+  right: auto !important;
+  width: 360px !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  background: none !important;
+  z-index: 300 !important;
+  padding: 0 !important;
+  align-items: stretch !important;
+}
+body.pc-myinfo-mode #profileOverlay .modal {
+  width: 360px !important;
+  max-width: 360px !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+body.pc-myinfo-mode #profileOverlay .modal-sticky-header,
+body.pc-myinfo-mode #profileOverlay .modal-scroll-header { display: none !important; }
+body.pc-myinfo-mode #profileOverlay .modal-header {
+  padding: 37px 20px 20px !important;
+  align-items: flex-start !important;
+}
+body.pc-myinfo-mode #profileOverlay .modal-header h2 {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+}
+body.pc-myinfo-mode #profileOverlay .modal-footer { display: none !important; }
+
+/* 내 정보 로그인 전 화면 */
+.profile-logged-out {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 64px 20px; text-align: center;
+}
+.profile-lo-char { width: 80px; height: 80px; object-fit: contain; }
+.profile-lo-text {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px; color: #555;
+}
+.profile-lo-btn {
+  height: 48px; padding: 0 24px; border: none; border-radius: 8px;
+  background: #e82a2d; color: #fff; cursor: pointer;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px; font-weight: 600;
+}
+.profile-lo-btn:active { opacity: 0.9; }
 
 /* ===== PC 신고하기 모드: 모달을 왼쪽 사이드 패널로 전환 ===== */
 body.pc-reportissue-mode .sidebar { display: none !important; }
