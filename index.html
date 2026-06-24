@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="format-detection" content="telephone=no, address=no, email=no">
   <title>무협맵 - 협찬 사냥꾼들의 지도</title>
-  <link rel="stylesheet" href="style.css?v=25">
+  <link rel="stylesheet" href="style.css?v=26">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -848,8 +848,26 @@
     </div>
   </div>
 
+  <!-- 공통 알림 팝업 (탈퇴하기 팝업과 동일 스타일) -->
+  <div class="modal-overlay login-overlay withdraw-overlay alert-popup" id="alertPopupOverlay" onclick="closeAlertPopup()">
+    <div class="modal login-modal" onclick="event.stopPropagation()">
+      <div class="login-modal-handle-wrap"></div>
+      <div class="login-modal-header">
+        <h2>알림</h2>
+      </div>
+      <div class="withdraw-message">
+        <p class="withdraw-message-title" id="alertPopupMain"></p>
+        <p class="withdraw-message-desc" id="alertPopupSub"></p>
+      </div>
+      <div class="withdraw-actions">
+        <button class="withdraw-btn withdraw-btn-cancel" id="alertPopupCancel" onclick="closeAlertPopup()">취소</button>
+        <button class="withdraw-btn withdraw-btn-danger" id="alertPopupConfirm" onclick="alertPopupConfirm()">확인</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=26"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

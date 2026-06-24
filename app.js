@@ -1210,7 +1210,11 @@ async function refreshAuthUI() {
   const pcMyName = document.getElementById('pcNavMyName');
   if (pcMyGuest) pcMyGuest.style.display = loggedIn ? 'none' : 'flex';
   if (pcMyUser) pcMyUser.style.display = loggedIn ? 'flex' : 'none';
-  if (pcMyName && loggedIn) pcMyName.textContent = `${currentUser.nickname || ''}님`;
+  if (pcMyName && loggedIn) {
+    const nick = currentUser.nickname || '';
+    const shown = nick.length >= 4 ? nick.slice(0, 3) + '...' : nick;
+    pcMyName.textContent = `${shown}님`;
+  }
   // 모바일 사이드 메뉴
   const sideLoginCard = document.getElementById('sideMenuLoginCard');
   const sideUser = document.getElementById('sideMenuUser');
@@ -1347,13 +1351,13 @@ async function saveProfile() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urlPlatform, urlId })
     });
-    if (!res.ok) { alert('저장 중 오류가 발생했습니다.'); return; }
+    if (!res.ok) { showAlert('저장 중 오류가 발생했어요.', '잠시 후 다시 시도해주세요.'); return; }
     await refreshAuthUI();
     // PC 내 정보 패널 모드에서는 패널을 닫지 않고 유지 (refreshAuthUI가 갱신)
     if (!document.body.classList.contains('pc-myinfo-mode')) closeProfileSheet();
     showToast('프로필을 저장했어요.');
   } catch (e) {
-    alert('저장 중 오류가 발생했습니다.');
+    showAlert('저장 중 오류가 발생했어요.', '잠시 후 다시 시도해주세요.');
   }
 }
 
@@ -1394,6 +1398,31 @@ async function confirmWithdraw() {
 function finishWithdraw() {
   document.getElementById('withdrawDoneOverlay').classList.remove('open');
   location.href = '/';
+}
+
+// ===== 공통 알림 팝업 (PC 중앙 카드 / 모바일 바텀시트) =====
+let _alertOnConfirm = null;
+function showAlert(main, sub, opts) {
+  opts = opts || {};
+  document.getElementById('alertPopupMain').textContent = main || '';
+  document.getElementById('alertPopupSub').textContent = sub || '';
+  const cancel = document.getElementById('alertPopupCancel');
+  const confirmBtn = document.getElementById('alertPopupConfirm');
+  cancel.style.display = opts.twoButton ? '' : 'none';
+  cancel.textContent = opts.cancelText || '취소';
+  confirmBtn.textContent = opts.confirmText || '확인';
+  _alertOnConfirm = opts.onConfirm || null;
+  document.getElementById('alertPopupOverlay').classList.add('open');
+}
+function closeAlertPopup() {
+  document.getElementById('alertPopupOverlay').classList.remove('open');
+  _alertOnConfirm = null;
+}
+function alertPopupConfirm() {
+  const cb = _alertOnConfirm;
+  document.getElementById('alertPopupOverlay').classList.remove('open');
+  _alertOnConfirm = null;
+  if (cb) cb();
 }
 
 // ===== 모달 =====

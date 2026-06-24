@@ -243,6 +243,10 @@ body {
 .withdraw-btn-cancel { flex: 4 1 0; background: #fff; border: 1px solid rgba(170,170,170,0.87); color: #000; font-weight: 400; }
 .withdraw-btn-danger { flex: 6 1 0; background: #e82a2d; color: #fff; font-weight: 700; }
 
+/* 공통 알림 팝업: 타이틀 항상 중앙정렬, 빈 서브텍스트 숨김 */
+.alert-popup .login-modal-header h2 { text-align: center; }
+.alert-popup .withdraw-message-desc:empty { display: none; }
+
 /* PC 회원탈퇴 팝업: 타이틀 중앙정렬(X 없음) + 메시지/버튼 축소 (Figma 1169:2959) */
 @media (min-width: 641px) {
   .withdraw-overlay .modal-close { display: none; }
@@ -1598,7 +1602,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .founder-summary-card {
   display: flex; flex-direction: column; gap: 8px;
   background: #f2f6ff; border: 1px solid #006cff; border-radius: 4px;
-  padding: 16px; margin-top: 16px; width: 100%;
+  padding: 16px; width: 100%;
 }
 .founder-summary-nick {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
