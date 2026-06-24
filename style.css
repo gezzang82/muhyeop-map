@@ -243,6 +243,16 @@ body {
 .withdraw-btn-cancel { width: 140px; flex-shrink: 0; background: #fff; border: 1px solid rgba(170,170,170,0.87); color: #000; font-weight: 400; }
 .withdraw-btn-danger { flex: 1; background: #e82a2d; color: #fff; font-weight: 700; }
 
+/* PC 회원탈퇴 팝업: 타이틀 중앙정렬(X 없음) + 메시지/버튼 축소 (Figma 1169:2959) */
+@media (min-width: 641px) {
+  .withdraw-overlay .modal-close { display: none; }
+  .withdraw-overlay .login-modal-header h2 { text-align: center; }
+  .withdraw-overlay .withdraw-message { padding: 24px 20px; }
+  .withdraw-overlay .withdraw-message-title { font-size: 16px; letter-spacing: -0.32px; }
+  .withdraw-overlay .withdraw-message-desc { font-size: 14px; }
+  .withdraw-overlay .withdraw-btn { height: 48px; font-size: 16px; }
+}
+
 @media (max-width: 640px) {
   .modal-overlay.login-overlay { align-items: flex-end; }
   .modal.login-modal {
@@ -332,6 +342,28 @@ body {
   letter-spacing: -0.4px; line-height: normal;
 }
 .signup-done-content .signup-subtitle { text-align: center; }
+
+/* PC: 가입완료는 풀페이지 대신 가운데 팝업 + 캐릭터 이미지가 상단에 걸침 (node 1178:12682) */
+@media (min-width: 641px) {
+  #signupDoneOverlay { background: rgba(0,0,0,0.32); align-items: center; justify-content: center; }
+  #signupDoneOverlay .signup-page {
+    flex: 0 1 auto; width: 320px; max-width: calc(100vw - 40px);
+    height: auto; margin: 0; position: relative;
+    background: #fff; border-radius: 16px; overflow: visible;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+  }
+  #signupDoneOverlay .signup-done-content {
+    flex: 0 1 auto; overflow: visible;
+    padding: 100px 20px 24px; gap: 8px;
+  }
+  #signupDoneOverlay .signup-done-img {
+    position: absolute; top: -50px; left: 50%; transform: translateX(-50%); z-index: 1;
+  }
+  #signupDoneOverlay .signup-done-content h2 { font-size: 16px; letter-spacing: -0.32px; }
+  #signupDoneOverlay .signup-done-content .signup-subtitle { font-size: 14px; }
+  #signupDoneOverlay .signup-footer { padding: 0 20px 20px; }
+  #signupDoneOverlay .signup-btn-confirm { height: 48px; font-size: 16px; }
+}
 
 /* ===== 개인정보처리방침 / 이용약관 팝업 ===== */
 .policy-modal { max-width: 480px; }
@@ -654,6 +686,10 @@ body.pc-myinfo-mode #profileOverlay .modal-header h2 {
   letter-spacing: normal !important;
 }
 body.pc-myinfo-mode #profileOverlay .modal-footer { display: none !important; }
+/* PC 내 정보: 회원 탈퇴를 패널 하단에 고정 (Figma 1179:12854) */
+body.pc-myinfo-mode #profileOverlay .modal-body { padding-bottom: 40px; }
+body.pc-myinfo-mode #profileLoggedIn { flex: 1 0 auto; min-height: 0; }
+body.pc-myinfo-mode #profileLoggedIn .profile-withdraw-link { margin-top: auto; padding-top: 24px; }
 
 /* 내 정보 로그인 전 화면 (Figma node 1179:13779) */
 .profile-logged-out {
