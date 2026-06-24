@@ -5,9 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="format-detection" content="telephone=no, address=no, email=no">
   <title>무협맵 - 협찬 사냥꾼들의 지도</title>
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <script>
+    // 네이버 지도 인증 실패 시 호출되는 공식 콜백 (maps.js보다 먼저 정의되어야 함)
+    window.navermap_authFailure = function () {
+      var show = function () {
+        var err = document.getElementById('mapError');
+        if (err) err.hidden = false;
+        var loading = document.getElementById('appLoading');
+        if (loading) loading.style.display = 'none';
+      };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', show);
+      else show();
+    };
+  </script>
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
   <script src="js/MarkerClustering.js"></script>
 </head>
@@ -242,6 +255,20 @@
 
   <!-- 지도 영역 -->
   <div id="map">
+
+    <!-- 지도 로딩 실패 안내 (스크립트 미로드 / 인증 실패 시 노출) -->
+    <div id="mapError" class="map-error" hidden>
+      <div class="map-error-inner">
+        <svg class="map-error-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 8v5" stroke="#b0b8c1" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="16.5" r="1.25" fill="#b0b8c1"/>
+          <path d="M12 3 2 20h20L12 3Z" stroke="#b0b8c1" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <h3 class="map-error-title">지도를 불러오지 못했어요</h3>
+        <p class="map-error-desc">일시적인 오류일 수 있어요.<br>잠시 후 다시 시도해 주세요.</p>
+        <button class="map-error-retry" onclick="location.reload()">다시 시도</button>
+      </div>
+    </div>
 
     <!-- PC 검색 + 필터 칩 (PC only) -->
     <div class="pc-map-top">
@@ -792,7 +819,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=22"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

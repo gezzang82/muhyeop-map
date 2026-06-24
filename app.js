@@ -2395,6 +2395,11 @@ function initAppLoading() {
     });
   }
 }
+// 지도 로딩/인증 실패 시 지도 영역에 안내 화면 노출
+function showMapError() {
+  const err = document.getElementById('mapError');
+  if (err) err.hidden = false;
+}
 function hideAppLoading() {
   const el = document.getElementById('appLoading');
   if (!el) return;
@@ -2421,6 +2426,12 @@ window.addEventListener('load', async function() {
   }
   if (!document.getElementById('map')) { hideAppLoading(); return; }
   updateStatCount();
+  // 네이버 지도 스크립트가 로드되지 않은 경우(차단/네트워크 실패 등) 안내 화면 노출
+  if (typeof naver === 'undefined' || !naver.maps) {
+    showMapError();
+    hideAppLoading();
+    return;
+  }
   initMap();
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   startLiveAlerts();
