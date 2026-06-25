@@ -1144,25 +1144,53 @@ const POLICY_CONTENT = {
   privacy: {
     title: '개인정보처리방침',
     body: `
-      <p>무협맵(이하 '서비스')은 이용자의 개인정보를 중요시하며, 「개인정보 보호법」을 준수하고 있습니다.</p>
+      <p>무협맵(이하 '서비스')은 「개인정보 보호법」 및 「위치정보의 보호 및 이용 등에 관한 법률」을 준수하며, 이용자의 개인정보를 보호하기 위해 다음과 같이 처리방침을 둡니다.</p>
       <div class="about-section">
         <div class="about-section-title">1. 수집하는 개인정보 항목</div>
-        <p class="about-desc">서비스는 협찬 제보 시 닉네임, 이메일(선택) 등 최소한의 정보를 수집합니다.</p>
+        <p class="about-desc">서비스는 필요한 최소한의 정보만 수집합니다.</p>
+        <p class="about-desc">· 간편로그인 시(카카오·네이버): 소셜 계정 식별자, 닉네임, 이메일<br>
+        · 프로필 등록 시: 블로그·인스타그램 주소<br>
+        · 협찬 제보·신고 시: 닉네임, 블로그·인스타그램 링크 (로그인 사용자는 가입 시 이메일이 연계됨)<br>
+        · 위치정보: 이용자 단말기의 현재 위치 ('내 주변 협찬' 표시 목적)<br>
+        · 자동 수집: 접속 IP, 서비스 이용기록(협찬 조회·외부 링크 클릭)<br>
+        · 이벤트 운영 시: 당첨자 휴대전화번호(경품 발송 목적)</p>
+        <p class="about-desc">※ 비회원도 제보할 수 있으며, 이 경우 이메일은 수집하지 않습니다.</p>
       </div>
       <div class="about-section">
-        <div class="about-section-title">2. 개인정보의 수집 및 이용 목적</div>
-        <p class="about-desc">제보 내용 확인, 문의 응대, 부정 이용 방지를 위한 목적으로만 이용됩니다.</p>
+        <div class="about-section-title">2. 수집 및 이용 목적</div>
+        <p class="about-desc">회원 식별 및 서비스 제공, 제보·신고 내용 확인 및 운영, 부정 이용 방지, 통계 분석을 통한 서비스 개선, 이벤트·참여 기회 제공 및 경품 발송(해당 시)을 위해 이용합니다.</p>
       </div>
       <div class="about-section">
-        <div class="about-section-title">3. 개인정보의 보유 및 이용 기간</div>
-        <p class="about-desc">수집된 정보는 목적 달성 후 지체 없이 파기하며, 관계 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
+        <div class="about-section-title">3. 위치정보의 처리</div>
+        <p class="about-desc">'내 주변 협찬' 표시를 위해 단말기의 현재 위치를 일회성으로 이용하며, 해당 위치정보는 서버에 저장하지 않습니다. 이용자는 브라우저·기기 설정에서 위치 권한을 거부할 수 있고, 거부 시 내 주변 관련 기능만 제한됩니다.</p>
       </div>
       <div class="about-section">
-        <div class="about-section-title">4. 개인정보의 제3자 제공</div>
-        <p class="about-desc">서비스는 이용자의 개인정보를 원칙적으로 외부에 제공하지 않습니다.</p>
+        <div class="about-section-title">4. 보유 및 이용 기간</div>
+        <p class="about-desc">· 회원 정보: 회원 탈퇴 시 지체 없이 파기<br>
+        · 제보·신고 내용: 서비스 운영을 위해 보관하되, 탈퇴 시 작성자 계정과의 연결을 해제(닉네임 표기만 유지)<br>
+        · 접속기록·IP·이용기록: 부정 이용 방지 및 통계 목적으로 1년간 보관 후 파기<br>
+        · 위치정보: 저장하지 않음<br>
+        · 이벤트 당첨자 연락처: 경품 발송 완료 후 즉시 파기<br>
+        · 단, 관계 법령상 보존 의무가 있는 경우 해당 기간 동안 보관</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">5. 제3자 제공 및 처리위탁</div>
+        <p class="about-desc">서비스는 원칙적으로 개인정보를 외부에 제공하지 않습니다. 간편로그인은 카카오·네이버 인증을 이용하며 해당 사업자의 개인정보 처리에는 각 사의 방침이 적용됩니다. 또한 서비스 운영을 위해 클라우드 인프라(Vercel, Turso 등)에 데이터가 저장·처리될 수 있습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">6. 외부 링크에 대한 책임</div>
+        <p class="about-desc">서비스에 게시된 블로그·인스타그램 등 외부 링크는 외부 사이트로 연결됩니다. 외부 사이트의 콘텐츠 및 개인정보 처리에는 본 방침이 적용되지 않으며, 이에 대해 서비스는 책임지지 않습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">7. 이용자의 권리</div>
+        <p class="about-desc">이용자는 언제든 자신의 개인정보에 대한 열람·정정·삭제·처리정지를 요청할 수 있으며, 회원 탈퇴를 통해 직접 삭제할 수 있습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">8. 개인정보 보호책임자</div>
+        <p class="about-desc">개인정보 보호책임자: 무협맵 운영팀. 개인정보 관련 문의 및 권리 행사는 서비스 내 안내 채널을 통해 접수할 수 있습니다. (정식 오픈 시 책임자 성명·연락처를 기재합니다.)</p>
       </div>
       <div class="about-legal">
-        <p>본 방침은 서비스 운영상 필요에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.</p>
+        <p>본 방침은 운영상·법령상 필요에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.</p>
       </div>`
   },
   terms: {
@@ -1174,15 +1202,27 @@ const POLICY_CONTENT = {
       </div>
       <div class="about-section">
         <div class="about-section-title">제2조 (서비스의 성격)</div>
-        <p class="about-desc">서비스는 여러 플랫폼에 흩어진 협찬 정보를 지도 위에서 탐색할 수 있도록 도와주는 정보 제공 서비스이며, 협찬의 신청·진행·이행에 직접 관여하지 않습니다.</p>
+        <p class="about-desc">서비스는 여러 플랫폼에 흩어진 협찬 정보를 지도 위에서 탐색할 수 있도록 돕는 정보 제공 서비스이며, 협찬의 신청·진행·이행에 직접 관여하지 않습니다.</p>
       </div>
       <div class="about-section">
-        <div class="about-section-title">제3조 (이용자의 의무)</div>
+        <div class="about-section-title">제3조 (위치기반 서비스)</div>
+        <p class="about-desc">서비스는 '내 주변 협찬' 등 위치기반 기능을 제공합니다. 위치정보는 이용자 단말기에서 일회성으로 이용되며 서버에 저장되지 않고, 이용자는 기기 설정에서 위치 권한을 거부할 수 있습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">제4조 (이용자의 의무)</div>
         <p class="about-desc">이용자는 협찬 정보 제보 시 사실에 기반한 정확한 정보를 등록해야 하며, 허위 정보 등록 시 서비스 이용이 제한될 수 있습니다.</p>
       </div>
       <div class="about-section">
-        <div class="about-section-title">제4조 (책임의 제한)</div>
-        <p class="about-desc">서비스에 게시된 협찬 정보는 이용자의 제보를 기반으로 하며, 정보의 정확성·최신성에 대해 서비스는 보증하지 않습니다. 협찬 신청 및 진행과 관련한 권리와 책임은 각 플랫폼 및 업체에 있습니다.</p>
+        <div class="about-section-title">제5조 (게시물 및 외부 링크)</div>
+        <p class="about-desc">서비스에 게시된 협찬 정보는 이용자의 제보를 기반으로 합니다. 게시물에 포함된 블로그·인스타그램 등 외부 링크는 외부 사이트로 연결되며, 외부 사이트의 콘텐츠·운영에 대해 서비스는 책임지지 않습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">제6조 (이벤트 및 보상)</div>
+        <p class="about-desc">서비스는 제보왕·포인트 등 이벤트 및 보상 제도를 운영할 수 있으며, 세부 기준은 운영정책 또는 별도 공지에 따릅니다. 허위·부정 제보는 보상에서 제외·차감될 수 있습니다. 경품 수령 등은 이용자 본인 계정을 통해서만 확인하며, 서비스는 외부 연락을 통한 개인정보·금전 요구를 하지 않으니 사칭에 유의하시기 바랍니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">제7조 (책임의 제한)</div>
+        <p class="about-desc">서비스에 게시된 협찬 정보의 정확성·최신성에 대해 서비스는 보증하지 않으며, 협찬 신청 및 진행과 관련한 권리와 책임은 각 플랫폼 및 업체에 있습니다.</p>
       </div>
       <div class="about-legal">
         <p>본 약관은 서비스 운영상 필요에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.</p>
