@@ -6,7 +6,7 @@
 
 ## 엔드포인트
 - `api/places.js` — 장소 CRUD
-- `api/campaigns.js` — 협찬 캠페인 CRUD
+- `api/campaigns.js` — 협찬 캠페인 CRUD + 조회/클릭수 트래킹(`POST ?track=view|click&id=`). `view_count`/`click_count` 컬럼에 누적하며 `campaign_events(campaign_id, kind, visitor_key)` UNIQUE로 **IP+일자 기준 중복 제거**(클라이언트는 세션당 view 1회 디바운스). 표시는 아직 안 하고 데이터만 선누적(소급 불가). 함수 12개 제한 때문에 별도 엔드포인트 분리 없이 campaigns.js에 합침
 - `api/reports.js` — 신고 처리 (`DELETE`는 단순 삭제만)
 - `api/banners.js` — 상단 배너 관리
 - `api/search-place.js` — 장소명 검색 (네이버 장소 검색 연동으로 추정, 협찬 제보하기 step1 매장명 검색에 사용)

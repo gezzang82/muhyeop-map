@@ -168,6 +168,22 @@ function hasActiveCampaign(placeId) {
   return getActiveCampaigns(placeId).length > 0;
 }
 
+// ===== 조회/클릭수 트래킹 (표시는 나중, 데이터는 지금부터 누적) =====
+const _trackedViews = new Set();
+function trackCampaignView(id) {
+  if (!id || _trackedViews.has(id)) return; // 세션당 캠페인 1회 (서버는 IP+일자로 추가 중복 제거)
+  _trackedViews.add(id);
+  fetch(`/api/campaigns?track=view&id=${id}`, { method: 'POST', keepalive: true }).catch(() => {});
+}
+function trackPlaceCampaignViews(place) {
+  if (!place) return;
+  getActiveCampaigns(place.id).forEach(c => trackCampaignView(c.id));
+}
+function trackCampaignClick(id) {
+  if (!id) return;
+  fetch(`/api/campaigns?track=click&id=${id}`, { method: 'POST', keepalive: true }).catch(() => {});
+}
+
 function hasPlatformAlready(placeId, platform) {
   const today = getKSTTodayUTC();
   return campaigns.some(c => c.placeId === placeId && !c.hidden && c.platform === platform && deadlineToUTC(c.deadline) >= today);
@@ -486,7 +502,7 @@ function createInfoContent(place) {
               <span class="iw-info-label">제보</span>
             </div>
             ${reporterUrl
-              ? `<div class="iw-reporter-group"><a class="iw-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" style="display:block;flex-shrink:0;" alt=""></div>`
+              ? `<div class="iw-reporter-group"><a class="iw-reporter-link" href="${reporterUrl}" target="_blank" onclick="trackCampaignClick(${c.id})">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" style="display:block;flex-shrink:0;" alt=""></div>`
               : `<span class="iw-info-value">${c.reporterNickname}</span>`}
           </div>` : '';
 
@@ -599,7 +615,7 @@ function createMobileDetailContent(place) {
           <span class="detail-info-label">제보</span>
         </div>
         ${reporterUrl
-          ? `<div class="detail-reporter-group"><a class="detail-info-reporter-link" href="${reporterUrl}" target="_blank">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" class="detail-reporter-chevron" alt=""></div>`
+          ? `<div class="detail-reporter-group"><a class="detail-info-reporter-link" href="${reporterUrl}" target="_blank" onclick="trackCampaignClick(${c.id})">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" class="detail-reporter-chevron" alt=""></div>`
           : `<span class="detail-info-value">${c.reporterNickname}</span>`}
       </div>` : '';
 
@@ -777,6 +793,7 @@ function openPcCard(place) {
   document.getElementById('pcCard').classList.add('visible');
   setSelectedMarker(place.id);
   panToCard(place);
+  trackPlaceCampaignViews(place);
 }
 
 function closePcCard() {
@@ -2071,9 +2088,27 @@ async function submitCampaign() {
   map.setCenter(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
   map.setZoom(16);
   showToast(`${place.name} 제보 완료!`);
+  maybePromptSnsRegister();
   } finally {
     _submittingCampaign = false;
     if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+// 제보 완료 후 SNS 미등록자에게 등록 유도 (메뉴에 묻지 않고 행동 흐름에)
+function maybePromptSnsRegister() {
+  if (!currentUser) {
+    setTimeout(() => showAlert(
+      '제보 완료! 간편 로그인하면 더 편해져요',
+      '로그인 후 SNS 계정을 등록하면 다음 제보부터 자동입력되고, 내 블로그가 핀에 연결돼요.',
+      { twoButton: true, confirmText: '로그인하기', cancelText: '다음에', onConfirm: openLoginSheet }
+    ), 700);
+  } else if (!(currentUser.urlPlatform && currentUser.urlId)) {
+    setTimeout(() => showAlert(
+      'SNS 계정을 등록해보세요',
+      '등록하면 다음 제보부터 자동입력되고, 내 블로그가 핀에 연결돼요.',
+      { twoButton: true, confirmText: '등록하기', cancelText: '다음에', onConfirm: openProfileSheet }
+    ), 700);
   }
 }
 
@@ -2229,6 +2264,7 @@ function openMobileSheet(place) {
   sheet.classList.add('show');
   overlay.classList.add('show');
   setSelectedMarker(place.id);
+  trackPlaceCampaignViews(place);
   // 핀을 바텀시트 위 영역 중앙으로 이동 (시트에 가리지 않게 위로 올림)
   const proj = map.getProjection();
   if (proj) {
