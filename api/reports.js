@@ -9,7 +9,7 @@ function toReport(row) {
     reason: row.reason,
     detail: row.detail || '',
     createdAt: row.created_at,
-    placeName: row.place_name || '',
+    placeName: row.place_name || '(삭제된 협찬)',
     platform: row.platform || '',
     content: row.content || '',
     reporterNickname: row.reporter_nickname || ''
@@ -40,8 +40,8 @@ module.exports = async function handler(req, res) {
     const result = await db.execute(`
       SELECT r.*, c.platform AS platform, c.content AS content, p.id AS place_id, p.name AS place_name, u.nickname AS reporter_nickname
       FROM reports r
-      JOIN campaigns c ON c.id = r.campaign_id
-      JOIN places p ON p.id = c.place_id
+      LEFT JOIN campaigns c ON c.id = r.campaign_id
+      LEFT JOIN places p ON p.id = c.place_id
       LEFT JOIN users u ON u.id = r.user_id
       ORDER BY r.id DESC
     `);
