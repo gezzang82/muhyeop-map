@@ -112,12 +112,13 @@ body {
   padding: 0;
 }
 .admin-brand {
-  padding: 26px 22px 22px;
-  display: flex; align-items: center; gap: 10px;
-  font-size: 16px; font-weight: 700;
-  color: var(--brand-accent);
+  padding: 20px 20px;
+  display: flex; align-items: center; gap: 8px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
+.admin-logo { height: 32px; width: auto; display: block; flex-shrink: 0; }
+.admin-brand-text { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; }
+.admin-brand-sub { font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.55); }
 .admin-nav { flex: 1; padding: 14px 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .nav-item {
   display: flex; align-items: center; gap: 10px;
@@ -127,6 +128,9 @@ body {
 }
 .nav-item:hover { color: white; background: rgba(255,255,255,0.06); }
 .nav-item.active { color: var(--brand); background: var(--brand-accent); font-weight: 600; }
+.nav-ic { width: 20px; height: 20px; flex-shrink: 0; opacity: 0.6; transition: opacity 0.15s, filter 0.15s; }
+.nav-item:hover .nav-ic { opacity: 1; }
+.nav-item.active .nav-ic { opacity: 1; filter: brightness(0); }
 .admin-logout {
   display: flex; align-items: center; gap: 10px;
   padding: 16px 22px; font-size: 13px;
