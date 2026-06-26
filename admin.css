@@ -343,6 +343,13 @@ body {
 }
 .day-item.on { background: var(--brand); border-color: var(--brand); color: var(--brand-accent); }
 
+/* 체크박스 (컴포넌트 1209:9997 — 검정 체크) */
+.ck-row { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--text); user-select: none; }
+.ck-row input { display: none; }
+.ck-box { width: 18px; height: 18px; border: 1.5px solid #cccccc; border-radius: 4px; position: relative; flex-shrink: 0; transition: all 0.15s; }
+.ck-row input:checked + .ck-box { background: var(--text); border-color: var(--text); }
+.ck-row input:checked + .ck-box::after { content: ''; position: absolute; left: 5px; top: 1.5px; width: 5px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
 .form-actions { display: flex; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
 .btn-submit {
   background: var(--primary); color: var(--primary-fg);
