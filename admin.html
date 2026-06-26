@@ -113,19 +113,33 @@
       <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>
       <path d="M10 8.5l6 3.5-6 3.5z" fill="currentColor"/>
     </symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24">
+      <rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    </symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    </symbol>
+    <symbol id="icon-eye-off" viewBox="0 0 24 24">
+      <path d="M4 5l16 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M9.5 9.5a3 3 0 0 0 4.2 4.2M6.3 6.7C3.7 8.2 2 12 2 12s3.5 7 10 7c2 0 3.7-.6 5.1-1.5M19.5 16.3C21 14.8 22 12 22 12s-3.5-7-10-7c-.7 0-1.3.1-1.9.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
   </svg>
 
   <!-- 로그인 화면 -->
   <div id="loginScreen" class="login-screen">
     <div class="login-box">
-      <div class="login-logo"><svg class="icon"><use href="#icon-pin"></use></svg></div>
-      <div class="login-title">무협맵 어드민</div>
-      <div class="login-sub">관리자 전용 페이지</div>
+      <div class="login-brand"><b>무협맵</b><span>관리자 페이지</span></div>
       <div class="login-form">
-        <input type="password" id="loginPassword" placeholder="비밀번호 입력"
-          onkeydown="if(event.key==='Enter') tryLogin()">
-        <button onclick="tryLogin()">로그인</button>
+        <div class="login-input-wrap">
+          <svg class="login-lock"><use href="#icon-lock"></use></svg>
+          <input type="password" id="loginPassword" placeholder="비밀번호 입력"
+            onkeydown="if(event.key==='Enter') tryLogin()" oninput="document.getElementById('loginError').textContent=''">
+          <button type="button" class="login-eye" id="loginEye" onclick="toggleLoginPw()" aria-label="비밀번호 표시"><svg class="icon"><use href="#icon-eye"></use></svg></button>
+        </div>
         <div class="login-error" id="loginError"></div>
+        <button class="login-submit" onclick="tryLogin()">로그인</button>
       </div>
     </div>
   </div>
@@ -444,7 +458,31 @@
           <div class="form-row">
             <div class="form-group">
               <label>모집 마감일 (선택)</label>
-              <input type="date" id="addDeadline">
+              <div class="cdate" id="deadlinePicker">
+                <input type="hidden" id="addDeadline">
+                <button type="button" class="cdate-trigger placeholder" id="deadlineTrigger" onclick="toggleDatePicker(event)">
+                  <span class="cdate-text" id="deadlineText">YYYY-MM-DD</span>
+                  <svg class="cdate-ic" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="4.5" width="18" height="16.5" rx="2.5" stroke="currentColor" stroke-width="1.6"/>
+                    <path d="M3 9h18" stroke="currentColor" stroke-width="1.6"/>
+                    <path d="M8 2.5v4M16 2.5v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <div class="cdate-pop" id="deadlinePop">
+                  <div class="cdate-head">
+                    <button type="button" class="cdate-nav" onclick="datePickerNav(-1)" aria-label="이전 달">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="cdate-title"><b id="dpYear">YYYY</b><span id="dpMonth">MM</span></div>
+                    <button type="button" class="cdate-nav" onclick="datePickerNav(1)" aria-label="다음 달">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                  </div>
+                  <div class="cdate-dow"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span></div>
+                  <div class="cdate-grid" id="dpGrid"></div>
+                  <div class="cdate-foot"><button type="button" class="cdate-clear" onclick="clearDeadline()">마감일 없음</button></div>
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label>영업 시간</label>

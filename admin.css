@@ -76,29 +76,35 @@ body {
 }
 .login-box {
   background: var(--surface); border-radius: var(--radius-lg);
-  padding: 48px 40px; width: 360px;
-  text-align: center;
+  padding: 40px 36px; width: 380px;
   box-shadow: var(--shadow-lg);
 }
-.login-logo { color: var(--brand-accent); margin-bottom: 16px; }
-.login-logo .icon { width: 40px; height: 40px; }
-.login-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; letter-spacing: -0.2px; }
-.login-sub { font-size: 14px; color: var(--muted-light); margin-bottom: 32px; }
-.login-form { display: flex; flex-direction: column; gap: 12px; }
-.login-form input {
-  border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 14px 16px; font-size: 15px; outline: none; text-align: center;
-  transition: border-color 0.15s;
+.login-brand { text-align: center; margin-bottom: 28px; }
+.login-brand b { display: block; font-size: 28px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
+.login-brand span { font-size: 13px; color: var(--muted-light); }
+.login-form { display: flex; flex-direction: column; }
+.login-input-wrap { position: relative; display: flex; align-items: center; }
+.login-lock { position: absolute; left: 14px; width: 18px; height: 18px; color: var(--muted-light); pointer-events: none; }
+.login-input-wrap input {
+  width: 100%; border: 1px solid #dddddd; border-radius: var(--radius-sm);
+  padding: 14px 44px; font-size: 15px; outline: none;
+  transition: border-color 0.15s; font-family: inherit;
 }
-.login-form input:focus { border-color: var(--text); }
-.login-form button {
-  background: var(--primary); color: var(--primary-fg);
-  border: none; border-radius: var(--radius-md);
-  padding: 14px; font-size: 15px; font-weight: 600;
+.login-input-wrap input::placeholder { color: var(--muted-light); }
+.login-input-wrap input:focus { border-color: var(--text); }
+.login-eye {
+  position: absolute; right: 10px; background: none; border: none; cursor: pointer;
+  color: var(--muted); display: flex; padding: 4px;
+}
+.login-eye .icon { width: 20px; height: 20px; }
+.login-error { font-size: 13px; color: var(--primary); min-height: 20px; margin: 8px 0 2px; }
+.login-submit {
+  width: 100%; background: var(--primary); color: var(--primary-fg);
+  border: none; border-radius: var(--radius-sm);
+  padding: 14px; font-size: 15px; font-weight: 700;
   cursor: pointer; transition: opacity 0.15s;
 }
-.login-form button:hover { opacity: 0.88; }
-.login-error { font-size: 13px; color: var(--danger); min-height: 20px; }
+.login-submit:hover { opacity: 0.9; }
 .dup-warn { font-size: 12px; color: var(--danger); margin-top: 4px; }
 .dup-warn button { margin-left: 6px; font-size: 11px; border: none; background: var(--danger); color: #fff; border-radius: 4px; padding: 2px 6px; cursor: pointer; }
 
@@ -311,6 +317,62 @@ body {
 }
 .cselect-item:hover { background: #f4f4f7; }
 .cselect-item.selected { font-weight: 700; }
+
+/* ===== 커스텀 달력 (date picker) ===== */
+.cdate { position: relative; }
+.cdate-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; border: 1px solid #dddddd; border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 14px; color: var(--text); background: var(--surface);
+  cursor: pointer; user-select: none; transition: border-color 0.15s; font-family: inherit;
+}
+.cdate.open .cdate-trigger { border-color: var(--text); }
+.cdate-trigger.placeholder .cdate-text { color: var(--muted-light); }
+.cdate-ic { color: var(--muted); flex-shrink: 0; }
+.cdate-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+  width: 312px; max-width: 90vw;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow-md); padding: 14px; display: none;
+}
+.cdate.open .cdate-pop { display: block; }
+.cdate-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cdate-nav {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent;
+  color: var(--text); cursor: pointer; transition: background 0.15s;
+}
+.cdate-nav:hover { background: #f4f4f7; }
+.cdate-title { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text); }
+.cdate-title b { font-weight: 800; }
+.cdate-title span { font-weight: 700; }
+.cdate-dow { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
+.cdate-dow span { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); padding: 6px 0; }
+.cdate-dow .sun { color: var(--primary); }
+.cdate-dow .sat { color: #2f6fd6; }
+.cdate-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cdate-cell {
+  display: flex; align-items: center; justify-content: center; position: relative;
+  height: 36px; border: none; background: transparent; border-radius: 50%;
+  font-size: 13px; color: var(--text); cursor: pointer; font-family: inherit;
+  transition: background 0.12s;
+}
+.cdate-cell:hover { background: #f0f0f4; }
+.cdate-cell.muted { color: var(--muted-light); cursor: default; }
+.cdate-cell.muted:hover { background: transparent; }
+.cdate-cell.today::after {
+  content: ''; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--primary);
+}
+.cdate-cell.selected { background: var(--text); color: #fff; font-weight: 700; }
+.cdate-cell.selected:hover { background: var(--text); }
+.cdate-cell.selected.today::after { background: #fff; }
+.cdate-foot { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); text-align: right; }
+.cdate-clear {
+  border: none; background: transparent; color: var(--muted); font-size: 13px;
+  font-weight: 600; cursor: pointer; font-family: inherit; padding: 4px 6px; border-radius: 6px;
+}
+.cdate-clear:hover { background: #f4f4f7; color: var(--text); }
 .addr-row { justify-content: flex-end; }
 .btn-search {
   display: inline-flex; align-items: center; gap: 6px;

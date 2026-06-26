@@ -24,6 +24,16 @@ function logout() {
   location.reload();
 }
 
+// 비밀번호 표시/숨김 토글
+function toggleLoginPw() {
+  const inp = document.getElementById('loginPassword');
+  const use = document.querySelector('#loginEye use');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  if (use) use.setAttribute('href', show ? '#icon-eye-off' : '#icon-eye');
+  inp.focus();
+}
+
 // ===== 탭 전환 =====
 function showTab(tab) {
   document.querySelectorAll('.admin-page').forEach(p => p.style.display = 'none');
@@ -645,7 +655,7 @@ function resetAddForm() {
   document.getElementById('addPlaceSelect').value = '';
   document.getElementById('addPlatform').value = '';
   document.getElementById('addCategory').value = '';
-  document.getElementById('addDeadline').value = '';
+  setDeadlineValue('');
   ['블로그','클립','인스타그램','릴스','유튜브'].forEach(ch => {
     const el = document.getElementById(`ach_${ch}`); if(el) el.checked = false;
   });
@@ -655,6 +665,94 @@ function resetAddForm() {
   document.getElementById('newPlaceFields').style.pointerEvents = '';
   refreshAdminSelects();
 }
+
+// ===== 커스텀 달력 (모집 마감일) =====
+let dpViewYear, dpViewMonth; // 현재 보고 있는 연/월(0-based month)
+
+function setDeadlineValue(v) {
+  const input = document.getElementById('addDeadline');
+  const text = document.getElementById('deadlineText');
+  const trigger = document.getElementById('deadlineTrigger');
+  if (!input) return;
+  input.value = v || '';
+  if (v) {
+    text.textContent = v;
+    trigger.classList.remove('placeholder');
+  } else {
+    text.textContent = 'YYYY-MM-DD';
+    trigger.classList.add('placeholder');
+  }
+}
+
+function toggleDatePicker(e) {
+  if (e) e.stopPropagation();
+  const wrap = document.getElementById('deadlinePicker');
+  const open = wrap.classList.toggle('open');
+  if (open) {
+    const cur = document.getElementById('addDeadline').value;
+    const base = cur ? new Date(cur) : new Date();
+    dpViewYear = base.getFullYear();
+    dpViewMonth = base.getMonth();
+    renderDatePicker();
+  }
+}
+
+function datePickerNav(delta) {
+  dpViewMonth += delta;
+  if (dpViewMonth < 0) { dpViewMonth = 11; dpViewYear--; }
+  else if (dpViewMonth > 11) { dpViewMonth = 0; dpViewYear++; }
+  renderDatePicker();
+}
+
+function renderDatePicker() {
+  document.getElementById('dpYear').textContent = dpViewYear;
+  document.getElementById('dpMonth').textContent = String(dpViewMonth + 1).padStart(2, '0');
+  const grid = document.getElementById('dpGrid');
+  const selected = document.getElementById('addDeadline').value; // 'YYYY-MM-DD'
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const firstDow = new Date(dpViewYear, dpViewMonth, 1).getDay();
+  const daysInMonth = new Date(dpViewYear, dpViewMonth + 1, 0).getDate();
+  const daysPrev = new Date(dpViewYear, dpViewMonth, 0).getDate();
+  let html = '';
+  // 이전 달 채우기
+  for (let i = firstDow - 1; i >= 0; i--) {
+    html += `<button type="button" class="cdate-cell muted" disabled>${daysPrev - i}</button>`;
+  }
+  // 이번 달
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${dpViewYear}-${String(dpViewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cls = ['cdate-cell'];
+    if (ds === todayStr) cls.push('today');
+    if (ds === selected) cls.push('selected');
+    html += `<button type="button" class="${cls.join(' ')}" onclick="pickDeadline('${ds}')">${d}</button>`;
+  }
+  // 다음 달 채우기 (6주 = 42칸 맞춤)
+  const filled = firstDow + daysInMonth;
+  const trail = (7 - (filled % 7)) % 7;
+  for (let i = 1; i <= trail; i++) {
+    html += `<button type="button" class="cdate-cell muted" disabled>${i}</button>`;
+  }
+  grid.innerHTML = html;
+}
+
+function pickDeadline(ds) {
+  setDeadlineValue(ds);
+  document.getElementById('deadlinePicker').classList.remove('open');
+}
+
+function clearDeadline() {
+  setDeadlineValue('');
+  document.getElementById('deadlinePicker').classList.remove('open');
+}
+
+// 바깥 클릭 시 달력 닫기
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('deadlinePicker');
+  if (wrap && wrap.classList.contains('open') && !wrap.contains(e.target)) {
+    wrap.classList.remove('open');
+  }
+});
 
 // ===== 삭제 =====
 let confirmCallback = null;
@@ -727,7 +825,7 @@ function editCampaign(id) {
     });
     document.getElementById('addContent').value = c.content;
     document.getElementById('addLink').value = c.link || '';
-    document.getElementById('addDeadline').value = c.deadline;
+    setDeadlineValue(c.deadline || '');
     document.getElementById('addHours').value = c.operatingHours || '';
     document.querySelectorAll('.day-item').forEach(d => {
       d.classList.toggle('on', (c.operatingDays||[]).includes(d.textContent.trim()));
