@@ -112,9 +112,9 @@ body {
   padding: 0;
 }
 .admin-brand {
-  padding: 20px 20px;
+  height: 64px; flex-shrink: 0;
+  padding: 0 20px;
   display: flex; align-items: center; gap: 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .admin-logo { height: 32px; width: auto; display: block; flex-shrink: 0; }
 .admin-brand-text { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; }
