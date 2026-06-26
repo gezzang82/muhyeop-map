@@ -57,10 +57,66 @@ function showSubtab(group, key) {
   }
 }
 
+// ===== 커스텀 셀렉트 (네이티브 select를 숨기고 동기화되는 커스텀 드롭다운으로 감쌈) =====
+function enhanceSelects(root) {
+  (root || document).querySelectorAll('select:not([data-cselect])').forEach(sel => {
+    if (sel.classList.contains('excel-cell-select')) return; // 엑셀 미리보기 동적 셀은 제외
+    sel.setAttribute('data-cselect', '1');
+    const wrap = document.createElement('div');
+    wrap.className = 'cselect';
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(sel);
+    const trigger = document.createElement('div');
+    trigger.className = 'cselect-trigger';
+    trigger.innerHTML = '<span class="cselect-label"></span><span class="cselect-chev"></span>';
+    const menu = document.createElement('div');
+    menu.className = 'cselect-menu';
+    wrap.appendChild(trigger);
+    wrap.appendChild(menu);
+    const label = trigger.querySelector('.cselect-label');
+    const sync = () => {
+      const opt = sel.options[sel.selectedIndex];
+      label.textContent = opt ? opt.textContent : '';
+      trigger.classList.toggle('placeholder', !sel.value);
+    };
+    const build = () => {
+      menu.innerHTML = '';
+      [...sel.options].forEach((opt, i) => {
+        const item = document.createElement('div');
+        item.className = 'cselect-item' + (i === sel.selectedIndex ? ' selected' : '');
+        item.textContent = opt.textContent;
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          sel.value = opt.value;
+          sync();
+          wrap.classList.remove('open');
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        menu.appendChild(item);
+      });
+    };
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = !wrap.classList.contains('open');
+      document.querySelectorAll('.cselect.open').forEach(o => o.classList.remove('open'));
+      if (willOpen) { build(); wrap.classList.add('open'); }
+    });
+    sel._cselectSync = sync;
+    sync();
+  });
+}
+function refreshAdminSelects() {
+  document.querySelectorAll('select[data-cselect]').forEach(s => s._cselectSync && s._cselectSync());
+}
+document.addEventListener('click', () => {
+  document.querySelectorAll('.cselect.open').forEach(o => o.classList.remove('open'));
+});
+
 // ===== 초기화 =====
 function initAdmin() {
   renderDashboard();
   populatePlaceSelect();
+  enhanceSelects();
 }
 
 // ===== 대시보드 =====
@@ -189,6 +245,7 @@ function openEditPlaceModal(id) {
   document.getElementById('editPlaceLat').value = p.lat;
   document.getElementById('editPlaceLng').value = p.lng;
   document.getElementById('editPlaceModal').style.display = 'flex';
+  refreshAdminSelects();
 }
 
 function closeEditPlaceModal() {
@@ -392,6 +449,7 @@ function populatePlaceSelect() {
   const sel = document.getElementById('addPlaceSelect');
   sel.innerHTML = '<option value="">-- 기존 매장 선택 --</option>' +
     places.map(p => `<option value="${p.id}">${p.name} (${p.category})</option>`).join('');
+  refreshAdminSelects();
 }
 
 function findDuplicatePlace(name) {
@@ -513,6 +571,7 @@ function resetAddForm() {
   const excludeEl = document.getElementById('addExcludeHoliday'); if(excludeEl) excludeEl.checked = false;
   document.getElementById('newPlaceFields').style.opacity = '1';
   document.getElementById('newPlaceFields').style.pointerEvents = '';
+  refreshAdminSelects();
 }
 
 // ===== 삭제 =====
@@ -593,6 +652,7 @@ function editCampaign(id) {
     });
     const excludeEl = document.getElementById('addExcludeHoliday');
     if (excludeEl) excludeEl.checked = c.excludeHoliday || false;
+    refreshAdminSelects();
     // 등록 버튼을 수정 모드로
     const btn = document.querySelector('.btn-submit');
     btn.textContent = '수정 완료';

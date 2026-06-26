@@ -278,6 +278,39 @@ body {
 .form-group input:focus, .form-group select:focus { border-color: var(--text); }
 .form-group input.error, .form-group select.error { border-color: var(--primary); }
 .field-error-msg { font-size: 12px; color: var(--primary); margin-top: -2px; }
+
+/* ===== 커스텀 셀렉트 (네이티브 select 대체) ===== */
+.cselect { position: relative; }
+.cselect > select { display: none !important; }
+.cselect-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border: 1px solid #dddddd; border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 14px; color: var(--text); background: var(--surface);
+  cursor: pointer; user-select: none; transition: border-color 0.15s;
+}
+.cselect.open .cselect-trigger { border-color: var(--text); }
+.cselect-trigger.placeholder .cselect-label { color: var(--muted-light); }
+.cselect-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cselect-chev {
+  width: 8px; height: 8px; flex-shrink: 0;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg) translateY(-2px); transition: transform 0.15s;
+}
+.cselect.open .cselect-chev { transform: rotate(225deg) translateY(-2px); }
+.cselect-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md); padding: 6px; max-height: 280px; overflow-y: auto;
+  display: none;
+}
+.cselect.open .cselect-menu { display: block; }
+.cselect-item {
+  padding: 10px 12px; font-size: 14px; color: var(--text);
+  border-radius: 6px; cursor: pointer; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.cselect-item:hover { background: #f4f4f7; }
+.cselect-item.selected { font-weight: 700; }
 .addr-row { justify-content: flex-end; }
 .btn-search {
   display: inline-flex; align-items: center; gap: 6px;
