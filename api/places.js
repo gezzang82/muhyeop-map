@@ -30,6 +30,29 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'GET') {
+    const q = req.query || {};
+    // 어드민 조회: 서버 사이드 검색/필터/페이지네이션 (수천 건+ 대응)
+    if (q.admin) {
+      const page = Math.max(1, parseInt(q.page, 10) || 1);
+      const size = Math.min(500, Math.max(1, parseInt(q.size, 10) || 100));
+      const where = []; const args = [];
+      if (q.q) { where.push('p.name LIKE ?'); args.push('%' + q.q + '%'); }
+      if (q.category && q.category !== 'all') { where.push('p.category = ?'); args.push(q.category); }
+      if (q.status === 'visible') where.push('COALESCE(p.hidden,0) = 0');
+      else if (q.status === 'hidden') where.push('COALESCE(p.hidden,0) = 1');
+      if (q.reporter) { where.push('(p.founder_nickname LIKE ? OR p.founder_email LIKE ?)'); args.push('%' + q.reporter + '%', '%' + q.reporter + '%'); }
+      const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+      const today = new Date().toISOString().slice(0, 10);
+      const totalRes = await db.execute({ sql: `SELECT COUNT(*) AS n FROM places p ${whereSql}`, args });
+      const total = Number(totalRes.rows[0]?.n || 0);
+      const rowsRes = await db.execute({
+        sql: `SELECT p.*, (SELECT COUNT(*) FROM campaigns c WHERE c.place_id = p.id AND COALESCE(c.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline>=?)) AS active_count
+              FROM places p ${whereSql} ORDER BY p.id DESC LIMIT ? OFFSET ?`,
+        args: [today, ...args, size, (page - 1) * size]
+      });
+      const rows = rowsRes.rows.map(r => ({ ...toPlace(r), activeCount: Number(r.active_count || 0) }));
+      return res.status(200).json({ rows, total, page, size });
+    }
     const result = await db.execute('SELECT * FROM places');
     return res.status(200).json(result.rows.map(toPlace));
   }

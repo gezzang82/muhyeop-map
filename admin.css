@@ -350,6 +350,48 @@ body {
 .ck-row input:checked + .ck-box { background: var(--text); border-color: var(--text); }
 .ck-row input:checked + .ck-box::after { content: ''; position: absolute; left: 5px; top: 1.5px; width: 5px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 
+/* ===== 조회 (검색 / 결과 / 페이지네이션) ===== */
+.filter-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px 24px; box-shadow: var(--shadow-sm); margin-bottom: 16px; }
+.filter-grid { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 16px; align-items: end; }
+.filter-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.filter-field label { font-size: 13px; font-weight: 700; color: var(--text); }
+.filter-field input { border: 1px solid #dddddd; border-radius: var(--radius-sm); padding: 11px 14px; font-size: 14px; outline: none; font-family: inherit; background: var(--surface); }
+.filter-field input::placeholder { color: var(--muted-light); }
+.filter-field input:focus { border-color: var(--text); }
+.filter-row2 { display: flex; align-items: center; gap: 32px; margin-top: 16px; }
+.radio-group { display: flex; align-items: center; gap: 16px; }
+.radio-label { font-size: 13px; font-weight: 700; color: var(--text); margin-right: 4px; }
+.rd { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; user-select: none; color: var(--text); }
+.rd input { display: none; }
+.rd-dot { width: 18px; height: 18px; border: 1.5px solid #cccccc; border-radius: 50%; position: relative; flex-shrink: 0; transition: all 0.15s; }
+.rd input:checked + .rd-dot { border-color: var(--text); }
+.rd input:checked + .rd-dot::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--text); }
+.btn-search-red { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--primary); color: #fff; border: none; border-radius: var(--radius-sm); padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.btn-search-red:hover { opacity: 0.9; }
+.filter-row2 .btn-search-red { margin-left: auto; }
+
+.result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow-sm); }
+.result-card .table-wrap { border: none; box-shadow: none; border-radius: 0; }
+.result-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.result-bar-left { display: flex; align-items: center; gap: 14px; }
+.result-bar-left select { border: 1px solid #dddddd; border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; font-family: inherit; cursor: pointer; }
+.result-count { font-size: 13px; color: var(--muted); }
+.result-count b { color: var(--text); }
+.result-sep { color: var(--border); margin: 0 6px; }
+.result-bar-right { display: flex; gap: 8px; }
+.btn-ghost { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-sm); padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-ghost:hover { background: #f4f4f7; }
+.btn-dark { display: inline-flex; align-items: center; gap: 4px; border: none; background: #1a1a2e; color: #fff; border-radius: var(--radius-sm); padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.btn-dark:hover { opacity: 0.9; }
+.result-foot { display: flex; justify-content: flex-end; padding-top: 12px; }
+.th-check, .admin-table td.td-check { width: 44px; text-align: center; padding-left: 16px; padding-right: 0; }
+.admin-table input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--text); cursor: pointer; vertical-align: middle; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 18px 0 4px; }
+.pager button { min-width: 32px; height: 32px; padding: 0 6px; border: none; background: none; color: var(--muted); font-size: 13px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+.pager button:hover:not(:disabled) { background: #f4f4f7; color: var(--text); }
+.pager button.active { color: var(--primary); font-weight: 700; }
+.pager button:disabled { color: var(--muted-light); cursor: default; }
+
 .form-actions { display: flex; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
 .btn-submit {
   background: var(--primary); color: var(--primary-fg);

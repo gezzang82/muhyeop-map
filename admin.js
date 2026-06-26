@@ -174,64 +174,146 @@ function renderDashboard() {
       </div>`).join('') || '<div class="empty-msg">데이터 없음</div>';
 }
 
-// ===== 캠페인 목록 =====
-function renderCampaignList() {
+// ===== 조회 공통 상태/유틸 =====
+const campView = { page: 1, size: 100, total: 0, rows: [], selected: new Set() };
+const placeView = { page: 1, size: 100, total: 0, rows: [], selected: new Set() };
+function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+const _fv = id => (document.getElementById(id)?.value || '').trim();
+
+// ===== 조회: 캠페인 (서버 사이드) =====
+async function loadCampView(page) {
+  if (page) campView.page = page;
+  campView.size = parseInt(document.getElementById('cvSize').value, 10) || 100;
+  const params = new URLSearchParams({ admin: '1', page: campView.page, size: campView.size });
+  if (_fv('cvQ')) params.set('q', _fv('cvQ'));
+  const platform = document.getElementById('cvPlatform').value; if (platform !== 'all') params.set('platform', platform);
+  const channel = document.getElementById('cvChannel').value; if (channel !== 'all') params.set('channel', channel);
+  if (_fv('cvReporter')) params.set('reporter', _fv('cvReporter'));
+  const source = document.querySelector('input[name="cvSource"]:checked')?.value || 'all'; if (source !== 'all') params.set('source', source);
+  const status = document.querySelector('input[name="cvStatus"]:checked')?.value || 'all'; if (status !== 'all') params.set('status', status);
+  try {
+    const data = await fetch('/api/campaigns?' + params).then(r => r.json());
+    campView.total = data.total || 0; campView.rows = data.rows || [];
+  } catch (e) { campView.total = 0; campView.rows = []; }
+  campView.selected.clear();
+  renderCampRows();
+}
+function renderCampRows() {
   const today = getKSTTodayUTC();
-  const statusFilter = document.getElementById('filterStatus').value;
-  const platformFilter = document.getElementById('filterPlatform').value;
-
-  let list = [...campaigns];
-  if (statusFilter === 'active') list = list.filter(c => deadlineToUTC(c.deadline) >= today);
-  if (statusFilter === 'expired') list = list.filter(c => deadlineToUTC(c.deadline) < today);
-  if (platformFilter !== 'all') list = list.filter(c => c.platform === platformFilter);
-  list.sort((a,b) => deadlineToUTC(b.deadline)-deadlineToUTC(a.deadline));
-
-  const tbody = document.getElementById('campaignTableBody');
-  tbody.innerHTML = list.map(c => {
-    const place = places.find(p => p.id === c.placeId);
+  document.getElementById('campaignTableBody').innerHTML = campView.rows.map(c => {
     const isActive = deadlineToUTC(c.deadline) >= today;
     return `<tr>
+      <td class="td-check"><input type="checkbox" class="cv-check" data-id="${c.id}" onchange="onRowCheck('camp')"></td>
       <td class="td-id">${c.id}</td>
-      <td><strong>${place?.name || '-'}</strong></td>
-      <td><span class="badge-platform">${c.platform}</span></td>
-      <td>${(c.channels||[]).join(', ')}</td>
-      <td class="td-content">${c.content}</td>
-      <td class="td-days">${(c.operatingDays||[]).join(' ')}${c.excludeHoliday ? ' / 공휴일 불가' : ''}</td>
-      <td>${c.deadline}</td>
-      <td>${c.reporterNickname || '-'}</td>
-      <td>${c.reporterEmail || '-'}</td>
+      <td><strong>${escHtml(c.placeName) || '-'}</strong></td>
+      <td><span class="badge-platform">${escHtml(c.platform)}</span></td>
+      <td>${(c.channels || []).join(', ')}</td>
+      <td class="td-content">${escHtml(c.content)}</td>
+      <td class="td-days">${(c.operatingDays || []).join(' ')}${c.excludeHoliday ? ' / 공휴일 불가' : ''}</td>
+      <td>${c.deadline || '-'}</td>
+      <td>${escHtml(c.reporterNickname) || '-'}</td>
+      <td>${escHtml(c.reporterEmail) || '-'}</td>
       <td>${c.source === 'user' ? '<span class="badge-status active">유저</span>' : c.source === 'admin' ? '<span class="badge-status expired">어드민</span>' : '-'}</td>
-      <td><span class="badge-status ${isActive?'active':'expired'}">${isActive?'모집 중':'마감'}</span></td>
+      <td><span class="badge-status ${isActive ? 'active' : 'expired'}">${isActive ? '모집중' : '마감'}</span></td>
       <td>
         <button class="btn-edit-sm" onclick="editCampaign(${c.id})">수정</button>
         <button class="btn-del-sm" onclick="confirmDelete('campaign', ${c.id})">삭제</button>
-      </td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="12" class="empty-msg">해당하는 캠페인 없음</td></tr>`;
+      </td></tr>`;
+  }).join('') || `<tr><td colspan="13" class="empty-msg">조건에 맞는 캠페인 없음</td></tr>`;
+  document.getElementById('cvTotal').textContent = campView.total;
+  document.getElementById('cvShown').textContent = campView.rows.length;
+  document.getElementById('cvSelected').textContent = campView.selected.size;
+  document.getElementById('cvCheckAll').checked = false;
+  renderPager('camp');
 }
+function renderCampaignList() { loadCampView(); }
 
-// ===== 매장 목록 =====
-function renderPlaceList() {
-  const today = getKSTTodayUTC();
-  const tbody = document.getElementById('placeTableBody');
-  tbody.innerHTML = places.map(p => {
-    const activeCnt = campaigns.filter(c => c.placeId === p.id && deadlineToUTC(c.deadline) >= today).length;
-    return `<tr>
-      <td class="td-id">${p.id}</td>
-      <td><strong>${p.name}</strong></td>
-      <td>${p.category}</td>
-      <td class="td-addr">${p.address}</td>
-      <td><span class="badge-count ${activeCnt>0?'active':''}">${activeCnt}개</span></td>
-      <td>${p.hidden ? '<span class="badge-count">숨김</span>' : '노출'}</td>
-      <td>${p.founderNickname || '-'}</td>
-      <td>${p.founderEmail || '-'}</td>
-      <td>
-        <button class="btn-edit-sm" onclick="openEditPlaceModal(${p.id})">수정</button>
-        <button class="btn-edit-sm" onclick="togglePlaceHidden(${p.id})">${p.hidden ? '숨김 해제' : '숨김'}</button>
-        <button class="btn-del-sm" onclick="confirmDelete('place', ${p.id})">삭제</button>
-      </td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="9" class="empty-msg">등록된 매장 없음</td></tr>`;
+// ===== 조회: 매장 (서버 사이드) =====
+async function loadPlaceView(page) {
+  if (page) placeView.page = page;
+  placeView.size = parseInt(document.getElementById('pvSize').value, 10) || 100;
+  const params = new URLSearchParams({ admin: '1', page: placeView.page, size: placeView.size });
+  if (_fv('pvQ')) params.set('q', _fv('pvQ'));
+  const cat = document.getElementById('pvCategory').value; if (cat !== 'all') params.set('category', cat);
+  const st = document.getElementById('pvStatus').value; if (st !== 'all') params.set('status', st);
+  if (_fv('pvReporter')) params.set('reporter', _fv('pvReporter'));
+  try {
+    const data = await fetch('/api/places?' + params).then(r => r.json());
+    placeView.total = data.total || 0; placeView.rows = data.rows || [];
+  } catch (e) { placeView.total = 0; placeView.rows = []; }
+  placeView.selected.clear();
+  renderPlaceRows();
+}
+function renderPlaceRows() {
+  document.getElementById('placeTableBody').innerHTML = placeView.rows.map(p => `<tr>
+    <td class="td-check"><input type="checkbox" class="pv-check" data-id="${p.id}" onchange="onRowCheck('place')"></td>
+    <td class="td-id">${p.id}</td>
+    <td><strong>${escHtml(p.name)}</strong></td>
+    <td>${escHtml(p.category)}</td>
+    <td class="td-addr">${escHtml(p.address)}</td>
+    <td><span class="badge-count ${p.activeCount > 0 ? 'active' : ''}">${p.activeCount}개</span></td>
+    <td>${p.hidden ? '<span class="badge-count">숨김</span>' : '노출'}</td>
+    <td>${escHtml(p.founderNickname) || '-'}</td>
+    <td>${escHtml(p.founderEmail) || '-'}</td>
+    <td>
+      <button class="btn-edit-sm" onclick="openEditPlaceModal(${p.id})">수정</button>
+      <button class="btn-edit-sm" onclick="togglePlaceHidden(${p.id})">${p.hidden ? '숨김 해제' : '숨김'}</button>
+      <button class="btn-del-sm" onclick="confirmDelete('place', ${p.id})">삭제</button>
+    </td></tr>`).join('') || `<tr><td colspan="10" class="empty-msg">조건에 맞는 매장 없음</td></tr>`;
+  document.getElementById('pvTotal').textContent = placeView.total;
+  document.getElementById('pvShown').textContent = placeView.rows.length;
+  document.getElementById('pvSelected').textContent = placeView.selected.size;
+  document.getElementById('pvCheckAll').checked = false;
+  renderPager('place');
+}
+function renderPlaceList() { loadPlaceView(); }
+
+// ===== 조회 공통: 페이지네이션 / 선택 / 엑셀 =====
+function renderPager(type) {
+  const st = type === 'place' ? placeView : campView;
+  const el = document.getElementById(type === 'place' ? 'pvPager' : 'cvPager');
+  const fn = type === 'place' ? 'loadPlaceView' : 'loadCampView';
+  const totalPages = Math.max(1, Math.ceil(st.total / st.size));
+  const cur = st.page;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  const btn = (label, page, opts = {}) => `<button ${opts.disabled ? 'disabled' : ''} class="${opts.active ? 'active' : ''}" ${opts.disabled ? '' : `onclick="${fn}(${page})"`}>${label}</button>`;
+  let html = btn('«', 1, { disabled: cur === 1 }) + btn('‹', cur - 1, { disabled: cur === 1 });
+  let end = Math.min(totalPages, Math.max(1, cur - 2) + 4);
+  let start = Math.max(1, end - 4);
+  for (let i = start; i <= end; i++) html += btn(i, i, { active: i === cur });
+  html += btn('›', cur + 1, { disabled: cur === totalPages }) + btn('»', totalPages, { disabled: cur === totalPages });
+  el.innerHTML = html;
+}
+function onRowCheck(type) {
+  const st = type === 'place' ? placeView : campView;
+  const cls = type === 'place' ? 'pv-check' : 'cv-check';
+  st.selected.clear();
+  document.querySelectorAll('.' + cls + ':checked').forEach(cb => st.selected.add(Number(cb.dataset.id)));
+  document.getElementById(type === 'place' ? 'pvSelected' : 'cvSelected').textContent = st.selected.size;
+  const all = document.querySelectorAll('.' + cls);
+  document.getElementById(type === 'place' ? 'pvCheckAll' : 'cvCheckAll').checked = all.length > 0 && st.selected.size === all.length;
+}
+function toggleSelectAll(type, checked) {
+  const cls = type === 'place' ? 'pv-check' : 'cv-check';
+  document.querySelectorAll('.' + cls).forEach(cb => { cb.checked = checked; });
+  onRowCheck(type);
+}
+function downloadViewExcel(type) {
+  const st = type === 'place' ? placeView : campView;
+  if (!st.rows.length) { adminToast('내보낼 데이터가 없어요.'); return; }
+  let aoa;
+  if (type === 'place') {
+    aoa = [['ID', '매장명', '카테고리', '주소', '활성캠페인', '상태', '최초제보자', '이메일']];
+    st.rows.forEach(p => aoa.push([p.id, p.name, p.category, p.address, p.activeCount, p.hidden ? '숨김' : '노출', p.founderNickname || '', p.founderEmail || '']));
+  } else {
+    const today = getKSTTodayUTC();
+    aoa = [['ID', '매장명', '플랫폼', '채널', '협찬내용', '요일', '마감일', '제보자', '이메일', '출처', '상태']];
+    st.rows.forEach(c => aoa.push([c.id, c.placeName, c.platform, (c.channels || []).join(','), c.content, (c.operatingDays || []).join(' '), c.deadline || '', c.reporterNickname || '', c.reporterEmail || '', c.source, deadlineToUTC(c.deadline) >= today ? '모집중' : '마감']));
+  }
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, type === 'place' ? '매장' : '캠페인');
+  XLSX.writeFile(wb, `무협맵_${type === 'place' ? '매장' : '캠페인'}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 let editPlaceTargetId = null;
@@ -430,7 +512,7 @@ async function reportHidePlace(reportId, placeId) {
   });
   const p = places.find(p => p.id === placeId);
   if (p) p.hidden = true;
-  adminToast('매장를 숨김 처리했어요.');
+  adminToast('매장을 숨김 처리했어요.');
   dismissReport(reportId);
 }
 
@@ -587,7 +669,7 @@ async function togglePlaceHidden(id) {
     body: JSON.stringify({ hidden: nextHidden })
   });
   p.hidden = nextHidden;
-  adminToast(nextHidden ? '매장를 숨김 처리했어요.' : '매장 숨김을 해제했어요.');
+  adminToast(nextHidden ? '매장을 숨김 처리했어요.' : '매장 숨김을 해제했어요.');
   renderPlaceList();
 }
 

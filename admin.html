@@ -216,51 +216,113 @@
 
         <!-- 매장 -->
         <div id="sub-view-places">
-          <div class="table-wrap">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>ID</th><th>매장명</th><th>카테고리</th><th>주소</th>
-                  <th>활성 캠페인</th><th>상태</th><th>최초 제보자</th><th>이메일</th><th>관리</th>
-                </tr>
-              </thead>
-              <tbody id="placeTableBody"></tbody>
-            </table>
+          <div class="filter-card">
+            <div class="filter-grid">
+              <div class="filter-field"><label>매장명</label><input type="text" id="pvQ" placeholder="입력하세요" onkeydown="if(event.key==='Enter')loadPlaceView(1)"></div>
+              <div class="filter-field"><label>카테고리</label>
+                <select id="pvCategory">
+                  <option value="all">전체</option>
+                  <option value="음식점">음식점</option><option value="카페">카페</option><option value="뷰티">뷰티</option>
+                  <option value="숙박/여가">숙박/여가</option><option value="문화">문화</option><option value="의류">의류</option>
+                  <option value="안경/잡화">안경/잡화</option><option value="기타">기타</option>
+                </select>
+              </div>
+              <div class="filter-field"><label>상태</label>
+                <select id="pvStatus"><option value="all">전체</option><option value="visible">노출</option><option value="hidden">숨김</option></select>
+              </div>
+              <div class="filter-field"><label>제보자</label><input type="text" id="pvReporter" placeholder="입력하세요" onkeydown="if(event.key==='Enter')loadPlaceView(1)"></div>
+              <button class="btn-search-red" onclick="loadPlaceView(1)"><svg class="icon"><use href="#icon-search"></use></svg> 조회</button>
+            </div>
+          </div>
+          <div class="result-card">
+            <div class="result-bar">
+              <div class="result-bar-left">
+                <select id="pvSize" onchange="loadPlaceView(1)"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option><option value="500">500</option></select>
+                <span class="result-count">전체 <b id="pvTotal">0</b>건 중 <b id="pvShown">0</b>건 표시 <span class="result-sep">|</span> <b id="pvSelected">0</b>건 선택</span>
+              </div>
+              <div class="result-bar-right">
+                <button class="btn-ghost" onclick="showTab('register');showSubtab('register','excel')"><svg class="icon"><use href="#icon-upload"></use></svg> 엑셀 업로드</button>
+                <button class="btn-dark" onclick="showTab('register');showSubtab('register','add')">+ 등록</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th class="th-check"><input type="checkbox" id="pvCheckAll" onchange="toggleSelectAll('place', this.checked)"></th>
+                    <th>ID</th><th>매장명</th><th>카테고리</th><th>주소</th>
+                    <th>활성 캠페인</th><th>상태</th><th>최초 제보자</th><th>이메일</th><th>관리</th>
+                  </tr>
+                </thead>
+                <tbody id="placeTableBody"></tbody>
+              </table>
+            </div>
+            <div class="result-foot">
+              <button class="btn-ghost" onclick="downloadViewExcel('place')"><svg class="icon"><use href="#icon-download"></use></svg> 엑셀 다운로드</button>
+            </div>
+            <div class="pager" id="pvPager"></div>
           </div>
         </div>
 
         <!-- 캠페인 -->
         <div id="sub-view-campaigns" style="display:none;">
-          <div class="page-actions" style="margin-bottom:16px;">
-            <select id="filterStatus" onchange="renderCampaignList()">
-              <option value="all">전체</option>
-              <option value="active">모집 중</option>
-              <option value="expired">마감</option>
-            </select>
-            <select id="filterPlatform" onchange="renderCampaignList()">
-              <option value="all">전체 플랫폼</option>
-              <option value="레뷰">레뷰</option>
-              <option value="리뷰노트">리뷰노트</option>
-              <option value="디너의여왕">디너의여왕</option>
-              <option value="서울오빠">서울오빠</option>
-              <option value="리뷰플레이스">리뷰플레이스</option>
-              <option value="포블로그">포블로그</option>
-              <option value="링블">링블</option>
-              <option value="미블">미블</option>
-              <option value="강남맛집">강남맛집체험단</option>
-              <option value="체험뷰">체험뷰</option>
-            </select>
+          <div class="filter-card">
+            <div class="filter-grid">
+              <div class="filter-field"><label>매장명</label><input type="text" id="cvQ" placeholder="입력하세요" onkeydown="if(event.key==='Enter')loadCampView(1)"></div>
+              <div class="filter-field"><label>플랫폼</label>
+                <select id="cvPlatform">
+                  <option value="all">전체</option>
+                  <option value="레뷰">레뷰</option><option value="리뷰노트">리뷰노트</option><option value="디너의여왕">디너의여왕</option>
+                  <option value="서울오빠">서울오빠</option><option value="리뷰플레이스">리뷰플레이스</option><option value="포블로그">포블로그</option>
+                  <option value="링블">링블</option><option value="미블">미블</option><option value="강남맛집">강남맛집체험단</option><option value="체험뷰">체험뷰</option>
+                </select>
+              </div>
+              <div class="filter-field"><label>채널</label>
+                <select id="cvChannel"><option value="all">전체</option><option value="블로그">블로그</option><option value="클립">클립</option><option value="인스타그램">인스타그램</option><option value="릴스">릴스</option><option value="유튜브">유튜브</option></select>
+              </div>
+              <div class="filter-field"><label>제보자</label><input type="text" id="cvReporter" placeholder="입력하세요" onkeydown="if(event.key==='Enter')loadCampView(1)"></div>
+            </div>
+            <div class="filter-row2">
+              <div class="radio-group"><span class="radio-label">출처</span>
+                <label class="rd"><input type="radio" name="cvSource" value="all" checked><span class="rd-dot"></span> 전체</label>
+                <label class="rd"><input type="radio" name="cvSource" value="user"><span class="rd-dot"></span> 유저</label>
+                <label class="rd"><input type="radio" name="cvSource" value="admin"><span class="rd-dot"></span> 어드민</label>
+              </div>
+              <div class="radio-group"><span class="radio-label">상태</span>
+                <label class="rd"><input type="radio" name="cvStatus" value="all" checked><span class="rd-dot"></span> 전체</label>
+                <label class="rd"><input type="radio" name="cvStatus" value="active"><span class="rd-dot"></span> 모집중</label>
+                <label class="rd"><input type="radio" name="cvStatus" value="expired"><span class="rd-dot"></span> 마감</label>
+              </div>
+              <button class="btn-search-red" onclick="loadCampView(1)"><svg class="icon"><use href="#icon-search"></use></svg> 조회</button>
+            </div>
           </div>
-          <div class="table-wrap">
-            <table class="admin-table" id="campaignTable">
-              <thead>
-                <tr>
-                  <th>ID</th><th>매장명</th><th>플랫폼</th><th>채널</th><th>협찬내용</th>
-                  <th>요일</th><th>마감일</th><th>제보자</th><th>이메일</th><th>출처</th><th>상태</th><th>관리</th>
-                </tr>
-              </thead>
-              <tbody id="campaignTableBody"></tbody>
-            </table>
+          <div class="result-card">
+            <div class="result-bar">
+              <div class="result-bar-left">
+                <select id="cvSize" onchange="loadCampView(1)"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option><option value="500">500</option></select>
+                <span class="result-count">전체 <b id="cvTotal">0</b>건 중 <b id="cvShown">0</b>건 표시 <span class="result-sep">|</span> <b id="cvSelected">0</b>건 선택</span>
+              </div>
+              <div class="result-bar-right">
+                <button class="btn-ghost" onclick="showTab('register');showSubtab('register','excel')"><svg class="icon"><use href="#icon-upload"></use></svg> 엑셀 업로드</button>
+                <button class="btn-dark" onclick="showTab('register');showSubtab('register','add')">+ 등록</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="admin-table" id="campaignTable">
+                <thead>
+                  <tr>
+                    <th class="th-check"><input type="checkbox" id="cvCheckAll" onchange="toggleSelectAll('camp', this.checked)"></th>
+                    <th>ID</th><th>매장명</th><th>플랫폼</th><th>채널</th><th>협찬내용</th>
+                    <th>요일</th><th>마감일</th><th>제보자</th><th>이메일</th><th>출처</th><th>상태</th><th>관리</th>
+                  </tr>
+                </thead>
+                <tbody id="campaignTableBody"></tbody>
+              </table>
+            </div>
+            <div class="result-foot">
+              <button class="btn-ghost" onclick="downloadViewExcel('camp')"><svg class="icon"><use href="#icon-download"></use></svg> 엑셀 다운로드</button>
+            </div>
+            <div class="pager" id="cvPager"></div>
           </div>
         </div>
       </div>

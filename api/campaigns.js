@@ -83,6 +83,31 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'GET') {
+    const q = req.query || {};
+    // 어드민 조회: 서버 사이드 검색/필터/페이지네이션 (수천 건+ 대응)
+    if (q.admin) {
+      const page = Math.max(1, parseInt(q.page, 10) || 1);
+      const size = Math.min(500, Math.max(1, parseInt(q.size, 10) || 100));
+      const where = []; const args = [];
+      if (q.q) { where.push('pl.name LIKE ?'); args.push('%' + q.q + '%'); }
+      if (q.platform && q.platform !== 'all') { where.push('c.platform = ?'); args.push(q.platform); }
+      if (q.channel && q.channel !== 'all') { where.push('c.channels LIKE ?'); args.push('%"' + q.channel + '"%'); }
+      if (q.reporter) { where.push('(c.reporter_nickname LIKE ? OR c.reporter_email LIKE ?)'); args.push('%' + q.reporter + '%', '%' + q.reporter + '%'); }
+      if (q.source === 'user') where.push("c.source = 'user'");
+      else if (q.source === 'admin') where.push("c.source = 'admin'");
+      const today = new Date().toISOString().slice(0, 10);
+      if (q.status === 'active') { where.push("(c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)"); args.push(today); }
+      else if (q.status === 'expired') { where.push("(c.deadline != '' AND c.deadline IS NOT NULL AND c.deadline < ?)"); args.push(today); }
+      const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+      const totalRes = await db.execute({ sql: `SELECT COUNT(*) AS n FROM campaigns c LEFT JOIN places pl ON pl.id = c.place_id ${whereSql}`, args });
+      const total = Number(totalRes.rows[0]?.n || 0);
+      const rowsRes = await db.execute({
+        sql: `SELECT c.*, pl.name AS place_name FROM campaigns c LEFT JOIN places pl ON pl.id = c.place_id ${whereSql} ORDER BY c.id DESC LIMIT ? OFFSET ?`,
+        args: [...args, size, (page - 1) * size]
+      });
+      const rows = rowsRes.rows.map(r => ({ ...toCampaign(r), placeName: r.place_name || '' }));
+      return res.status(200).json({ rows, total, page, size });
+    }
     const result = await db.execute('SELECT * FROM campaigns');
     return res.status(200).json(result.rows.map(toCampaign));
   }
