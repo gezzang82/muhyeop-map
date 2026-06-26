@@ -373,6 +373,50 @@ body {
   font-weight: 600; cursor: pointer; font-family: inherit; padding: 4px 6px; border-radius: 6px;
 }
 .cdate-clear:hover { background: #f4f4f7; color: var(--text); }
+/* 달력을 input 위쪽으로 띄움 */
+.cdate-up .cdate-pop { top: auto; bottom: calc(100% + 6px); }
+
+/* ===== 등록 폼 레이아웃 (Figma 1188:12020) ===== */
+.reg-notice {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 15px 20px; font-size: 14px; color: var(--text); margin-bottom: 16px;
+}
+.reg-notice::before { content: '•'; color: var(--muted); font-weight: 700; }
+
+.reg-split { display: grid; grid-template-columns: 320px minmax(0, 1fr); column-gap: 40px; align-items: start; }
+.reg-left { display: flex; flex-direction: column; gap: 18px; }
+.reg-right { border-left: 1px solid var(--border); padding-left: 40px; min-width: 0; }
+.reg-right .form-row:last-of-type { margin-bottom: 0; }
+.chan-row { grid-template-columns: minmax(0, 1fr) 220px; }
+.date-row { grid-template-columns: 240px minmax(0, 1fr); }
+
+.input-with-btn { display: flex; gap: 8px; }
+.input-with-btn input { flex: 1; min-width: 0; }
+.input-with-btn .btn-search { flex-shrink: 0; }
+
+/* 매장 선택 콤보(자동완성) */
+.place-combo { position: relative; }
+.place-combo > input[type="text"] {
+  width: 100%; border: 1px solid #dddddd; border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 14px; outline: none; color: var(--text);
+  background: var(--surface); transition: border-color 0.15s; font-family: inherit;
+}
+.place-combo > input[type="text"]::placeholder { color: var(--muted-light); }
+.place-combo > input[type="text"]:focus { border-color: var(--text); }
+.place-combo-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md); padding: 6px; max-height: 320px; overflow-y: auto; display: none;
+}
+.place-combo.open .place-combo-menu { display: block; }
+.place-combo-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; font-size: 14px; color: var(--text); border-radius: 6px; cursor: pointer;
+}
+.place-combo-item:hover { background: #f4f4f7; }
+.place-combo-item span { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+
 .addr-row { justify-content: flex-end; }
 .btn-search {
   display: inline-flex; align-items: center; gap: 6px;
@@ -385,25 +429,29 @@ body {
 .or-divider { font-size: 12px; color: var(--muted-light); padding: 10px 0; }
 .center-label { justify-content: flex-end; }
 
-.check-group { display: flex; gap: 10px; flex-wrap: wrap; padding: 4px 0; }
+.check-group { display: flex; gap: 4px; flex-wrap: wrap; }
 .check-item {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 13px; cursor: pointer; padding: 8px 16px;
-  border-radius: var(--radius-pill); border: 1px solid var(--border); color: var(--text);
-  transition: all 0.15s;
-}
-.check-item:has(input:checked) { background: var(--brand); border-color: var(--brand); color: var(--brand-accent); font-weight: 600; }
-.check-item input { display: none; }
-
-.day-group { display: flex; gap: 6px; flex-wrap: wrap; }
-.day-item {
-  width: 38px; height: 38px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; cursor: pointer;
-  border: 1px solid var(--border); color: var(--muted);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: 40px; padding: 0 14px; box-sizing: border-box;
+  font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--muted); background: var(--surface);
   transition: all 0.15s; user-select: none;
 }
-.day-item.on { background: var(--brand); border-color: var(--brand); color: var(--brand-accent); }
+.check-item img { width: 16px; height: 16px; flex-shrink: 0; }
+.check-item:has(input:checked) { border-color: var(--text); color: var(--text); font-weight: 700; }
+.check-item input { display: none; }
+
+/* 참여 가능 요일 + 공휴일 불가 (한 줄 인라인) */
+.day-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.day-group { display: flex; gap: 4px; flex-wrap: wrap; }
+.day-item {
+  width: 40px; height: 40px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 500; cursor: pointer;
+  border: 1px solid var(--border); color: var(--muted); background: var(--surface);
+  transition: all 0.15s; user-select: none;
+}
+.day-item.on { border-color: var(--text); color: var(--text); font-weight: 700; }
 
 /* 체크박스 (컴포넌트 1209:9997 — 검정 체크) */
 .ck-row { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--text); user-select: none; }
@@ -454,19 +502,19 @@ body {
 .pager button.active { color: var(--primary); font-weight: 700; }
 .pager button:disabled { color: var(--muted-light); cursor: default; }
 
-.form-actions { display: flex; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+.form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
 .btn-submit {
   background: var(--primary); color: var(--primary-fg);
-  border: none; border-radius: var(--radius-sm); padding: 13px 30px;
+  border: none; border-radius: var(--radius-sm); padding: 0 22px; height: 40px;
   font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
 }
 .btn-submit:hover { opacity: 0.88; }
 .btn-reset {
-  background: #f0f0f3; color: var(--muted);
-  border: none; border-radius: var(--radius-pill); padding: 13px 22px;
-  font-size: 14px; font-weight: 600; cursor: pointer;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 22px; height: 40px;
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s;
 }
-.btn-reset:hover { background: #e4e4e9; }
+.btn-reset:hover { background: #f4f4f7; }
 
 /* ===== 엑셀 업로드 ===== */
 .excel-guide { background: #f7f7fb; border-radius: var(--radius-md); padding: 22px; margin-bottom: 24px; }

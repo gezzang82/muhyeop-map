@@ -538,9 +538,7 @@ async function reportDeletePlace(reportId, placeId) {
 
 // ===== 캠페인 등록 =====
 function populatePlaceSelect() {
-  const sel = document.getElementById('addPlaceSelect');
-  sel.innerHTML = '<option value="">-- 기존 매장 선택 --</option>' +
-    places.map(p => `<option value="${p.id}">${p.name} (${p.category})</option>`).join('');
+  // 매장 선택은 콤보(자동완성)로 처리하므로 별도 옵션 채움 불필요. 카테고리/플랫폼 커스텀 셀렉트만 갱신.
   refreshAdminSelects();
 }
 
@@ -550,28 +548,39 @@ function findDuplicatePlace(name) {
   return places.find(p => p.name.replace(/\s/g, '') === norm) || null;
 }
 
-function checkDuplicatePlaceName() {
-  const name = document.getElementById('addName').value;
-  const warnEl = document.getElementById('addNameDupWarn');
-  const dup = findDuplicatePlace(name);
-  if (dup) {
-    warnEl.innerHTML = `이미 등록된 매장예요: "${dup.name}"<button type="button" onclick="useDuplicatePlace(${dup.id})">이 매장 사용</button>`;
-    warnEl.style.display = '';
-  } else {
-    warnEl.style.display = 'none';
-  }
+// 매장 선택 콤보: 키워드 입력 → 기존 등록 매장 자동완성. 미선택 시 입력값이 신규 매장명이 됨.
+function onPlaceComboInput() {
+  const input = document.getElementById('addName');
+  const menu = document.getElementById('placeComboMenu');
+  const combo = document.getElementById('placeCombo');
+  // 텍스트를 직접 바꾸면 기존 매장 선택을 해제(정확히 다시 고르기 전까지 신규로 간주)
+  document.getElementById('addPlaceSelect').value = '';
+  const kw = input.value.trim().replace(/\s/g, '');
+  if (!kw) { menu.innerHTML = ''; combo.classList.remove('open'); return; }
+  const matches = places.filter(p => p.name.replace(/\s/g, '').includes(kw)).slice(0, 8);
+  if (!matches.length) { menu.innerHTML = ''; combo.classList.remove('open'); return; }
+  menu.innerHTML = matches.map(p =>
+    `<div class="place-combo-item" onclick="pickExistingPlace(${p.id})"><b>${escHtml(p.name)}</b><span>${escHtml(p.category || '')}</span></div>`
+  ).join('');
+  combo.classList.add('open');
 }
 
-function useDuplicatePlace(id) {
-  document.getElementById('addPlaceSelect').value = id;
-  onPlaceSelect();
-  document.getElementById('addNameDupWarn').style.display = 'none';
+function pickExistingPlace(id) {
+  const p = places.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('addPlaceSelect').value = p.id;
+  document.getElementById('addName').value = p.name;
+  document.getElementById('addCategory').value = p.category || '';
+  document.getElementById('addAddress').value = p.address || '';
+  document.getElementById('addLat').value = (p.lat != null ? p.lat : '');
+  document.getElementById('addLng').value = (p.lng != null ? p.lng : '');
+  document.getElementById('placeCombo').classList.remove('open');
+  refreshAdminSelects();
 }
 
 function onPlaceSelect() {
-  const val = document.getElementById('addPlaceSelect').value;
-  document.getElementById('newPlaceFields').style.opacity = val ? '0.4' : '1';
-  document.getElementById('newPlaceFields').style.pointerEvents = val ? 'none' : '';
+  // 콤보 구조에서는 별도 잠금 없이 자동 채움(수정 가능) — 호환용 빈 함수
+  return;
 }
 
 function searchAdminAddress() {
@@ -661,8 +670,8 @@ function resetAddForm() {
   });
   document.querySelectorAll('.day-item').forEach(d => d.classList.add('on'));
   const excludeEl = document.getElementById('addExcludeHoliday'); if(excludeEl) excludeEl.checked = false;
-  document.getElementById('newPlaceFields').style.opacity = '1';
-  document.getElementById('newPlaceFields').style.pointerEvents = '';
+  const combo = document.getElementById('placeCombo');
+  if (combo) { combo.classList.remove('open'); const m = document.getElementById('placeComboMenu'); if (m) m.innerHTML = ''; }
   refreshAdminSelects();
 }
 
@@ -746,11 +755,15 @@ function clearDeadline() {
   document.getElementById('deadlinePicker').classList.remove('open');
 }
 
-// 바깥 클릭 시 달력 닫기
+// 바깥 클릭 시 달력 / 매장 콤보 닫기
 document.addEventListener('click', (e) => {
   const wrap = document.getElementById('deadlinePicker');
   if (wrap && wrap.classList.contains('open') && !wrap.contains(e.target)) {
     wrap.classList.remove('open');
+  }
+  const combo = document.getElementById('placeCombo');
+  if (combo && combo.classList.contains('open') && !combo.contains(e.target)) {
+    combo.classList.remove('open');
   }
 });
 
@@ -817,8 +830,7 @@ function editCampaign(id) {
   showTab('register');
   showSubtab('register', 'add');
   setTimeout(() => {
-    document.getElementById('addPlaceSelect').value = c.placeId;
-    onPlaceSelect();
+    pickExistingPlace(c.placeId);
     document.getElementById('addPlatform').value = c.platform;
     (c.channels||[]).forEach(ch => {
       const el = document.getElementById(`ach_${ch}`); if(el) el.checked = true;

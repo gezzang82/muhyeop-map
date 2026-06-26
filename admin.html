@@ -349,30 +349,13 @@
           <button class="subtab" id="subtab-reg-excel" onclick="showSubtab('register','excel')">엑셀 업로드</button>
         </div>
         <div id="sub-reg-add">
+        <div class="reg-notice">캠페인은 신규 매장 또는 기존 매장에 추가 등록할 수 있습니다.</div>
         <div class="form-card">
 
-          <div class="form-section-title"><svg class="icon"><use href="#icon-pin"></use></svg> 매장 정보</div>
+          <div class="form-section-title">매장 정보</div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>매장 선택</label>
-              <select id="addPlaceSelect" onchange="onPlaceSelect()">
-                <option value="">-- 기존 매장 선택 --</option>
-              </select>
-            </div>
-            <div class="form-group center-label">
-              <label>&nbsp;</label>
-              <div class="or-divider">또는 신규 매장 입력 ↓</div>
-            </div>
-          </div>
-
-          <div id="newPlaceFields">
-            <div class="form-row">
-              <div class="form-group">
-                <label>매장명 <span class="req">*</span></label>
-                <input type="text" id="addName" placeholder="예: 스시코우지 강남" oninput="checkDuplicatePlaceName()">
-                <div id="addNameDupWarn" class="dup-warn" style="display:none;"></div>
-              </div>
+          <div class="reg-split">
+            <div class="reg-left">
               <div class="form-group">
                 <label>카테고리 <span class="req">*</span></label>
                 <select id="addCategory">
@@ -387,78 +370,87 @@
                   <option value="기타">기타</option>
                 </select>
               </div>
-            </div>
-            <div class="form-row">
               <div class="form-group">
-                <label>주소 <span class="req">*</span></label>
-                <input type="text" id="addAddress" placeholder="예: 서울 강남구 테헤란로 152">
-              </div>
-              <div class="form-group addr-row">
-                <label>&nbsp;</label>
-                <button class="btn-search" onclick="searchAdminAddress()"><svg class="icon"><use href="#icon-search"></use></svg> 좌표 검색</button>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>위도</label>
-                <input type="number" id="addLat" placeholder="37.5000" step="0.0001">
-              </div>
-              <div class="form-group">
-                <label>경도</label>
-                <input type="number" id="addLng" placeholder="127.0370" step="0.0001">
+                <label>매장 선택 <span class="req">*</span></label>
+                <div class="place-combo" id="placeCombo">
+                  <input type="hidden" id="addPlaceSelect">
+                  <input type="text" id="addName" autocomplete="off" placeholder="매장명 입력 또는 기존 매장 검색" oninput="onPlaceComboInput()" onfocus="onPlaceComboInput()">
+                  <div class="place-combo-menu" id="placeComboMenu"></div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="form-section-title" style="margin-top:28px;"><svg class="icon"><use href="#icon-megaphone"></use></svg> 캠페인 정보</div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>플랫폼 <span class="req">*</span></label>
-              <select id="addPlatform">
-                <option value="">선택</option>
-                <option value="레뷰">레뷰</option>
-                <option value="리뷰노트">리뷰노트</option>
-                <option value="디너의여왕">디너의여왕</option>
-                <option value="서울오빠">서울오빠</option>
-                <option value="리뷰플레이스">리뷰플레이스</option>
-                <option value="포블로그">포블로그</option>
-                <option value="링블">링블</option>
-                <option value="미블">미블</option>
-                <option value="강남맛집">강남맛집체험단</option>
-                <option value="체험뷰">체험뷰</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>게시 채널 <span class="req">*</span> <span class="hint">복수 선택 가능</span></label>
-              <div class="check-group">
-                <label class="check-item"><input type="checkbox" id="ach_블로그"><svg class="icon"><use href="#icon-blog"></use></svg> 블로그</label>
-                <label class="check-item"><input type="checkbox" id="ach_클립"><svg class="icon"><use href="#icon-clip"></use></svg> 클립</label>
-                <label class="check-item"><input type="checkbox" id="ach_인스타그램"><svg class="icon"><use href="#icon-instagram"></use></svg> 인스타그램</label>
-                <label class="check-item"><input type="checkbox" id="ach_릴스"><svg class="icon"><use href="#icon-reels"></use></svg> 릴스</label>
-                <label class="check-item"><input type="checkbox" id="ach_유튜브"><svg class="icon"><use href="#icon-youtube"></use></svg> 유튜브</label>
+            <div class="reg-right">
+              <div class="form-row">
+                <div class="form-group full">
+                  <label>주소 <span class="req">*</span></label>
+                  <div class="input-with-btn">
+                    <input type="text" id="addAddress" placeholder="예: 서울 강남구 테헤란로 152">
+                    <button class="btn-search" onclick="searchAdminAddress()"><svg class="icon"><use href="#icon-search"></use></svg> 좌표 검색</button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div class="form-row">
-            <div class="form-group full">
-              <label>협찬 내용 <span class="req">*</span></label>
-              <input type="text" id="addContent" placeholder="예: 오마카세 1인 체험 (80,000원 상당)">
-            </div>
-          </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>위도</label>
+                  <input type="number" id="addLat" placeholder="37.5000" step="0.0001">
+                </div>
+                <div class="form-group">
+                  <label>경도</label>
+                  <input type="number" id="addLng" placeholder="127.0370" step="0.0001">
+                </div>
+              </div>
 
-          <div class="form-row">
-            <div class="form-group full">
-              <label>협찬 URL (선택)</label>
-              <input type="text" id="addLink" placeholder="예: https://www.reviewnote.co.kr/campaigns/...">
-            </div>
-          </div>
+              <div class="form-section-title" style="margin-top:28px;">캠페인 정보</div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>모집 마감일 (선택)</label>
-              <div class="cdate" id="deadlinePicker">
+              <div class="form-row chan-row">
+                <div class="form-group">
+                  <label>채널 <span class="req">*</span> <span class="hint">중복체크 가능</span></label>
+                  <div class="check-group">
+                    <label class="check-item"><input type="checkbox" id="ach_블로그"><img src="image/ic_naver_blog_20.png" width="16" height="16" alt=""> 블로그</label>
+                    <label class="check-item"><input type="checkbox" id="ach_클립"><img src="image/ic_clip_20.png" width="16" height="16" alt=""> 클립</label>
+                    <label class="check-item"><input type="checkbox" id="ach_인스타그램"><img src="image/ic_instagram_20.png" width="16" height="16" alt=""> 인스타그램</label>
+                    <label class="check-item"><input type="checkbox" id="ach_릴스"><img src="image/ic_reels_20.png" width="16" height="16" alt=""> 릴스</label>
+                    <label class="check-item"><input type="checkbox" id="ach_유튜브"><img src="image/ic_youtube_20.png" width="16" height="16" alt=""> 유튜브</label>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>플랫폼 <span class="req">*</span></label>
+                  <select id="addPlatform">
+                    <option value="">선택</option>
+                    <option value="레뷰">레뷰</option>
+                    <option value="리뷰노트">리뷰노트</option>
+                    <option value="디너의여왕">디너의여왕</option>
+                    <option value="서울오빠">서울오빠</option>
+                    <option value="리뷰플레이스">리뷰플레이스</option>
+                    <option value="포블로그">포블로그</option>
+                    <option value="링블">링블</option>
+                    <option value="미블">미블</option>
+                    <option value="강남맛집">강남맛집체험단</option>
+                    <option value="체험뷰">체험뷰</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group full">
+                  <label>협찬 내용 <span class="req">*</span></label>
+                  <input type="text" id="addContent" placeholder="예: 오마카세 1인 체험 (80,000원 상당)">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group full">
+                  <label>협찬 링크 URL주소 (선택)</label>
+                  <input type="text" id="addLink" placeholder="예: https://www.reviewnote.co.kr/campaigns/...">
+                </div>
+              </div>
+
+              <div class="form-row date-row">
+                <div class="form-group">
+                  <label>모집 마감일 (선택)</label>
+                  <div class="cdate cdate-up" id="deadlinePicker">
                 <input type="hidden" id="addDeadline">
                 <button type="button" class="cdate-trigger placeholder" id="deadlineTrigger" onclick="toggleDatePicker(event)">
                   <span class="cdate-text" id="deadlineText">YYYY-MM-DD</span>
@@ -485,28 +477,30 @@
               </div>
             </div>
             <div class="form-group">
-              <label>영업 시간</label>
-              <input type="text" id="addHours" placeholder="예: 11:00~22:00">
+              <label>참여 가능 시간 (선택)</label>
+              <input type="text" id="addHours" placeholder="예: 10:00 ~ 22:00">
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group full">
-              <label>참여 가능 요일</label>
-              <div class="day-group">
-                <label class="day-item on" onclick="this.classList.toggle('on')">월</label>
-                <label class="day-item on" onclick="this.classList.toggle('on')">화</label>
-                <label class="day-item on" onclick="this.classList.toggle('on')">수</label>
-                <label class="day-item on" onclick="this.classList.toggle('on')">목</label>
-                <label class="day-item on" onclick="this.classList.toggle('on')">금</label>
-                <label class="day-item on" onclick="this.classList.toggle('on')">토</label>
-                <label class="day-item on" onclick="this.classList.toggle('on')">일</label>
-              </div>
-              <div class="holiday-check-wrap">
+              <label>참여 가능 요일 (선택)</label>
+              <div class="day-row">
+                <div class="day-group">
+                  <label class="day-item on" onclick="this.classList.toggle('on')">월</label>
+                  <label class="day-item on" onclick="this.classList.toggle('on')">화</label>
+                  <label class="day-item on" onclick="this.classList.toggle('on')">수</label>
+                  <label class="day-item on" onclick="this.classList.toggle('on')">목</label>
+                  <label class="day-item on" onclick="this.classList.toggle('on')">금</label>
+                  <label class="day-item on" onclick="this.classList.toggle('on')">토</label>
+                  <label class="day-item on" onclick="this.classList.toggle('on')">일</label>
+                </div>
                 <label class="ck-row"><input type="checkbox" id="addExcludeHoliday"><span class="ck-box"></span> 공휴일 불가</label>
               </div>
             </div>
           </div>
+            </div><!-- /.reg-right -->
+          </div><!-- /.reg-split -->
 
           <div class="form-actions">
             <button class="btn-submit" onclick="submitAdminCampaign()">등록하기</button>
