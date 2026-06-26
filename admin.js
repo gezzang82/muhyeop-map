@@ -31,12 +31,30 @@ function showTab(tab) {
   document.getElementById('page-' + tab).style.display = 'block';
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'dashboard') renderDashboard();
-  if (tab === 'campaigns') renderCampaignList();
-  if (tab === 'places') renderPlaceList();
-  if (tab === 'add') populatePlaceSelect();
+  if (tab === 'register') populatePlaceSelect();
+  if (tab === 'view') { renderPlaceList(); renderCampaignList(); }
   if (tab === 'banners') renderBannerList();
   if (tab === 'reports') renderReportList();
   if (tab === 'users') renderUserList();
+}
+
+// 조회(매장/캠페인) · 등록(등록/엑셀) 서브탭 전환
+function showSubtab(group, key) {
+  if (group === 'register') {
+    const add = key === 'add';
+    document.getElementById('sub-reg-add').style.display = add ? 'block' : 'none';
+    document.getElementById('sub-reg-excel').style.display = add ? 'none' : 'block';
+    document.getElementById('subtab-reg-add').classList.toggle('active', add);
+    document.getElementById('subtab-reg-excel').classList.toggle('active', !add);
+    if (add) populatePlaceSelect();
+  } else if (group === 'view') {
+    const isPlaces = key === 'places';
+    document.getElementById('sub-view-places').style.display = isPlaces ? 'block' : 'none';
+    document.getElementById('sub-view-campaigns').style.display = isPlaces ? 'none' : 'block';
+    document.getElementById('subtab-view-places').classList.toggle('active', isPlaces);
+    document.getElementById('subtab-view-campaigns').classList.toggle('active', !isPlaces);
+    if (isPlaces) renderPlaceList(); else renderCampaignList();
+  }
 }
 
 // ===== 초기화 =====
@@ -136,7 +154,7 @@ function renderCampaignList() {
   }).join('') || `<tr><td colspan="12" class="empty-msg">해당하는 캠페인 없음</td></tr>`;
 }
 
-// ===== 장소 목록 =====
+// ===== 매장 목록 =====
 function renderPlaceList() {
   const today = getKSTTodayUTC();
   const tbody = document.getElementById('placeTableBody');
@@ -157,7 +175,7 @@ function renderPlaceList() {
         <button class="btn-del-sm" onclick="confirmDelete('place', ${p.id})">삭제</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="9" class="empty-msg">등록된 장소 없음</td></tr>`;
+  }).join('') || `<tr><td colspan="9" class="empty-msg">등록된 매장 없음</td></tr>`;
 }
 
 let editPlaceTargetId = null;
@@ -202,7 +220,7 @@ async function confirmEditPlace() {
   const address = document.getElementById('editPlaceAddress').value.trim();
   const lat = parseFloat(document.getElementById('editPlaceLat').value);
   const lng = parseFloat(document.getElementById('editPlaceLng').value);
-  if (!name || !category || !address) { adminToast('장소명, 카테고리, 주소는 필수예요!'); return; }
+  if (!name || !category || !address) { adminToast('매장명, 카테고리, 주소는 필수예요!'); return; }
 
   const p = places.find(p => p.id === id);
   const addressChanged = address !== p.address;
@@ -219,7 +237,7 @@ async function confirmEditPlace() {
   p.name = name; p.category = category; p.address = address;
   if (addressChanged) { p.lat = lat; p.lng = lng; }
 
-  adminToast('장소 수정 완료');
+  adminToast('매장 수정 완료');
   closeEditPlaceModal();
   renderPlaceList();
 }
@@ -347,7 +365,7 @@ async function reportDeleteCampaign(reportId, campaignId) {
 }
 
 async function reportHidePlace(reportId, placeId) {
-  if (!confirm('이 매장을 지도에서 숨길까요? (캠페인은 유지되고, 장소 목록에서 언제든 숨김 해제할 수 있어요)')) return;
+  if (!confirm('이 매장을 지도에서 숨길까요? (캠페인은 유지되고, 매장 목록에서 언제든 숨김 해제할 수 있어요)')) return;
   await fetch(`/api/places?id=${placeId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -355,24 +373,24 @@ async function reportHidePlace(reportId, placeId) {
   });
   const p = places.find(p => p.id === placeId);
   if (p) p.hidden = true;
-  adminToast('장소를 숨김 처리했어요.');
+  adminToast('매장를 숨김 처리했어요.');
   dismissReport(reportId);
 }
 
 async function reportDeletePlace(reportId, placeId) {
-  if (!confirm('이 장소와 모든 캠페인을 영구 삭제할까요?')) return;
+  if (!confirm('이 매장와 모든 캠페인을 영구 삭제할까요?')) return;
   await fetch(`/api/places?id=${placeId}`, { method: 'DELETE' });
   const idx = places.findIndex(p => p.id === placeId);
   if (idx > -1) places.splice(idx, 1);
   campaigns.splice(0, campaigns.length, ...campaigns.filter(c => c.placeId !== placeId));
-  adminToast('장소 및 관련 캠페인 삭제 완료');
+  adminToast('매장 및 관련 캠페인 삭제 완료');
   dismissReport(reportId);
 }
 
 // ===== 캠페인 등록 =====
 function populatePlaceSelect() {
   const sel = document.getElementById('addPlaceSelect');
-  sel.innerHTML = '<option value="">-- 기존 장소 선택 --</option>' +
+  sel.innerHTML = '<option value="">-- 기존 매장 선택 --</option>' +
     places.map(p => `<option value="${p.id}">${p.name} (${p.category})</option>`).join('');
 }
 
@@ -387,7 +405,7 @@ function checkDuplicatePlaceName() {
   const warnEl = document.getElementById('addNameDupWarn');
   const dup = findDuplicatePlace(name);
   if (dup) {
-    warnEl.innerHTML = `이미 등록된 장소예요: "${dup.name}"<button type="button" onclick="useDuplicatePlace(${dup.id})">이 장소 사용</button>`;
+    warnEl.innerHTML = `이미 등록된 매장예요: "${dup.name}"<button type="button" onclick="useDuplicatePlace(${dup.id})">이 매장 사용</button>`;
     warnEl.style.display = '';
   } else {
     warnEl.style.display = 'none';
@@ -447,10 +465,10 @@ async function submitAdminCampaign() {
     const lat = parseFloat(document.getElementById('addLat').value);
     const lng = parseFloat(document.getElementById('addLng').value);
     if (!name || !address || !category || isNaN(lat) || isNaN(lng)) {
-      adminToast('신규 장소는 장소명, 주소, 카테고리, 좌표가 필요해요!'); return;
+      adminToast('신규 매장는 매장명, 주소, 카테고리, 좌표가 필요해요!'); return;
     }
     const dup = findDuplicatePlace(name);
-    if (dup && !confirm(`"${dup.name}"이 이미 등록되어 있어요. 그래도 새 장소로 등록할까요?`)) {
+    if (dup && !confirm(`"${dup.name}"이 이미 등록되어 있어요. 그래도 새 매장로 등록할까요?`)) {
       return;
     }
     const res = await fetch('/api/places', {
@@ -461,7 +479,7 @@ async function submitAdminCampaign() {
     const place = await res.json();
     places.push(place);
     placeId = place.id;
-    adminToast(`장소 "${name}" 등록 완료`);
+    adminToast(`매장 "${name}" 등록 완료`);
   }
 
   const excludeHoliday = document.getElementById('addExcludeHoliday')?.checked || false;
@@ -510,7 +528,7 @@ async function togglePlaceHidden(id) {
     body: JSON.stringify({ hidden: nextHidden })
   });
   p.hidden = nextHidden;
-  adminToast(nextHidden ? '장소를 숨김 처리했어요.' : '장소 숨김을 해제했어요.');
+  adminToast(nextHidden ? '매장를 숨김 처리했어요.' : '매장 숨김을 해제했어요.');
   renderPlaceList();
 }
 
@@ -519,7 +537,7 @@ function confirmDelete(type, id) {
     ? `캠페인 ID ${id} (${campaigns.find(c=>c.id===id)?.content?.slice(0,20)}...)`
     : type === 'banner'
     ? `이벤트 팝업 ID ${id}`
-    : `장소 "${places.find(p=>p.id===id)?.name}"`;
+    : `매장 "${places.find(p=>p.id===id)?.name}"`;
   document.getElementById('confirmMsg').textContent = `${name}을 삭제할까요?`;
   document.getElementById('confirmModal').style.display = 'flex';
   confirmCallback = async () => {
@@ -540,7 +558,7 @@ function confirmDelete(type, id) {
       const idx = places.findIndex(p => p.id === id);
       if (idx > -1) places.splice(idx, 1);
       campaigns.splice(0, campaigns.length, ...campaigns.filter(c => c.placeId !== id));
-      adminToast('장소 및 관련 캠페인 삭제 완료');
+      adminToast('매장 및 관련 캠페인 삭제 완료');
       renderPlaceList();
     }
     closeConfirm();
@@ -557,7 +575,8 @@ function closeConfirm() {
 function editCampaign(id) {
   const c = campaigns.find(c => c.id === id);
   if (!c) return;
-  showTab('add');
+  showTab('register');
+  showSubtab('register', 'add');
   setTimeout(() => {
     document.getElementById('addPlaceSelect').value = c.placeId;
     onPlaceSelect();
@@ -748,7 +767,7 @@ async function importExcelData() {
     const operatingDays = daysParsed.length ? daysParsed : ['월','화','수','목','금','토','일'];
     const excludeHoliday = String(excludeHolidayRaw || '').trim().toUpperCase() === 'Y';
 
-    // 기존 장소 or 신규
+    // 기존 매장 or 신규
     let place = places.find(p => p.name.replace(/\s/g,'') === String(name).replace(/\s/g,''));
     if (!place) {
       const coords = await geocodeAddress(String(address));
@@ -789,7 +808,7 @@ function resetExcel() {
 
 function downloadTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
-    ['장소명','주소','카테고리','플랫폼','채널','협찬내용','마감일','영업시간','가능요일','공휴일불가'],
+    ['매장명','주소','카테고리','플랫폼','채널','협찬내용','마감일','영업시간','가능요일','공휴일불가'],
     ['스시코우지 강남','서울 강남구 테헤란로 152','음식점','레뷰','블로그,클립','오마카세 1인 체험','2026-07-31','12:00~22:00','월,화,수,목,금','Y'],
     ['카페 노티드 청담','서울 강남구 압구정로 428','카페','미블','인스타그램','음료 2잔 체험','2026-07-15','10:00~22:00','',''],
   ]);

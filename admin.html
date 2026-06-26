@@ -141,19 +141,22 @@
       </div>
       <nav class="admin-nav">
         <a class="nav-item active" onclick="showTab('dashboard')" id="tab-dashboard"><svg class="icon"><use href="#icon-dashboard"></use></svg> 대시보드</a>
-        <a class="nav-item" onclick="showTab('campaigns')" id="tab-campaigns"><svg class="icon"><use href="#icon-list"></use></svg> 캠페인 목록</a>
-        <a class="nav-item" onclick="showTab('add')" id="tab-add"><svg class="icon"><use href="#icon-plus"></use></svg> 캠페인 등록</a>
-        <a class="nav-item" onclick="showTab('excel')" id="tab-excel"><svg class="icon"><use href="#icon-upload"></use></svg> 엑셀 업로드</a>
-        <a class="nav-item" onclick="showTab('places')" id="tab-places"><svg class="icon"><use href="#icon-pin"></use></svg> 장소 목록</a>
-        <a class="nav-item" onclick="showTab('banners')" id="tab-banners"><svg class="icon"><use href="#icon-megaphone"></use></svg> 이벤트 팝업</a>
+        <a class="nav-item" onclick="showTab('register')" id="tab-register"><svg class="icon"><use href="#icon-pin"></use></svg> 매장/캠페인 등록</a>
+        <a class="nav-item" onclick="showTab('view')" id="tab-view"><svg class="icon"><use href="#icon-list"></use></svg> 조회</a>
         <a class="nav-item" onclick="showTab('reports')" id="tab-reports"><svg class="icon"><use href="#icon-flag"></use></svg> 신고 목록</a>
         <a class="nav-item" onclick="showTab('users')" id="tab-users"><svg class="icon"><use href="#icon-user"></use></svg> 회원 목록</a>
+        <a class="nav-item" onclick="showTab('banners')" id="tab-banners"><svg class="icon"><use href="#icon-megaphone"></use></svg> 이벤트 팝업</a>
       </nav>
-      <div class="admin-logout" onclick="logout()"><svg class="icon"><use href="#icon-logout"></use></svg> 로그아웃</div>
     </aside>
 
     <!-- 메인 콘텐츠 -->
     <main class="admin-main">
+      <!-- 상단 헤더 -->
+      <div class="admin-topbar">
+        <span class="topbar-user"><span class="avatar"></span> 어드민</span>
+        <button class="topbar-logout" onclick="logout()">로그아웃 <svg class="icon" style="width:14px;height:14px;"><use href="#icon-logout"></use></svg></button>
+      </div>
+      <div class="admin-content">
 
       <!-- 대시보드 -->
       <div id="page-dashboard" class="admin-page">
@@ -162,7 +165,7 @@
           <div class="stat-card">
             <div class="stat-icon"><svg class="icon"><use href="#icon-pin"></use></svg></div>
             <div class="stat-value" id="statPlaces">0</div>
-            <div class="stat-label">등록 장소</div>
+            <div class="stat-label">등록 매장</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon"><svg class="icon"><use href="#icon-megaphone"></use></svg></div>
@@ -203,11 +206,32 @@
         </div>
       </div>
 
-      <!-- 캠페인 목록 -->
-      <div id="page-campaigns" class="admin-page" style="display:none;">
-        <div class="page-header">
-          <h1 class="page-title">캠페인 목록</h1>
-          <div class="page-actions">
+      <!-- 조회 (매장 / 캠페인) -->
+      <div id="page-view" class="admin-page" style="display:none;">
+        <h1 class="page-title">조회</h1>
+        <div class="subtab-bar">
+          <button class="subtab active" id="subtab-view-places" onclick="showSubtab('view','places')">매장</button>
+          <button class="subtab" id="subtab-view-campaigns" onclick="showSubtab('view','campaigns')">캠페인</button>
+        </div>
+
+        <!-- 매장 -->
+        <div id="sub-view-places">
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th><th>매장명</th><th>카테고리</th><th>주소</th>
+                  <th>활성 캠페인</th><th>상태</th><th>최초 제보자</th><th>이메일</th><th>관리</th>
+                </tr>
+              </thead>
+              <tbody id="placeTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 캠페인 -->
+        <div id="sub-view-campaigns" style="display:none;">
+          <div class="page-actions" style="margin-bottom:16px;">
             <select id="filterStatus" onchange="renderCampaignList()">
               <option value="all">전체</option>
               <option value="active">모집 중</option>
@@ -227,54 +251,49 @@
               <option value="체험뷰">체험뷰</option>
             </select>
           </div>
-        </div>
-        <div class="table-wrap">
-          <table class="admin-table" id="campaignTable">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>장소명</th>
-                <th>플랫폼</th>
-                <th>채널</th>
-                <th>협찬내용</th>
-                <th>요일</th>
-                <th>마감일</th>
-                <th>제보자</th>
-                <th>이메일</th>
-                <th>출처</th>
-                <th>상태</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody id="campaignTableBody"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="admin-table" id="campaignTable">
+              <thead>
+                <tr>
+                  <th>ID</th><th>매장명</th><th>플랫폼</th><th>채널</th><th>협찬내용</th>
+                  <th>요일</th><th>마감일</th><th>제보자</th><th>이메일</th><th>출처</th><th>상태</th><th>관리</th>
+                </tr>
+              </thead>
+              <tbody id="campaignTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <!-- 캠페인 등록 -->
-      <div id="page-add" class="admin-page" style="display:none;">
-        <h1 class="page-title">캠페인 등록</h1>
+      <!-- 매장/캠페인 등록 -->
+      <div id="page-register" class="admin-page" style="display:none;">
+        <h1 class="page-title">매장/캠페인 등록</h1>
+        <div class="subtab-bar">
+          <button class="subtab active" id="subtab-reg-add" onclick="showSubtab('register','add')">등록</button>
+          <button class="subtab" id="subtab-reg-excel" onclick="showSubtab('register','excel')">엑셀 업로드</button>
+        </div>
+        <div id="sub-reg-add">
         <div class="form-card">
 
-          <div class="form-section-title"><svg class="icon"><use href="#icon-pin"></use></svg> 장소 정보</div>
+          <div class="form-section-title"><svg class="icon"><use href="#icon-pin"></use></svg> 매장 정보</div>
 
           <div class="form-row">
             <div class="form-group">
-              <label>장소 선택</label>
+              <label>매장 선택</label>
               <select id="addPlaceSelect" onchange="onPlaceSelect()">
-                <option value="">-- 기존 장소 선택 --</option>
+                <option value="">-- 기존 매장 선택 --</option>
               </select>
             </div>
             <div class="form-group center-label">
               <label>&nbsp;</label>
-              <div class="or-divider">또는 신규 장소 입력 ↓</div>
+              <div class="or-divider">또는 신규 매장 입력 ↓</div>
             </div>
           </div>
 
           <div id="newPlaceFields">
             <div class="form-row">
               <div class="form-group">
-                <label>장소명 *</label>
+                <label>매장명 *</label>
                 <input type="text" id="addName" placeholder="예: 스시코우지 강남" oninput="checkDuplicatePlaceName()">
                 <div id="addNameDupWarn" class="dup-warn" style="display:none;"></div>
               </div>
@@ -394,12 +413,9 @@
             <button class="btn-reset" onclick="resetAddForm()">초기화</button>
           </div>
         </div>
-      </div>
+        </div><!-- /#sub-reg-add -->
 
-      <!-- 엑셀 업로드 -->
-      <div id="page-excel" class="admin-page" style="display:none;">
-        <h1 class="page-title">엑셀 업로드</h1>
-
+        <div id="sub-reg-excel" style="display:none;">
         <div class="form-card">
           <div class="excel-guide">
             <div class="guide-title"><svg class="icon"><use href="#icon-list"></use></svg> 엑셀 파일 형식</div>
@@ -408,7 +424,7 @@
               <table class="guide-table">
                 <thead>
                   <tr>
-                    <th>장소명</th><th>주소</th><th>카테고리</th>
+                    <th>매장명</th><th>주소</th><th>카테고리</th>
                     <th>플랫폼</th><th>채널</th><th>협찬내용</th><th>마감일</th><th>영업시간</th>
                     <th>가능요일</th><th>공휴일불가</th>
                   </tr>
@@ -435,7 +451,7 @@
               <li>주소를 기준으로 좌표를 자동 변환합니다 (네트워크 필요, 주소를 못 찾으면 해당 행은 건너뜁니다)</li>
               <li>가능요일은 쉼표로 구분 (예: <code>월,화,수,목,금</code>), 비워두면 요일 제한 없음</li>
               <li>공휴일불가는 <code>Y</code> 입력 시 공휴일 불가, 비워두면 공휴일도 가능</li>
-              <li>기존에 같은 장소명이 있으면 캠페인만 추가됩니다</li>
+              <li>기존에 같은 매장명이 있으면 캠페인만 추가됩니다</li>
             </ul>
             <button class="btn-download" onclick="downloadTemplate()"><svg class="icon"><use href="#icon-download"></use></svg> 양식 다운로드</button>
           </div>
@@ -470,23 +486,8 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- 장소 목록 -->
-      <div id="page-places" class="admin-page" style="display:none;">
-        <h1 class="page-title">장소 목록</h1>
-        <div class="table-wrap">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th><th>장소명</th><th>카테고리</th><th>주소</th>
-                <th>활성 캠페인</th><th>상태</th><th>최초 제보자</th><th>이메일</th><th>관리</th>
-              </tr>
-            </thead>
-            <tbody id="placeTableBody"></tbody>
-          </table>
-        </div>
-      </div>
+        </div><!-- /#sub-reg-excel -->
+      </div><!-- /#page-register -->
 
       <!-- 이벤트 팝업 -->
       <div id="page-banners" class="admin-page" style="display:none;">
@@ -539,7 +540,7 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th><th>장소명</th><th>캠페인명</th><th>신고이유</th><th>상세내용</th><th>신고자</th><th>신고일시</th><th>관리</th>
+                <th>ID</th><th>매장명</th><th>캠페인명</th><th>신고이유</th><th>상세내용</th><th>신고자</th><th>신고일시</th><th>관리</th>
               </tr>
             </thead>
             <tbody id="reportTableBody"></tbody>
@@ -562,6 +563,7 @@
         </div>
       </div>
 
+      </div><!-- /.admin-content -->
     </main>
   </div>
 
@@ -577,13 +579,13 @@
     </div>
   </div>
 
-  <!-- 장소 수정 모달 -->
+  <!-- 매장 수정 모달 -->
   <div id="editPlaceModal" class="modal-overlay" style="display:none;">
     <div class="confirm-box">
-      <div class="confirm-title"><svg class="icon"><use href="#icon-edit"></use></svg> 장소 수정</div>
+      <div class="confirm-title"><svg class="icon"><use href="#icon-edit"></use></svg> 매장 수정</div>
       <div class="form-row">
         <div class="form-group">
-          <label>장소명 *</label>
+          <label>매장명 *</label>
           <input type="text" id="editPlaceName">
         </div>
         <div class="form-group">
