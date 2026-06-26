@@ -90,7 +90,7 @@ body {
   padding: 14px 16px; font-size: 15px; outline: none; text-align: center;
   transition: border-color 0.15s;
 }
-.login-form input:focus { border-color: var(--brand); }
+.login-form input:focus { border-color: var(--text); }
 .login-form button {
   background: var(--primary); color: var(--primary-fg);
   border: none; border-radius: var(--radius-md);
@@ -261,14 +261,19 @@ body {
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 .form-group { display: flex; flex-direction: column; gap: 7px; }
 .form-group.full { grid-column: 1 / -1; }
-.form-group label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.form-group label { font-size: 13px; font-weight: 700; color: var(--text); }
+.form-group label .req { color: var(--primary); }
 .hint { font-weight: 400; color: var(--muted-light); font-size: 12px; }
 .form-group input, .form-group select {
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: 11px 14px; font-size: 14px; outline: none;
+  border: 1px solid #dddddd; border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 14px; outline: none; color: var(--text);
+  background: var(--surface);
   transition: border-color 0.15s; font-family: inherit;
 }
-.form-group input:focus, .form-group select:focus { border-color: var(--brand); }
+.form-group input::placeholder { color: var(--muted-light); }
+.form-group input:focus, .form-group select:focus { border-color: var(--text); }
+.form-group input.error, .form-group select.error { border-color: var(--primary); }
+.field-error-msg { font-size: 12px; color: var(--primary); margin-top: -2px; }
 .addr-row { justify-content: flex-end; }
 .btn-search {
   display: inline-flex; align-items: center; gap: 6px;

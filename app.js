@@ -2520,15 +2520,18 @@ function setupClearButtons() {
   }
 
   // 모달 폼 텍스트 입력 (input-wrap으로 감싸서 절대 위치)
-  document.querySelectorAll('.form-group input[type="text"], .form-group input[type="url"]').forEach(input => {
-    const wrap = document.createElement('div');
-    wrap.className = 'input-wrap';
-    input.parentNode.insertBefore(wrap, input);
-    wrap.appendChild(input);
-    const btn = createClearBtn();
-    wrap.appendChild(btn);
-    bindClearBtn(btn, input);
-  });
+  // 어드민 페이지(#adminApp)에서는 클리어 버튼 스타일(style.css)이 없어 적용하지 않음
+  if (!document.getElementById('adminApp')) {
+    document.querySelectorAll('.form-group input[type="text"], .form-group input[type="url"]').forEach(input => {
+      const wrap = document.createElement('div');
+      wrap.className = 'input-wrap';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      const btn = createClearBtn();
+      wrap.appendChild(btn);
+      bindClearBtn(btn, input);
+    });
+  }
 }
 
 function createClearBtn() {

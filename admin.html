@@ -293,12 +293,12 @@
           <div id="newPlaceFields">
             <div class="form-row">
               <div class="form-group">
-                <label>매장명 *</label>
+                <label>매장명 <span class="req">*</span></label>
                 <input type="text" id="addName" placeholder="예: 스시코우지 강남" oninput="checkDuplicatePlaceName()">
                 <div id="addNameDupWarn" class="dup-warn" style="display:none;"></div>
               </div>
               <div class="form-group">
-                <label>카테고리 *</label>
+                <label>카테고리 <span class="req">*</span></label>
                 <select id="addCategory">
                   <option value="">선택</option>
                   <option value="음식점">음식점</option>
@@ -314,7 +314,7 @@
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>주소 *</label>
+                <label>주소 <span class="req">*</span></label>
                 <input type="text" id="addAddress" placeholder="예: 서울 강남구 테헤란로 152">
               </div>
               <div class="form-group addr-row">
@@ -338,7 +338,7 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>플랫폼 *</label>
+              <label>플랫폼 <span class="req">*</span></label>
               <select id="addPlatform">
                 <option value="">선택</option>
                 <option value="레뷰">레뷰</option>
@@ -354,7 +354,7 @@
               </select>
             </div>
             <div class="form-group">
-              <label>게시 채널 * <span class="hint">복수 선택 가능</span></label>
+              <label>게시 채널 <span class="req">*</span> <span class="hint">복수 선택 가능</span></label>
               <div class="check-group">
                 <label class="check-item"><input type="checkbox" id="ach_블로그"><svg class="icon"><use href="#icon-blog"></use></svg> 블로그</label>
                 <label class="check-item"><input type="checkbox" id="ach_클립"><svg class="icon"><use href="#icon-clip"></use></svg> 클립</label>
@@ -367,7 +367,7 @@
 
           <div class="form-row">
             <div class="form-group full">
-              <label>협찬 내용 *</label>
+              <label>협찬 내용 <span class="req">*</span></label>
               <input type="text" id="addContent" placeholder="예: 오마카세 1인 체험 (80,000원 상당)">
             </div>
           </div>
@@ -496,7 +496,7 @@
           <div class="form-section-title"><svg class="icon"><use href="#icon-megaphone"></use></svg> 팝업 등록</div>
           <div class="form-row">
             <div class="form-group full">
-              <label>이미지 URL *</label>
+              <label>이미지 URL <span class="req">*</span></label>
               <input type="text" id="bannerImageUrl" placeholder="https://...">
             </div>
           </div>
@@ -508,11 +508,11 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>시작일 *</label>
+              <label>시작일 <span class="req">*</span></label>
               <input type="date" id="bannerStartDate">
             </div>
             <div class="form-group">
-              <label>종료일 *</label>
+              <label>종료일 <span class="req">*</span></label>
               <input type="date" id="bannerEndDate">
             </div>
           </div>
@@ -585,11 +585,11 @@
       <div class="confirm-title"><svg class="icon"><use href="#icon-edit"></use></svg> 매장 수정</div>
       <div class="form-row">
         <div class="form-group">
-          <label>매장명 *</label>
+          <label>매장명 <span class="req">*</span></label>
           <input type="text" id="editPlaceName">
         </div>
         <div class="form-group">
-          <label>카테고리 *</label>
+          <label>카테고리 <span class="req">*</span></label>
           <select id="editPlaceCategory">
             <option value="음식점">음식점</option>
             <option value="카페">카페</option>
@@ -604,7 +604,7 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>주소 *</label>
+          <label>주소 <span class="req">*</span></label>
           <input type="text" id="editPlaceAddress">
         </div>
         <div class="form-group addr-row">
