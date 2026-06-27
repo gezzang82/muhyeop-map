@@ -41,7 +41,11 @@ function showTab(tab) {
   document.getElementById('page-' + tab).style.display = 'block';
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'dashboard') renderDashboard();
-  if (tab === 'register') populatePlaceSelect();
+  if (tab === 'register') {
+    // 캠페인 수정 모드로 진입했다가 다른 탭을 거쳐 다시 등록 탭으로 오면 초기화(등록 화면으로)
+    if (campaignEditMode) { resetAddForm(); showSubtab('register', 'add'); }
+    populatePlaceSelect();
+  }
   if (tab === 'view') { renderPlaceList(); renderCampaignList(); }
   if (tab === 'banners') renderBannerList();
   if (tab === 'reports') renderReportList();
@@ -741,6 +745,10 @@ function resetAddForm() {
   const combo = document.getElementById('placeCombo');
   if (combo) { combo.classList.remove('open'); const m = document.getElementById('placeComboMenu'); if (m) m.innerHTML = ''; }
   setStoreFieldsLocked(false); // 신규 등록 모드에서는 매장 정보 잠금 해제
+  // 수정 모드였다면 등록 모드로 복귀 (버튼/플래그 원복)
+  campaignEditMode = false;
+  const submitBtn = document.querySelector('.btn-submit');
+  if (submitBtn) { submitBtn.textContent = '등록하기'; submitBtn.onclick = submitAdminCampaign; }
   refreshAdminSelects();
 }
 
@@ -893,6 +901,7 @@ function closeConfirm() {
 }
 
 // ===== 수정 (캠페인) =====
+let campaignEditMode = false; // 캠페인 수정 모드 여부 (등록 탭 재진입 시 초기화 판단용)
 function editCampaign(id) {
   const c = campaigns.find(c => c.id === id);
   if (!c) return;
@@ -916,6 +925,7 @@ function editCampaign(id) {
     if (excludeEl) excludeEl.checked = c.excludeHoliday || false;
     refreshAdminSelects();
     // 등록 버튼을 수정 모드로
+    campaignEditMode = true;
     const btn = document.querySelector('.btn-submit');
     btn.textContent = '수정 완료';
     btn.onclick = async () => {
