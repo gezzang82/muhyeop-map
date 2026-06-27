@@ -2288,8 +2288,10 @@ function openNaverMapByPlace(placeId) {
   if (p) openNaverMap(p.name, p.address, p.lat, p.lng);
 }
 function openNaverMap(name, address, lat, lng) {
-  // 동명 매장 오인식을 줄이려고 매장명+주소를 검색어로 사용
-  const query = encodeURIComponent(`${name} ${address || ''}`.trim());
+  // 검색어는 매장명만 사용 — 주소(지번/건물/호수 등 상세 토큰)를 붙이면 네이버 장소검색이
+  // 그 토큰까지 매칭하려다 결과가 0건이 되는 경우가 있음. 매장명에 지점명이 포함돼 특정도 충분.
+  // 동명 매장 정확도는 모바일 앱 딥링크의 좌표(nmap://place)로 해결.
+  const query = encodeURIComponent(name);
   const webUrl = `https://map.naver.com/p/search/${query}`;
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
