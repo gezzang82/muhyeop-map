@@ -393,8 +393,14 @@ body {
 }
 .reg-notice::before { content: '•'; color: var(--muted); font-weight: 700; }
 
-/* 캠페인 수정 모드: 매장 정보 읽기 전용 */
-.fields-locked { pointer-events: none; opacity: 0.5; }
+/* 캠페인 수정 모드: 매장 정보 읽기 전용 (Figma disabled — 회색 필드 + 라벨 정상) */
+.fields-locked { pointer-events: none; }
+.fields-locked input,
+.fields-locked .place-combo > input,
+.fields-locked .cselect-trigger { background: #f8f8f8; color: #999; border-color: var(--border); }
+.fields-locked .cselect-label { color: #999; }
+.fields-locked input::placeholder { color: #bbb; }
+.fields-locked .btn-search { background: #f8f8f8; color: #999; }
 .store-lock-hint { display: none; font-size: 12px; font-weight: 500; color: var(--primary); margin-left: 8px; }
 .reg-split { display: grid; grid-template-columns: 320px minmax(0, 1fr); column-gap: 40px; align-items: start; }
 .reg-left { display: flex; flex-direction: column; gap: 18px; }
