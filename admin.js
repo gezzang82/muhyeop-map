@@ -70,10 +70,11 @@ function showSubtab(group, key) {
 // ===== 커스텀 셀렉트 (네이티브 select를 숨기고 동기화되는 커스텀 드롭다운으로 감쌈) =====
 function enhanceSelects(root) {
   (root || document).querySelectorAll('select:not([data-cselect])').forEach(sel => {
-    if (sel.classList.contains('excel-cell-select')) return; // 엑셀 미리보기 동적 셀은 제외
     sel.setAttribute('data-cselect', '1');
+    // 엑셀 미리보기처럼 스크롤 컨테이너 안에 있는 셀렉트는 메뉴를 fixed로 띄워 잘림을 피한다
+    const isExcel = sel.classList.contains('excel-cell-select');
     const wrap = document.createElement('div');
-    wrap.className = 'cselect';
+    wrap.className = 'cselect' + (isExcel ? ' excel-cselect' : '');
     sel.parentNode.insertBefore(wrap, sel);
     wrap.appendChild(sel);
     const trigger = document.createElement('div');
@@ -109,18 +110,43 @@ function enhanceSelects(root) {
       e.stopPropagation();
       const willOpen = !wrap.classList.contains('open');
       document.querySelectorAll('.cselect.open').forEach(o => o.classList.remove('open'));
-      if (willOpen) { build(); wrap.classList.add('open'); }
+      if (willOpen) {
+        build();
+        wrap.classList.add('open');
+        if (isExcel) positionFixedCselectMenu(trigger, menu);
+      }
     });
     sel._cselectSync = sync;
     sync();
   });
 }
+// fixed 메뉴 위치를 트리거 기준으로 계산 (스크롤 컨테이너 overflow 잘림 회피)
+function positionFixedCselectMenu(trigger, menu) {
+  const r = trigger.getBoundingClientRect();
+  const maxH = 240;
+  const below = window.innerHeight - r.bottom;
+  menu.style.position = 'fixed';
+  menu.style.left = r.left + 'px';
+  menu.style.width = r.width + 'px';
+  menu.style.right = 'auto';
+  if (below < maxH && r.top > below) {
+    // 아래 공간이 부족하면 위로 띄움
+    menu.style.top = 'auto';
+    menu.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+  } else {
+    menu.style.bottom = 'auto';
+    menu.style.top = (r.bottom + 4) + 'px';
+  }
+}
 function refreshAdminSelects() {
   document.querySelectorAll('select[data-cselect]').forEach(s => s._cselectSync && s._cselectSync());
 }
-document.addEventListener('click', () => {
+function closeAllCselects() {
   document.querySelectorAll('.cselect.open').forEach(o => o.classList.remove('open'));
-});
+}
+document.addEventListener('click', closeAllCselects);
+// 스크롤 시 fixed 메뉴가 제자리에 남지 않도록 닫음 (캡처로 내부 스크롤 컨테이너까지 감지)
+window.addEventListener('scroll', () => { if (document.querySelector('.cselect.open')) closeAllCselects(); }, true);
 
 // ===== 초기화 =====
 function initAdmin() {
@@ -999,6 +1025,8 @@ function renderExcelPreview(headers, rows) {
       return `<td>${v}</td>`;
     }).join('') + '</tr>'
   ).join('') + (rows.length > 10 ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#aaa">...외 ${rows.length-10}행 (수정은 최초 10행만 가능)</td></tr>` : '');
+  // 동적 생성된 카테고리/플랫폼 셀렉트를 커스텀 드롭다운으로 변환
+  enhanceSelects(document.getElementById('previewBody'));
 }
 
 function geocodeAddress(addr) {

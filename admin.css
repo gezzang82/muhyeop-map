@@ -520,7 +520,7 @@ body {
 
 /* ===== 엑셀 업로드 ===== */
 .excel-guide { margin-bottom: 24px; }
-.guide-intro { display: flex; gap: 8px; font-size: 14px; color: var(--text); margin-bottom: 16px; }
+.guide-intro { display: flex; gap: 8px; font-size: 13px; color: var(--text); margin-bottom: 16px; }
 .guide-intro::before { content: '•'; color: var(--muted); }
 .guide-table { width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .guide-table th, .guide-table td { border-bottom: 1px solid var(--border); padding: 11px 14px; text-align: center; white-space: nowrap; }
@@ -566,6 +566,17 @@ body {
 .excel-cell-channels { display: flex; gap: 6px 12px; flex-wrap: wrap; }
 .excel-channel-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text); white-space: nowrap; cursor: pointer; }
 .excel-channel-chip input { margin: 0; width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; }
+/* 미리보기: 내용 많으면 가로 스크롤(셀 줄바꿈 방지) + 커스텀 셀렉트(메뉴 fixed) */
+#previewTable th, #previewTable td { white-space: nowrap; }
+/* 매장명/주소는 폭을 좁히고 두 줄 줄바꿈 허용 */
+#previewTable th:nth-child(1), #previewTable td:nth-child(1),
+#previewTable th:nth-child(2), #previewTable td:nth-child(2) { white-space: normal; word-break: keep-all; }
+#previewTable td:nth-child(1) { max-width: 160px; }
+#previewTable td:nth-child(2) { max-width: 210px; }
+.excel-cell-channels { width: 150px; }
+.excel-cselect { min-width: 96px; }
+.excel-cselect .cselect-trigger { padding: 7px 10px; font-size: 13px; }
+.excel-cselect.open .cselect-menu { z-index: 1200; }
 
 /* ===== 확인 모달 ===== */
 .modal-overlay {
