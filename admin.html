@@ -646,15 +646,36 @@
       <!-- 회원 목록 -->
       <div id="page-users" class="admin-page" style="display:none;">
         <h1 class="page-title">회원 목록</h1>
-        <div class="table-wrap">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th><th>로그인 방식</th><th>닉네임</th><th>이메일</th><th>블로그/인스타</th><th>가입일시</th>
-              </tr>
-            </thead>
-            <tbody id="userTableBody"></tbody>
-          </table>
+        <div class="filter-card">
+          <div class="user-filter">
+            <div class="filter-field uv-select">
+              <label>선택</label>
+              <select id="uvField">
+                <option value="all">전체</option>
+                <option value="nickname">닉네임</option>
+                <option value="email">이메일</option>
+                <option value="url">블로그·인스타</option>
+              </select>
+            </div>
+            <div class="filter-field uv-keyword">
+              <label>&nbsp;</label>
+              <input type="text" id="uvKeyword" placeholder="입력하세요" onkeydown="if(event.key==='Enter')applyUserFilter()">
+            </div>
+            <button class="btn-search-red" onclick="applyUserFilter()"><svg class="icon"><use href="#icon-search"></use></svg> 조회</button>
+          </div>
+        </div>
+        <div class="result-card">
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th><th>로그인 방식</th><th>닉네임</th><th>이메일</th><th>블로그·인스타</th><th>가입일시</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="uvPager"></div>
         </div>
       </div>
 
@@ -676,8 +697,8 @@
 
   <!-- 매장 수정 모달 -->
   <div id="editPlaceModal" class="modal-overlay" style="display:none;">
-    <div class="confirm-box">
-      <div class="confirm-title"><svg class="icon"><use href="#icon-edit"></use></svg> 매장 수정</div>
+    <div class="confirm-box edit-place-box">
+      <div class="edit-modal-title">매장 수정</div>
       <div class="form-row">
         <div class="form-group">
           <label>매장명 <span class="req">*</span></label>
@@ -698,20 +719,27 @@
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group full">
           <label>주소 <span class="req">*</span></label>
-          <input type="text" id="editPlaceAddress">
-        </div>
-        <div class="form-group addr-row">
-          <label>&nbsp;</label>
-          <button class="btn-search" onclick="searchEditPlaceAddress()"><svg class="icon"><use href="#icon-search"></use></svg> 좌표 검색</button>
+          <div class="input-with-btn">
+            <input type="text" id="editPlaceAddress">
+            <button class="btn-search" onclick="searchEditPlaceAddress()"><svg class="icon"><use href="#icon-search"></use></svg> 좌표 검색</button>
+          </div>
         </div>
       </div>
-      <input type="hidden" id="editPlaceLat">
-      <input type="hidden" id="editPlaceLng">
-      <div class="confirm-actions">
-        <button class="btn-cancel-sm" onclick="closeEditPlaceModal()">취소</button>
-        <button class="btn-edit-sm" onclick="confirmEditPlace()">저장</button>
+      <div class="form-row">
+        <div class="form-group">
+          <label>위도</label>
+          <input type="number" id="editPlaceLat" class="readonly-field" readonly>
+        </div>
+        <div class="form-group">
+          <label>경도</label>
+          <input type="number" id="editPlaceLng" class="readonly-field" readonly>
+        </div>
+      </div>
+      <div class="confirm-actions edit-place-actions">
+        <button class="btn-dark" onclick="confirmEditPlace()">저장하기</button>
+        <button class="btn-reset" onclick="closeEditPlaceModal()">취소</button>
       </div>
     </div>
   </div>

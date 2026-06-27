@@ -618,6 +618,18 @@ body {
   border-radius: var(--radius-pill); padding: 11px 26px; font-size: 14px; font-weight: 700; cursor: pointer;
 }
 
+/* 회원 목록 검색 필터 */
+.user-filter { display: flex; align-items: flex-end; gap: 16px; }
+.user-filter .uv-select { width: 180px; }
+.user-filter .uv-keyword { width: 280px; }
+.user-filter .btn-search-red { margin-left: auto; }
+
+/* 매장 수정 모달 */
+.edit-place-box { width: 540px; max-width: 92vw; text-align: left; padding: 24px 28px; }
+.edit-modal-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 20px; }
+.edit-place-actions { justify-content: flex-end; margin-top: 4px; }
+.readonly-field { background: #f8f8f8; color: #999; }
+
 .holiday-check-wrap { margin-top: 10px; }
 .td-days { font-size: 12px; color: var(--text); white-space: nowrap; }
 

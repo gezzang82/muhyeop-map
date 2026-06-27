@@ -1116,7 +1116,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 .iw-campaign { display: flex; flex-direction: column; gap: 8px; }
 .iw-campaign-header { display: flex; align-items: center; justify-content: space-between; height: 27px; }
-.iw-platform-tag { font-size: 13px; font-weight: 700; height: 24px; padding: 0 6px; border-radius: 4px; display: inline-flex; align-items: center; }
+.iw-platform-channels { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.iw-ch-icons { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.iw-ch-icons img { display: block; border-radius: 4px; }
+.iw-platform-tag { font-size: 13px; font-weight: 700; height: 24px; padding: 0 6px; border-radius: 4px; display: inline-flex; align-items: center; flex-shrink: 0; }
 .iw-content { font-size: 15px; color: #000; line-height: normal; }
 .iw-info-rows { display: flex; flex-direction: column; }
 .iw-report-btn { font-size: 12px; color: #999; text-decoration: underline; cursor: pointer; flex-shrink: 0; }
@@ -1865,8 +1868,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
   .detail-campaign { display: flex; flex-direction: column; gap: 8px; }
   .detail-campaign-header { display: flex; align-items: center; justify-content: space-between; height: 27px; }
-  .detail-campaign-tag-wrap { flex: 1; min-width: 0; }
-  .detail-platform-tag { font-size: 13px; font-weight: 700; height: 24px; padding: 0 6px; border-radius: 4px; display: inline-flex; align-items: center; }
+  .detail-campaign-tag-wrap { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+  .detail-ch-icons { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .detail-ch-icons img { display: block; border-radius: 4px; }
+  .detail-platform-tag { font-size: 13px; font-weight: 700; height: 24px; padding: 0 6px; border-radius: 4px; display: inline-flex; align-items: center; flex-shrink: 0; }
   .detail-report-btn { font-size: 12px; color: #999; text-decoration: underline; cursor: pointer; flex-shrink: 0; }
   .detail-dday { font-size: 15px; height: 26px; padding: 0 10px; border-radius: 13px; display: flex; align-items: center; background: #eee; color: #777; flex-shrink: 0; }
   .detail-dday.urgent { background: #e82a2d; color: white; }

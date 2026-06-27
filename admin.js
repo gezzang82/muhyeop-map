@@ -503,18 +503,67 @@ async function submitBanner() {
 
 // ===== 회원 목록 =====
 const PROVIDER_LABELS = { kakao: '카카오', naver: '네이버' };
+let allUsers = [];
+const userView = { page: 1, size: 50, field: 'all', keyword: '' };
+
 async function renderUserList() {
+  allUsers = await (await fetch('/api/users')).json();
+  userView.page = 1;
+  renderUserRows();
+}
+function applyUserFilter() {
+  userView.field = document.getElementById('uvField').value;
+  userView.keyword = (document.getElementById('uvKeyword').value || '').trim().toLowerCase();
+  userView.page = 1;
+  renderUserRows();
+}
+function getFilteredUsers() {
+  const { field, keyword } = userView;
+  if (!keyword) return allUsers;
+  return allUsers.filter(u => {
+    const nick = (u.nickname || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const url = `${u.urlPlatform || ''} ${u.urlId || ''}`.toLowerCase();
+    if (field === 'nickname') return nick.includes(keyword);
+    if (field === 'email') return email.includes(keyword);
+    if (field === 'url') return url.includes(keyword);
+    return nick.includes(keyword) || email.includes(keyword) || url.includes(keyword);
+  });
+}
+function renderUserRows() {
+  const filtered = getFilteredUsers();
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / userView.size));
+  if (userView.page > totalPages) userView.page = totalPages;
+  const start = (userView.page - 1) * userView.size;
+  const pageRows = filtered.slice(start, start + userView.size);
   const tbody = document.getElementById('userTableBody');
-  const users = await (await fetch('/api/users')).json();
-  tbody.innerHTML = users.map(u => `<tr>
+  tbody.innerHTML = pageRows.map(u => `<tr>
       <td class="td-id">${u.id}</td>
       <td>${PROVIDER_LABELS[u.provider] || u.provider}</td>
-      <td>${u.nickname || '-'}</td>
-      <td>${u.email || '-'}</td>
-      <td>${u.urlPlatform && u.urlId ? `${u.urlPlatform}: ${u.urlId}` : '-'}</td>
+      <td>${escHtml(u.nickname) || '-'}</td>
+      <td>${escHtml(u.email) || '-'}</td>
+      <td>${u.urlPlatform && u.urlId ? `${escHtml(u.urlPlatform)}: ${escHtml(u.urlId)}` : '-'}</td>
       <td>${u.createdAt}</td>
-    </tr>`).join('') || `<tr><td colspan="6" class="empty-msg">가입한 회원 없음</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="6" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
+  renderUserPager(totalPages);
 }
+function renderUserPager(totalPages) {
+  const pager = document.getElementById('uvPager');
+  if (!pager) return;
+  if (totalPages <= 1) { pager.innerHTML = ''; return; }
+  const p = userView.page;
+  const start = Math.max(1, Math.min(p - 2, totalPages - 4));
+  const end = Math.min(totalPages, start + 4);
+  let html = '';
+  html += `<button ${p === 1 ? 'disabled' : ''} onclick="gotoUserPage(1)">&laquo;</button>`;
+  html += `<button ${p === 1 ? 'disabled' : ''} onclick="gotoUserPage(${p - 1})">&lsaquo;</button>`;
+  for (let i = start; i <= end; i++) html += `<button class="${i === p ? 'active' : ''}" onclick="gotoUserPage(${i})">${i}</button>`;
+  html += `<button ${p === totalPages ? 'disabled' : ''} onclick="gotoUserPage(${p + 1})">&rsaquo;</button>`;
+  html += `<button ${p === totalPages ? 'disabled' : ''} onclick="gotoUserPage(${totalPages})">&raquo;</button>`;
+  pager.innerHTML = html;
+}
+function gotoUserPage(p) { userView.page = p; renderUserRows(); }
 
 // ===== 신고 목록 =====
 let reports = [];

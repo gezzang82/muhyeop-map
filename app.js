@@ -442,11 +442,6 @@ function createInfoContent(place) {
   const active = getActiveCampaigns(place.id);
   const ALL_DAYS = ['월','화','수','목','금','토','일'];
 
-  const allChannels = [...new Set(active.flatMap(c => c.channels))];
-  const channelIconsHtml = allChannels.map(ch =>
-    CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}" style="border-radius:4px;display:block;">` : ''
-  ).join('');
-
   const founderHtml = place.founderNickname ? `
     <div class="iw-founder">
       <span class="iw-founder-label">최초제보자</span>
@@ -467,6 +462,9 @@ function createInfoContent(place) {
         const rightBtnHtml = dl
           ? `<span class="iw-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>`
           : `<span class="iw-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>`;
+        const chIconsHtml = (c.channels || []).map(ch =>
+          CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}" style="border-radius:4px;display:block;">` : ''
+        ).join('');
 
         let daysHtml = '';
         if (c.operatingDays && c.operatingDays.length > 0) {
@@ -512,8 +510,9 @@ function createInfoContent(place) {
           ${divider}
           <div class="iw-campaign">
             <div class="iw-campaign-header">
-              <div style="flex:1;min-width:0;">
+              <div class="iw-platform-channels" style="flex:1;min-width:0;">
                 <span class="iw-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
+                ${chIconsHtml ? `<span class="iw-ch-icons">${chIconsHtml}</span>` : ''}
               </div>
               ${rightBtnHtml}
             </div>
@@ -529,7 +528,6 @@ function createInfoContent(place) {
         <div class="iw-name-row">
           <div class="iw-name-text-group">
             <span class="iw-name">${place.name}</span>
-            <div class="iw-channels">${channelIconsHtml}</div>
           </div>
           <button class="pc-card-close" onclick="closePcCard()">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -546,12 +544,6 @@ function createInfoContent(place) {
 
 function createMobileDetailContent(place) {
   const active = getActiveCampaigns(place.id);
-
-  // 채널 아이콘
-  const allChannels = [...new Set(active.flatMap(c => c.channels))];
-  const channelIconsHtml = allChannels.map(ch =>
-    CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}">` : ''
-  ).join('');
 
   // 최초제보
   const founderHtml = place.founderNickname ? `
@@ -577,6 +569,9 @@ function createMobileDetailContent(place) {
     const rightBtnHtml = dl
       ? `<span class="detail-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>`
       : `<span class="detail-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>`;
+    const chIconsHtml = (c.channels || []).map(ch =>
+      CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}" style="border-radius:4px;display:block;">` : ''
+    ).join('');
 
     // 요일 렌더
     let daysHtml = '';
@@ -627,6 +622,7 @@ function createMobileDetailContent(place) {
         <div class="detail-campaign-header">
           <div class="detail-campaign-tag-wrap">
             <span class="detail-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
+            ${chIconsHtml ? `<span class="detail-ch-icons">${chIconsHtml}</span>` : ''}
           </div>
           ${rightBtnHtml}
         </div>
@@ -640,7 +636,6 @@ function createMobileDetailContent(place) {
       <div class="detail-place">
         <div class="detail-name-row">
           <span class="detail-name">${place.name}</span>
-          <div class="detail-channels">${channelIconsHtml}</div>
         </div>
         <div class="detail-address">${place.address}</div>
       </div>
