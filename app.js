@@ -526,8 +526,9 @@ function createInfoContent(place) {
     <div class="info-window">
       <div class="iw-place">
         <div class="iw-name-row">
-          <div class="iw-name-text-group">
+          <div class="iw-name-text-group iw-name-link" onclick="openNaverMapByPlace(${place.id})" title="네이버지도에서 보기">
             <span class="iw-name">${place.name}</span>
+            <img src="image/ic_map_search_24.svg" width="20" height="20" class="iw-name-map-icon" alt="네이버지도에서 보기">
           </div>
           <button class="pc-card-close" onclick="closePcCard()">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -634,8 +635,9 @@ function createMobileDetailContent(place) {
   return `
     <div class="detail-fixed">
       <div class="detail-place">
-        <div class="detail-name-row">
+        <div class="detail-name-row detail-name-link" onclick="openNaverMapByPlace(${place.id})">
           <span class="detail-name">${place.name}</span>
+          <img src="image/ic_map_search_24.svg" width="20" height="20" class="detail-name-map-icon" alt="네이버지도에서 보기">
         </div>
         <div class="detail-address">${place.address}</div>
       </div>
@@ -2280,13 +2282,22 @@ function startLiveAlerts() {
 }
 
 // ===== 네이버지도 열기 =====
-function openNaverMap(name, address) {
-  const webUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
+// 매장 id로 호출 (인포윈도우/상세시트 매장명 클릭 → 네이버지도 연결). 좌표가 있으면 정확한 위치로 연결
+function openNaverMapByPlace(placeId) {
+  const p = places.find(x => x.id === placeId);
+  if (p) openNaverMap(p.name, p.address, p.lat, p.lng);
+}
+function openNaverMap(name, address, lat, lng) {
+  // 동명 매장 오인식을 줄이려고 매장명+주소를 검색어로 사용
+  const query = encodeURIComponent(`${name} ${address || ''}`.trim());
+  const webUrl = `https://map.naver.com/p/search/${query}`;
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if (isMobile) {
-    // 앱 딥링크 시도
-    const appUrl = `nmap://search?query=${encodeURIComponent(name)}&appname=muhyeop-map`;
+    // 앱 딥링크 시도: 좌표가 있으면 정확한 위치에 마커(place), 없으면 검색(search)
+    const appUrl = (lat != null && lng != null)
+      ? `nmap://place?lat=${lat}&lng=${lng}&name=${encodeURIComponent(name)}&appname=muhyeop-map`
+      : `nmap://search?query=${query}&appname=muhyeop-map`;
     const start = Date.now();
     window.location.href = appUrl;
     // 앱이 없으면 (300ms 내 화면 전환 없으면) 웹으로 fallback
