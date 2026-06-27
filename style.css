@@ -1084,8 +1084,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .iw-place { display: flex; flex-direction: column; padding: 20px 20px 0; }
 .iw-name-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
 .iw-name-text-group { display: flex; flex: 1; min-width: 0; gap: 8px; align-items: center; }
-.iw-name-link { cursor: pointer; }
-.iw-name-map-icon { flex-shrink: 0; display: block; }
+.iw-name-link { cursor: pointer; gap: 6px; }
+.iw-name-link-icon { flex-shrink: 0; display: block; }
 .iw-name {
   font-size: 16px; font-weight: 500; color: #000;
   flex-shrink: 1; min-width: 0;
@@ -1844,8 +1844,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
   .detail-place { display: flex; flex-direction: column; }
   .detail-name-row { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; }
-  .detail-name-link { cursor: pointer; }
-  .detail-name-map-icon { flex-shrink: 0; display: block; margin-top: 2px; }
+  .detail-name-link { cursor: pointer; gap: 6px; }
+  .detail-name-link-icon { flex-shrink: 0; display: block; margin-top: 2px; }
   .detail-name {
     font-size: 16px; font-weight: 500; color: #000;
     flex-shrink: 1; min-width: 0;

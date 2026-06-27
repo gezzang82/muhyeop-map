@@ -528,7 +528,7 @@ function createInfoContent(place) {
         <div class="iw-name-row">
           <div class="iw-name-text-group iw-name-link" onclick="openNaverMapByPlace(${place.id})" title="네이버지도에서 보기">
             <span class="iw-name">${place.name}</span>
-            <img src="image/ic_map_search_24.svg" width="20" height="20" class="iw-name-map-icon" alt="네이버지도에서 보기">
+            <img src="image/ic_link_16.svg" width="16" height="16" class="iw-name-link-icon" alt="네이버지도에서 보기">
           </div>
           <button class="pc-card-close" onclick="closePcCard()">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -637,7 +637,7 @@ function createMobileDetailContent(place) {
       <div class="detail-place">
         <div class="detail-name-row detail-name-link" onclick="openNaverMapByPlace(${place.id})">
           <span class="detail-name">${place.name}</span>
-          <img src="image/ic_map_search_24.svg" width="20" height="20" class="detail-name-map-icon" alt="네이버지도에서 보기">
+          <img src="image/ic_link_16.svg" width="16" height="16" class="detail-name-link-icon" alt="네이버지도에서 보기">
         </div>
         <div class="detail-address">${place.address}</div>
       </div>
