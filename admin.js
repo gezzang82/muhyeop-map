@@ -633,7 +633,7 @@ async function submitAdminCampaign() {
     const res = await fetch('/api/places', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, address, lat, lng, category })
+      body: JSON.stringify({ name, address, lat, lng, category, source: 'admin' })
     });
     const place = await res.json();
     places.push(place);

@@ -62,7 +62,8 @@ module.exports = async function handler(req, res) {
     if (!name || !address || lat == null || lng == null || !category) {
       return res.status(400).json({ error: 'name, address, lat, lng, category는 필수입니다.' });
     }
-    const session = readSession(req);
+    // 어드민 등록(source='admin')은 운영자가 대신 입력하는 것이므로 로그인 세션을 최초 제보자로 기록하지 않음
+    const session = (req.body?.source === 'admin') ? null : readSession(req);
     const founderNickname = session ? session.nickname : (req.body?.founderNickname || '');
     const finalFounderEmail = session ? (session.email || '') : (founderEmail || '');
     const founderUserId = session ? session.userId : null;

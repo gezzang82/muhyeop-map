@@ -121,7 +121,8 @@ module.exports = async function handler(req, res) {
     if (!placeId || !platform || !content || !channels?.length) {
       return res.status(400).json({ error: 'placeId, platform, content, channels는 필수입니다.' });
     }
-    const session = readSession(req);
+    // 어드민 등록(source='admin')은 운영자가 대신 입력하는 것이므로 로그인 세션을 제보자로 기록하지 않음
+    const session = (source === 'admin') ? null : readSession(req);
     const reporterNickname = session ? session.nickname : (req.body?.reporterNickname || '');
     const reporterEmail = session ? (session.email || '') : (req.body?.reporterEmail || '');
     const userId = session ? session.userId : null;
