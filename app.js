@@ -1300,6 +1300,8 @@ function closeLoginSheet() {
 }
 
 function openSignupInfoSheet() {
+  // 한 번 노출하면 자동으로 다시 띄우지 않음 (건너뛰면 '내 정보'에서 직접 등록)
+  try { localStorage.setItem('snsRegisterPrompted', '1'); } catch (e) {}
   document.getElementById('signupUrlPlatform').value = '';
   syncSelectTrigger('signupUrlPlatform');
   updateUrlPlatform('', 'signup');
@@ -2146,13 +2148,18 @@ function maybePromptSnsRegister() {
       '로그인 후 SNS 계정을 등록하면 다음 제보부터 자동입력되고, 내 블로그가 핀에 연결돼요.',
       { twoButton: true, confirmText: '로그인하기', cancelText: '다음에', onConfirm: openLoginSheet }
     ), 700);
-  } else if (!(currentUser.urlPlatform && currentUser.urlId)) {
+  } else if (!(currentUser.urlPlatform && currentUser.urlId) && !_snsRegisterPrompted()) {
     setTimeout(() => showAlert(
       'SNS 계정을 등록해보세요',
       '등록하면 다음 제보부터 자동입력되고, 내 블로그가 핀에 연결돼요.',
       { twoButton: true, confirmText: '등록하기', cancelText: '다음에', onConfirm: openProfileSheet }
     ), 700);
   }
+}
+
+// 가입 안내(SNS 등록 권유)를 이미 한 번 노출했는지 — 건너뛴 사용자는 다시 권유하지 않음
+function _snsRegisterPrompted() {
+  try { return !!localStorage.getItem('snsRegisterPrompted'); } catch (e) { return false; }
 }
 
 // ===== 토스트 =====
@@ -2603,7 +2610,11 @@ window.addEventListener('load', async function() {
   if (url.searchParams.get('signup') === '1') {
     url.searchParams.delete('signup');
     history.replaceState(null, '', url.toString());
-    openSignupInfoSheet();
+    // URL 파라미터만 믿지 않고 실제 상태로 판단: SNS 미등록 + 아직 한 번도 안내 안 받은 신규 로그인 사용자에게만 노출
+    // (모바일에서 탭이 폐기됐다 복원되면 signup=1이 살아난 채 재로드돼 중복 노출되던 문제 방지)
+    if (currentUser && !(currentUser.urlPlatform && currentUser.urlId) && !_snsRegisterPrompted()) {
+      openSignupInfoSheet();
+    }
   }
   if (!document.getElementById('map')) { hideAppLoading(); return; }
   updateStatCount();
