@@ -717,29 +717,36 @@ async function renderReportList() {
       <td>${r.createdAt}</td>
       <td>${reportActionButtons(r)}</td>
     </tr>`).join('') || `<tr><td colspan="8" class="empty-msg">신고 내역 없음</td></tr>`;
+  const total = reports.length;
+  document.getElementById('rvTotal').textContent = total;
+  document.getElementById('rvShown').textContent = total;
 }
 
+// 신고 행 관리 버튼: 수정(신고된 캠페인 내용 수정) / 숨김↔노출(캠페인 공개 토글) / 삭제(신고 기록 삭제)
 function reportActionButtons(r) {
-  if (r.reason === '캠페인 정보 변경') {
-    return `
-      <button class="btn-edit-sm" onclick="reportEditCampaign(${r.id}, ${r.campaignId})">캠페인 수정</button>
-      <button class="btn-del-sm" onclick="reportDeleteCampaign(${r.id}, ${r.campaignId})">캠페인 삭제</button>
-      <button class="btn-del-sm" onclick="dismissReport(${r.id})">무시</button>`;
+  const c = campaigns.find(c => c.id === r.campaignId);
+  const btns = [];
+  if (c) {
+    btns.push(`<button class="btn-edit-sm" onclick="editCampaign(${r.campaignId})">수정</button>`);
+    btns.push(`<button class="btn-edit-sm" onclick="toggleCampaignHidden(${r.campaignId})">${c.hidden ? '노출' : '숨김'}</button>`);
   }
-  if (r.reason === '협찬 종료') {
-    return `
-      <button class="btn-edit-sm" onclick="reportHidePlace(${r.id}, ${r.placeId})">매장 숨김</button>
-      <button class="btn-del-sm" onclick="reportDeletePlace(${r.id}, ${r.placeId})">매장 영구삭제</button>
-      <button class="btn-del-sm" onclick="dismissReport(${r.id})">무시</button>`;
-  }
-  if (r.reason === '허위 정보') {
-    return `
-      <button class="btn-edit-sm" onclick="reportEditCampaign(${r.id}, ${r.campaignId})">캠페인 수정</button>
-      <button class="btn-del-sm" onclick="reportDeleteCampaign(${r.id}, ${r.campaignId})">캠페인 삭제</button>
-      <button class="btn-edit-sm" onclick="reportHidePlace(${r.id}, ${r.placeId})">매장 숨김</button>
-      <button class="btn-del-sm" onclick="dismissReport(${r.id})">무시</button>`;
-  }
-  return `<button class="btn-del-sm" onclick="dismissReport(${r.id})">무시</button>`;
+  btns.push(`<button class="btn-del-sm" onclick="dismissReport(${r.id})">삭제</button>`);
+  return btns.join('\n');
+}
+
+async function toggleCampaignHidden(id) {
+  const c = campaigns.find(c => c.id === id);
+  if (!c) return;
+  const nextHidden = !c.hidden;
+  if (nextHidden && !confirm('이 캠페인을 지도에서 숨길까요? (언제든 다시 노출할 수 있어요)')) return;
+  await fetch(`/api/campaigns?id=${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hidden: nextHidden })
+  });
+  c.hidden = nextHidden;
+  adminToast(nextHidden ? '캠페인을 숨김 처리했어요.' : '캠페인 숨김을 해제했어요.');
+  renderReportList();
 }
 
 async function dismissReport(id) {
@@ -747,43 +754,6 @@ async function dismissReport(id) {
   const idx = reports.findIndex(r => r.id === id);
   if (idx > -1) reports.splice(idx, 1);
   renderReportList();
-}
-
-function reportEditCampaign(reportId, campaignId) {
-  editCampaign(campaignId);
-  dismissReport(reportId);
-}
-
-async function reportDeleteCampaign(reportId, campaignId) {
-  if (!confirm('이 캠페인을 삭제할까요?')) return;
-  await fetch(`/api/campaigns?id=${campaignId}`, { method: 'DELETE' });
-  const idx = campaigns.findIndex(c => c.id === campaignId);
-  if (idx > -1) campaigns.splice(idx, 1);
-  adminToast('캠페인 삭제 완료');
-  dismissReport(reportId);
-}
-
-async function reportHidePlace(reportId, placeId) {
-  if (!confirm('이 매장을 지도에서 숨길까요? (캠페인은 유지되고, 매장 목록에서 언제든 숨김 해제할 수 있어요)')) return;
-  await fetch(`/api/places?id=${placeId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ hidden: true })
-  });
-  const p = places.find(p => p.id === placeId);
-  if (p) p.hidden = true;
-  adminToast('매장을 숨김 처리했어요.');
-  dismissReport(reportId);
-}
-
-async function reportDeletePlace(reportId, placeId) {
-  if (!confirm('이 매장와 모든 캠페인을 영구 삭제할까요?')) return;
-  await fetch(`/api/places?id=${placeId}`, { method: 'DELETE' });
-  const idx = places.findIndex(p => p.id === placeId);
-  if (idx > -1) places.splice(idx, 1);
-  campaigns.splice(0, campaigns.length, ...campaigns.filter(c => c.placeId !== placeId));
-  adminToast('매장 및 관련 캠페인 삭제 완료');
-  dismissReport(reportId);
 }
 
 // ===== 캠페인 등록 =====

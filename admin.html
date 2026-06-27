@@ -671,15 +671,22 @@
       <!-- 신고 목록 -->
       <div id="page-reports" class="admin-page" style="display:none;">
         <h1 class="page-title">신고 목록</h1>
-        <div class="table-wrap">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th><th>매장명</th><th>캠페인명</th><th>신고이유</th><th>상세내용</th><th>신고자</th><th>신고일시</th><th>관리</th>
-              </tr>
-            </thead>
-            <tbody id="reportTableBody"></tbody>
-          </table>
+        <div class="result-card">
+          <div class="result-bar">
+            <div class="result-bar-left">
+              <span class="result-count">전체 <b id="rvTotal">0</b>건 중 <b id="rvShown">0</b>건 표시</span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th><th>매장명</th><th>캠페인명</th><th>신고이유</th><th>상세내용</th><th>신고자</th><th>신고일시</th><th>관리</th>
+                </tr>
+              </thead>
+              <tbody id="reportTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 

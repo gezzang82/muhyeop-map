@@ -152,10 +152,16 @@ module.exports = async function handler(req, res) {
     if (!id) {
       return res.status(400).json({ error: 'id는 필수입니다.' });
     }
+    const body = req.body || {};
+    // 부분 업데이트: hidden 토글만 (신고 목록에서 캠페인 숨김/노출). 전체 수정 PATCH는 platform을 항상 보냄.
+    if (body.hidden !== undefined && body.platform === undefined) {
+      await db.execute({ sql: 'UPDATE campaigns SET hidden = ? WHERE id = ?', args: [body.hidden ? 1 : 0, id] });
+      return res.status(200).json({ id, hidden: !!body.hidden });
+    }
     const {
       platform, channels, content, deadline, link,
       operatingDays, operatingHours, excludeHoliday
-    } = req.body || {};
+    } = body;
     await db.execute({
       sql: `UPDATE campaigns SET platform = ?, channels = ?, content = ?, deadline = ?, link = ?,
             operating_days = ?, operating_hours = ?, exclude_holiday = ? WHERE id = ?`,
