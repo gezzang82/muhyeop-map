@@ -512,8 +512,7 @@
         <div id="sub-reg-excel" style="display:none;">
         <div class="form-card">
           <div class="excel-guide">
-            <div class="guide-title"><svg class="icon"><use href="#icon-list"></use></svg> 엑셀 파일 형식</div>
-            <p>아래 컬럼 순서에 맞게 작성해주세요. 1행은 헤더(컬럼명)로 자동 인식합니다.</p>
+            <p class="guide-intro">아래 컬럼 순서에 맞게 작성해주세요. 1행은 헤더(컬럼명)로 자동 인식합니다.</p>
             <div class="table-wrap">
               <table class="guide-table">
                 <thead>
@@ -562,10 +561,11 @@
             </label>
             <div class="upload-hint">.xlsx / .xls / .csv 지원</div>
           </div>
+        </div>
 
-          <div id="previewSection" style="display:none;">
+        <div class="form-card" id="previewSection" style="display:none;">
             <div class="preview-header">
-              <div class="preview-title"><svg class="icon"><use href="#icon-list"></use></svg> 미리보기</div>
+              <div class="preview-title">미리보기</div>
               <div id="previewCount" class="preview-count"></div>
             </div>
             <div class="table-wrap">
@@ -578,7 +578,6 @@
               <button class="btn-submit" id="excelImportBtn" onclick="importExcelData()">전체 가져오기</button>
               <button class="btn-reset" onclick="resetExcel()">취소</button>
             </div>
-          </div>
         </div>
         </div><!-- /#sub-reg-excel -->
       </div><!-- /#page-register -->

@@ -519,48 +519,53 @@ body {
 .btn-reset:hover { background: #f4f4f7; }
 
 /* ===== 엑셀 업로드 ===== */
-.excel-guide { background: #f7f7fb; border-radius: var(--radius-md); padding: 22px; margin-bottom: 24px; }
-.guide-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; margin-bottom: 12px; }
-.excel-guide p { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
-.guide-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.guide-table th, .guide-table td { border: 1px solid var(--border); padding: 7px 10px; }
-.guide-table th { background: #efeff6; font-weight: 700; }
-.guide-notes { margin-top: 12px; padding-left: 16px; }
-.guide-notes li { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-.guide-notes code { background: #e8e8ee; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+.excel-guide { margin-bottom: 24px; }
+.guide-intro { display: flex; gap: 8px; font-size: 14px; color: var(--text); margin-bottom: 16px; }
+.guide-intro::before { content: '•'; color: var(--muted); }
+.guide-table { width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.guide-table th, .guide-table td { border-bottom: 1px solid var(--border); padding: 11px 14px; text-align: center; white-space: nowrap; }
+.guide-table td { color: var(--muted); }
+.guide-table tbody tr:last-child td { border-bottom: none; }
+.guide-table th { background: #f7f7fb; font-weight: 700; color: var(--text); }
+.guide-notes { margin-top: 16px; padding-left: 4px; list-style: none; }
+.guide-notes li { position: relative; padding-left: 14px; font-size: 13px; color: var(--muted); margin-bottom: 7px; }
+.guide-notes li::before { content: '•'; position: absolute; left: 0; color: var(--muted-light); }
+.guide-notes code { background: #f0f0f3; padding: 1px 5px; border-radius: 4px; font-size: 12px; color: var(--text); }
 .btn-download {
   display: inline-flex; align-items: center; gap: 6px;
-  margin-top: 12px; background: var(--success-bg); color: var(--success);
-  border: none; border-radius: var(--radius-pill); padding: 9px 18px;
-  font-size: 13px; font-weight: 600; cursor: pointer;
+  margin-top: 18px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 16px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s;
 }
-.btn-download:hover { background: #d6f0e6; }
+.btn-download:hover { background: #f4f4f7; }
 
 .upload-zone {
-  border: 2px dashed var(--border); border-radius: var(--radius-lg);
-  padding: 48px 24px; text-align: center;
-  transition: all 0.2s; cursor: pointer; margin-bottom: 20px;
+  border: 1.5px dashed #d0d0d8; border-radius: var(--radius-lg);
+  padding: 40px 24px; text-align: center; background: #fafafc;
+  transition: all 0.2s; cursor: pointer; margin-top: 24px;
 }
-.upload-zone.drag-over { border-color: var(--brand); background: #f7f7fb; }
+.upload-zone.drag-over { border-color: var(--brand); background: #f2f2f7; }
 .upload-icon { color: var(--muted-light); margin-bottom: 12px; display: flex; align-items: center; justify-content: center; }
 .upload-icon .icon { width: 36px; height: 36px; }
-.upload-text { font-size: 15px; color: var(--muted); margin-bottom: 12px; }
+.upload-text { font-size: 15px; color: var(--muted); margin-bottom: 14px; }
 .btn-upload-file {
-  display: inline-block; background: var(--brand); color: var(--brand-accent);
-  border-radius: var(--radius-pill); padding: 11px 22px; font-size: 14px;
-  font-weight: 600; cursor: pointer;
+  display: inline-block; background: var(--text); color: #fff;
+  border-radius: var(--radius-sm); padding: 11px 22px; font-size: 14px;
+  font-weight: 600; cursor: pointer; transition: opacity 0.15s;
 }
-.upload-hint { font-size: 12px; color: var(--muted-light); margin-top: 10px; }
+.btn-upload-file:hover { opacity: 0.88; }
+.upload-hint { font-size: 13px; color: var(--muted-light); margin-top: 12px; }
 
-.preview-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.preview-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+.preview-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.preview-title { font-size: 16px; font-weight: 700; color: var(--text); }
 .preview-count { font-size: 13px; color: var(--muted); }
-.preview-actions { display: flex; gap: 10px; margin-top: 16px; }
+.preview-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
-.excel-cell-select { font-size: 13px; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
-.excel-cell-channels { display: flex; gap: 8px; flex-wrap: wrap; }
-.excel-channel-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text); white-space: nowrap; }
-.excel-channel-chip input { margin: 0; }
+.excel-cell-select { font-size: 13px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-family: inherit; outline: none; }
+.excel-cell-select:focus { border-color: var(--text); }
+.excel-cell-channels { display: flex; gap: 6px 12px; flex-wrap: wrap; }
+.excel-channel-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text); white-space: nowrap; cursor: pointer; }
+.excel-channel-chip input { margin: 0; width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; }
 
 /* ===== 확인 모달 ===== */
 .modal-overlay {
