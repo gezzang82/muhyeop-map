@@ -145,8 +145,13 @@ function closeAllCselects() {
   document.querySelectorAll('.cselect.open').forEach(o => o.classList.remove('open'));
 }
 document.addEventListener('click', closeAllCselects);
-// 스크롤 시 fixed 메뉴가 제자리에 남지 않도록 닫음 (캡처로 내부 스크롤 컨테이너까지 감지)
-window.addEventListener('scroll', () => { if (document.querySelector('.cselect.open')) closeAllCselects(); }, true);
+// 스크롤 시 fixed 메뉴가 제자리에 남지 않도록 닫음 (캡처로 내부 스크롤 컨테이너까지 감지).
+// 단, 메뉴 자체를 스크롤하는 경우(옵션이 많아 내부 스크롤)는 닫지 않음.
+window.addEventListener('scroll', (e) => {
+  if (!document.querySelector('.cselect.open')) return;
+  if (e.target && e.target.closest && e.target.closest('.cselect-menu')) return;
+  closeAllCselects();
+}, true);
 
 // ===== 초기화 =====
 function initAdmin() {
@@ -216,6 +221,21 @@ const placeView = { page: 1, size: 100, total: 0, rows: [], selected: new Set() 
 function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 const _fv = id => (document.getElementById(id)?.value || '').trim();
 
+// 플랫폼별 색상 태그 / 채널 아이콘 (조회 캠페인용). 색상맵은 app.js의 getPlatformColor 재사용
+function platformTag(p) {
+  if (!p) return '-';
+  const color = (typeof getPlatformColor === 'function') ? getPlatformColor(p) : '#666';
+  return `<span class="badge-platform" style="background:${color}1a;color:${color}">${escHtml(p)}</span>`;
+}
+const CHANNEL_ICON = { '블로그':'ic_naver_blog_20.png','클립':'ic_clip_20.png','인스타그램':'ic_instagram_20.png','릴스':'ic_reels_20.png','유튜브':'ic_youtube_20.png' };
+function channelIcons(channels) {
+  const list = (channels || []).filter(Boolean);
+  if (!list.length) return '-';
+  return `<span class="ch-icons">${list.map(ch => CHANNEL_ICON[ch]
+    ? `<img class="ch-icon" src="image/${CHANNEL_ICON[ch]}" width="20" height="20" alt="${escHtml(ch)}" title="${escHtml(ch)}">`
+    : escHtml(ch)).join('')}</span>`;
+}
+
 // ===== 조회: 캠페인 (서버 사이드) =====
 async function loadCampView(page) {
   if (page) campView.page = page;
@@ -242,14 +262,14 @@ function renderCampRows() {
       <td class="td-check"><input type="checkbox" class="cv-check" data-id="${c.id}" onchange="onRowCheck('camp')"></td>
       <td class="td-id">${c.id}</td>
       <td><strong>${escHtml(c.placeName) || '-'}</strong></td>
-      <td><span class="badge-platform">${escHtml(c.platform)}</span></td>
-      <td>${(c.channels || []).join(', ')}</td>
+      <td>${platformTag(c.platform)}</td>
+      <td>${channelIcons(c.channels)}</td>
       <td class="td-content">${escHtml(c.content)}</td>
       <td class="td-days">${(c.operatingDays || []).join(' ')}${c.excludeHoliday ? ' / 공휴일 불가' : ''}</td>
       <td>${c.deadline || '-'}</td>
       <td>${escHtml(c.reporterNickname) || '-'}</td>
       <td>${escHtml(c.reporterEmail) || '-'}</td>
-      <td>${c.source === 'user' ? '<span class="badge-status active">유저</span>' : c.source === 'admin' ? '<span class="badge-status expired">어드민</span>' : '-'}</td>
+      <td>${c.source === 'user' ? '<span class="badge-status user">유저</span>' : c.source === 'admin' ? '<span class="badge-status expired">어드민</span>' : '-'}</td>
       <td><span class="badge-status ${isActive ? 'active' : 'expired'}">${isActive ? '모집중' : '마감'}</span></td>
       <td>
         <button class="btn-edit-sm" onclick="editCampaign(${c.id})">수정</button>
@@ -286,10 +306,10 @@ function placeStatusText(p) {
   return p.activeCount > 0 ? '노출' : '마감';
 }
 function placeStatusBadge(p) {
-  if (p.hidden) return '<span class="badge-status hidden">숨김</span>';
+  if (p.hidden) return '<span class="place-status">숨김</span>';
   return p.activeCount > 0
-    ? '<span class="badge-status active">노출</span>'
-    : '<span class="badge-status closed">마감</span>';
+    ? '<span class="place-status">노출</span>'
+    : '<span class="place-status closed">마감</span>';
 }
 
 function renderPlaceRows() {
@@ -304,9 +324,11 @@ function renderPlaceRows() {
     <td>${escHtml(p.founderNickname) || '-'}</td>
     <td>${escHtml(p.founderEmail) || '-'}</td>
     <td>
-      <button class="btn-edit-sm" onclick="openEditPlaceModal(${p.id})">수정</button>
-      <button class="btn-edit-sm" onclick="togglePlaceHidden(${p.id})">${p.hidden ? '숨김 해제' : '숨김'}</button>
-      <button class="btn-del-sm" onclick="confirmDelete('place', ${p.id})">삭제</button>
+      <div class="row-actions">
+        <button class="btn-edit-sm" onclick="openEditPlaceModal(${p.id})">수정</button>
+        <button class="btn-edit-sm" onclick="togglePlaceHidden(${p.id})">${p.hidden ? '노출' : '숨김'}</button>
+        <button class="btn-del-sm" onclick="confirmDelete('place', ${p.id})">삭제</button>
+      </div>
     </td></tr>`).join('') || `<tr><td colspan="10" class="empty-msg">조건에 맞는 매장 없음</td></tr>`;
   document.getElementById('pvTotal').textContent = placeView.total;
   document.getElementById('pvShown').textContent = placeView.rows.length;
@@ -616,6 +638,14 @@ function pickExistingPlace(id) {
   refreshAdminSelects();
 }
 
+// 캠페인 수정 모드: 매장 정보(카테고리/매장선택/주소/위경도)를 읽기 전용으로 잠금
+function setStoreFieldsLocked(locked) {
+  document.querySelector('.reg-left')?.classList.toggle('fields-locked', locked);
+  document.getElementById('storeAddrFields')?.classList.toggle('fields-locked', locked);
+  const hint = document.getElementById('storeLockHint');
+  if (hint) hint.style.display = locked ? 'inline' : 'none';
+}
+
 function onPlaceSelect() {
   // 콤보 구조에서는 별도 잠금 없이 자동 채움(수정 가능) — 호환용 빈 함수
   return;
@@ -710,6 +740,7 @@ function resetAddForm() {
   const excludeEl = document.getElementById('addExcludeHoliday'); if(excludeEl) excludeEl.checked = false;
   const combo = document.getElementById('placeCombo');
   if (combo) { combo.classList.remove('open'); const m = document.getElementById('placeComboMenu'); if (m) m.innerHTML = ''; }
+  setStoreFieldsLocked(false); // 신규 등록 모드에서는 매장 정보 잠금 해제
   refreshAdminSelects();
 }
 
@@ -869,6 +900,7 @@ function editCampaign(id) {
   showSubtab('register', 'add');
   setTimeout(() => {
     pickExistingPlace(c.placeId);
+    setStoreFieldsLocked(true); // 캠페인 수정 시 매장 정보는 읽기 전용
     document.getElementById('addPlatform').value = c.platform;
     (c.channels||[]).forEach(ch => {
       const el = document.getElementById(`ach_${ch}`); if(el) el.checked = true;

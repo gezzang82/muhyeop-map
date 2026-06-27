@@ -244,25 +244,32 @@ body {
 .td-content { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .td-addr { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 12px; }
 
-.badge-platform { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); background: #f0f0f3; color: var(--muted); }
+.badge-platform { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); background: #f0f0f3; color: var(--muted); white-space: nowrap; }
 .badge-status { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); white-space: nowrap; }
 .badge-status.active { background: var(--success-bg); color: var(--success); }
 .badge-status.expired { background: #f0f0f3; color: var(--muted-light); }
 .badge-status.closed { background: #fff3e0; color: #c77700; }
 .badge-status.hidden { background: #f0f0f3; color: var(--muted); }
+.badge-status.user { background: #e6f0fe; color: #589cf6; }
+.ch-icons { display: inline-flex; align-items: center; gap: 4px; }
+.ch-icon { width: 20px; height: 20px; vertical-align: middle; }
 .badge-count { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: var(--radius-pill); background: #f0f0f3; color: var(--muted); }
-.badge-count.active { background: var(--success-bg); color: var(--success); }
+.badge-count.active { background: #e6f0fe; color: #589cf6; }
 
 .btn-edit-sm, .btn-del-sm {
-  font-size: 12px; padding: 6px 12px; border-radius: var(--radius-pill);
-  border: none; cursor: pointer; margin-right: 4px; font-weight: 600;
-  white-space: nowrap;
-  transition: background 0.15s;
+  display: inline-block; font-size: 13px; padding: 4px 10px; border-radius: 6px;
+  cursor: pointer; margin-right: 4px; font-weight: 500;
+  white-space: nowrap; font-family: inherit;
+  transition: all 0.15s;
 }
-.btn-edit-sm { background: #f0f0f3; color: var(--text); }
-.btn-edit-sm:hover { background: #e4e4e9; }
-.btn-del-sm { background: var(--danger-bg); color: var(--danger); }
-.btn-del-sm:hover { background: #fbd9d9; }
+.btn-edit-sm { background: #fff; color: var(--text); border: 1px solid var(--border); }
+.btn-edit-sm:hover { background: #f4f4f7; }
+.btn-del-sm { background: #ff3c42; color: #fff; border: 1px solid #ff3c42; }
+.btn-del-sm:hover { opacity: 0.9; }
+.row-actions { white-space: nowrap; }
+/* 매장 상태: 일반 텍스트 + 마감만 강조 */
+.place-status { font-size: 12px; color: var(--text); }
+.place-status.closed { color: #c77700; font-weight: 700; }
 
 /* ===== 등록 폼 ===== */
 .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; box-shadow: var(--shadow-sm); }
@@ -382,10 +389,13 @@ body {
 .reg-notice {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  padding: 15px 20px; font-size: 14px; color: var(--text); margin-bottom: 16px;
+  padding: 15px 20px; font-size: 13px; color: var(--text); margin-bottom: 16px;
 }
 .reg-notice::before { content: '•'; color: var(--muted); font-weight: 700; }
 
+/* 캠페인 수정 모드: 매장 정보 읽기 전용 */
+.fields-locked { pointer-events: none; opacity: 0.5; }
+.store-lock-hint { display: none; font-size: 12px; font-weight: 500; color: var(--primary); margin-left: 8px; }
 .reg-split { display: grid; grid-template-columns: 320px minmax(0, 1fr); column-gap: 40px; align-items: start; }
 .reg-left { display: flex; flex-direction: column; gap: 18px; }
 .reg-right { border-left: 1px solid var(--border); padding-left: 40px; min-width: 0; }
