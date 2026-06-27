@@ -819,8 +819,16 @@ function searchRegion() {
   const nq = normalize(query);
   const placeMatch = places.find(p => normalize(p.name) === nq);
   if (placeMatch) {
-    setSelectedMarker(placeMatch.id);
-    focusPlace(placeMatch.id);
+    // 진행 중인 캠페인이 있는 매장만 지도에 핀/카드를 노출. 종료된(비활성) 매장은
+    // 검색되어 위치로 이동은 하되, 핀이 없으므로 카드(말풍선)는 띄우지 않음.
+    if (getActiveCampaigns(placeMatch.id).length > 0) {
+      setSelectedMarker(placeMatch.id);
+      focusPlace(placeMatch.id);
+    } else {
+      map.setCenter(new naver.maps.LatLng(placeMatch.displayLat ?? placeMatch.lat, placeMatch.displayLng ?? placeMatch.lng));
+      map.setZoom(16);
+      showToast('현재 진행 중인 협찬이 없는 매장이에요');
+    }
     return;
   }
 

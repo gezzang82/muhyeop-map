@@ -36,13 +36,17 @@ module.exports = async function handler(req, res) {
       const page = Math.max(1, parseInt(q.page, 10) || 1);
       const size = Math.min(500, Math.max(1, parseInt(q.size, 10) || 100));
       const where = []; const args = [];
+      const today = new Date().toISOString().slice(0, 10);
+      // 진행 중(노출) 캠페인 존재 여부: 숨김 안 됨 + 마감일 없음 또는 오늘 이후
+      const activeSub = `EXISTS (SELECT 1 FROM campaigns c WHERE c.place_id = p.id AND COALESCE(c.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?))`;
       if (q.q) { where.push('p.name LIKE ?'); args.push('%' + q.q + '%'); }
       if (q.category && q.category !== 'all') { where.push('p.category = ?'); args.push(q.category); }
-      if (q.status === 'visible') where.push('COALESCE(p.hidden,0) = 0');
-      else if (q.status === 'hidden') where.push('COALESCE(p.hidden,0) = 1');
+      // 상태 3분류: visible(노출=진행중 캠페인 있음) / expired(마감=진행중 캠페인 없음) / hidden(강제 숨김)
+      if (q.status === 'visible') { where.push('COALESCE(p.hidden,0) = 0'); where.push(activeSub); args.push(today); }
+      else if (q.status === 'expired') { where.push('COALESCE(p.hidden,0) = 0'); where.push('NOT ' + activeSub); args.push(today); }
+      else if (q.status === 'hidden') { where.push('COALESCE(p.hidden,0) = 1'); }
       if (q.reporter) { where.push('(p.founder_nickname LIKE ? OR p.founder_email LIKE ?)'); args.push('%' + q.reporter + '%', '%' + q.reporter + '%'); }
       const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
-      const today = new Date().toISOString().slice(0, 10);
       const totalRes = await db.execute({ sql: `SELECT COUNT(*) AS n FROM places p ${whereSql}`, args });
       const total = Number(totalRes.rows[0]?.n || 0);
       const rowsRes = await db.execute({

@@ -254,6 +254,18 @@ async function loadPlaceView(page) {
   placeView.selected.clear();
   renderPlaceRows();
 }
+// 매장 상태 3분류: 숨김(강제) > 노출(진행중 캠페인 있음) > 마감(진행중 캠페인 없음)
+function placeStatusText(p) {
+  if (p.hidden) return '숨김';
+  return p.activeCount > 0 ? '노출' : '마감';
+}
+function placeStatusBadge(p) {
+  if (p.hidden) return '<span class="badge-status hidden">숨김</span>';
+  return p.activeCount > 0
+    ? '<span class="badge-status active">노출</span>'
+    : '<span class="badge-status closed">마감</span>';
+}
+
 function renderPlaceRows() {
   document.getElementById('placeTableBody').innerHTML = placeView.rows.map(p => `<tr>
     <td class="td-check"><input type="checkbox" class="pv-check" data-id="${p.id}" onchange="onRowCheck('place')"></td>
@@ -262,7 +274,7 @@ function renderPlaceRows() {
     <td>${escHtml(p.category)}</td>
     <td class="td-addr">${escHtml(p.address)}</td>
     <td><span class="badge-count ${p.activeCount > 0 ? 'active' : ''}">${p.activeCount}개</span></td>
-    <td>${p.hidden ? '<span class="badge-count">숨김</span>' : '노출'}</td>
+    <td>${placeStatusBadge(p)}</td>
     <td>${escHtml(p.founderNickname) || '-'}</td>
     <td>${escHtml(p.founderEmail) || '-'}</td>
     <td>
@@ -314,7 +326,7 @@ function downloadViewExcel(type) {
   let aoa;
   if (type === 'place') {
     aoa = [['ID', '매장명', '카테고리', '주소', '활성캠페인', '상태', '최초제보자', '이메일']];
-    st.rows.forEach(p => aoa.push([p.id, p.name, p.category, p.address, p.activeCount, p.hidden ? '숨김' : '노출', p.founderNickname || '', p.founderEmail || '']));
+    st.rows.forEach(p => aoa.push([p.id, p.name, p.category, p.address, p.activeCount, placeStatusText(p), p.founderNickname || '', p.founderEmail || '']));
   } else {
     const today = getKSTTodayUTC();
     aoa = [['ID', '매장명', '플랫폼', '채널', '협찬내용', '요일', '마감일', '제보자', '이메일', '출처', '상태']];
