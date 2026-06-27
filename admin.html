@@ -588,7 +588,7 @@
       <div id="page-banners" class="admin-page" style="display:none;">
         <h1 class="page-title">이벤트 팝업</h1>
         <div class="form-card">
-          <div class="form-section-title"><svg class="icon"><use href="#icon-megaphone"></use></svg> 팝업 등록</div>
+          <div class="form-section-title">팝업 등록</div>
           <div class="form-row">
             <div class="form-group full">
               <label>이미지 URL <span class="req">*</span></label>
@@ -604,27 +604,67 @@
           <div class="form-row">
             <div class="form-group">
               <label>시작일 <span class="req">*</span></label>
-              <input type="date" id="bannerStartDate">
+              <div class="cdate" id="bsDatePicker">
+                <input type="hidden" id="bannerStartDate">
+                <button type="button" class="cdate-trigger placeholder" id="bsTrigger" onclick="gcalToggle('bs', event)">
+                  <span class="cdate-text" id="bsText">YYYY-MM-DD</span>
+                  <svg class="cdate-ic" width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 9h18" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.5v4M16 2.5v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+                <div class="cdate-pop" id="bsPop">
+                  <div class="cdate-head">
+                    <button type="button" class="cdate-nav" onclick="gcalNav('bs',-1)" aria-label="이전 달"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <div class="cdate-title"><b id="bsYear">YYYY</b><span id="bsMonth">MM</span></div>
+                    <button type="button" class="cdate-nav" onclick="gcalNav('bs',1)" aria-label="다음 달"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                  </div>
+                  <div class="cdate-dow"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span></div>
+                  <div class="cdate-grid" id="bsGrid"></div>
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label>종료일 <span class="req">*</span></label>
-              <input type="date" id="bannerEndDate">
+              <div class="cdate" id="beDatePicker">
+                <input type="hidden" id="bannerEndDate">
+                <button type="button" class="cdate-trigger placeholder" id="beTrigger" onclick="gcalToggle('be', event)">
+                  <span class="cdate-text" id="beText">YYYY-MM-DD</span>
+                  <svg class="cdate-ic" width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 9h18" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.5v4M16 2.5v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+                <div class="cdate-pop" id="bePop">
+                  <div class="cdate-head">
+                    <button type="button" class="cdate-nav" onclick="gcalNav('be',-1)" aria-label="이전 달"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    <div class="cdate-title"><b id="beYear">YYYY</b><span id="beMonth">MM</span></div>
+                    <button type="button" class="cdate-nav" onclick="gcalNav('be',1)" aria-label="다음 달"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                  </div>
+                  <div class="cdate-dow"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span></div>
+                  <div class="cdate-grid" id="beGrid"></div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="form-actions">
-            <button class="btn-submit" onclick="submitBanner()">등록하기</button>
+            <button class="btn-submit" id="bannerSubmitBtn" onclick="submitBanner()">등록하기</button>
+            <button class="btn-reset" id="bannerCancelBtn" onclick="resetBannerForm()" style="display:none;">취소</button>
           </div>
         </div>
 
-        <div class="table-wrap">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th><th>이미지</th><th>이동 URL</th><th>시작일</th><th>종료일</th><th>상태</th><th>관리</th>
-              </tr>
-            </thead>
-            <tbody id="bannerTableBody"></tbody>
-          </table>
+        <div class="result-card">
+          <div class="result-bar">
+            <div class="result-bar-left">
+              <select id="bvSize" onchange="renderBannerList()"><option value="10">10</option><option value="100" selected>100</option><option value="500">500</option></select>
+              <span>전체 <strong id="bvTotal">0</strong>건 중 <strong id="bvShown">0</strong>건 표시</span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th><th>이미지</th><th>이동 URL</th><th>시작일</th><th>종료일</th><th>상태</th><th>관리</th>
+                </tr>
+              </thead>
+              <tbody id="bannerTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="bvPager"></div>
         </div>
       </div>
 

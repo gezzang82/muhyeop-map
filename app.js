@@ -304,7 +304,7 @@ function tryInitialLocation() {
 // ===== 공지/이벤트 배너 팝업 =====
 function getActiveBanner() {
   const today = getKSTTodayUTC();
-  return banners.find(b => deadlineToUTC(b.startDate) <= today && today <= deadlineToUTC(b.endDate));
+  return banners.find(b => !b.hidden && deadlineToUTC(b.startDate) <= today && today <= deadlineToUTC(b.endDate));
 }
 
 function showBannerPopup() {

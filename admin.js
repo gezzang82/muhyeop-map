@@ -455,24 +455,159 @@ async function confirmEditPlace() {
   renderPlaceList();
 }
 
+// ===== 범용 달력 (배너 시작/종료일) =====
+const GCAL = {
+  bs: { picker: 'bsDatePicker', trigger: 'bsTrigger', text: 'bsText', hidden: 'bannerStartDate', year: 'bsYear', month: 'bsMonth', grid: 'bsGrid' },
+  be: { picker: 'beDatePicker', trigger: 'beTrigger', text: 'beText', hidden: 'bannerEndDate', year: 'beYear', month: 'beMonth', grid: 'beGrid' }
+};
+const _gcalView = {};
+function gcalSetValue(prefix, v) {
+  const c = GCAL[prefix];
+  document.getElementById(c.hidden).value = v || '';
+  const text = document.getElementById(c.text);
+  const trigger = document.getElementById(c.trigger);
+  if (v) { text.textContent = v; trigger.classList.remove('placeholder'); }
+  else { text.textContent = 'YYYY-MM-DD'; trigger.classList.add('placeholder'); }
+}
+function gcalToggle(prefix, e) {
+  if (e) e.stopPropagation();
+  const wrap = document.getElementById(GCAL[prefix].picker);
+  Object.values(GCAL).forEach(g => { if (g.picker !== GCAL[prefix].picker) document.getElementById(g.picker)?.classList.remove('open'); });
+  const open = wrap.classList.toggle('open');
+  if (open) {
+    const cur = document.getElementById(GCAL[prefix].hidden).value;
+    const base = cur ? new Date(cur) : new Date();
+    _gcalView[prefix] = { year: base.getFullYear(), month: base.getMonth() };
+    gcalRender(prefix);
+  }
+}
+function gcalNav(prefix, delta) {
+  const v = _gcalView[prefix];
+  v.month += delta;
+  if (v.month < 0) { v.month = 11; v.year--; } else if (v.month > 11) { v.month = 0; v.year++; }
+  gcalRender(prefix);
+}
+function gcalRender(prefix) {
+  const c = GCAL[prefix]; const v = _gcalView[prefix];
+  document.getElementById(c.year).textContent = v.year;
+  document.getElementById(c.month).textContent = String(v.month + 1).padStart(2, '0');
+  const selected = document.getElementById(c.hidden).value;
+  const t = new Date();
+  const todayStr = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  const firstDow = new Date(v.year, v.month, 1).getDay();
+  const daysInMonth = new Date(v.year, v.month + 1, 0).getDate();
+  const daysPrev = new Date(v.year, v.month, 0).getDate();
+  let html = '';
+  for (let i = firstDow - 1; i >= 0; i--) html += `<button type="button" class="cdate-cell muted" disabled>${daysPrev - i}</button>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${v.year}-${String(v.month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const cls = ['cdate-cell'];
+    if (ds === todayStr) cls.push('today');
+    if (ds === selected) cls.push('selected');
+    html += `<button type="button" class="${cls.join(' ')}" onclick="gcalPick('${prefix}','${ds}')">${d}</button>`;
+  }
+  const trail = (7 - ((firstDow + daysInMonth) % 7)) % 7;
+  for (let i = 1; i <= trail; i++) html += `<button type="button" class="cdate-cell muted" disabled>${i}</button>`;
+  document.getElementById(c.grid).innerHTML = html;
+}
+function gcalPick(prefix, ds) {
+  gcalSetValue(prefix, ds);
+  document.getElementById(GCAL[prefix].picker).classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+  Object.values(GCAL).forEach(g => {
+    const wrap = document.getElementById(g.picker);
+    if (wrap && wrap.classList.contains('open') && !wrap.contains(e.target)) wrap.classList.remove('open');
+  });
+});
+
 // ===== 이벤트 팝업 =====
+const bannerView = { page: 1, size: 100 };
+let bannerEditId = null;
+
 function renderBannerList() {
   const today = getKSTTodayUTC();
   const tbody = document.getElementById('bannerTableBody');
-  tbody.innerHTML = banners.map(b => {
-    const isActive = deadlineToUTC(b.startDate) <= today && today <= deadlineToUTC(b.endDate);
+  const sizeEl = document.getElementById('bvSize');
+  if (sizeEl) bannerView.size = parseInt(sizeEl.value, 10) || 100;
+  const total = banners.length;
+  const totalPages = Math.max(1, Math.ceil(total / bannerView.size));
+  if (bannerView.page > totalPages) bannerView.page = totalPages;
+  const start = (bannerView.page - 1) * bannerView.size;
+  const pageRows = banners.slice(start, start + bannerView.size);
+  tbody.innerHTML = pageRows.map(b => {
+    const inPeriod = deadlineToUTC(b.startDate) <= today && today <= deadlineToUTC(b.endDate);
+    const statusHtml = b.hidden
+      ? '<span class="badge-status expired">숨김</span>'
+      : `<span class="badge-status ${inPeriod ? 'active' : 'expired'}">${inPeriod ? '노출 중' : '기간 외'}</span>`;
     return `<tr>
       <td class="td-id">${b.id}</td>
-      <td><img src="${b.imageUrl}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:6px;"></td>
-      <td>${b.linkUrl || '-'}</td>
+      <td><img src="${escHtml(b.imageUrl)}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:6px;"></td>
+      <td>${escHtml(b.linkUrl) || '-'}</td>
       <td>${b.startDate}</td>
       <td>${b.endDate}</td>
-      <td><span class="badge-status ${isActive?'active':'expired'}">${isActive?'노출 중':'기간 외'}</span></td>
+      <td>${statusHtml}</td>
       <td>
-        <button class="btn-del-sm" onclick="confirmDelete('banner', ${b.id})">삭제</button>
+        <div class="row-actions">
+          <button class="btn-edit-sm" onclick="editBanner(${b.id})">수정</button>
+          <button class="btn-edit-sm" onclick="toggleBannerHidden(${b.id})">${b.hidden ? '노출' : '숨김'}</button>
+          <button class="btn-del-sm" onclick="confirmDelete('banner', ${b.id})">삭제</button>
+        </div>
       </td>
     </tr>`;
   }).join('') || `<tr><td colspan="7" class="empty-msg">등록된 팝업 없음</td></tr>`;
+  const totalEl = document.getElementById('bvTotal'); if (totalEl) totalEl.textContent = total;
+  const shownEl = document.getElementById('bvShown'); if (shownEl) shownEl.textContent = pageRows.length;
+  renderBannerPager(totalPages);
+}
+function renderBannerPager(totalPages) {
+  const pager = document.getElementById('bvPager');
+  if (!pager) return;
+  if (totalPages <= 1) { pager.innerHTML = ''; return; }
+  const p = bannerView.page;
+  const s = Math.max(1, Math.min(p - 2, totalPages - 4));
+  const e = Math.min(totalPages, s + 4);
+  let html = `<button ${p === 1 ? 'disabled' : ''} onclick="gotoBannerPage(1)">&laquo;</button><button ${p === 1 ? 'disabled' : ''} onclick="gotoBannerPage(${p - 1})">&lsaquo;</button>`;
+  for (let i = s; i <= e; i++) html += `<button class="${i === p ? 'active' : ''}" onclick="gotoBannerPage(${i})">${i}</button>`;
+  html += `<button ${p === totalPages ? 'disabled' : ''} onclick="gotoBannerPage(${p + 1})">&rsaquo;</button><button ${p === totalPages ? 'disabled' : ''} onclick="gotoBannerPage(${totalPages})">&raquo;</button>`;
+  pager.innerHTML = html;
+}
+function gotoBannerPage(p) { bannerView.page = p; renderBannerList(); }
+
+function editBanner(id) {
+  const b = banners.find(x => x.id === id);
+  if (!b) return;
+  bannerEditId = id;
+  document.getElementById('bannerImageUrl').value = b.imageUrl;
+  document.getElementById('bannerLinkUrl').value = b.linkUrl || '';
+  gcalSetValue('bs', b.startDate);
+  gcalSetValue('be', b.endDate);
+  document.getElementById('bannerSubmitBtn').textContent = '수정 완료';
+  document.getElementById('bannerCancelBtn').style.display = '';
+  document.getElementById('page-banners').scrollIntoView({ block: 'start' });
+}
+
+function resetBannerForm() {
+  bannerEditId = null;
+  document.getElementById('bannerImageUrl').value = '';
+  document.getElementById('bannerLinkUrl').value = '';
+  gcalSetValue('bs', '');
+  gcalSetValue('be', '');
+  document.getElementById('bannerSubmitBtn').textContent = '등록하기';
+  document.getElementById('bannerCancelBtn').style.display = 'none';
+}
+
+async function toggleBannerHidden(id) {
+  const b = banners.find(x => x.id === id);
+  if (!b) return;
+  const nextHidden = !b.hidden;
+  await fetch(`/api/banners?id=${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hidden: nextHidden })
+  });
+  b.hidden = nextHidden;
+  adminToast(nextHidden ? '팝업을 숨겼어요.' : '팝업 숨김을 해제했어요.');
+  renderBannerList();
 }
 
 async function submitBanner() {
@@ -480,24 +615,26 @@ async function submitBanner() {
   const linkUrl = document.getElementById('bannerLinkUrl').value.trim();
   const startDate = document.getElementById('bannerStartDate').value;
   const endDate = document.getElementById('bannerEndDate').value;
-
   if (!imageUrl || !startDate || !endDate) {
     adminToast('이미지 URL, 시작일, 종료일은 필수예요!'); return;
   }
-
-  const res = await fetch('/api/banners', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ imageUrl, linkUrl, startDate, endDate })
-  });
-  const banner = await res.json();
-  banners.unshift(banner);
-
-  adminToast('이벤트 팝업 등록 완료');
-  document.getElementById('bannerImageUrl').value = '';
-  document.getElementById('bannerLinkUrl').value = '';
-  document.getElementById('bannerStartDate').value = '';
-  document.getElementById('bannerEndDate').value = '';
+  if (bannerEditId) {
+    await fetch(`/api/banners?id=${bannerEditId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageUrl, linkUrl, startDate, endDate })
+    });
+    const b = banners.find(x => x.id === bannerEditId);
+    if (b) Object.assign(b, { imageUrl, linkUrl, startDate, endDate });
+    adminToast('이벤트 팝업 수정 완료');
+  } else {
+    const res = await fetch('/api/banners', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageUrl, linkUrl, startDate, endDate })
+    });
+    banners.unshift(await res.json());
+    adminToast('이벤트 팝업 등록 완료');
+  }
+  resetBannerForm();
   renderBannerList();
 }
 
