@@ -22,7 +22,21 @@ body {
   display: flex;
   flex-direction: row;
   overflow: hidden;
+  /* 텍스트/이미지 선택·드래그 방지 (앱 느낌). 입력 요소는 아래에서 예외 처리 */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
+/* 입력/검색/제보 폼은 선택·붙여넣기 가능하도록 예외 */
+input, textarea, [contenteditable="true"], select {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+/* 이미지·링크 끌어당기기(드래그) 방지 */
+img, a { -webkit-user-drag: none; user-drag: none; }
 
 /* ===== PC 네브바 ===== */
 .pc-nav {

@@ -2644,6 +2644,13 @@ document.addEventListener('touchmove', function(e) {
   if (e.touches.length > 1 && !e.target.closest('#map')) e.preventDefault();
 }, { passive: false });
 
+// 이미지/링크/텍스트 끌어당기기(드래그) 방지 — CSS user-select와 함께 앱 느낌 유지
+document.addEventListener('dragstart', function(e) { e.preventDefault(); });
+// 길게 누름/우클릭 컨텍스트 메뉴 방지 (입력창은 붙여넣기 위해 예외)
+document.addEventListener('contextmenu', function(e) {
+  if (!e.target.closest('input, textarea, [contenteditable="true"]')) e.preventDefault();
+});
+
 window.addEventListener('load', async function() {
   initAppLoading();
   await loadInitialData();
