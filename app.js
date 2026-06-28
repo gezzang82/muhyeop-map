@@ -2588,7 +2588,11 @@ function bindClearBtn(btn, input) {
 
 function updateStatCount() {
   const statCountEl = document.getElementById('pcStatCount');
-  if (statCountEl) statCountEl.textContent = campaigns.length.toLocaleString();
+  if (!statCountEl) return;
+  // 지도에 실제 노출되는 것과 동일 기준: 마감 지난 캠페인·숨김 제외 (빈 마감일=상시는 포함)
+  const today = getKSTTodayUTC();
+  const activeCount = campaigns.filter(c => !c.hidden && deadlineToUTC(c.deadline) >= today).length;
+  statCountEl.textContent = activeCount.toLocaleString();
 }
 
 document.addEventListener('DOMContentLoaded', setupClearButtons);
