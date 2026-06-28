@@ -18,6 +18,7 @@ function loadInitialData() {
       places = await placesRes.json();
       campaigns = await campaignsRes.json();
       banners = await bannersRes.json();
+      invalidateActiveCache();
     })();
   }
   return _dataLoadPromise;
@@ -142,19 +143,33 @@ function getDeadlineText(deadline) {
   return { text: `D-${diff}`, urgent: false };
 }
 
-function getActiveCampaigns(placeId) {
+// 활성 캠페인 캐시: placeId -> 활성 캠페인[] 를 1회만 구성해 재사용.
+// 렌더(마커/사이드바)마다 매장×캠페인을 반복 스캔하던 것을 캠페인 1회 순회로 줄임.
+// 캐시는 명시적으로만 무효화(데이터 로드/제보/채널필터 변경) — 핫패스에서 날짜 재계산을 피하기 위함.
+let _activeByPlace = null;
+function invalidateActiveCache() { _activeByPlace = null; }
+function getActiveByPlaceMap() {
+  if (_activeByPlace) return _activeByPlace;
   const today = getKSTTodayUTC();
-  return campaigns.filter(c => {
-    if (c.placeId !== placeId) return false;
-    if (c.hidden) return false;
-    if (deadlineToUTC(c.deadline) < today) return false;
-    if (currentChannelFilter !== '전체' && !(c.channels || []).includes(currentChannelFilter)) return false;
-    return true;
-  });
+  const m = new Map();
+  for (const c of campaigns) {
+    if (c.hidden) continue;
+    if (deadlineToUTC(c.deadline) < today) continue;
+    if (currentChannelFilter !== '전체' && !(c.channels || []).includes(currentChannelFilter)) continue;
+    let arr = m.get(c.placeId);
+    if (!arr) { arr = []; m.set(c.placeId, arr); }
+    arr.push(c);
+  }
+  _activeByPlace = m;
+  return m;
+}
+function getActiveCampaigns(placeId) {
+  return getActiveByPlaceMap().get(placeId) || [];
 }
 
 function filterChannel(channel) {
   currentChannelFilter = channel;
+  invalidateActiveCache();
   document.querySelectorAll('.filter-chip').forEach(btn => {
     const ch = btn.dataset.channel || btn.textContent.replace(/\s/g, '');
     btn.classList.toggle('active', ch === channel);
@@ -165,7 +180,8 @@ function filterChannel(channel) {
 function hasActiveCampaign(placeId) {
   const place = places.find(p => p.id === placeId);
   if (place && place.hidden) return false;
-  return getActiveCampaigns(placeId).length > 0;
+  const arr = getActiveByPlaceMap().get(placeId);
+  return !!arr && arr.length > 0;
 }
 
 // ===== 조회/클릭수 트래킹 (표시는 나중, 데이터는 지금부터 누적) =====
@@ -2126,6 +2142,7 @@ async function submitCampaign() {
     })
   }).then(r => r.json());
   campaigns.push(newCampaign);
+  invalidateActiveCache();
   updateStatCount();
 
   closeModal();
