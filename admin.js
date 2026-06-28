@@ -710,13 +710,14 @@ async function renderReportList() {
   tbody.innerHTML = reports.map(r => `<tr>
       <td class="td-id">${r.id}</td>
       <td>${r.placeName || '-'}</td>
+      <td>${r.platform || '-'}</td>
       <td>${(r.content || '').slice(0, 20)}</td>
       <td>${r.reason}</td>
       <td>${r.detail || '-'}</td>
       <td>${r.reporterNickname || '비회원'}</td>
       <td>${r.createdAt}</td>
       <td>${reportActionButtons(r)}</td>
-    </tr>`).join('') || `<tr><td colspan="8" class="empty-msg">신고 내역 없음</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="9" class="empty-msg">신고 내역 없음</td></tr>`;
   const total = reports.length;
   document.getElementById('rvTotal').textContent = total;
   document.getElementById('rvShown').textContent = total;
