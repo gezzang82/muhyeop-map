@@ -886,6 +886,20 @@ async function submitAdminCampaign() {
   resetAddForm();
 }
 
+// '참여 가능 요일 확인 안됨' 체크 시: 요일 전체 해제 + 비활성(저장 시 빈 값 → 화면 미노출).
+// 해제 시: 요일 선택 복원(전체 ON)
+function toggleDaysUnknown(cb) {
+  const group = cb.closest('.day-row')?.querySelector('.day-group');
+  if (!group) return;
+  if (cb.checked) {
+    group.querySelectorAll('.day-item').forEach(d => d.classList.remove('on'));
+    group.classList.add('disabled');
+  } else {
+    group.classList.remove('disabled');
+    group.querySelectorAll('.day-item').forEach(d => d.classList.add('on'));
+  }
+}
+
 function resetAddForm() {
   ['addName','addAddress','addContent','addLink','addHours','addLat','addLng'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
@@ -899,6 +913,8 @@ function resetAddForm() {
   });
   document.querySelectorAll('.day-item').forEach(d => d.classList.add('on'));
   const excludeEl = document.getElementById('addExcludeHoliday'); if(excludeEl) excludeEl.checked = false;
+  const unknownEl = document.getElementById('addDaysUnknown'); if(unknownEl) unknownEl.checked = false;
+  document.querySelector('.day-group')?.classList.remove('disabled');
   const combo = document.getElementById('placeCombo');
   if (combo) { combo.classList.remove('open'); const m = document.getElementById('placeComboMenu'); if (m) m.innerHTML = ''; }
   setStoreFieldsLocked(false); // 신규 등록 모드에서는 매장 정보 잠금 해제
@@ -1080,6 +1096,11 @@ function editCampaign(id) {
     });
     const excludeEl = document.getElementById('addExcludeHoliday');
     if (excludeEl) excludeEl.checked = c.excludeHoliday || false;
+    // 요일이 비어있으면 '참여 가능 요일 확인 안됨' 상태로 반영
+    const noDays = !(c.operatingDays && c.operatingDays.length);
+    const unknownEl = document.getElementById('addDaysUnknown');
+    if (unknownEl) unknownEl.checked = noDays;
+    document.querySelector('.day-group')?.classList.toggle('disabled', noDays);
     refreshAdminSelects();
     // 등록 버튼을 수정 모드로
     campaignEditMode = true;

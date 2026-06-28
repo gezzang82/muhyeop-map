@@ -462,6 +462,7 @@ body {
 /* 참여 가능 요일 + 공휴일 불가 (한 줄 인라인) */
 .day-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
 .day-group { display: flex; gap: 4px; flex-wrap: wrap; }
+.day-group.disabled { opacity: 0.4; pointer-events: none; }
 .day-item {
   width: 40px; height: 40px; border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center;
