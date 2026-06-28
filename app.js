@@ -2246,7 +2246,13 @@ function clickLiveBubble() {
   if (_liveBubblePlaceId != null) focusPlace(_liveBubblePlaceId);
 }
 
+// 제보왕(리더보드) 배너 노출 여부 — 베타 이벤트 시작 시 true로 변경
+const LEADERBOARD_ENABLED = false;
 async function renderLeaderboard() {
+  if (!LEADERBOARD_ENABLED) {
+    ['leaderboardBannerMobile', 'leaderboardBannerPC'].forEach(id => document.getElementById(id)?.classList.remove('show'));
+    return;
+  }
   try {
     const res = await fetch('/api/users?leaderboard=1');
     const data = await res.json();
@@ -2643,7 +2649,7 @@ window.addEventListener('load', async function() {
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   startLiveAlerts();
   renderLeaderboard();
-  setInterval(renderLeaderboard, 60000);
+  if (LEADERBOARD_ENABLED) setInterval(renderLeaderboard, 60000);
   hideAppLoading();
 });
 
