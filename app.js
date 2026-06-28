@@ -2182,8 +2182,10 @@ function buildLiveMessagePool() {
     const place = places.find(p => p.id === c.placeId);
     return place ? { nick: c.source === 'user' ? (c.reporterNickname || '익명') : '익명', place: place.name, placeId: place.id, createdAt: c.createdAt || '' } : null;
   };
-  const userOnes = campaigns.filter(c => c.source === 'user' && !c.hidden).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  const otherOnes = campaigns.filter(c => c.source !== 'user' && !c.hidden).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  // 마감 지난 캠페인은 제외 (getActiveCampaigns와 동일 기준, 빈 마감일=마감없음은 포함)
+  const isLive = c => !c.hidden && deadlineToUTC(c.deadline) >= getKSTTodayUTC();
+  const userOnes = campaigns.filter(c => c.source === 'user' && isLive(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const otherOnes = campaigns.filter(c => c.source !== 'user' && isLive(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   const pool = [...userOnes, ...otherOnes].slice(0, 10).map(withPlace).filter(Boolean);
   // 셔플 (Fisher-Yates) — 매번 같은 순서로 도는 느낌 방지
   for (let i = pool.length - 1; i > 0; i--) {
