@@ -721,6 +721,8 @@ body.pc-myinfo-mode #profileOverlay .form-group select,
 body.pc-myinfo-mode #profileOverlay .custom-select-trigger { height: 48px !important; font-size: 16px !important; }
 body.pc-myinfo-mode #profileOverlay .modal-footer .btn-cancel,
 body.pc-myinfo-mode #profileOverlay .modal-footer .btn-submit { height: 56px !important; font-size: 18px !important; }
+/* PC 패널은 항상 떠있어 닫기 불필요 → 저장만 풀폭 */
+body.pc-myinfo-mode #profileOverlay .modal-footer .btn-cancel { display: none !important; }
 
 /* 내 정보 로그인 전 화면 (Figma node 1179:13779) */
 .profile-logged-out {
