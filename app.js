@@ -1317,9 +1317,14 @@ function closeLoginSheet() {
   document.getElementById('loginOverlay').classList.remove('open');
 }
 
+// 이메일 형식 검증 (빈 값은 선택이라 호출 전에 분기)
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
 function openSignupInfoSheet() {
   // 한 번 노출하면 자동으로 다시 띄우지 않음 (건너뛰면 '내 정보'에서 직접 등록)
   try { localStorage.setItem('snsRegisterPrompted', '1'); } catch (e) {}
+  // 네이버는 OAuth 이메일을 미리 채워서 보여주고, 카카오는 빈 칸(직접 입력)
+  document.getElementById('signupEmail').value = currentUser?.email || '';
   document.getElementById('signupUrlPlatform').value = '';
   syncSelectTrigger('signupUrlPlatform');
   updateUrlPlatform('', 'signup');
@@ -1336,12 +1341,14 @@ function skipSignupInfo() {
 async function confirmSignupInfo() {
   const urlPlatform = document.getElementById('signupUrlPlatform').value;
   const urlId = document.getElementById('signupUrlId').value.trim();
-  if (urlPlatform && urlId) {
+  const email = document.getElementById('signupEmail').value.trim();
+  if (email && !isValidEmail(email)) { showAlert('이메일을 확인해주세요', '올바른 이메일 형식을 입력해주세요.'); return; }
+  if ((urlPlatform && urlId) || email) {
     try {
       await fetch('/api/auth/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urlPlatform, urlId })
+        body: JSON.stringify({ urlPlatform, urlId, email })
       });
       await refreshAuthUI();
     } catch (e) {}
@@ -1385,6 +1392,8 @@ function populateProfileFields() {
   if (joined) joined.textContent = formatJoinDate(currentUser.createdAt);
   const cnt = document.getElementById('myinfoReportCount');
   if (cnt) cnt.textContent = currentUser.reportCount != null ? currentUser.reportCount : 0;
+  const emailEl = document.getElementById('profileEmail');
+  if (emailEl) emailEl.value = currentUser.email || '';
   const sel = document.getElementById('profileUrlPlatform');
   sel.value = currentUser.urlPlatform || '';
   syncSelectTrigger('profileUrlPlatform');
@@ -1430,11 +1439,13 @@ function closeProfileSheet() {
 async function saveProfile() {
   const urlPlatform = document.getElementById('profileUrlPlatform').value;
   const urlId = document.getElementById('profileUrlId').value.trim();
+  const email = document.getElementById('profileEmail')?.value.trim() || '';
+  if (email && !isValidEmail(email)) { showAlert('이메일을 확인해주세요', '올바른 이메일 형식을 입력해주세요.'); return; }
   try {
     const res = await fetch('/api/auth/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urlPlatform, urlId })
+      body: JSON.stringify({ urlPlatform, urlId, email })
     });
     if (!res.ok) { showAlert('저장 중 오류가 발생했어요.', '잠시 후 다시 시도해주세요.'); return; }
     await refreshAuthUI();

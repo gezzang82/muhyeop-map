@@ -37,6 +37,9 @@
 - 로그인 상태에서 `resetModal()`은 `inputNickname`을 계정 닉네임으로 채우고 `readOnly`로 잠금. 프로필에 블로그/인스타(`currentUser.urlPlatform`/`urlId`)가 미리 등록돼 있으면 `inputUrlPlatformTrigger`에 `.locked` 클래스를 추가하고 `inputUrlId`도 `readOnly`로 잠가 수정 불가능하게 함 — 변경하려면 `#inputLockedHint` 안내 문구의 링크로 프로필 설정(`openProfileSheet()`)으로 이동해야 함.
 - 프로필에 링크를 등록하지 않은 로그인 사용자나 비로그인 사용자는 평소처럼 직접 입력 가능(잠금 없음).
 
+## 이메일 선택 수취 (추가정보입력 / 내 정보)
+- 카카오는 OAuth 이메일을 못 받는 경우가 많아(비즈앱 검수 필요), **이메일을 '추가 정보 입력'(`#signupEmail`)·'내 정보'(`#profileEmail`) 시트에서 선택 입력**받음. **네이버는 OAuth로 받은 이메일을 prefill**(`currentUser.email`), 카카오는 빈 칸. `confirmSignupInfo`/`saveProfile`이 `email`을 `/api/auth/profile`로 전송, 형식 검증 `isValidEmail`. 제보 폼 자체엔 여전히 이메일 입력란 없음(닉네임+링크만).
+
 ## 매장명 클릭 → 네이버지도 연결
 - 인포윈도우(`.iw-name-link`)·모바일 상세시트(`.detail-name-link`)의 **매장명을 클릭하면 네이버지도로 이동**(`openNaverMapByPlace(placeId)` → `openNaverMap`). 매장명 옆에 `image/ic_link_16.svg`(외부링크 아이콘, 16px, 이름과 6px 간격) 표시.
 - 검색어는 **매장명만** 사용(주소를 붙이면 지번/건물/호수 토큰까지 매칭하려다 네이버 장소검색 결과 0건 나는 케이스가 있어서). 매장명에 지점명이 포함돼 특정도 충분.

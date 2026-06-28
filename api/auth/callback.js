@@ -78,9 +78,10 @@ module.exports = async function handler(req, res) {
     let userId;
     if (existing.rows.length) {
       userId = existing.rows[0].id;
+      // OAuth 이메일이 비어있으면(카카오 등) 기존 email 유지 — 사용자가 '내 정보'에서 직접 넣은 이메일을 매 로그인마다 지우지 않도록
       await db.execute({
-        sql: 'UPDATE users SET nickname = ?, email = ? WHERE id = ?',
-        args: [profile.nickname, profile.email, userId]
+        sql: "UPDATE users SET nickname = ?, email = CASE WHEN ? = '' THEN email ELSE ? END WHERE id = ?",
+        args: [profile.nickname, profile.email || '', profile.email || '', userId]
       });
     } else {
       const inserted = await db.execute({
@@ -90,7 +91,15 @@ module.exports = async function handler(req, res) {
       userId = Number(inserted.lastInsertRowid);
     }
 
-    const sessionCookie = createSessionCookie({ userId, nickname: profile.nickname, provider: stateData.provider, email: profile.email });
+    // 세션에 담을 이메일은 DB의 유효 이메일(카카오는 OAuth 비어도 '내 정보'에서 넣은 값이 보존됨)
+    let sessionEmail = profile.email || '';
+    if (!sessionEmail) {
+      try {
+        const r = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [userId] });
+        sessionEmail = r.rows[0]?.email || '';
+      } catch (e) {}
+    }
+    const sessionCookie = createSessionCookie({ userId, nickname: profile.nickname, provider: stateData.provider, email: sessionEmail });
     res.setHeader('Set-Cookie', [sessionCookie, clearStateCookie()]);
     let redirectTo = stateData.redirectTo || '/';
     if (isNewUser) {
