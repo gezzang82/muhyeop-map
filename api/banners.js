@@ -1,4 +1,5 @@
 const { getDb } = require('./_db');
+const { requireAdmin } = require('./auth/_admin');
 
 function toBanner(row) {
   return {
@@ -27,6 +28,9 @@ module.exports = async function handler(req, res) {
     const result = await db.execute('SELECT * FROM banners ORDER BY id DESC');
     return res.status(200).json(result.rows.map(toBanner));
   }
+
+  // GET 외 쓰기(POST/PATCH/DELETE)는 모두 관리자만
+  if (!requireAdmin(req, res)) return;
 
   if (req.method === 'POST') {
     const { imageUrl, linkUrl, startDate, endDate } = req.body || {};

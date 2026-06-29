@@ -1,25 +1,34 @@
 // ===== 무협맵 어드민 =====
 // app.js의 places/campaigns 배열을 공유하며, 변경 시 /api/places, /api/campaigns로 동기화
 
-const ADMIN_PASSWORD = 'wonu1982'; // Firebase Auth로 교체 예정
 const dataReady = loadInitialData();
 
-// ===== 로그인 =====
+// ===== 로그인 (서버 검증: 비밀번호는 서버 환경변수 ADMIN_PASSWORD와 비교, 어드민 쿠키 발급) =====
 async function tryLogin() {
   const pw = document.getElementById('loginPassword').value;
-  if (pw === ADMIN_PASSWORD) {
+  try {
+    const res = await fetch('/api/auth/login?admin=1', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    if (!res.ok) {
+      document.getElementById('loginError').textContent = '비밀번호가 올바르지 않아요.';
+      document.getElementById('loginPassword').value = '';
+      return;
+    }
     sessionStorage.setItem('adminLoggedIn', 'true');
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminApp').style.display = 'flex';
     await dataReady;
     initAdmin();
-  } else {
-    document.getElementById('loginError').textContent = '비밀번호가 올바르지 않아요.';
-    document.getElementById('loginPassword').value = '';
+  } catch (e) {
+    document.getElementById('loginError').textContent = '로그인 중 오류가 발생했어요.';
   }
 }
 
-function logout() {
+async function logout() {
+  try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
   sessionStorage.removeItem('adminLoggedIn');
   location.reload();
 }

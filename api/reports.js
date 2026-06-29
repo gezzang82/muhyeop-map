@@ -1,5 +1,6 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
+const { requireAdmin } = require('./auth/_admin');
 
 function toReport(row) {
   return {
@@ -64,6 +65,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
+    if (!requireAdmin(req, res)) return;
     const id = Number(req.query.id);
     if (!id) {
       return res.status(400).json({ error: 'id는 필수입니다.' });

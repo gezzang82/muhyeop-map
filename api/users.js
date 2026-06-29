@@ -1,4 +1,5 @@
 const { getDb } = require('./_db');
+const { requireAdmin } = require('./auth/_admin');
 
 function toUser(row) {
   return {
@@ -35,6 +36,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ nickname: top.nickname || '', count: Number(top.count) });
   }
 
+  // 전체 회원 목록(이메일 등 PII 포함)은 관리자만
+  if (!requireAdmin(req, res)) return;
   const result = await db.execute('SELECT * FROM users ORDER BY id DESC');
   return res.status(200).json(result.rows.map(toUser));
 };

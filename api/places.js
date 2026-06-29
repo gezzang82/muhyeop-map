@@ -1,5 +1,6 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
+const { isAdmin, requireAdmin } = require('./auth/_admin');
 
 function toPlace(row) {
   return {
@@ -83,6 +84,10 @@ module.exports = async function handler(req, res) {
   if (req.method === 'PATCH') {
     const id = Number(req.query.id);
     const { name, address, category, lat, lng, hidden } = req.body || {};
+    // 비관리자는 category 보정만 허용(공개 제보용). name/address/hidden 변경은 관리자만.
+    if (!isAdmin(req) && (name !== undefined || address !== undefined || hidden !== undefined)) {
+      return res.status(401).json({ error: '관리자 인증이 필요합니다.' });
+    }
     if (!id || (!name && !address && !category && hidden === undefined)) {
       return res.status(400).json({ error: 'id와 수정할 항목(name, address, category, hidden 중 하나 이상)이 필요합니다.' });
     }
@@ -101,6 +106,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
+    if (!requireAdmin(req, res)) return;
     const id = Number(req.query.id);
     if (!id) {
       return res.status(400).json({ error: 'id는 필수입니다.' });
