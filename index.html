@@ -261,6 +261,29 @@
     </div>
   </div>
 
+  <!-- 후기 등록 (네이버 블로그 URL) — 모바일 풀페이지 / PC 가운데 팝업 -->
+  <div class="fullpage-overlay" id="reviewFormOverlay">
+    <div class="signup-page">
+      <div class="signup-content">
+        <div class="signup-title-wrap"><h2>후기 등록</h2></div>
+        <div class="form-group">
+          <label>네이버 블로그 URL <span class="rv-required">*</span></label>
+          <div class="rv-url-row">
+            <input type="url" id="reviewUrl" inputmode="url" autocomplete="off" placeholder="URL 입력해주세요">
+            <button class="rv-verify-btn" onclick="validateReviewUrl()">검증</button>
+          </div>
+        </div>
+        <div class="signup-hint"><img src="image/ic_info_16.svg" alt="" width="16" height="16"><span>후기는 네이버 블로그만 등록이 가능합니다.</span></div>
+        <p class="rv-form-error" id="reviewFormError"></p>
+        <div id="reviewPreview"></div>
+      </div>
+      <div class="signup-footer">
+        <button class="signup-btn-cancel" onclick="closeReviewForm()">취소</button>
+        <button class="signup-btn-confirm" id="reviewSubmitBtn" onclick="submitReview()" disabled>등록하기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 개인정보처리방침 / 이용약관 팝업 -->
   <div class="modal-overlay" id="policyOverlay" onclick="closePolicy()">
     <div class="modal policy-modal" onclick="event.stopPropagation()">

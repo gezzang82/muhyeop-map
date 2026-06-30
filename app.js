@@ -536,7 +536,7 @@ function createInfoContent(place) {
             <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
           </div>`;
       }).join('')
-    : '<div class="iw-empty">현재 모집 중인 캠페인이 없어요</div>';
+    : '';
 
   return `
     <div class="info-window">
@@ -555,7 +555,11 @@ function createInfoContent(place) {
         <div class="iw-address">${place.address}</div>
       </div>
       ${founderHtml ? `<div class="iw-meta-founder">${founderHtml}<div class="iw-divider"></div></div>` : '<div class="iw-divider iw-divider-top"></div>'}
-      <div class="iw-campaigns-wrap">${campaignsHtml}</div>
+      ${detailTabsHtml(place)}
+      <div class="rv-tab-body" id="rvTabBody">
+        <div class="rv-pane rv-pane-campaign"${active.length ? '' : ' style="display:none"'}>${active.length ? `<div class="iw-campaigns-wrap">${campaignsHtml}</div>` : campaignEmptyHtml(place)}</div>
+        <div class="rv-pane rv-pane-review"${active.length ? ' style="display:none"' : ''}></div>
+      </div>
     </div>`;
 }
 
@@ -658,12 +662,193 @@ function createMobileDetailContent(place) {
         <div class="detail-address">${place.address}</div>
       </div>
       ${founderHtml ? `<div class="detail-meta-founder">${founderHtml}<div class="detail-divider"></div></div>` : '<div class="detail-divider detail-divider-top"></div>'}
+      ${detailTabsHtml(place)}
     </div>
     <div class="detail-scroll">
-      <div class="detail-campaigns-wrap">
-        ${campaignsHtml}
+      <div class="rv-tab-body" id="rvTabBody">
+        <div class="rv-pane rv-pane-campaign"${active.length ? '' : ' style="display:none"'}>${active.length ? `<div class="detail-campaigns-wrap">${campaignsHtml}</div>` : campaignEmptyHtml(place)}</div>
+        <div class="rv-pane rv-pane-review"${active.length ? ' style="display:none"' : ''}></div>
       </div>
     </div>`;
+}
+
+// ===== 후기(리뷰) 탭 + 리스트 + 등록 =====
+let _detailPlaceId = null, _detailTab = 'campaign', _reviewSort = 'latest', _reviewLoaded = false;
+let _reviewFormPlaceId = null, _reviewValidated = false;
+
+function rvEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function rvHeart() { return '<svg class="rv-heart" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.7s-6.9-4.4-9.2-8.6C1.4 9.4 2.8 6.3 5.8 6.3c1.8 0 3.1 1 4.2 2.3 1.1-1.3 2.4-2.3 4.2-2.3 3 0 4.4 3.1 3 5.8C18.9 16.3 12 20.7 12 20.7z"/></svg>'; }
+function fmtReviewDate(s) { const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : ''; }
+
+function detailTabsHtml(place) {
+  const def = getActiveCampaigns(place.id).length ? 'campaign' : 'review';
+  return `<div class="rv-tabs-row">
+      <div class="rv-tabs">
+        <button class="rv-tab${def === 'campaign' ? ' active' : ''}" data-tab="campaign" onclick="switchDetailTab(${place.id},'campaign')">캠페인</button>
+        <button class="rv-tab${def === 'review' ? ' active' : ''}" data-tab="review" onclick="switchDetailTab(${place.id},'review')">후기</button>
+      </div>
+      <button class="rv-register-btn" onclick="openReviewForm(${place.id})"><img src="image/ic_naver_blog_20.png" width="18" height="18" alt="">후기 등록 ›</button>
+    </div>`;
+}
+
+function campaignEmptyHtml(place) {
+  return `<div class="rv-empty">
+      <p class="rv-empty-text"><b>${rvEsc(place.name)}</b>에는<br>진행 중인 협찬이 없어요.</p>
+      <p class="rv-empty-sub">신규 캠페인이 있다면 제보해주세요.</p>
+      <button class="rv-empty-btn" onclick="openReportForPlace(${place.id})">제보하기</button>
+    </div>`;
+}
+
+// 상세 콘텐츠 주입 직후 호출 (기본 탭 결정 + 후기 탭이면 로드)
+function initDetailTabs(place) {
+  _detailPlaceId = place.id;
+  _reviewLoaded = false;
+  _reviewSort = 'latest';
+  const def = getActiveCampaigns(place.id).length ? 'campaign' : 'review';
+  _detailTab = def;
+  if (def === 'review') { _reviewLoaded = true; loadReviews(place.id); }
+}
+
+function switchDetailTab(placeId, tab) {
+  _detailTab = tab;
+  const body = document.getElementById('rvTabBody');
+  if (!body) return;
+  const camp = body.querySelector('.rv-pane-campaign');
+  const rev = body.querySelector('.rv-pane-review');
+  if (camp) camp.style.display = tab === 'campaign' ? '' : 'none';
+  if (rev) rev.style.display = tab === 'review' ? '' : 'none';
+  document.querySelectorAll('.rv-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  if (tab === 'review' && !_reviewLoaded) { _reviewLoaded = true; loadReviews(placeId); }
+}
+
+async function loadReviews(placeId, sort) {
+  const pane = document.querySelector('#rvTabBody .rv-pane-review');
+  if (!pane) return;
+  if (sort) _reviewSort = sort;
+  pane.innerHTML = '<div class="rv-loading">불러오는 중…</div>';
+  try {
+    const list = await fetch(`/api/places?reviews=list&placeId=${placeId}&sort=${_reviewSort === 'likes' ? 'likes' : 'latest'}`).then(r => r.json());
+    pane.innerHTML = renderReviewPane(placeId, Array.isArray(list) ? list : []);
+  } catch (e) {
+    pane.innerHTML = '<div class="rv-loading">후기를 불러오지 못했어요.</div>';
+  }
+}
+
+function renderReviewPane(placeId, list) {
+  const place = places.find(p => p.id === placeId);
+  if (!list.length) {
+    return `<div class="rv-empty">
+        <p class="rv-empty-text">현재 <b>${rvEsc(place ? place.name : '')}</b> 후기가 없어요.</p>
+        <button class="rv-empty-btn" onclick="openReviewForm(${placeId})">후기 등록하기</button>
+      </div>`;
+  }
+  const sortLabel = _reviewSort === 'likes' ? '좋아요 순' : '최신 순';
+  return `<div class="rv-list-head">
+      <span class="rv-count">총 ${list.length}건</span>
+      <button class="rv-sort" onclick="toggleReviewSort(${placeId})">${sortLabel} ⌄</button>
+    </div>
+    <div class="rv-cards">${list.map(r => reviewCardHtml(r, false)).join('')}</div>`;
+}
+
+function reviewCardHtml(r, isPreview) {
+  const date = fmtReviewDate(r.createdAt);
+  const thumb = r.thumbnail
+    ? `<div class="rv-thumb"><img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()"></div>`
+    : `<div class="rv-thumb rv-thumb-empty"></div>`;
+  const meta = isPreview
+    ? `<span class="rv-card-author">${rvEsc(r.author)}</span>`
+    : `<span class="rv-card-author">${rvEsc(r.author)}${date ? ` · ${date}` : ''}</span>
+       <button class="rv-like${r.liked ? ' liked' : ''}" onclick="event.stopPropagation();toggleReviewLike(${r.id}, this)">${rvHeart()}<span class="rv-like-count">${r.likeCount || 0}</span></button>`;
+  const clickAttr = isPreview ? '' : ` onclick="window.open('${rvEsc(r.url)}','_blank','noopener')"`;
+  return `<div class="rv-card"${clickAttr}>
+      ${thumb}
+      <div class="rv-card-body">
+        <p class="rv-card-title">${rvEsc(r.title)}</p>
+        <p class="rv-card-excerpt">${rvEsc(r.excerpt)}</p>
+        <div class="rv-card-meta">${meta}</div>
+      </div>
+    </div>`;
+}
+
+function toggleReviewSort(placeId) {
+  _reviewSort = _reviewSort === 'likes' ? 'latest' : 'likes';
+  loadReviews(placeId, _reviewSort);
+}
+
+async function toggleReviewLike(reviewId, btnEl) {
+  if (!currentUser) { openLoginSheet(); return; }
+  try {
+    const res = await fetch(`/api/places?reviews=like&id=${reviewId}`, { method: 'POST' });
+    if (res.status === 401) { openLoginSheet(); return; }
+    const data = await res.json();
+    btnEl.classList.toggle('liked', !!data.liked);
+    const cnt = btnEl.querySelector('.rv-like-count');
+    if (cnt) cnt.textContent = data.likeCount;
+  } catch (e) {}
+}
+
+function openReportForPlace(placeId) {
+  // v1: 일반 제보 모달 열기 (해당 매장 자동선택은 후속 개선)
+  if (typeof openModal === 'function') openModal();
+}
+
+// ===== 후기 등록 폼 =====
+function openReviewForm(placeId) {
+  if (!currentUser) { openLoginSheet(); return; }
+  _reviewFormPlaceId = placeId;
+  _reviewValidated = false;
+  document.getElementById('reviewUrl').value = '';
+  document.getElementById('reviewPreview').innerHTML = '';
+  document.getElementById('reviewFormError').textContent = '';
+  document.getElementById('reviewSubmitBtn').disabled = true;
+  document.getElementById('reviewFormOverlay').classList.add('open');
+}
+function closeReviewForm() {
+  document.getElementById('reviewFormOverlay').classList.remove('open');
+}
+async function validateReviewUrl() {
+  const url = document.getElementById('reviewUrl').value.trim();
+  const err = document.getElementById('reviewFormError');
+  const preview = document.getElementById('reviewPreview');
+  const submitBtn = document.getElementById('reviewSubmitBtn');
+  err.textContent = '';
+  if (!url) { err.textContent = 'URL을 입력해주세요.'; return; }
+  preview.innerHTML = '<div class="rv-loading">검증 중…</div>';
+  submitBtn.disabled = true; _reviewValidated = false;
+  try {
+    const res = await fetch('/api/places?reviews=validate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, placeId: _reviewFormPlaceId })
+    });
+    const data = await res.json();
+    if (!data.ok) { preview.innerHTML = ''; err.textContent = data.reason || '검증에 실패했어요.'; return; }
+    preview.innerHTML = `<p class="rv-preview-label">이 후기로 등록할까요?</p>` + reviewCardHtml(Object.assign({ likeCount: 0, liked: false, createdAt: '' }, data.data), true);
+    _reviewValidated = true;
+    submitBtn.disabled = false;
+  } catch (e) { preview.innerHTML = ''; err.textContent = '검증 중 오류가 발생했어요.'; }
+}
+async function submitReview() {
+  if (!_reviewValidated) { validateReviewUrl(); return; }
+  const url = document.getElementById('reviewUrl').value.trim();
+  const err = document.getElementById('reviewFormError');
+  const btn = document.getElementById('reviewSubmitBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/places?reviews=create', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, placeId: _reviewFormPlaceId })
+    });
+    if (res.status === 401) { openLoginSheet(); return; }
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error || data.reason || '등록에 실패했어요.'; btn.disabled = false; return; }
+    closeReviewForm();
+    showToast('후기가 등록되었어요!');
+    if (_detailPlaceId === _reviewFormPlaceId) {
+      _reviewLoaded = true;
+      switchDetailTab(_reviewFormPlaceId, 'review');
+      loadReviews(_reviewFormPlaceId);
+    }
+  } catch (e) { err.textContent = '등록 중 오류가 발생했어요.'; btn.disabled = false; }
 }
 
 // ===== 사이드바 렌더 =====
@@ -803,6 +988,7 @@ function openPcCard(place) {
   openPcCardPlaceId = place.id;
   openPcCardPlace = place;
   document.getElementById('pcCardContent').innerHTML = createInfoContent(place);
+  initDetailTabs(place);
   document.getElementById('pcCard').classList.add('visible');
   setSelectedMarker(place.id);
   panToCard(place);
@@ -2359,6 +2545,7 @@ function openMobileSheet(place) {
   const overlay = document.getElementById('mobileSheetOverlay');
   const content = document.getElementById('mobileSheetContent');
   content.innerHTML = createMobileDetailContent(place);
+  initDetailTabs(place);
   sheet.style.transform = '';
   sheet.classList.add('show');
   overlay.classList.add('show');

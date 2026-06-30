@@ -2501,3 +2501,92 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   .about-hero-title { font-size: 24px; }
   .about-hero-sub { font-size: 13px; }
 }
+
+/* ===== 후기(리뷰) 탭 / 리스트 / 등록 ===== */
+.rv-tabs-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0 2px; }
+.rv-tabs { display: flex; gap: 6px; }
+.rv-tab {
+  border: none; cursor: pointer; padding: 7px 16px; border-radius: 16px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px; font-weight: 600; background: #f1f1f4; color: #888; transition: all .15s;
+}
+.rv-tab.active { background: #3a3a4d; color: #fff; }
+.rv-register-btn {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  border: none; background: none; cursor: pointer; padding: 4px 2px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px; color: #333; white-space: nowrap;
+}
+.rv-register-btn img { border-radius: 4px; display: block; }
+.rv-tab-body { width: 100%; }
+.rv-pane { width: 100%; }
+.rv-loading { padding: 28px 0; text-align: center; color: #999; font-size: 14px; }
+
+/* 빈 상태 (캠페인/후기 공통) */
+.rv-empty { padding: 28px 16px 24px; text-align: center; }
+.rv-empty-text { font-size: 15px; color: #1a1a1a; line-height: 1.5; font-weight: 500; }
+.rv-empty-text b { font-weight: 700; }
+.rv-empty-sub { font-size: 13px; color: #999; margin-top: 6px; }
+.rv-empty-btn {
+  margin-top: 16px; padding: 10px 22px; border: 1px solid rgba(170,170,170,0.6);
+  background: #fff; border-radius: 8px; cursor: pointer;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px; color: #1a1a1a;
+}
+.rv-empty-btn:hover { background: #f5f5f5; }
+
+/* 후기 리스트 */
+.rv-list-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 10px; }
+.rv-count { font-size: 13px; color: #555; }
+.rv-sort { border: none; background: none; cursor: pointer; font-size: 13px; color: #555; font-family: inherit; }
+.rv-cards { display: flex; flex-direction: column; gap: 14px; }
+.rv-card { display: flex; gap: 12px; cursor: pointer; }
+.rv-thumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #eee; }
+.rv-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rv-thumb-empty { background: #ededed; }
+.rv-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rv-card-title {
+  font-size: 14px; font-weight: 600; color: #1a1a1a; margin: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rv-card-excerpt {
+  font-size: 12px; color: #999; margin: 0; line-height: 1.4;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.rv-card-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.rv-card-author { font-size: 12px; color: #777; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-like { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; padding: 2px 0 2px 8px; flex-shrink: 0; }
+.rv-heart { fill: #d4d4d8; transition: fill .15s; }
+.rv-like.liked .rv-heart { fill: #E82A2D; }
+.rv-like-count { font-size: 12px; color: #777; }
+
+/* 후기 등록 폼 */
+.rv-required { color: #E82A2D; }
+.rv-url-row { display: flex; gap: 8px; }
+.rv-url-row input { flex: 1; min-width: 0; }
+.rv-verify-btn {
+  flex-shrink: 0; padding: 0 18px; border: 1px solid rgba(170,170,170,0.87); background: #fff;
+  border-radius: 8px; cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px; color: #1a1a1a;
+}
+.rv-verify-btn:hover { background: #f5f5f5; }
+.rv-form-error { color: #E82A2D; font-size: 14px; margin: 4px 0 0; }
+.rv-preview-label { font-size: 14px; color: #555; margin: 8px 0; }
+
+/* PC: 후기 등록은 가운데 팝업 (signup 팝업과 동일 패턴) */
+@media (min-width: 641px) {
+  #reviewFormOverlay { background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+  #reviewFormOverlay .signup-page {
+    flex: 0 1 auto; width: 420px; max-width: calc(100vw - 40px);
+    height: auto; max-height: 85vh; margin: 0;
+    background: #fff; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+  #reviewFormOverlay .signup-content { flex: 0 1 auto; padding: 24px 20px 0; }
+  #reviewFormOverlay .signup-title-wrap h2 { font-size: 20px; }
+  #reviewFormOverlay .form-group input,
+  #reviewFormOverlay .rv-verify-btn { height: 48px; font-size: 16px; }
+  #reviewFormOverlay .signup-footer { padding: 20px; }
+  #reviewFormOverlay .signup-btn-cancel,
+  #reviewFormOverlay .signup-btn-confirm { height: 48px; font-size: 16px; }
+}

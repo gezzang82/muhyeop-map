@@ -30,6 +30,91 @@ module.exports = async function handler(req, res) {
     // 컬럼이 이미 있으면 무시
   }
 
+  // ===== 후기(리뷰) 라우팅 — 함수 12개 제한 때문에 places.js에 합침 (?reviews=...) =====
+  if (req.query.reviews !== undefined) {
+    const { validateAndExtract, ensureReviewTables, toReview } = require('./_reviews');
+    await ensureReviewTables(db);
+    const action = req.query.reviews;
+    const session = readSession(req);
+
+    // 목록: GET ?reviews=list&placeId=&sort=latest|likes
+    if (req.method === 'GET') {
+      const placeId = Number(req.query.placeId);
+      if (!placeId) return res.status(400).json({ error: 'placeId가 필요합니다.' });
+      const order = req.query.sort === 'likes' ? 'like_count DESC, id DESC' : 'id DESC';
+      const r = await db.execute({ sql: `SELECT * FROM reviews WHERE place_id = ? AND COALESCE(hidden,0)=0 ORDER BY ${order}`, args: [placeId] });
+      let likedSet = new Set();
+      if (session && r.rows.length) {
+        const ids = r.rows.map(x => x.id);
+        const lk = await db.execute({ sql: `SELECT review_id FROM review_likes WHERE voter_key = ? AND review_id IN (${ids.map(() => '?').join(',')})`, args: ['u' + session.userId, ...ids] });
+        likedSet = new Set(lk.rows.map(x => x.review_id));
+      }
+      return res.status(200).json(r.rows.map(row => toReview(row, likedSet.has(row.id))));
+    }
+
+    // 검증(미저장 미리보기): POST ?reviews=validate { url, placeId }
+    if (req.method === 'POST' && action === 'validate') {
+      const { url, placeId } = req.body || {};
+      const pr = await db.execute({ sql: 'SELECT name FROM places WHERE id = ?', args: [Number(placeId)] });
+      const result = await validateAndExtract(url, pr.rows[0]?.name || '');
+      return res.status(result.ok ? 200 : 400).json(result);
+    }
+
+    // 등록: POST ?reviews=create { url, placeId } (로그인 필요)
+    if (req.method === 'POST' && action === 'create') {
+      if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+      const { url, placeId } = req.body || {};
+      const pid = Number(placeId);
+      const pr = await db.execute({ sql: 'SELECT name FROM places WHERE id = ?', args: [pid] });
+      if (!pr.rows[0]) return res.status(404).json({ error: '매장을 찾을 수 없어요.' });
+      const result = await validateAndExtract(url, pr.rows[0].name);
+      if (!result.ok) return res.status(400).json(result);
+      const d = result.data;
+      const dup = await db.execute({ sql: 'SELECT id FROM reviews WHERE place_id = ? AND log_no = ? AND COALESCE(hidden,0)=0', args: [pid, d.logNo] });
+      if (dup.rows.length) return res.status(409).json({ error: '이미 등록된 후기예요.' });
+      const ins = await db.execute({
+        sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id) VALUES (?,?,?,?,?,?,?,?,?)`,
+        args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, d.author, session.userId]
+      });
+      const row = (await db.execute({ sql: 'SELECT * FROM reviews WHERE id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
+      return res.status(201).json(toReview(row, false));
+    }
+
+    // 좋아요 토글: POST ?reviews=like&id= (로그인 필요)
+    if (req.method === 'POST' && action === 'like') {
+      if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+      const id = Number(req.query.id);
+      if (!id) return res.status(400).json({ error: 'id가 필요합니다.' });
+      const voterKey = 'u' + session.userId;
+      const existing = await db.execute({ sql: 'SELECT 1 FROM review_likes WHERE review_id = ? AND voter_key = ?', args: [id, voterKey] });
+      let liked;
+      if (existing.rows.length) {
+        await db.execute({ sql: 'DELETE FROM review_likes WHERE review_id = ? AND voter_key = ?', args: [id, voterKey] });
+        await db.execute({ sql: 'UPDATE reviews SET like_count = MAX(0, COALESCE(like_count,0) - 1) WHERE id = ?', args: [id] });
+        liked = false;
+      } else {
+        await db.execute({ sql: 'INSERT OR IGNORE INTO review_likes (review_id, voter_key) VALUES (?, ?)', args: [id, voterKey] });
+        await db.execute({ sql: 'UPDATE reviews SET like_count = COALESCE(like_count,0) + 1 WHERE id = ?', args: [id] });
+        liked = true;
+      }
+      const row = (await db.execute({ sql: 'SELECT like_count FROM reviews WHERE id = ?', args: [id] })).rows[0];
+      return res.status(200).json({ liked, likeCount: Number(row?.like_count || 0) });
+    }
+
+    // 삭제: DELETE ?reviews=1&id= (관리자)
+    if (req.method === 'DELETE') {
+      if (!requireAdmin(req, res)) return;
+      const id = Number(req.query.id);
+      if (!id) return res.status(400).json({ error: 'id가 필요합니다.' });
+      await db.execute({ sql: 'DELETE FROM reviews WHERE id = ?', args: [id] });
+      await db.execute({ sql: 'DELETE FROM review_likes WHERE review_id = ?', args: [id] });
+      return res.status(200).json({ id });
+    }
+
+    res.setHeader('Allow', 'GET, POST, DELETE');
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
   if (req.method === 'GET') {
     const q = req.query || {};
     // 어드민 조회: 서버 사이드 검색/필터/페이지네이션 (수천 건+ 대응)
