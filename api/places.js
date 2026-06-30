@@ -42,7 +42,26 @@ module.exports = async function handler(req, res) {
       const placeId = Number(req.query.placeId);
       if (!placeId) return res.status(400).json({ error: 'placeId가 필요합니다.' });
       const order = req.query.sort === 'likes' ? 'r.like_count DESC, r.id DESC' : 'r.id DESC';
-      const r = await db.execute({ sql: `SELECT r.*, u.nickname AS user_nickname FROM reviews r LEFT JOIN users u ON u.id = r.user_id WHERE r.place_id = ? AND COALESCE(r.hidden,0)=0 ORDER BY ${order}`, args: [placeId] });
+      const r = await db.execute({
+        sql: `SELECT r.*,
+                     COALESCE(
+                       NULLIF(u.nickname, ''),
+                       (
+                         SELECT u2.nickname
+                         FROM users u2
+                         WHERE u2.url_platform = '블로그'
+                           AND u2.url_id = r.blog_id
+                           AND NULLIF(u2.nickname, '') IS NOT NULL
+                         ORDER BY u2.id DESC
+                         LIMIT 1
+                       )
+                     ) AS user_nickname
+              FROM reviews r
+              LEFT JOIN users u ON u.id = r.user_id
+              WHERE r.place_id = ? AND COALESCE(r.hidden,0)=0
+              ORDER BY ${order}`,
+        args: [placeId]
+      });
       let likedSet = new Set();
       if (session && r.rows.length) {
         const ids = r.rows.map(x => x.id);
