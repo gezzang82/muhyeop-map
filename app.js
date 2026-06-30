@@ -709,6 +709,9 @@ function initDetailTabs(place) {
   const def = getActiveCampaigns(place.id).length ? 'campaign' : 'review';
   _detailTab = def;
   if (def === 'review') { _reviewLoaded = true; loadReviews(place.id); }
+  // PC 인포윈도우: 팝업 내부 휠 스크롤이 지도 줌으로 새는 것 방지 (휠 전파 차단 → 내부 스크롤만)
+  const tb = document.getElementById('rvTabBody');
+  if (tb) tb.addEventListener('wheel', (e) => { e.stopPropagation(); }, { passive: true });
 }
 
 function switchDetailTab(placeId, tab) {
@@ -2679,6 +2682,9 @@ function initSheetSwipeToDismiss() {
   let dragging = false;
 
   function onTouchStart(e) {
+    // 탭/버튼/링크/입력 등 인터랙티브 요소 위에서는 드래그 시작 안 함
+    // (탭 탭(tap)이 미세 드래그로 잡혀 click이 취소되는 문제 방지)
+    if (e.target.closest('button, a, input, textarea, select, .rv-tab, .rv-register-btn, .rv-like')) { dragging = false; return; }
     // 컨텐츠 스크롤 중이면 무시 (맨 위일 때만 드래그 허용)
     if (e.target.closest('.mobile-sheet-content') && content.scrollTop > 0) return;
     startY = e.touches[0].clientY;
