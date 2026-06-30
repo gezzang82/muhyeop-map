@@ -2503,24 +2503,33 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 
 /* ===== 후기(리뷰) 탭 / 리스트 / 등록 ===== */
-.rv-tabs-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0 2px; }
+.rv-tabs-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .rv-tabs { display: flex; gap: 6px; }
 .rv-tab {
-  border: none; cursor: pointer; padding: 7px 16px; border-radius: 16px;
+  border: none; cursor: pointer; padding: 8px 12px; border-radius: 16px; line-height: 16px;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px; font-weight: 600; background: #f1f1f4; color: #888; transition: all .15s;
+  font-size: 14px; font-weight: 400; background: rgba(57,57,92,0.12); color: #39395c; transition: all .15s;
 }
-.rv-tab.active { background: #3a3a4d; color: #fff; }
+.rv-tab.active { background: #39395c; color: #fff; font-weight: 700; }
 .rv-register-btn {
-  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
-  border: none; background: none; cursor: pointer; padding: 4px 2px;
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  border: none; background: none; cursor: pointer; padding: 4px 0;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 13px; color: #333; white-space: nowrap;
+  font-size: 14px; color: #1a1a1a; white-space: nowrap;
 }
 .rv-register-btn img { border-radius: 4px; display: block; }
 .rv-tab-body { width: 100%; }
 .rv-pane { width: 100%; }
 .rv-loading { padding: 28px 0; text-align: center; color: #999; font-size: 14px; }
+.rv-line { height: 1px; background: #eee; }
+
+/* PC 카드(info-window): 매장명과 동일한 20px 인셋 + 라인 아래 영역만 스크롤 */
+.info-window .rv-tabs-row { padding: 12px 20px 0; }
+.info-window .rv-line { margin: 12px 20px 0; }
+.info-window .rv-pane-review { padding: 12px 20px 20px; max-height: 360px; overflow-y: auto; }
+.info-window .rv-empty { padding: 24px 20px; }
+/* 모바일: 라인은 detail-fixed 안(탭 아래), 리스트는 detail-scroll이 스크롤 */
+.detail-scroll .rv-pane-review { padding-top: 12px; }
 
 /* 빈 상태 (캠페인/후기 공통) */
 .rv-empty { padding: 28px 16px 24px; text-align: center; }

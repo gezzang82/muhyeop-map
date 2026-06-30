@@ -554,8 +554,9 @@ function createInfoContent(place) {
         </div>
         <div class="iw-address">${place.address}</div>
       </div>
-      ${founderHtml ? `<div class="iw-meta-founder">${founderHtml}<div class="iw-divider"></div></div>` : '<div class="iw-divider iw-divider-top"></div>'}
+      ${founderHtml ? `<div class="iw-meta-founder">${founderHtml}</div>` : ''}
       ${detailTabsHtml(place)}
+      <div class="rv-line"></div>
       <div class="rv-tab-body" id="rvTabBody">
         <div class="rv-pane rv-pane-campaign"${active.length ? '' : ' style="display:none"'}>${active.length ? `<div class="iw-campaigns-wrap">${campaignsHtml}</div>` : campaignEmptyHtml(place)}</div>
         <div class="rv-pane rv-pane-review"${active.length ? ' style="display:none"' : ''}></div>
@@ -661,8 +662,9 @@ function createMobileDetailContent(place) {
         </div>
         <div class="detail-address">${place.address}</div>
       </div>
-      ${founderHtml ? `<div class="detail-meta-founder">${founderHtml}<div class="detail-divider"></div></div>` : '<div class="detail-divider detail-divider-top"></div>'}
+      ${founderHtml ? `<div class="detail-meta-founder">${founderHtml}</div>` : ''}
       ${detailTabsHtml(place)}
+      <div class="rv-line"></div>
     </div>
     <div class="detail-scroll">
       <div class="rv-tab-body" id="rvTabBody">
@@ -687,7 +689,7 @@ function detailTabsHtml(place) {
         <button class="rv-tab${def === 'campaign' ? ' active' : ''}" data-tab="campaign" onclick="switchDetailTab(${place.id},'campaign')">캠페인</button>
         <button class="rv-tab${def === 'review' ? ' active' : ''}" data-tab="review" onclick="switchDetailTab(${place.id},'review')">후기</button>
       </div>
-      <button class="rv-register-btn" onclick="openReviewForm(${place.id})"><img src="image/ic_naver_blog_20.png" width="18" height="18" alt="">후기 등록 ›</button>
+      <button class="rv-register-btn" onclick="openReviewForm(${place.id})"><img src="image/ic_naver_blog_20.png" width="20" height="20" alt="">후기 등록<img src="image/ic_chevron_right_gray.svg" width="8" height="8" alt="" class="rv-reg-chev"></button>
     </div>`;
 }
 
@@ -753,7 +755,7 @@ function renderReviewPane(placeId, list) {
 function reviewCardHtml(r, isPreview) {
   const date = fmtReviewDate(r.createdAt);
   const thumb = r.thumbnail
-    ? `<div class="rv-thumb"><img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()"></div>`
+    ? `<div class="rv-thumb"><img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()"></div>`
     : `<div class="rv-thumb rv-thumb-empty"></div>`;
   const meta = isPreview
     ? `<span class="rv-card-author">${rvEsc(r.author)}</span>`
