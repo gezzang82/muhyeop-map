@@ -760,9 +760,10 @@ function reviewCardHtml(r, isPreview) {
   const thumb = r.thumbnail
     ? `<div class="rv-thumb"><img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()"></div>`
     : `<div class="rv-thumb rv-thumb-empty"></div>`;
+  const byline = `<span class="rv-card-byline"><span class="rv-card-author">${rvEsc(r.author)}</span>${date ? `<span class="rv-card-dot"></span><span class="rv-card-date">${date}</span>` : ''}</span>`;
   const meta = isPreview
-    ? `<span class="rv-card-author">${rvEsc(r.author)}</span>`
-    : `<span class="rv-card-author">${rvEsc(r.author)}${date ? ` · ${date}` : ''}</span>
+    ? byline
+    : `${byline}
        <button class="rv-like${r.liked ? ' liked' : ''}" onclick="event.stopPropagation();toggleReviewLike(${r.id}, this)">${rvHeart()}<span class="rv-like-count">${r.likeCount || 0}</span></button>`;
   const clickAttr = isPreview ? '' : ` onclick="window.open('${rvEsc(r.url)}','_blank','noopener')"`;
   return `<div class="rv-card"${clickAttr}>
@@ -827,7 +828,8 @@ async function validateReviewUrl() {
     });
     const data = await res.json();
     if (!data.ok) { preview.innerHTML = ''; err.textContent = data.reason || '검증에 실패했어요.'; return; }
-    preview.innerHTML = `<p class="rv-preview-label">이 후기로 등록할까요?</p>` + reviewCardHtml(Object.assign({ likeCount: 0, liked: false, createdAt: '' }, data.data), true);
+    const previewAuthor = (currentUser && currentUser.nickname) || data.data.author;
+    preview.innerHTML = `<p class="rv-preview-label">이 후기로 등록할까요?</p>` + reviewCardHtml(Object.assign({ likeCount: 0, liked: false, createdAt: '' }, data.data, { author: previewAuthor }), true);
     _reviewValidated = true;
     submitBtn.disabled = false;
   } catch (e) { preview.innerHTML = ''; err.textContent = '검증 중 오류가 발생했어요.'; }

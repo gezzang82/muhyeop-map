@@ -2515,7 +2515,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
   border: none; background: none; cursor: pointer; padding: 4px 0;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px; color: #1a1a1a; white-space: nowrap;
+  font-size: 15px; color: #1a1a1a; white-space: nowrap;
 }
 .rv-register-btn img { border-radius: 4px; display: block; }
 .rv-tab-body { width: 100%; }
@@ -2546,8 +2546,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
 /* 후기 리스트 */
 .rv-list-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 10px; }
-.rv-count { font-size: 13px; color: #555; }
-.rv-sort { border: none; background: none; cursor: pointer; font-size: 13px; color: #555; font-family: inherit; }
+.rv-count { font-size: 14px; color: #1a1a1a; }
+.rv-sort { border: none; background: none; cursor: pointer; font-size: 14px; color: #555; font-family: inherit; }
 .rv-cards { display: flex; flex-direction: column; gap: 14px; }
 .rv-card { display: flex; gap: 12px; cursor: pointer; }
 .rv-thumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #eee; }
@@ -2555,15 +2555,18 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .rv-thumb-empty { background: #ededed; }
 .rv-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .rv-card-title {
-  font-size: 14px; font-weight: 600; color: #1a1a1a; margin: 0;
+  font-size: 15px; font-weight: 400; color: #1a1a1a; margin: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .rv-card-excerpt {
-  font-size: 12px; color: #999; margin: 0; line-height: 1.4;
+  font-size: 13px; color: #777; margin: 0; line-height: 1.4;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
-.rv-card-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
-.rv-card-author { font-size: 12px; color: #777; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-card-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; gap: 8px; }
+.rv-card-byline { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; }
+.rv-card-author { font-size: 14px; font-weight: 700; color: #555; line-height: 16px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-card-dot { width: 2px; height: 2px; border-radius: 50%; background: #bbb; flex-shrink: 0; }
+.rv-card-date { font-size: 12px; color: #777; line-height: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rv-like { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; padding: 2px 0 2px 8px; flex-shrink: 0; }
 .rv-heart { fill: #d4d4d8; transition: fill .15s; }
 .rv-like.liked .rv-heart { fill: #E82A2D; }

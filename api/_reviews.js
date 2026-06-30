@@ -100,6 +100,8 @@ async function ensureReviewTables(db) {
     created_at TEXT DEFAULT (datetime('now')),
     UNIQUE(review_id, voter_key)
   )`);
+  await db.execute('CREATE INDEX IF NOT EXISTS idx_reviews_place_id ON reviews(place_id, hidden, id)');
+  await db.execute('CREATE INDEX IF NOT EXISTS idx_review_likes_review_id ON review_likes(review_id)');
 }
 
 function toReview(row, liked) {
@@ -110,7 +112,7 @@ function toReview(row, liked) {
     title: row.title || '블로그 후기',
     thumbnail: row.thumbnail || '',
     excerpt: row.excerpt || '',
-    author: row.author || '',
+    author: row.user_nickname || row.author || '',
     likeCount: Number(row.like_count || 0),
     liked: !!liked,
     createdAt: row.created_at

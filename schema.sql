@@ -69,3 +69,30 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 
 CREATE INDEX IF NOT EXISTS idx_reports_campaign_id ON reports(campaign_id);
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  place_id INTEGER NOT NULL REFERENCES places(id),
+  url TEXT NOT NULL,
+  blog_id TEXT DEFAULT '',
+  log_no TEXT DEFAULT '',
+  title TEXT DEFAULT '',
+  thumbnail TEXT DEFAULT '',
+  excerpt TEXT DEFAULT '',
+  author TEXT DEFAULT '',
+  user_id INTEGER REFERENCES users(id),
+  like_count INTEGER DEFAULT 0,
+  hidden INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_place_id ON reviews(place_id, hidden, id);
+
+CREATE TABLE IF NOT EXISTS review_likes (
+  review_id INTEGER NOT NULL REFERENCES reviews(id),
+  voter_key TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(review_id, voter_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_review_likes_review_id ON review_likes(review_id);

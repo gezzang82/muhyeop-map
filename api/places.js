@@ -41,8 +41,8 @@ module.exports = async function handler(req, res) {
     if (req.method === 'GET') {
       const placeId = Number(req.query.placeId);
       if (!placeId) return res.status(400).json({ error: 'placeId가 필요합니다.' });
-      const order = req.query.sort === 'likes' ? 'like_count DESC, id DESC' : 'id DESC';
-      const r = await db.execute({ sql: `SELECT * FROM reviews WHERE place_id = ? AND COALESCE(hidden,0)=0 ORDER BY ${order}`, args: [placeId] });
+      const order = req.query.sort === 'likes' ? 'r.like_count DESC, r.id DESC' : 'r.id DESC';
+      const r = await db.execute({ sql: `SELECT r.*, u.nickname AS user_nickname FROM reviews r LEFT JOIN users u ON u.id = r.user_id WHERE r.place_id = ? AND COALESCE(r.hidden,0)=0 ORDER BY ${order}`, args: [placeId] });
       let likedSet = new Set();
       if (session && r.rows.length) {
         const ids = r.rows.map(x => x.id);
@@ -56,6 +56,7 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST' && action === 'validate') {
       const { url, placeId } = req.body || {};
       const pr = await db.execute({ sql: 'SELECT name FROM places WHERE id = ?', args: [Number(placeId)] });
+      if (!pr.rows[0]) return res.status(404).json({ error: '매장을 찾을 수 없어요.' });
       const result = await validateAndExtract(url, pr.rows[0]?.name || '');
       return res.status(result.ok ? 200 : 400).json(result);
     }
@@ -74,7 +75,7 @@ module.exports = async function handler(req, res) {
       if (dup.rows.length) return res.status(409).json({ error: '이미 등록된 후기예요.' });
       const ins = await db.execute({
         sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id) VALUES (?,?,?,?,?,?,?,?,?)`,
-        args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, d.author, session.userId]
+        args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId]
       });
       const row = (await db.execute({ sql: 'SELECT * FROM reviews WHERE id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
       return res.status(201).json(toReview(row, false));
@@ -85,6 +86,8 @@ module.exports = async function handler(req, res) {
       if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
       const id = Number(req.query.id);
       if (!id) return res.status(400).json({ error: 'id가 필요합니다.' });
+      const review = await db.execute({ sql: 'SELECT id FROM reviews WHERE id = ? AND COALESCE(hidden,0)=0', args: [id] });
+      if (!review.rows[0]) return res.status(404).json({ error: '후기를 찾을 수 없어요.' });
       const voterKey = 'u' + session.userId;
       const existing = await db.execute({ sql: 'SELECT 1 FROM review_likes WHERE review_id = ? AND voter_key = ?', args: [id, voterKey] });
       let liked;
@@ -106,8 +109,8 @@ module.exports = async function handler(req, res) {
       if (!requireAdmin(req, res)) return;
       const id = Number(req.query.id);
       if (!id) return res.status(400).json({ error: 'id가 필요합니다.' });
-      await db.execute({ sql: 'DELETE FROM reviews WHERE id = ?', args: [id] });
       await db.execute({ sql: 'DELETE FROM review_likes WHERE review_id = ?', args: [id] });
+      await db.execute({ sql: 'DELETE FROM reviews WHERE id = ?', args: [id] });
       return res.status(200).json({ id });
     }
 
