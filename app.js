@@ -85,6 +85,30 @@ function getCategoryPinSelected(cat) {
     + `</svg>`;
 }
 
+// 캠페인 없는(마감) 매장 핀: 회색(#BABABA) 원 + 흰 아이콘 opacity 50%
+function getGrayPin(cat) {
+  const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
+  return `<svg class="map-pin-svg" width="34" height="34" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">`
+    + `<circle cx="15" cy="15" r="14" fill="#fff"/>`
+    + `<circle cx="15" cy="15" r="14.5" stroke="#000" stroke-opacity="0.08"/>`
+    + `<circle cx="15" cy="15" r="12" fill="#BABABA"/>`
+    + `<g opacity="0.5">${p.icon}</g>`
+    + `</svg>`;
+}
+function getGrayPinSelected(cat) {
+  const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
+  return `<svg class="map-pin-svg" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">`
+    + `<path d="M24 3.55675C28.5005 3.55684 32.8171 5.38047 36 8.63194H35.999C38.8639 11.5548 40.3793 14.8561 40.7793 18.3009C41.1758 21.7042 40.4635 25.0858 39.1445 28.212C36.533 34.4156 31.3755 40.005 26.457 43.631C25.7434 44.1586 24.8842 44.4444 24 44.4444C23.1152 44.4444 22.255 44.1583 21.541 43.63V43.629C16.6229 40.0028 11.4656 34.4127 8.85254 28.212C7.53549 25.0857 6.8255 21.7044 7.21973 18.2999V18.2989C7.61974 14.8559 9.13549 11.5565 12 8.63194L12.001 8.63097C15.1946 5.37825 19.5047 3.55254 24 3.55675Z" fill="#BABABA" stroke="#fff" stroke-width="1.77778"/>`
+    + `<g transform="translate(3 1) scale(1.4)" opacity="0.5">${p.icon}</g>`
+    + `</svg>`;
+}
+// 매장 상태에 맞는 핀 HTML (활성 캠페인 있으면 카테고리 컬러, 없으면 회색)
+function getPlacePin(place, selected) {
+  const active = hasActiveCampaign(place.id);
+  if (selected) return active ? getCategoryPinSelected(place.category) : getGrayPinSelected(place.category);
+  return active ? getCategoryPin(place.category) : getGrayPin(place.category);
+}
+
 function setSelectedMarker(placeId) {
   if (selectedMarkerId === placeId) return;
   clearSelectedMarker();
@@ -92,7 +116,7 @@ function setSelectedMarker(placeId) {
   const place = places.find(p => p.id === placeId);
   if (!entry || !place) return;
   entry.marker.setIcon({
-    content: `<div class="map-pin map-pin-selected">${getCategoryPinSelected(place.category)}</div>`,
+    content: `<div class="map-pin map-pin-selected">${getPlacePin(place, true)}</div>`,
     anchor: new naver.maps.Point(24, 45)
   });
   entry.marker.setZIndex(1000);
@@ -105,7 +129,7 @@ function clearSelectedMarker() {
   const place = places.find(p => p.id === selectedMarkerId);
   if (entry && place) {
     entry.marker.setIcon({
-      content: `<div class="map-pin">${getCategoryPin(place.category)}</div>`,
+      content: `<div class="map-pin">${getPlacePin(place, false)}</div>`,
       anchor: new naver.maps.Point(17, 17)
     });
     entry.marker.setZIndex(0);
@@ -392,11 +416,12 @@ function renderMarkers() {
   markerMap = {};
   selectedMarkerId = null;
 
-  const activePlaces = places.filter(place => hasActiveCampaign(place.id));
-  const jitteredPositions = getJitteredPositions(activePlaces);
+  // 매장 중심: 캠페인/후기 없어도 전체 노출 (어드민이 강제 숨김한 것만 제외). 캠페인 유무는 핀 컬러로 구분.
+  const visiblePlaces = places.filter(place => !place.hidden);
+  const jitteredPositions = getJitteredPositions(visiblePlaces);
 
-  activePlaces.forEach(place => {
-    const icon = getCategoryPin(place.category);
+  visiblePlaces.forEach(place => {
+    const icon = getPlacePin(place, false);
     const pos = jitteredPositions[place.id];
     place.displayLat = pos.lat;
     place.displayLng = pos.lng;
