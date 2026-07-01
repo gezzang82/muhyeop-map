@@ -30,6 +30,16 @@ function ogTag(html, prop) {
   return m ? m[1].trim() : '';
 }
 
+// 네이버 블로그 게시일 추출 (SmartEditor의 se_publishDate, 예: "2026. 3. 14. 17:22" → "2026-03-14")
+function extractPostDate(html) {
+  const m = html.match(/se_publishDate[^>]*>\s*([^<]+?)\s*</i);
+  if (!m) return '';
+  const d = m[1].match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\./);
+  if (!d) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d[1]}-${pad(d[2])}-${pad(d[3])}`;
+}
+
 function plainText(html) {
   let t = html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ');
   t = t.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&[a-z]+;/gi, ' ');
@@ -50,7 +60,8 @@ async function fetchBlogPost(blogId, logNo) {
   let excerpt = ogTag(html, 'description');
   const body = plainText(html);
   if (!excerpt) excerpt = body.slice(0, 120);
-  return { title, thumbnail, excerpt, body };
+  const postDate = extractPostDate(html);
+  return { title, thumbnail, excerpt, body, postDate };
 }
 
 // URL + 매장명으로 검증 + 메타 추출. 반환: { ok, reason?, data? }
@@ -73,7 +84,8 @@ async function validateAndExtract(url, placeName) {
       title: post.title || '블로그 후기',
       thumbnail: post.thumbnail || '',
       excerpt: post.excerpt || '',
-      author: parsed.blogId
+      author: parsed.blogId,
+      postDate: post.postDate || ''
     }
   };
 }
@@ -92,8 +104,10 @@ async function ensureReviewTables(db) {
     user_id INTEGER,
     like_count INTEGER DEFAULT 0,
     hidden INTEGER DEFAULT 0,
+    post_date TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
   )`);
+  try { await db.execute("ALTER TABLE reviews ADD COLUMN post_date TEXT DEFAULT ''"); } catch (e) { /* 이미 있으면 무시 */ }
   await db.execute(`CREATE TABLE IF NOT EXISTS review_likes (
     review_id INTEGER NOT NULL,
     voter_key TEXT NOT NULL,
@@ -115,6 +129,7 @@ function toReview(row, liked) {
     author: row.user_nickname || row.author || '',
     likeCount: Number(row.like_count || 0),
     liked: !!liked,
+    postDate: row.post_date || '',
     createdAt: row.created_at
   };
 }

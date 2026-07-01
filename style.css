@@ -2552,8 +2552,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .rv-count { font-size: 14px; color: #1a1a1a; }
 .rv-sort-wrap { position: relative; flex-shrink: 0; }
 .rv-sort { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; font-size: 14px; color: #555; font-family: inherit; padding: 0; }
-.rv-sort-caret { display: block; transition: transform .15s; }
-.rv-sort-wrap.open .rv-sort-caret { transform: rotate(180deg); }
+.rv-sort-caret { display: block; transition: transform .15s; transform: rotate(180deg); }
+.rv-sort-wrap.open .rv-sort-caret { transform: rotate(0deg); }
 .rv-sort-menu {
   display: none; position: absolute; top: calc(100% + 6px); right: 0; width: 80px;
   background: #fff; border: 1px solid #ddd; border-radius: 4px;
@@ -2562,7 +2562,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .rv-sort-wrap.open .rv-sort-menu { display: block; }
 .rv-sort-opt {
   display: block; width: 100%; height: 40px; padding: 0 12px; border: none; background: none;
-  cursor: pointer; font-family: inherit; font-size: 14px; color: #555; text-align: center; white-space: nowrap;
+  cursor: pointer; font-family: inherit; font-size: 14px; color: #555; text-align: left; white-space: nowrap;
 }
 .rv-sort-opt.active { color: #1a1a1a; font-weight: 600; }
 .rv-sort-opt + .rv-sort-opt { border-top: 1px solid #eee; }
@@ -2587,8 +2587,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .rv-card-dot { width: 2px; height: 2px; border-radius: 50%; background: #bbb; flex-shrink: 0; }
 .rv-card-date { font-size: 12px; color: #777; line-height: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rv-like { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; padding: 2px 0 2px 8px; flex-shrink: 0; }
-.rv-heart { fill: #d4d4d8; transition: fill .15s; }
-.rv-like.liked .rv-heart { fill: #E82A2D; }
+.rv-heart-off, .rv-heart-on { display: block; }
+.rv-heart-on { display: none; }
+.rv-like.liked .rv-heart-off { display: none; }
+.rv-like.liked .rv-heart-on { display: block; }
 .rv-like-count { font-size: 12px; color: #777; }
 
 /* 후기 등록 폼 */

@@ -93,8 +93,8 @@ module.exports = async function handler(req, res) {
       const dup = await db.execute({ sql: 'SELECT id FROM reviews WHERE place_id = ? AND log_no = ? AND COALESCE(hidden,0)=0', args: [pid, d.logNo] });
       if (dup.rows.length) return res.status(409).json({ error: '이미 등록된 후기예요.' });
       const ins = await db.execute({
-        sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id) VALUES (?,?,?,?,?,?,?,?,?)`,
-        args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId]
+        sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id, post_date) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId, d.postDate || '']
       });
       const row = (await db.execute({ sql: 'SELECT * FROM reviews WHERE id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
       return res.status(201).json(toReview(row, false));

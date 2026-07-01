@@ -708,7 +708,7 @@ let _detailPlaceId = null, _detailTab = 'campaign', _reviewSort = 'latest', _rev
 let _reviewFormPlaceId = null, _reviewValidated = false;
 
 function rvEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function rvHeart() { return '<svg class="rv-heart" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.7s-6.9-4.4-9.2-8.6C1.4 9.4 2.8 6.3 5.8 6.3c1.8 0 3.1 1 4.2 2.3 1.1-1.3 2.4-2.3 4.2-2.3 3 0 4.4 3.1 3 5.8C18.9 16.3 12 20.7 12 20.7z"/></svg>'; }
+function rvHeart() { return '<img class="rv-heart-off" src="image/ic_good_def.svg" width="16" height="14" alt=""><img class="rv-heart-on" src="image/ic_good_sel.svg" width="16" height="14" alt="">'; }
 function fmtReviewDate(s) { const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : ''; }
 
 function detailTabsHtml(place) {
@@ -782,7 +782,7 @@ function renderReviewPane(placeId, list) {
       <div class="rv-sort-wrap">
         <button class="rv-sort" onclick="event.stopPropagation();toggleSortMenu(this)">
           <span class="rv-sort-label">${sortLabel}</span>
-          <img class="rv-sort-caret" src="image/ic_arrow_down.svg" width="10" height="10" alt="">
+          <img class="rv-sort-caret" src="image/ic_arrow_01.svg" width="9" height="5" alt="">
         </button>
         <div class="rv-sort-menu">
           <button class="rv-sort-opt${_reviewSort !== 'likes' ? ' active' : ''}" onclick="setReviewSort(${placeId},'latest')">최신 순</button>
@@ -816,7 +816,7 @@ function setReviewSort(placeId, sort) {
 }
 
 function reviewCardHtml(r, isPreview) {
-  const date = fmtReviewDate(r.createdAt);
+  const date = fmtReviewDate(r.postDate || r.createdAt);
   const thumb = r.thumbnail
     ? `<div class="rv-thumb"><img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()"></div>`
     : `<div class="rv-thumb rv-thumb-empty"></div>`;
@@ -843,14 +843,31 @@ function toggleReviewSort(placeId) {
 
 async function toggleReviewLike(reviewId, btnEl) {
   if (!currentUser) { openLoginSheet(); return; }
+  if (btnEl._liking) return; // 연타 방지
+  const cntEl = btnEl.querySelector('.rv-like-count');
+  const wasLiked = btnEl.classList.contains('liked');
+  const prevCount = parseInt(cntEl?.textContent || '0', 10) || 0;
+  // 낙관적 업데이트: 서버 응답 기다리지 않고 즉시 반영 (느린 왕복 체감 제거)
+  btnEl.classList.toggle('liked', !wasLiked);
+  if (cntEl) cntEl.textContent = Math.max(0, prevCount + (wasLiked ? -1 : 1));
+  btnEl._liking = true;
   try {
     const res = await fetch(`/api/places?reviews=like&id=${reviewId}`, { method: 'POST' });
-    if (res.status === 401) { openLoginSheet(); return; }
+    if (res.status === 401) { // 롤백 후 로그인 유도
+      btnEl.classList.toggle('liked', wasLiked);
+      if (cntEl) cntEl.textContent = prevCount;
+      openLoginSheet(); return;
+    }
     const data = await res.json();
+    // 서버 확정값으로 정합화
     btnEl.classList.toggle('liked', !!data.liked);
-    const cnt = btnEl.querySelector('.rv-like-count');
-    if (cnt) cnt.textContent = data.likeCount;
-  } catch (e) {}
+    if (cntEl && data.likeCount != null) cntEl.textContent = data.likeCount;
+  } catch (e) { // 실패 시 롤백
+    btnEl.classList.toggle('liked', wasLiked);
+    if (cntEl) cntEl.textContent = prevCount;
+  } finally {
+    btnEl._liking = false;
+  }
 }
 
 function openReportForPlace(placeId) {
