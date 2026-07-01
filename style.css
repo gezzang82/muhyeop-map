@@ -2597,6 +2597,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .rv-required { color: #E82A2D; }
 .rv-url-row { display: flex; gap: 8px; }
 .rv-url-row input { flex: 1; min-width: 0; }
+.rv-url-row .input-wrap { flex: 1; min-width: 0; }
 .rv-verify-btn {
   flex-shrink: 0; padding: 0 18px; border: 1px solid rgba(170,170,170,0.87); background: #fff;
   border-radius: 8px; cursor: pointer; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;

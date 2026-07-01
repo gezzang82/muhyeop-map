@@ -876,13 +876,20 @@ function openReportForPlace(placeId) {
 }
 
 // ===== 후기 등록 폼 =====
+// 후기 폼 필드 에러 표시/해제 (제보 폼과 동일한 field-error 패턴: 입력행 아래 메시지 + 빨간 테두리)
+function rvSetError(msg) {
+  const err = document.getElementById('reviewFormError');
+  const input = document.getElementById('reviewUrl');
+  if (msg) { err.textContent = msg; err.classList.add('show'); if (input) input.classList.add('input-error'); }
+  else { err.textContent = ''; err.classList.remove('show'); if (input) input.classList.remove('input-error'); }
+}
 function openReviewForm(placeId) {
   if (!currentUser) { openLoginSheet(); return; }
   _reviewFormPlaceId = placeId;
   _reviewValidated = false;
   document.getElementById('reviewUrl').value = '';
   document.getElementById('reviewPreview').innerHTML = '';
-  document.getElementById('reviewFormError').textContent = '';
+  rvSetError('');
   document.getElementById('reviewSubmitBtn').disabled = true;
   document.getElementById('reviewFormOverlay').classList.add('open');
 }
@@ -891,11 +898,10 @@ function closeReviewForm() {
 }
 async function validateReviewUrl() {
   const url = document.getElementById('reviewUrl').value.trim();
-  const err = document.getElementById('reviewFormError');
   const preview = document.getElementById('reviewPreview');
   const submitBtn = document.getElementById('reviewSubmitBtn');
-  err.textContent = '';
-  if (!url) { err.textContent = 'URL을 입력해주세요.'; return; }
+  rvSetError('');
+  if (!url) { rvSetError('URL을 입력해주세요.'); return; }
   preview.innerHTML = '<div class="rv-loading">검증 중…</div>';
   submitBtn.disabled = true; _reviewValidated = false;
   try {
@@ -904,17 +910,16 @@ async function validateReviewUrl() {
       body: JSON.stringify({ url, placeId: _reviewFormPlaceId })
     });
     const data = await res.json();
-    if (!data.ok) { preview.innerHTML = ''; err.textContent = data.reason || '검증에 실패했어요.'; return; }
+    if (!data.ok) { preview.innerHTML = ''; rvSetError(data.reason || '검증에 실패했어요.'); return; }
     const previewAuthor = (currentUser && currentUser.nickname) || data.data.author;
     preview.innerHTML = `<p class="rv-preview-label">이 후기로 등록할까요?</p>` + reviewCardHtml(Object.assign({ likeCount: 0, liked: false, createdAt: '' }, data.data, { author: previewAuthor }), true);
     _reviewValidated = true;
     submitBtn.disabled = false;
-  } catch (e) { preview.innerHTML = ''; err.textContent = '검증 중 오류가 발생했어요.'; }
+  } catch (e) { preview.innerHTML = ''; rvSetError('검증 중 오류가 발생했어요.'); }
 }
 async function submitReview() {
   if (!_reviewValidated) { validateReviewUrl(); return; }
   const url = document.getElementById('reviewUrl').value.trim();
-  const err = document.getElementById('reviewFormError');
   const btn = document.getElementById('reviewSubmitBtn');
   btn.disabled = true;
   try {
@@ -924,7 +929,7 @@ async function submitReview() {
     });
     if (res.status === 401) { openLoginSheet(); return; }
     const data = await res.json();
-    if (!res.ok) { err.textContent = data.error || data.reason || '등록에 실패했어요.'; btn.disabled = false; return; }
+    if (!res.ok) { rvSetError(data.error || data.reason || '등록에 실패했어요.'); btn.disabled = false; return; }
     closeReviewForm();
     showToast('후기가 등록되었어요!');
     if (_detailPlaceId === _reviewFormPlaceId) {
@@ -932,7 +937,7 @@ async function submitReview() {
       switchDetailTab(_reviewFormPlaceId, 'review');
       loadReviews(_reviewFormPlaceId);
     }
-  } catch (e) { err.textContent = '등록 중 오류가 발생했어요.'; btn.disabled = false; }
+  } catch (e) { rvSetError('등록 중 오류가 발생했어요.'); btn.disabled = false; }
 }
 
 // ===== 사이드바 렌더 =====
