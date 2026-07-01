@@ -1901,15 +1901,21 @@ function renderReportResults() {
 
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(q);
-  const matches = campaigns.filter(c => {
+  const today = getKSTTodayUTC();
+  const nameMatched = campaigns.filter(c => {
     if (c.hidden) return false;
     const place = places.find(p => p.id === c.placeId);
     if (!place) return false;
     return normalize(place.name).includes(nq);
   });
+  // 마감(종료)된 캠페인은 신고 대상에서 제외 — 진행 중인 협찬만 신고 가능
+  const matches = nameMatched.filter(c => deadlineToUTC(c.deadline) >= today);
 
   if (!matches.length) {
-    listEl.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>';
+    // 매장명은 매칭됐지만 전부 마감된 경우와, 아예 검색 결과가 없는 경우를 구분
+    listEl.innerHTML = nameMatched.length
+      ? '<div class="search-hint">진행 중인 협찬이 없어 신고할 대상이 없어요.</div>'
+      : '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>';
     return;
   }
 
