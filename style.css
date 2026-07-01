@@ -1113,6 +1113,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .iw-place { display: flex; flex-direction: column; padding: 20px 20px 0; }
 .iw-name-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
 .iw-name-text-group { display: flex; flex: 1; min-width: 0; gap: 8px; align-items: center; }
+.iw-report-link { font-size: 13px; color: #777; text-decoration: underline; cursor: pointer; flex-shrink: 0; }
 .iw-name-link { cursor: pointer; gap: 6px; }
 .iw-name-link-icon { flex-shrink: 0; display: block; }
 .iw-name {
@@ -1873,6 +1874,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
   .detail-place { display: flex; flex-direction: column; }
   .detail-name-row { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; }
+  .detail-name-text-group { display: flex; flex: 1; min-width: 0; align-items: flex-start; }
+  .detail-report-link { font-size: 13px; color: #777; text-decoration: underline; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
   .detail-name-link { cursor: pointer; gap: 6px; }
   .detail-name-link-icon { flex-shrink: 0; display: block; margin-top: 2px; }
   .detail-name {
@@ -2547,7 +2550,23 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* 후기 리스트 */
 .rv-list-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 10px; }
 .rv-count { font-size: 14px; color: #1a1a1a; }
-.rv-sort { border: none; background: none; cursor: pointer; font-size: 14px; color: #555; font-family: inherit; }
+.rv-sort-wrap { position: relative; flex-shrink: 0; }
+.rv-sort { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; font-size: 14px; color: #555; font-family: inherit; padding: 0; }
+.rv-sort-caret { display: block; transition: transform .15s; }
+.rv-sort-wrap.open .rv-sort-caret { transform: rotate(180deg); }
+.rv-sort-menu {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; width: 80px;
+  background: #fff; border: 1px solid #ddd; border-radius: 4px;
+  box-shadow: 0 4px 2px rgba(0,0,0,0.04); overflow: hidden; z-index: 20;
+}
+.rv-sort-wrap.open .rv-sort-menu { display: block; }
+.rv-sort-opt {
+  display: block; width: 100%; height: 40px; padding: 0 12px; border: none; background: none;
+  cursor: pointer; font-family: inherit; font-size: 14px; color: #555; text-align: center; white-space: nowrap;
+}
+.rv-sort-opt.active { color: #1a1a1a; font-weight: 600; }
+.rv-sort-opt + .rv-sort-opt { border-top: 1px solid #eee; }
+.rv-sort-opt:hover { background: #f7f7f7; }
 .rv-cards { display: flex; flex-direction: column; gap: 14px; }
 .rv-card { display: flex; gap: 12px; cursor: pointer; }
 .rv-thumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #eee; }

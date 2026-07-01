@@ -502,7 +502,7 @@ function createInfoContent(place) {
         const dl = getDeadlineText(c.deadline);
         const rightBtnHtml = dl
           ? `<span class="iw-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>`
-          : `<span class="iw-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>`;
+          : '';
         const chIconsHtml = (c.channels || []).map(ch =>
           CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}" style="border-radius:4px;display:block;">` : ''
         ).join('');
@@ -571,6 +571,7 @@ function createInfoContent(place) {
             <span class="iw-name">${place.name}</span>
             <img src="image/ic_link_16.svg" width="16" height="16" class="iw-name-link-icon" alt="네이버지도에서 보기">
           </div>
+          <span class="iw-report-link" onclick="openReportModalForPlace(${place.id})">신고하기</span>
           <button class="pc-card-close" onclick="closePcCard()">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M3 3L13 13M13 3L3 13" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
@@ -615,7 +616,7 @@ function createMobileDetailContent(place) {
     const dl = getDeadlineText(c.deadline);
     const rightBtnHtml = dl
       ? `<span class="detail-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>`
-      : `<span class="detail-report-btn" onclick="openReportModalForCampaign(${c.id})">신고하기</span>`;
+      : '';
     const chIconsHtml = (c.channels || []).map(ch =>
       CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}" style="border-radius:4px;display:block;">` : ''
     ).join('');
@@ -681,9 +682,12 @@ function createMobileDetailContent(place) {
   return `
     <div class="detail-fixed">
       <div class="detail-place">
-        <div class="detail-name-row detail-name-link" onclick="openNaverMapByPlace(${place.id})">
-          <span class="detail-name">${place.name}</span>
-          <img src="image/ic_link_16.svg" width="16" height="16" class="detail-name-link-icon" alt="네이버지도에서 보기">
+        <div class="detail-name-row">
+          <div class="detail-name-text-group detail-name-link" onclick="openNaverMapByPlace(${place.id})">
+            <span class="detail-name">${place.name}</span>
+            <img src="image/ic_link_16.svg" width="16" height="16" class="detail-name-link-icon" alt="네이버지도에서 보기">
+          </div>
+          <span class="detail-report-link" onclick="openReportModalForPlace(${place.id})">신고하기</span>
         </div>
         <div class="detail-address">${place.address}</div>
       </div>
@@ -775,9 +779,40 @@ function renderReviewPane(placeId, list) {
   const sortLabel = _reviewSort === 'likes' ? '좋아요 순' : '최신 순';
   return `<div class="rv-list-head">
       <span class="rv-count">총 ${list.length}건</span>
-      <button class="rv-sort" onclick="toggleReviewSort(${placeId})">${sortLabel} ⌄</button>
+      <div class="rv-sort-wrap">
+        <button class="rv-sort" onclick="event.stopPropagation();toggleSortMenu(this)">
+          <span class="rv-sort-label">${sortLabel}</span>
+          <img class="rv-sort-caret" src="image/ic_arrow_down.svg" width="10" height="10" alt="">
+        </button>
+        <div class="rv-sort-menu">
+          <button class="rv-sort-opt${_reviewSort !== 'likes' ? ' active' : ''}" onclick="setReviewSort(${placeId},'latest')">최신 순</button>
+          <button class="rv-sort-opt${_reviewSort === 'likes' ? ' active' : ''}" onclick="setReviewSort(${placeId},'likes')">좋아요 순</button>
+        </div>
+      </div>
     </div>
     <div class="rv-cards">${list.map(r => reviewCardHtml(r, false)).join('')}</div>`;
+}
+
+// 정렬 드롭다운 열고닫기 (바깥 클릭 시 닫힘)
+function toggleSortMenu(btn) {
+  const wrap = btn.closest('.rv-sort-wrap');
+  if (!wrap) return;
+  const willOpen = !wrap.classList.contains('open');
+  document.querySelectorAll('.rv-sort-wrap.open').forEach(w => w.classList.remove('open'));
+  if (willOpen) {
+    wrap.classList.add('open');
+    setTimeout(() => {
+      const onDoc = (e) => {
+        if (!wrap.contains(e.target)) { wrap.classList.remove('open'); document.removeEventListener('click', onDoc); }
+      };
+      document.addEventListener('click', onDoc);
+    }, 0);
+  }
+}
+function setReviewSort(placeId, sort) {
+  document.querySelectorAll('.rv-sort-wrap.open').forEach(w => w.classList.remove('open'));
+  if (_reviewSort === sort) return;
+  loadReviews(placeId, sort);
 }
 
 function reviewCardHtml(r, isPreview) {
@@ -1774,6 +1809,16 @@ function openReportModalForCampaign(campaignId) {
   openReportModal();
   if (c && place) {
     reportSelectedCampaignId = campaignId;
+    document.getElementById('reportSearchInput').value = place.name;
+    renderReportResults();
+  }
+}
+// 매장 단위 신고 진입점: 매장명으로 열어 해당 매장의 캠페인들을 리스트로 노출 → 사용자가 신고할 캠페인 선택
+function openReportModalForPlace(placeId) {
+  const place = places.find(p => p.id === placeId);
+  openReportModal();
+  if (place) {
+    reportSelectedCampaignId = null;
     document.getElementById('reportSearchInput').value = place.name;
     renderReportResults();
   }
