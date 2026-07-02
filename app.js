@@ -1919,12 +1919,30 @@ function syncMobileModalHeader(modalSelector) {
   if (mh) mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
 }
 
+// 대상 유형별 신고 이유
+const REPORT_REASONS = {
+  campaign: ['캠페인 정보 변경', '협찬 종료', '허위 정보', '기타'],
+  place: ['폐업/운영 종료', '위치·정보 오류', '중복 등록', '기타'],
+  review: ['허위·과장 후기', '광고/스팸', '부적절한 내용', '관련 없는 후기', '기타']
+};
+function populateReportReasons(type) {
+  const sel = document.getElementById('reportReasonSelect');
+  if (!sel) return;
+  const reasons = REPORT_REASONS[type] || REPORT_REASONS.campaign;
+  sel.innerHTML = '<option value="">선택하세요</option>' + reasons.map(r => `<option value="${r}">${r}</option>`).join('');
+  sel.selectedIndex = 0;
+  reportSelectedReason = null;
+  syncSelectTrigger('reportReasonSelect');
+  clearFieldError('reportReason');
+}
+
 // 신고 대상 유형 변경 (매장/캠페인/후기)
 function setReportTargetType(type) {
   reportTargetType = ['place', 'campaign', 'review'].includes(type) ? type : 'campaign';
   const sel = document.getElementById('reportTargetTypeSelect');
   if (sel) { sel.value = reportTargetType; syncSelectTrigger('reportTargetTypeSelect'); }
   updateReportTargetLabel();
+  populateReportReasons(reportTargetType);
 }
 function updateReportTargetLabel() {
   const label = document.getElementById('reportTargetLabel');
@@ -1932,10 +1950,9 @@ function updateReportTargetLabel() {
   if (label && label.firstChild) label.firstChild.nodeValue = (map[reportTargetType] || '신고할 대상') + ' ';
 }
 function selectReportTargetType(select) {
-  reportTargetType = select.value;
+  setReportTargetType(select.value);   // 유형/라벨/트리거 동기화 + 이유 옵션 교체
   reportSelectedId = null; reportSelectedPlaceId = null; _reportReviews = [];
   document.getElementById('reportResultsList').innerHTML = '';
-  updateReportTargetLabel();
   clearFieldError('reportTarget');
   renderReportResults();
 }
