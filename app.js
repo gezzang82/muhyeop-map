@@ -57,6 +57,9 @@ const CATEGORY_PINS = {
   '기타':      { color: '#8E8E8E', icon: '<circle cx="10" cy="15" r="1.5" fill="#fff"/><circle cx="15" cy="15" r="1.5" fill="#fff"/><circle cx="20" cy="15" r="1.5" fill="#fff"/>' }
 };
 const DEFAULT_PIN = { color: '#8E8E8E', icon: '<circle cx="15" cy="15" r="2.2" fill="#fff"/>' };
+// 캠페인 없는(회색) 핀은 이 줌 이상에서만 노출 (네이버 스케일 20m ≈ zoom 19)
+const GRAY_PIN_MIN_ZOOM = 19;
+let _grayPinVisible = null;
 
 const PLATFORM_COLORS = {
   '레뷰': '#1D9E75', '리뷰노트': '#185FA5', '미블': '#854F0B',
@@ -416,9 +419,20 @@ function renderMarkers() {
   markerMap = {};
   selectedMarkerId = null;
 
-  // 매장 중심: 캠페인/후기 없어도 전체 노출 (어드민이 강제 숨김한 것만 제외). 캠페인 유무는 핀 컬러로 구분.
-  const visiblePlaces = places.filter(place => !place.hidden);
+  // 매장 중심: 진행 중 캠페인 있는(컬러) 핀은 항상 노출.
+  // 캠페인 없는(회색) 핀은 많이 확대(네이버 스케일 20m ≈ zoom 19)했을 때만 노출해 저줌 클러터 방지.
+  const showGrayPins = map.getZoom() >= GRAY_PIN_MIN_ZOOM;
+  _grayPinVisible = showGrayPins;
+  const visiblePlaces = places.filter(place => !place.hidden && (hasActiveCampaign(place.id) || showGrayPins));
   const jitteredPositions = getJitteredPositions(visiblePlaces);
+
+  // 줌이 임계값을 넘나들 때만 다시 렌더 (리스너 1회 등록)
+  if (!renderMarkers._zoomBound) {
+    renderMarkers._zoomBound = true;
+    naver.maps.Event.addListener(map, 'zoom_changed', () => {
+      if ((map.getZoom() >= GRAY_PIN_MIN_ZOOM) !== _grayPinVisible) renderMarkers();
+    });
+  }
 
   visiblePlaces.forEach(place => {
     const icon = getPlacePin(place, false);
