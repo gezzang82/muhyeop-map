@@ -2572,8 +2572,11 @@ function showLiveBubble(data) {
   if (_liveBubbleTimer) clearTimeout(_liveBubbleTimer);
   bubble.classList.remove('show');
   setTimeout(() => {
-    const particle = getEulReul(data.place);
-    text.innerHTML = `${data.nick}님이 <strong>${data.place}</strong>${particle}<br>추가했어요!`;
+    // 매장명 16자 초과 시 … 처리 (을/를 조사는 잘린 마지막 실제 글자 기준)
+    const baseName = data.place.length > 16 ? data.place.slice(0, 16) : data.place;
+    const dispName = data.place.length > 16 ? baseName + '…' : data.place;
+    const particle = getEulReul(baseName);
+    text.innerHTML = `${data.nick}님이 <strong>${dispName}</strong>${particle}<br>추가했어요!`;
     _liveBubblePlaceId = data.placeId;
     bubble.classList.add('show');
     playCharacterAnim();
