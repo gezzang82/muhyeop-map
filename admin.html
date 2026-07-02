@@ -162,6 +162,7 @@
         <a class="nav-item" onclick="showTab('register')" id="tab-register"><img class="nav-ic" src="image/ic_admin_02store_add_24.svg" width="20" height="20" alt=""> 매장/캠페인 등록</a>
         <a class="nav-item" onclick="showTab('view')" id="tab-view"><img class="nav-ic" src="image/ic_admin_03search_24.svg" width="20" height="20" alt=""> 조회</a>
         <a class="nav-item" onclick="showTab('reports')" id="tab-reports"><img class="nav-ic" src="image/ic_admin_04flag_24.svg" width="20" height="20" alt=""> 신고 목록</a>
+        <a class="nav-item" onclick="showTab('reviews')" id="tab-reviews"><img class="nav-ic" src="image/ic_good_sel.svg" width="20" height="20" alt=""> 후기 관리</a>
         <a class="nav-item" onclick="showTab('users')" id="tab-users"><img class="nav-ic" src="image/ic_admin_05users_24.svg" width="20" height="20" alt=""> 회원 목록</a>
         <a class="nav-item" onclick="showTab('banners')" id="tab-banners"><img class="nav-ic" src="image/ic_admin_06popup_24.svg" width="20" height="20" alt=""> 이벤트 팝업</a>
       </nav>
@@ -728,6 +729,48 @@
             </table>
           </div>
           <div class="pager" id="uvPager"></div>
+        </div>
+      </div>
+
+      <!-- 후기 관리 -->
+      <div id="page-reviews" class="admin-page" style="display:none;">
+        <h1 class="page-title">후기 관리</h1>
+        <div class="filter-card">
+          <div class="user-filter">
+            <div class="filter-field uv-select">
+              <label>선택</label>
+              <select id="rmField">
+                <option value="all">전체</option>
+                <option value="place">매장명</option>
+                <option value="author">작성자</option>
+                <option value="title">제목</option>
+              </select>
+            </div>
+            <div class="filter-field uv-keyword">
+              <label>&nbsp;</label>
+              <input type="text" id="rmKeyword" placeholder="입력하세요" onkeydown="if(event.key==='Enter')applyReviewFilter()">
+            </div>
+            <button class="btn-search-red" onclick="applyReviewFilter()"><svg class="icon"><use href="#icon-search"></use></svg> 조회</button>
+          </div>
+        </div>
+        <div class="result-card">
+          <div class="result-bar">
+            <div class="result-bar-left">
+              <select id="rmSize" onchange="renderReviewRows()"><option value="10">10</option><option value="100" selected>100</option><option value="500">500</option></select>
+              <span class="result-count">전체 <b id="rmTotal">0</b>건 중 <b id="rmShown">0</b>건 표시</span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th><th>매장명</th><th>제목</th><th>작성자</th><th>게시일</th><th>좋아요</th><th>링크</th><th>상태</th><th>관리</th>
+                </tr>
+              </thead>
+              <tbody id="reviewTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="rmPager"></div>
         </div>
       </div>
 

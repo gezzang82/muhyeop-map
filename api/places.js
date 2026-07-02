@@ -37,6 +37,28 @@ module.exports = async function handler(req, res) {
     const action = req.query.reviews;
     const session = readSession(req);
 
+    // 어드민 전체 목록: GET ?reviews=all (숨김 포함, 매장명/작성자 조인)
+    if (req.method === 'GET' && action === 'all') {
+      if (!requireAdmin(req, res)) return;
+      const r = await db.execute(`
+        SELECT r.*, p.name AS place_name,
+               COALESCE(NULLIF(u.nickname,''),
+                 (SELECT u2.nickname FROM users u2 WHERE u2.url_platform='블로그' AND u2.url_id=r.blog_id AND NULLIF(u2.nickname,'') IS NOT NULL ORDER BY u2.id DESC LIMIT 1)
+               ) AS user_nickname
+        FROM reviews r
+        LEFT JOIN places p ON p.id = r.place_id
+        LEFT JOIN users u ON u.id = r.user_id
+        ORDER BY r.id DESC`);
+      return res.status(200).json(r.rows.map(row => ({
+        id: row.id, placeId: row.place_id, placeName: row.place_name || '',
+        url: row.url, title: row.title || '블로그 후기',
+        author: row.user_nickname || row.author || '',
+        likeCount: Number(row.like_count || 0),
+        postDate: row.post_date || '', createdAt: row.created_at,
+        hidden: !!row.hidden
+      })));
+    }
+
     // 목록: GET ?reviews=list&placeId=&sort=latest|likes
     if (req.method === 'GET') {
       const placeId = Number(req.query.placeId);
@@ -123,6 +145,16 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ liked, likeCount: Number(row?.like_count || 0) });
     }
 
+    // 숨김 토글: PATCH ?reviews=&id= { hidden } (관리자)
+    if (req.method === 'PATCH') {
+      if (!requireAdmin(req, res)) return;
+      const id = Number(req.query.id);
+      if (!id) return res.status(400).json({ error: 'id가 필요합니다.' });
+      const hidden = (req.body || {}).hidden ? 1 : 0;
+      await db.execute({ sql: 'UPDATE reviews SET hidden = ? WHERE id = ?', args: [hidden, id] });
+      return res.status(200).json({ id, hidden: !!hidden });
+    }
+
     // 삭제: DELETE ?reviews=1&id= (관리자)
     if (req.method === 'DELETE') {
       if (!requireAdmin(req, res)) return;
@@ -133,7 +165,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ id });
     }
 
-    res.setHeader('Allow', 'GET, POST, DELETE');
+    res.setHeader('Allow', 'GET, POST, PATCH, DELETE');
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 

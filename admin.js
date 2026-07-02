@@ -58,6 +58,7 @@ function showTab(tab) {
   if (tab === 'view') { renderPlaceList(); renderCampaignList(); }
   if (tab === 'banners') renderBannerList();
   if (tab === 'reports') renderReportList();
+  if (tab === 'reviews') renderReviewList();
   if (tab === 'users') renderUserList();
 }
 
@@ -711,6 +712,90 @@ function renderUserPager(totalPages) {
 }
 function gotoUserPage(p) { userView.page = p; renderUserRows(); }
 
+// ===== 후기 관리 =====
+let allReviews = [];
+const reviewView = { page: 1, size: 100, field: 'all', keyword: '' };
+async function renderReviewList() {
+  allReviews = await (await fetch('/api/places?reviews=all')).json();
+  reviewView.page = 1;
+  renderReviewRows();
+}
+function applyReviewFilter() {
+  reviewView.field = document.getElementById('rmField').value;
+  reviewView.keyword = (document.getElementById('rmKeyword').value || '').trim().toLowerCase();
+  reviewView.page = 1;
+  renderReviewRows();
+}
+function getFilteredReviews() {
+  const { field, keyword } = reviewView;
+  if (!keyword) return allReviews;
+  return allReviews.filter(r => {
+    const place = (r.placeName || '').toLowerCase();
+    const author = (r.author || '').toLowerCase();
+    const title = (r.title || '').toLowerCase();
+    if (field === 'place') return place.includes(keyword);
+    if (field === 'author') return author.includes(keyword);
+    if (field === 'title') return title.includes(keyword);
+    return place.includes(keyword) || author.includes(keyword) || title.includes(keyword);
+  });
+}
+function renderReviewRows() {
+  reviewView.size = parseInt(document.getElementById('rmSize').value, 10) || 100;
+  const filtered = getFilteredReviews();
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / reviewView.size));
+  if (reviewView.page > totalPages) reviewView.page = totalPages;
+  const start = (reviewView.page - 1) * reviewView.size;
+  const pageRows = filtered.slice(start, start + reviewView.size);
+  const tbody = document.getElementById('reviewTableBody');
+  tbody.innerHTML = pageRows.map(r => `<tr>
+      <td class="td-id">${r.id}</td>
+      <td>${escHtml(r.placeName) || '-'}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(r.title)}">${escHtml(r.title) || '-'}</td>
+      <td>${escHtml(r.author) || '-'}</td>
+      <td>${(r.postDate || r.createdAt || '').slice(0, 10) || '-'}</td>
+      <td>${r.likeCount || 0}</td>
+      <td><a href="${escHtml(r.url)}" target="_blank" rel="noopener">블로그 열기</a></td>
+      <td><span class="badge-status ${r.hidden ? 'expired' : 'active'}">${r.hidden ? '숨김' : '노출'}</span></td>
+      <td>
+        <button class="btn-edit-sm" onclick="toggleReviewHiddenAdmin(${r.id})">${r.hidden ? '노출' : '숨김'}</button>
+        <button class="btn-del-sm" onclick="confirmDelete('review', ${r.id})">삭제</button>
+      </td>
+    </tr>`).join('') || `<tr><td colspan="9" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 후기 없음'}</td></tr>`;
+  document.getElementById('rmTotal').textContent = allReviews.length;
+  document.getElementById('rmShown').textContent = total;
+  renderReviewPager(totalPages);
+}
+function renderReviewPager(totalPages) {
+  const pager = document.getElementById('rmPager');
+  if (!pager) return;
+  if (totalPages <= 1) { pager.innerHTML = ''; return; }
+  const p = reviewView.page;
+  const start = Math.max(1, Math.min(p - 2, totalPages - 4));
+  const end = Math.min(totalPages, start + 4);
+  let html = '';
+  html += `<button ${p === 1 ? 'disabled' : ''} onclick="gotoReviewPage(1)">&laquo;</button>`;
+  html += `<button ${p === 1 ? 'disabled' : ''} onclick="gotoReviewPage(${p - 1})">&lsaquo;</button>`;
+  for (let i = start; i <= end; i++) html += `<button class="${i === p ? 'active' : ''}" onclick="gotoReviewPage(${i})">${i}</button>`;
+  html += `<button ${p === totalPages ? 'disabled' : ''} onclick="gotoReviewPage(${p + 1})">&rsaquo;</button>`;
+  html += `<button ${p === totalPages ? 'disabled' : ''} onclick="gotoReviewPage(${totalPages})">&raquo;</button>`;
+  pager.innerHTML = html;
+}
+function gotoReviewPage(p) { reviewView.page = p; renderReviewRows(); }
+async function toggleReviewHiddenAdmin(id) {
+  const r = allReviews.find(x => x.id === id);
+  if (!r) return;
+  const nextHidden = !r.hidden;
+  if (nextHidden && !confirm('이 후기를 지도에서 숨길까요? (언제든 다시 노출할 수 있어요)')) return;
+  await fetch(`/api/places?reviews=&id=${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hidden: nextHidden })
+  });
+  r.hidden = nextHidden;
+  adminToast(nextHidden ? '후기를 숨김 처리했어요.' : '후기 숨김을 해제했어요.');
+  renderReviewRows();
+}
+
 // ===== 신고 목록 =====
 let reports = [];
 async function renderReportList() {
@@ -1048,6 +1133,8 @@ function confirmDelete(type, id) {
     ? `캠페인 ID ${id} (${campaigns.find(c=>c.id===id)?.content?.slice(0,20)}...)`
     : type === 'banner'
     ? `이벤트 팝업 ID ${id}`
+    : type === 'review'
+    ? `후기 ID ${id} (${(allReviews.find(r=>r.id===id)?.title||'').slice(0,20)}...)`
     : `매장 "${places.find(p=>p.id===id)?.name}"`;
   document.getElementById('confirmMsg').textContent = `${name}을 삭제할까요?`;
   document.getElementById('confirmModal').style.display = 'flex';
@@ -1064,6 +1151,12 @@ function confirmDelete(type, id) {
       if (idx > -1) banners.splice(idx, 1);
       adminToast('이벤트 팝업 삭제 완료');
       renderBannerList();
+    } else if (type === 'review') {
+      await fetch(`/api/places?reviews=1&id=${id}`, { method: 'DELETE' });
+      const idx = allReviews.findIndex(r => r.id === id);
+      if (idx > -1) allReviews.splice(idx, 1);
+      adminToast('후기 삭제 완료');
+      renderReviewRows();
     } else {
       await fetch(`/api/places?id=${id}`, { method: 'DELETE' });
       const idx = places.findIndex(p => p.id === id);
