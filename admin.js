@@ -801,12 +801,17 @@ async function toggleReviewHiddenAdmin(id) {
 
 // ===== 신고 목록 =====
 let reports = [];
+let reportFilter = 'all';   // 신고 목록 유형 필터: all | campaign | review | place
 async function renderReportList() {
-  const tbody = document.getElementById('reportTableBody');
   reports = await (await fetch('/api/reports')).json();
+  renderReportRows();
+}
+function renderReportRows() {
+  const tbody = document.getElementById('reportTableBody');
   const typeLabel = { place: '매장', campaign: '캠페인', review: '후기' };
   const targetText = r => r.targetType === 'review' ? (r.reviewTitle || '') : r.targetType === 'place' ? '-' : (r.content || '');
-  tbody.innerHTML = reports.map(r => `<tr>
+  const filtered = reportFilter === 'all' ? reports : reports.filter(r => (r.targetType || 'campaign') === reportFilter);
+  tbody.innerHTML = filtered.map(r => `<tr>
       <td class="td-id">${r.id}</td>
       <td><span class="badge-status ${r.targetType === 'campaign' ? 'active' : 'user'}">${typeLabel[r.targetType] || r.targetType}</span></td>
       <td>${escHtml(r.placeName) || '-'}</td>
@@ -818,9 +823,15 @@ async function renderReportList() {
       <td>${r.createdAt}</td>
       <td>${reportActionButtons(r)}</td>
     </tr>`).join('') || `<tr><td colspan="10" class="empty-msg">신고 내역 없음</td></tr>`;
-  const total = reports.length;
-  document.getElementById('rvTotal').textContent = total;
-  document.getElementById('rvShown').textContent = total;
+  document.getElementById('rvTotal').textContent = reports.length;
+  document.getElementById('rvShown').textContent = filtered.length;
+}
+function filterReports(type) {
+  reportFilter = type;
+  document.querySelectorAll('#page-reports .subtab').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('subtab-report-' + type);
+  if (btn) btn.classList.add('active');
+  renderReportRows();
 }
 
 // 신고 행 관리 버튼: 대상 유형별 분기 (공통: 삭제=신고기록 삭제)

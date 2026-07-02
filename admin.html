@@ -677,6 +677,12 @@
       <!-- 신고 목록 -->
       <div id="page-reports" class="admin-page" style="display:none;">
         <h1 class="page-title">신고 목록</h1>
+        <div class="subtab-bar">
+          <button class="subtab active" id="subtab-report-all" onclick="filterReports('all')">전체</button>
+          <button class="subtab" id="subtab-report-campaign" onclick="filterReports('campaign')">캠페인</button>
+          <button class="subtab" id="subtab-report-review" onclick="filterReports('review')">후기</button>
+          <button class="subtab" id="subtab-report-place" onclick="filterReports('place')">매장</button>
+        </div>
         <div class="result-card">
           <div class="result-bar">
             <div class="result-bar-left">
