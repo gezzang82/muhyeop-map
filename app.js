@@ -1832,7 +1832,10 @@ function closeAbout() {
 }
 
 // ===== 신고 모달 =====
-let reportSelectedCampaignId = null;
+let reportTargetType = 'campaign';      // 'place' | 'campaign' | 'review'
+let reportSelectedId = null;            // 선택된 대상 id (타입별: place/campaign/review)
+let reportSelectedPlaceId = null;       // review 타입에서 후기 목록을 불러올 매장 선택용
+let _reportReviews = [];                // review 타입: 선택 매장의 후기 목록 캐시
 let reportSelectedReason = null;
 
 function openReportModal() {
@@ -1850,17 +1853,19 @@ function openReportModalForCampaign(campaignId) {
   const place = c ? places.find(p => p.id === c.placeId) : null;
   openReportModal();
   if (c && place) {
-    reportSelectedCampaignId = campaignId;
+    setReportTargetType('campaign');
+    reportSelectedId = campaignId;
     document.getElementById('reportSearchInput').value = place.name;
     renderReportResults();
   }
 }
-// 매장 단위 신고 진입점: 매장명으로 열어 해당 매장의 캠페인들을 리스트로 노출 → 사용자가 신고할 캠페인 선택
+// 매장 단위 신고 진입점: 매장명으로 열어 기본 대상=캠페인으로 목록 노출 (대상유형 셀렉트로 매장/후기 전환 가능)
 function openReportModalForPlace(placeId) {
   const place = places.find(p => p.id === placeId);
   openReportModal();
   if (place) {
-    reportSelectedCampaignId = null;
+    setReportTargetType('campaign');
+    reportSelectedId = null;
     document.getElementById('reportSearchInput').value = place.name;
     renderReportResults();
   }
@@ -1872,8 +1877,11 @@ function closeReportModal() {
   }
 }
 function resetReportModal() {
-  reportSelectedCampaignId = null;
+  reportSelectedId = null;
+  reportSelectedPlaceId = null;
+  _reportReviews = [];
   reportSelectedReason = null;
+  setReportTargetType('campaign');
   document.getElementById('reportSearchInput').value = '';
   document.getElementById('reportResultsList').innerHTML = '';
   document.getElementById('reportDetail').value = '';
@@ -1911,71 +1919,113 @@ function syncMobileModalHeader(modalSelector) {
   if (mh) mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
 }
 
-function searchReportTarget() {
-  reportSelectedCampaignId = null;
+// 신고 대상 유형 변경 (매장/캠페인/후기)
+function setReportTargetType(type) {
+  reportTargetType = ['place', 'campaign', 'review'].includes(type) ? type : 'campaign';
+  const sel = document.getElementById('reportTargetTypeSelect');
+  if (sel) { sel.value = reportTargetType; syncSelectTrigger('reportTargetTypeSelect'); }
+  updateReportTargetLabel();
+}
+function updateReportTargetLabel() {
+  const label = document.getElementById('reportTargetLabel');
+  const map = { place: '신고할 매장', campaign: '신고할 캠페인', review: '신고할 후기' };
+  if (label && label.firstChild) label.firstChild.nodeValue = (map[reportTargetType] || '신고할 대상') + ' ';
+}
+function selectReportTargetType(select) {
+  reportTargetType = select.value;
+  reportSelectedId = null; reportSelectedPlaceId = null; _reportReviews = [];
+  document.getElementById('reportResultsList').innerHTML = '';
+  updateReportTargetLabel();
   clearFieldError('reportTarget');
   renderReportResults();
+}
+
+function searchReportTarget() {
+  reportSelectedId = null;
+  if (reportTargetType === 'review') { reportSelectedPlaceId = null; _reportReviews = []; }
+  clearFieldError('reportTarget');
+  renderReportResults();
+}
+
+function reportResultItem(id, name, metaHtml, selected) {
+  return `<div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectReportTarget(${id})">
+      <div class="place-result-info">
+        <div class="place-result-name">${rvEsc(name)}</div>
+        ${metaHtml ? `<div class="place-result-meta">${metaHtml}</div>` : ''}
+      </div>
+      <span class="place-result-check ${selected ? 'selected' : ''}">✓</span>
+    </div>`;
 }
 
 function renderReportResults() {
   const q = document.getElementById('reportSearchInput').value.trim();
   const listEl = document.getElementById('reportResultsList');
+  if (reportTargetType === 'place') return renderReportPlaces(q, listEl);
+  if (reportTargetType === 'review') return renderReportReviews(q, listEl);
+  return renderReportCampaigns(q, listEl);
+}
+
+// 캠페인 신고: 매장명 검색 → 진행 중 캠페인 목록 (마감 제외)
+function renderReportCampaigns(q, listEl) {
   if (!q) { listEl.innerHTML = ''; return; }
-
-  if (reportSelectedCampaignId) {
-    const c = campaigns.find(c => c.id === reportSelectedCampaignId);
-    const place = c ? places.find(p => p.id === c.placeId) : null;
-    if (c && place) {
-      listEl.innerHTML = `
-        <div class="place-result-item selected" onclick="selectReportTarget(${c.id})">
-          <div class="place-result-info">
-            <div class="place-result-name">${place.name}</div>
-            <div class="place-result-meta">
-              ${reportPlatformTag(c.platform)}
-              <span class="place-result-addr">${c.content}</span>
-            </div>
-          </div>
-          <span class="place-result-check selected">✓</span>
-        </div>`;
-      return;
-    }
-  }
-
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(q);
+  if (reportSelectedId) {
+    const c = campaigns.find(c => c.id === reportSelectedId);
+    const place = c ? places.find(p => p.id === c.placeId) : null;
+    if (c && place) { listEl.innerHTML = reportResultItem(c.id, place.name, `${reportPlatformTag(c.platform)}<span class="place-result-addr">${rvEsc(c.content)}</span>`, true); return; }
+  }
   const today = getKSTTodayUTC();
-  const nameMatched = campaigns.filter(c => {
-    if (c.hidden) return false;
-    const place = places.find(p => p.id === c.placeId);
-    if (!place) return false;
-    return normalize(place.name).includes(nq);
-  });
-  // 마감(종료)된 캠페인은 신고 대상에서 제외 — 진행 중인 협찬만 신고 가능
+  const nameMatched = campaigns.filter(c => { if (c.hidden) return false; const p = places.find(p => p.id === c.placeId); return p && normalize(p.name).includes(nq); });
   const matches = nameMatched.filter(c => deadlineToUTC(c.deadline) >= today);
-
   if (!matches.length) {
-    // 매장명은 매칭됐지만 전부 마감된 경우와, 아예 검색 결과가 없는 경우를 구분
     listEl.innerHTML = nameMatched.length
       ? '<div class="search-hint">진행 중인 협찬이 없어 신고할 대상이 없어요.</div>'
       : '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>';
     return;
   }
+  listEl.innerHTML = matches.map(c => { const p = places.find(p => p.id === c.placeId); return reportResultItem(c.id, p.name, `${reportPlatformTag(c.platform)}<span class="place-result-addr">${rvEsc(c.content)}</span>`, reportSelectedId === c.id); }).join('');
+}
 
-  listEl.innerHTML = matches.map(c => {
-    const place = places.find(p => p.id === c.placeId);
-    const selected = reportSelectedCampaignId === c.id;
-    return `
-      <div class="place-result-item ${selected ? 'selected' : ''}" onclick="selectReportTarget(${c.id})">
-        <div class="place-result-info">
-          <div class="place-result-name">${place.name}</div>
-          <div class="place-result-meta">
-            ${reportPlatformTag(c.platform)}
-            <span class="place-result-addr">${c.content}</span>
-          </div>
-        </div>
-        <span class="place-result-check ${selected ? 'selected' : ''}">✓</span>
-      </div>`;
-  }).join('');
+// 매장 신고: 매장명 검색 → 매장 선택
+function renderReportPlaces(q, listEl) {
+  if (!q) { listEl.innerHTML = ''; return; }
+  const nq = q.replace(/\s/g, '').toLowerCase();
+  const matches = places.filter(p => !p.hidden && p.name.replace(/\s/g, '').toLowerCase().includes(nq)).slice(0, 20);
+  if (!matches.length) { listEl.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
+  listEl.innerHTML = matches.map(p => reportResultItem(p.id, p.name, `<span class="place-result-addr">${rvEsc(p.address || '')}</span>`, reportSelectedId === p.id)).join('');
+}
+
+// 후기 신고: 매장명 검색 → 매장 선택 → 그 매장 후기 목록 → 후기 선택
+function renderReportReviews(q, listEl) {
+  if (reportSelectedPlaceId) {
+    const place = places.find(p => p.id === reportSelectedPlaceId);
+    const back = `<div class="search-hint report-review-back" onclick="backToReviewPlacePick()">← ${rvEsc(place ? place.name : '')} · 매장 다시 선택</div>`;
+    if (!_reportReviews.length) { listEl.innerHTML = back + '<div class="search-hint">등록된 후기가 없어요.</div>'; return; }
+    listEl.innerHTML = back + _reportReviews.map(rv => reportResultItem(rv.id, rv.title, `<span class="place-result-addr">${rvEsc(rv.author || '')}</span>`, reportSelectedId === rv.id)).join('');
+    return;
+  }
+  if (!q) { listEl.innerHTML = ''; return; }
+  const nq = q.replace(/\s/g, '').toLowerCase();
+  const matches = places.filter(p => !p.hidden && p.name.replace(/\s/g, '').toLowerCase().includes(nq)).slice(0, 20);
+  if (!matches.length) { listEl.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
+  listEl.innerHTML = '<div class="search-hint">후기를 신고할 매장을 선택하세요.</div>' + matches.map(p =>
+    `<div class="place-result-item" onclick="pickReportPlaceForReview(${p.id})"><div class="place-result-info"><div class="place-result-name">${rvEsc(p.name)}</div></div><span class="place-result-check">›</span></div>`).join('');
+}
+async function pickReportPlaceForReview(placeId) {
+  reportSelectedPlaceId = placeId; reportSelectedId = null; _reportReviews = [];
+  const listEl = document.getElementById('reportResultsList');
+  listEl.innerHTML = '<div class="search-hint">불러오는 중…</div>';
+  try {
+    const list = await fetch(`/api/places?reviews=list&placeId=${placeId}`).then(r => r.json());
+    _reportReviews = Array.isArray(list) ? list : [];
+  } catch (e) { _reportReviews = []; }
+  renderReportResults();
+}
+function backToReviewPlacePick() {
+  reportSelectedPlaceId = null; reportSelectedId = null; _reportReviews = [];
+  document.getElementById('reportSearchInput').value = '';
+  renderReportResults();
 }
 
 function reportPlatformTag(platform) {
@@ -1984,8 +2034,8 @@ function reportPlatformTag(platform) {
   return `<span class="report-platform-tag" style="background:${color}29;color:${color}">${platform}</span>`;
 }
 
-function selectReportTarget(campaignId) {
-  reportSelectedCampaignId = reportSelectedCampaignId === campaignId ? null : campaignId;
+function selectReportTarget(id) {
+  reportSelectedId = reportSelectedId === id ? null : id;
   clearFieldError('reportTarget');
   renderReportResults();
 }
@@ -1997,15 +2047,19 @@ function selectReportReason(select) {
 
 function submitReport() {
   let valid = true;
-  if (!reportSelectedCampaignId) { showFieldError('reportTarget'); valid = false; }
+  if (!reportSelectedId) { showFieldError('reportTarget'); valid = false; }
   if (!reportSelectedReason) { showFieldError('reportReason'); valid = false; }
   if (!valid) return;
 
   const detail = document.getElementById('reportDetail').value.trim();
+  const body = { targetType: reportTargetType, reason: reportSelectedReason, detail };
+  if (reportTargetType === 'place') body.placeId = reportSelectedId;
+  else if (reportTargetType === 'review') body.reviewId = reportSelectedId;
+  else body.campaignId = reportSelectedId;
   fetch('/api/reports', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ campaignId: reportSelectedCampaignId, reason: reportSelectedReason, detail })
+    body: JSON.stringify(body)
   })
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(() => {

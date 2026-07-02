@@ -59,9 +59,13 @@ CREATE TABLE IF NOT EXISTS banners (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- 신고: 매장/캠페인/후기 3종 (target_type + 해당 id, 모두 nullable)
 CREATE TABLE IF NOT EXISTS reports (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  campaign_id INTEGER NOT NULL REFERENCES campaigns(id),
+  target_type TEXT NOT NULL DEFAULT 'campaign',
+  campaign_id INTEGER,
+  place_id INTEGER,
+  review_id INTEGER,
   reason TEXT NOT NULL,
   detail TEXT DEFAULT '',
   user_id INTEGER REFERENCES users(id),

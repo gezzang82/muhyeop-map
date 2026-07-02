@@ -804,32 +804,50 @@ let reports = [];
 async function renderReportList() {
   const tbody = document.getElementById('reportTableBody');
   reports = await (await fetch('/api/reports')).json();
+  const typeLabel = { place: '매장', campaign: '캠페인', review: '후기' };
+  const targetText = r => r.targetType === 'review' ? (r.reviewTitle || '') : r.targetType === 'place' ? '-' : (r.content || '');
   tbody.innerHTML = reports.map(r => `<tr>
       <td class="td-id">${r.id}</td>
-      <td>${r.placeName || '-'}</td>
-      <td>${r.platform || '-'}</td>
-      <td>${(r.content || '').slice(0, 20)}</td>
-      <td>${r.reason}</td>
-      <td>${r.detail || '-'}</td>
-      <td>${r.reporterNickname || '비회원'}</td>
+      <td><span class="badge-status ${r.targetType === 'campaign' ? 'active' : 'user'}">${typeLabel[r.targetType] || r.targetType}</span></td>
+      <td>${escHtml(r.placeName) || '-'}</td>
+      <td>${r.targetType === 'campaign' ? (r.platform || '-') : '-'}</td>
+      <td>${escHtml(targetText(r)).slice(0, 24)}</td>
+      <td>${escHtml(r.reason)}</td>
+      <td>${escHtml(r.detail) || '-'}</td>
+      <td>${escHtml(r.reporterNickname) || '비회원'}</td>
       <td>${r.createdAt}</td>
       <td>${reportActionButtons(r)}</td>
-    </tr>`).join('') || `<tr><td colspan="9" class="empty-msg">신고 내역 없음</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="10" class="empty-msg">신고 내역 없음</td></tr>`;
   const total = reports.length;
   document.getElementById('rvTotal').textContent = total;
   document.getElementById('rvShown').textContent = total;
 }
 
-// 신고 행 관리 버튼: 수정(신고된 캠페인 내용 수정) / 숨김↔노출(캠페인 공개 토글) / 삭제(신고 기록 삭제)
+// 신고 행 관리 버튼: 대상 유형별 분기 (공통: 삭제=신고기록 삭제)
 function reportActionButtons(r) {
-  const c = campaigns.find(c => c.id === r.campaignId);
   const btns = [];
-  if (c) {
-    btns.push(`<button class="btn-edit-sm" onclick="editCampaign(${r.campaignId})">수정</button>`);
-    btns.push(`<button class="btn-edit-sm" onclick="toggleCampaignHidden(${r.campaignId})">${c.hidden ? '노출' : '숨김'}</button>`);
+  if (r.targetType === 'campaign') {
+    const c = campaigns.find(c => c.id === r.campaignId);
+    if (c) {
+      btns.push(`<button class="btn-edit-sm" onclick="editCampaign(${r.campaignId})">수정</button>`);
+      btns.push(`<button class="btn-edit-sm" onclick="toggleCampaignHidden(${r.campaignId})">${c.hidden ? '노출' : '숨김'}</button>`);
+    }
+  } else if (r.targetType === 'review' && r.reviewId) {
+    btns.push(`<button class="btn-edit-sm" onclick="hideReviewFromReport(${r.reviewId})">후기 숨김</button>`);
+  } else if (r.targetType === 'place' && r.placeId) {
+    btns.push(`<button class="btn-edit-sm" onclick="togglePlaceHidden(${r.placeId})">매장 숨김</button>`);
   }
   btns.push(`<button class="btn-del-sm" onclick="dismissReport(${r.id})">삭제</button>`);
   return btns.join('\n');
+}
+// 신고 목록에서 후기 숨김 (전체 노출/해제는 '후기 관리' 탭에서)
+async function hideReviewFromReport(reviewId) {
+  if (!confirm('이 후기를 숨길까요? (후기 관리 탭에서 다시 노출할 수 있어요)')) return;
+  await fetch(`/api/places?reviews=&id=${reviewId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hidden: true })
+  });
+  adminToast('후기를 숨김 처리했어요.');
 }
 
 async function toggleCampaignHidden(id) {
