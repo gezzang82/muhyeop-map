@@ -877,13 +877,17 @@ async function toggleReviewLike(reviewId, btnEl) {
 
 // 본인이 올린 후기 삭제 (mine 플래그가 true인 카드에서만 호출됨, 서버도 본인/관리자만 허용)
 async function deleteMyReview(reviewId) {
-  if (!confirm('내가 등록한 후기를 삭제할까요?')) return;
-  try {
-    const res = await fetch(`/api/places?reviews=1&id=${reviewId}`, { method: 'DELETE' });
-    if (!res.ok) { showToast('삭제에 실패했어요.'); return; }
-    showToast('후기를 삭제했어요.');
-    if (_detailPlaceId != null) loadReviews(_detailPlaceId);
-  } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
+  showAlert('후기를 삭제할까요?', '삭제하면 되돌릴 수 없어요.', {
+    twoButton: true, cancelText: '취소', confirmText: '삭제',
+    onConfirm: async () => {
+      try {
+        const res = await fetch(`/api/places?reviews=1&id=${reviewId}`, { method: 'DELETE' });
+        if (!res.ok) { showToast('삭제에 실패했어요.'); return; }
+        showToast('후기를 삭제했어요.');
+        if (_detailPlaceId != null) loadReviews(_detailPlaceId);
+      } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
+    }
+  });
 }
 
 function openReportForPlace(placeId) {

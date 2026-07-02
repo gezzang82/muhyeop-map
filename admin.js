@@ -691,8 +691,11 @@ function renderUserRows() {
       <td>${escHtml(u.nickname) || '-'}</td>
       <td>${escHtml(u.email) || '-'}</td>
       <td>${u.urlPlatform && u.urlId ? `${escHtml(u.urlPlatform)}: ${escHtml(u.urlId)}` : '-'}</td>
+      <td>${u.reportCount != null ? u.reportCount : 0}</td>
+      <td>${u.reviewCount != null ? u.reviewCount : 0}</td>
+      <td>${u.visitCount != null ? u.visitCount : 0}</td>
       <td>${u.createdAt}</td>
-    </tr>`).join('') || `<tr><td colspan="6" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="9" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
   renderUserPager(totalPages);
 }
 function renderUserPager(totalPages) {
