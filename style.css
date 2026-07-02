@@ -2540,7 +2540,9 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .rv-empty-text b { font-weight: 700; }
 .rv-empty-sub { font-size: 13px; color: #999; margin-top: 6px; }
 .rv-empty-btn {
-  margin-top: 16px; padding: 10px 22px; border: 1px solid rgba(170,170,170,0.6);
+  margin-top: 16px; height: 40px; padding: 0 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(170,170,170,0.87);
   background: #fff; border-radius: 8px; cursor: pointer;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px; color: #1a1a1a;
