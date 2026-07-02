@@ -2578,7 +2578,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   display: flex; align-items: center; justify-content: center;
   border-top-left-radius: 8px; border-bottom-right-radius: 8px;
 }
-.rv-del img { width: 16px; height: 16px; display: block; }
+.rv-thumb .rv-del img { width: 16px; height: 16px; display: block; object-fit: contain; }
 .rv-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rv-thumb-empty { background: #ededed; }
 .rv-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
