@@ -817,9 +817,14 @@ function setReviewSort(placeId, sort) {
 
 function reviewCardHtml(r, isPreview) {
   const date = fmtReviewDate(r.postDate || r.createdAt);
-  const thumb = r.thumbnail
-    ? `<div class="rv-thumb"><img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()"></div>`
-    : `<div class="rv-thumb rv-thumb-empty"></div>`;
+  // 본인이 올린 후기에만 삭제 뱃지(썸네일 우하단) 노출
+  const delBadge = (!isPreview && r.mine)
+    ? `<button class="rv-del" onclick="event.stopPropagation();deleteMyReview(${r.id})" aria-label="후기 삭제"><img src="image/ic_trash_16.svg" width="16" height="16" alt=""></button>`
+    : '';
+  const thumbInner = r.thumbnail
+    ? `<img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()">`
+    : '';
+  const thumb = `<div class="rv-thumb${r.thumbnail ? '' : ' rv-thumb-empty'}">${thumbInner}${delBadge}</div>`;
   const byline = `<span class="rv-card-byline"><span class="rv-card-author">${rvEsc(r.author)}</span>${date ? `<span class="rv-card-dot"></span><span class="rv-card-date">${date}</span>` : ''}</span>`;
   const meta = isPreview
     ? byline
@@ -868,6 +873,17 @@ async function toggleReviewLike(reviewId, btnEl) {
   } finally {
     btnEl._liking = false;
   }
+}
+
+// 본인이 올린 후기 삭제 (mine 플래그가 true인 카드에서만 호출됨, 서버도 본인/관리자만 허용)
+async function deleteMyReview(reviewId) {
+  if (!confirm('내가 등록한 후기를 삭제할까요?')) return;
+  try {
+    const res = await fetch(`/api/places?reviews=1&id=${reviewId}`, { method: 'DELETE' });
+    if (!res.ok) { showToast('삭제에 실패했어요.'); return; }
+    showToast('후기를 삭제했어요.');
+    if (_detailPlaceId != null) loadReviews(_detailPlaceId);
+  } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
 }
 
 function openReportForPlace(placeId) {

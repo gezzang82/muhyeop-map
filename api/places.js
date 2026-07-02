@@ -90,7 +90,11 @@ module.exports = async function handler(req, res) {
         const lk = await db.execute({ sql: `SELECT review_id FROM review_likes WHERE voter_key = ? AND review_id IN (${ids.map(() => '?').join(',')})`, args: ['u' + session.userId, ...ids] });
         likedSet = new Set(lk.rows.map(x => x.review_id));
       }
-      return res.status(200).json(r.rows.map(row => toReview(row, likedSet.has(row.id))));
+      return res.status(200).json(r.rows.map(row => {
+        const rv = toReview(row, likedSet.has(row.id));
+        rv.mine = !!(session && row.user_id != null && row.user_id === session.userId); // 본인 작성 여부(삭제 노출용)
+        return rv;
+      }));
     }
 
     // 검증(미저장 미리보기): POST ?reviews=validate { url, placeId }
@@ -155,11 +159,17 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ id, hidden: !!hidden });
     }
 
-    // 삭제: DELETE ?reviews=1&id= (관리자)
+    // 삭제: DELETE ?reviews=1&id= (관리자 또는 작성자 본인)
     if (req.method === 'DELETE') {
-      if (!requireAdmin(req, res)) return;
       const id = Number(req.query.id);
       if (!id) return res.status(400).json({ error: 'id가 필요합니다.' });
+      if (!isAdmin(req)) {
+        // 비관리자는 본인이 올린 후기만 삭제 가능
+        if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+        const own = await db.execute({ sql: 'SELECT user_id FROM reviews WHERE id = ?', args: [id] });
+        if (!own.rows[0]) return res.status(404).json({ error: '후기를 찾을 수 없어요.' });
+        if (own.rows[0].user_id !== session.userId) return res.status(403).json({ error: '본인이 올린 후기만 삭제할 수 있어요.' });
+      }
       await db.execute({ sql: 'DELETE FROM review_likes WHERE review_id = ?', args: [id] });
       await db.execute({ sql: 'DELETE FROM reviews WHERE id = ?', args: [id] });
       return res.status(200).json({ id });
