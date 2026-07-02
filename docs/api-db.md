@@ -7,7 +7,7 @@
 ## 엔드포인트
 - `api/places.js` — 장소 CRUD
 - `api/campaigns.js` — 협찬 캠페인 CRUD + 조회/클릭수 트래킹(`POST ?track=view|click&id=`). `view_count`/`click_count` 컬럼에 누적하며 `campaign_events(campaign_id, kind, visitor_key)` UNIQUE로 **IP+일자 기준 중복 제거**(클라이언트는 세션당 view 1회 디바운스). 표시는 아직 안 하고 데이터만 선누적(소급 불가). 함수 12개 제한 때문에 별도 엔드포인트 분리 없이 campaigns.js에 합침. `PATCH`는 두 갈래: 바디에 `platform` 없이 `hidden`만 오면 **hidden 토글만(부분 업데이트)** 처리(신고 목록의 캠페인 숨김/노출용), 그 외엔 전체 필드 수정.
-- `api/reports.js` — 신고 처리 (`DELETE`는 단순 삭제만)
+- `api/reports.js` — 신고 처리. **매장/캠페인/후기 3종**(`target_type` + `campaign_id`/`place_id`/`review_id`, 모두 nullable). `POST`는 `targetType`+해당 id 저장(공개), `GET`은 타입별 대상명 조인(**requireAdmin**, 신고 목록=관리자 전용), `DELETE`는 신고기록 단순 삭제(관리자).
 - `api/banners.js` — 상단 배너 관리
 - `api/search-place.js` — 장소명 검색 (네이버 장소 검색 연동으로 추정, 협찬 제보하기 step1 매장명 검색에 사용)
 - `api/users.js` — `GET`만 지원. 기본은 회원 전체 목록(어드민 회원 목록용, 이메일 포함), `?leaderboard=1` 쿼리 시 매장 등록 수 1위 회원의 닉네임/개수만 반환(공개 화면의 "제보왕" 배너용, PII 노출 없음). 별도 엔드포인트로 분리하지 않고 합친 이유는 Vercel Hobby 플랜의 서버리스 함수 12개 제한 때문 (아래 참고). **현재 공개 화면의 제보왕 배너는 `app.js`의 `LEADERBOARD_ENABLED=false` 플래그로 비노출 상태**(베타 이벤트 시작 시 true로) — API 자체는 살아있음.
@@ -25,7 +25,9 @@
   - `deadline`은 빈 문자열 허용(마감일 없음), `source`는 `'user'` 등으로 등록 경로 구분
   - `user_id`/`founder_user_id`는 로그인 사용자 식별용 nullable FK (`users.id`). 비로그인 제보도 계속 허용하므로 NULL 가능
 - `banners(id, image_url, link_url, start_date, end_date, created_at)`
-- `reports(id, campaign_id, reason, detail, user_id, created_at)` — `user_id`는 로그인 사용자가 신고 시 세션에서 조용히 채워짐(입력 필드 없음). 비로그인 신고는 NULL
+- `reports(id, target_type, campaign_id, place_id, review_id, reason, detail, user_id, created_at)` — 신고 3종(`target_type`='place'|'campaign'|'review', 해당 id만 채움, 나머지 NULL). `user_id`는 로그인 사용자가 신고 시 세션에서 조용히 채워짐(입력 필드 없음). 비로그인 신고는 NULL. (기존 campaign_id NOT NULL 스키마에서 2026-07-02 재구성)
+- `user_visits(user_id, visit_date)` — 로그인 사용자 접속 집계(1일 1회, `UNIQUE(user_id, visit_date)`). `me.js`가 로드 시 KST 날짜로 `INSERT OR IGNORE`. 어드민 회원 목록의 "접속수"에 사용
+- `reviews(...)` — 후기(네이버 블로그). `user_id`(작성자), `hidden`, `post_date`(블로그 게시일). 어드민 후기 관리 + 공개 목록 `mine` 플래그(본인 삭제)
 
 ## 데이터 매핑 규칙
 - DB 컬럼은 snake_case, API 응답은 camelCase로 변환 (`toCampaign()`, `toPlace()` 같은 변환 함수가 각 핸들러 상단에 있음)
