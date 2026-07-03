@@ -31,11 +31,39 @@ function category(content, name) {
   if (/사주|타로|운세|점집|신점|철학관|작명|무속|명리|손금|관상/.test(s)) return '기타';
   if (/원데이\s*클래스|클래스\s*체험|보컬|레슨|트레이닝|학원|공방|드로잉|플라워|캔들|공예|만들기|전시|관람|원데이클래스/.test(s)) return '문화';
   if (/케이크|디저트|베이커리|커피|브런치|룸카페|스터디카페|카페/.test(s)) return '카페';
-  if (/네일|피부|왁싱|헤어|미용|에스테틱|마사지|태닝|속눈썹|반영구|필러|보톡스|두피|체형|다이어트|\b펌\b|염색/.test(s)) return '뷰티';
-  if (/숙박|호텔|펜션|글램핑|카라반|스파|워터파크|풀빌라|파티룸/.test(s)) return '숙박/여가';
-  if (/식사|한우|고기|맛집|정육|초밥|스시|오마카세|파스타|삼겹|국밥|치킨|피자|족발|해산물|일식|중식|양식|한식|뷔페|음식|메뉴|식당|이용권|세트|쌀국수|국수|분식|술|바|포차|이자카야|와인|샴페인|맥주|칵테일|하이볼|고깃집|횟집|수산|장어|곱창|막창|전골|찜|탕|양꼬치|돈까스|샐러드|버거|디너|런치|코스|정식|체험권|식닭|짬뽕/.test(s)) return '음식점';
-  return ''; // 그래도 미상이면 사람이
+  if (/네일|피부|왁싱|헤어|미용|에스테틱|마사지|태닝|속눈썹|반영구|필러|보톡스|두피|체형|다이어트|\b펌\b|염색|풋앤바디|풋마사지|발마사지|타이마사지|스웨디시|아로마|경락|림프|바디케어|스킨케어|피부관리/.test(s)) return '뷰티';
+  if (/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|리조트|게스트하우스|한옥스테이|캠핑/.test(s)) return '숙박/여가'; // 잠자는 곳만
+  // ※ '이용권·세트·체험권·코스·디너·런치·메뉴·술·바' 같은 generic 단어는 비음식 매장도 매칭돼
+  //   조용한 오분류를 유발하므로 제외. 실제 음식 키워드만 확정, 나머지는 기본값+검수플래그로.
+  if (/식사|한우|고기|맛집|정육|초밥|스시|오마카세|파스타|삼겹|국밥|치킨|피자|족발|해산물|일식|중식|양식|한식|뷔페|음식|식당|쌀국수|국수|분식|포차|이자카야|와인|샴페인|맥주|칵테일|하이볼|고깃집|횟집|수산|장어|곱창|막창|전골|찜닭|매운탕|감자탕|갈비탕|양꼬치|돈까스|샐러드|버거|정식|식닭|짬뽕|마라탕|보쌈|덮밥|찌개|라멘|우동|카츠/.test(s)) return '음식점';
+  return ''; // 그래도 미상이면 기본값(음식점)+검수플래그로 사람이 확인
 }
+
+// 디너의여왕 자체 카테고리(맛집/뷰티/여가/배송) → 무협맵 카테고리 매핑 (내용/이름 키워드로 세분화)
+function mapCategory(platformCat, content, name) {
+  const s = content + ' ' + name;
+  if (platformCat === '뷰티') return { cat: '뷰티', flag: false };
+  if (platformCat === '맛집') {
+    if (/카페|디저트|케이크|베이커리|커피|브런치|빙수|마카롱|도넛|와플|타르트|아이스크림|젤라또|스무디|밀크티|버블티|베이글|크로플|휘낭시에|쿠키/.test(s)) return { cat: '카페', flag: false };
+    return { cat: '음식점', flag: false };
+  }
+  if (platformCat === '여가') {
+    if (/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|캠핑|리조트|게스트하우스|한옥스테이|독채|\b스테이\b/.test(s)) return { cat: '숙박/여가', flag: false }; // 잠자는 곳만
+    if (/헬스|피트니스|필라테스|요가|골프|클라이밍|스크린골프|퍼스널트레이닝|\bPT\b/i.test(s)) return { cat: '기타', flag: false };
+    if (/사주|타로|운세|점집|신점|철학관|작명/.test(s)) return { cat: '기타', flag: false };
+    return { cat: '문화', flag: true }; // 파티룸·체험·전시 등 → 문화(검수 권장)
+  }
+  if (platformCat === '배송') return { cat: '기타', flag: true }; // 대개 제외 대상
+  const auto = category(content, name); // 플랫폼 카테고리 없으면 키워드 fallback
+  return { cat: auto || '음식점', flag: !auto };
+}
+
+// 이름 기반 카테고리 수동 보정(자동분류가 판단 어려운 특정 매장). 발견 시 추가.
+const CATEGORY_OVERRIDE = [
+  [/프리즘\s*홍대점/, '기타'],   // 헬스장
+  [/에뚜왈\s*가로수길점/, '카페'], // 디저트 카페
+  [/부타캣\s*강서점/, '문화'],     // 고양이 카페/체험
+];
 
 const rowsOut = [];
 const excluded = [];
@@ -51,14 +79,16 @@ for (const r of raw) {
   if (!r.address) { excluded.push([r.id, r.url, '주소없음(수동확인)', r.name]); continue; }
 
   const content = cleanContent(r.content);
-  const cat = category(content, r.name) || '음식점'; // 지역기반 캠페인 기본값
-  const catFlagged = !category(content, r.name);
+  const override = CATEGORY_OVERRIDE.find(([re]) => re.test(r.name));
+  const mapped = mapCategory(r.platformCategory || '', content, r.name);
+  const cat = override ? override[1] : mapped.cat; // 디너의여왕 카테고리 우선, override 최상위
+  const catFlagged = !override && mapped.flag;
 
   rowsOut.push({
     name: r.name, address: r.address, category: cat, platform: '디너의여왕',
     channel: r.channel || '', content, deadline: r.deadline || '',
     hours: r.hours || '', days: r.days || '', holiday: r.excludeHoliday || '',
-    url: r.url, naver: r.naverLink || '', catFlagged, id: r.id,
+    url: r.url, naver: r.naverLink || '', catFlagged, platformCategory: r.platformCategory || '', id: r.id,
   });
 }
 
@@ -66,7 +96,7 @@ for (const r of raw) {
 // (업로드 시 매장명 dedup으로 1매장 + 여러 캠페인이 됨)
 const finalRows = rowsOut.map((r) => {
   const note = [];
-  if (r.catFlagged) note.push('카테고리기본값(음식점)-확인');
+  if (r.catFlagged) note.push(r.platformCategory ? `카테고리확인(${r.platformCategory}→${r.category})` : '카테고리확인(기본값 음식점)');
   if (!r.channel) note.push('채널확인');
   if (!r.content) note.push('내용확인');
   if (!r.days) note.push('가능요일확인');

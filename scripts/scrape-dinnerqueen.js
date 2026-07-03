@@ -78,6 +78,14 @@ function parseChannel(html) {
   return out.join(','); // 대개 1개
 }
 
+// 디너의여왕 자체 카테고리: 상세의 ct=<한글> 링크에서 채널/타입을 제외한 값(맛집/뷰티/여가/배송)
+const CT_NON_CATEGORY = new Set(['릴스', '클립', '블로그', '인스타그램', '인스타', '유튜브', '기자단', '페이백', '맞춤', '지역']);
+function parsePlatformCategory(html) {
+  const cts = [...new Set([...html.matchAll(/ct=([가-힣]+)/g)].map((m) => m[1]))];
+  const cat = cts.find((c) => !CT_NON_CATEGORY.has(c));
+  return cat || ''; // 맛집|뷰티|여가|배송|기타 or ''
+}
+
 function parseAddress(html, storeName) {
   // 1순위: 본문 "방문 위치: <주소>" (화면 표기 주소)
   const txt = stripTags(html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, ''));
@@ -221,8 +229,8 @@ function guessCategory(content, name) {
   const s = (content + ' ' + name);
   if (/사주|타로|운세|점집|신점|철학관|작명|무속|명리|손금|관상/.test(s)) return '기타';
   if (/카페|디저트|베이커리|커피|브런치|룸카페|스터디카페/.test(s)) return '카페';
-  if (/네일|피부|왁싱|헤어|미용|에스테틱|마사지|태닝|속눈썹|반영구|필러|보톡스|두피|체형|다이어트/.test(s)) return '뷰티';
-  if (/숙박|호텔|펜션|글램핑|카라반|스파|워터파크|풀빌라|파티룸/.test(s)) return '숙박/여가';
+  if (/네일|피부|왁싱|헤어|미용|에스테틱|마사지|태닝|속눈썹|반영구|필러|보톡스|두피|체형|다이어트|풋앤바디|풋마사지|발마사지|타이마사지|스웨디시|아로마|경락|림프|바디케어|스킨케어|피부관리/.test(s)) return '뷰티';
+  if (/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|리조트|게스트하우스|한옥스테이|캠핑/.test(s)) return '숙박/여가'; // 잠자는 곳만
   if (/식사|한우|고기|맛집|정육|초밥|스시|오마카세|파스타|삼겹|국밥|치킨|피자|족발|해산물|일식|중식|양식|한식|뷔페|음식|메뉴|식당|이용권|세트|쌀국수|국수|분식|술|바|포차|이자카야|와인|맥주|칵테일|하이볼|고깃집|횟집|장어|곱창|막창|전골|찜|탕|양꼬치|돈까스|샐러드|버거|햄버거|디너|런치|코스/.test(s)) return '음식점';
   return ''; // 미상 → 검수 플래그
 }
@@ -252,6 +260,7 @@ async function main() {
       const content = parseContent(html);
       const naverLink = parseNaverLink(html);
       const category = guessCategory(content, name);
+      const platformCategory = parsePlatformCategory(html); // 맛집|뷰티|여가|배송
       const { hours: rawHours, closedRaw } = parseVisit(html);
       const days = deriveDays(rawHours, closedRaw); // 요일은 원문 기준 산출
       const hours = cleanHours(rawHours);           // 표시는 요일 중복 제거
@@ -265,7 +274,7 @@ async function main() {
       if (!channel) flags.push('채널확인');
       if (!category) flags.push('카테고리확인');
 
-      rows.push({ id, url, region, name, channelRaw, channel, category, address, deadline, content, hours, closedRaw, days, excludeHoliday, naverLink, ogTitle: og, flags });
+      rows.push({ id, url, region, name, channelRaw, channel, category, platformCategory, address, deadline, content, hours, closedRaw, days, excludeHoliday, naverLink, ogTitle: og, flags });
       console.log(`    [${i + 1}/${targets.length}] ${id} ${name || '???'} | ${category || '?'} | ${channel || '?'} | ~${deadline || '?'} | ${days || '요일?'} ${flags.length ? '⚠ ' + flags.join(',') : '✓'}`);
     } catch (e) {
       console.log(`    [${i + 1}/${targets.length}] ${id} ERROR ${e.message}`);
