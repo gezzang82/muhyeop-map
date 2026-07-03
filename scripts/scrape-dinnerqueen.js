@@ -219,6 +219,7 @@ function parseNaverLink(html) {
 
 function guessCategory(content, name) {
   const s = (content + ' ' + name);
+  if (/사주|타로|운세|점집|신점|철학관|작명|무속|명리|손금|관상/.test(s)) return '기타';
   if (/카페|디저트|베이커리|커피|브런치|룸카페|스터디카페/.test(s)) return '카페';
   if (/네일|피부|왁싱|헤어|미용|에스테틱|마사지|태닝|속눈썹|반영구|필러|보톡스|두피|체형|다이어트/.test(s)) return '뷰티';
   if (/숙박|호텔|펜션|글램핑|카라반|스파|워터파크|풀빌라|파티룸/.test(s)) return '숙박/여가';
