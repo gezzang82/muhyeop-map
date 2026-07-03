@@ -42,6 +42,8 @@ function category(content, name) {
 // 디너의여왕 자체 카테고리(맛집/뷰티/여가/배송) → 무협맵 카테고리 매핑 (내용/이름 키워드로 세분화)
 function mapCategory(platformCat, content, name) {
   const s = content + ' ' + name;
+  // 헬스/피트니스/PT는 플랫폼 카테고리(뷰티로 잡히기도)와 무관하게 기타(무협맵에 피트니스 없음)
+  if (/헬스|피트니스|퍼스널\s*트레이닝|\bPT\b/i.test(s)) return { cat: '기타', flag: false };
   if (platformCat === '뷰티') return { cat: '뷰티', flag: false };
   if (platformCat === '맛집') {
     if (/카페|디저트|케이크|베이커리|커피|브런치|빙수|마카롱|도넛|와플|타르트|아이스크림|젤라또|스무디|밀크티|버블티|베이글|크로플|휘낭시에|쿠키/.test(s)) return { cat: '카페', flag: false };
