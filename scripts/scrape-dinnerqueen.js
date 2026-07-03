@@ -92,7 +92,8 @@ function parsePlatformCategory(html) {
 function parseAddress(html, storeName) {
   // 1순위: 본문 "방문 위치: <주소>" (화면 표기 주소)
   const txt = stripTags(html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, ''));
-  let m = txt.match(/방문\s*위치\s*[:：]\s*([가-힣][가-힣A-Za-z0-9\s\-]+?\d[\d\-]*)\b/);
+  // 숫자 뒤에 '가길/가/동' 같은 한글+숫자가 이어져도 끊기지 않게(소월로38가길 12, 영등포동3가 5-6)
+  let m = txt.match(/방문\s*위치\s*[:：]\s*([가-힣][가-힣A-Za-z0-9\s\-]+?\d[\d\-]*(?:\s*[가-힣]+\s*\d[\d\-]*)*)/);
   if (m) return m[1].replace(/\s+/g, ' ').trim();
   // 2순위: HTML 주석의 상세주소
   m = html.match(/주석처리\.\s*([가-힣0-9][가-힣A-Za-z0-9\s\-]+?)\s*-->/);
