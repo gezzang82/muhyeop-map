@@ -8,7 +8,7 @@
 
 ## 0. 현재 완성된 것 (CLI 파일럿, `scripts/`)
 전부 **결정적(regex/규칙) 코드, AI토큰 0**. 어드민 통합은 이 로직을 서버로 이식하는 것.
-- `scrape-dinnerqueen.js` — robots 허용 범위 내 서울 최신 수집. 산출 필드: 매장명/주소/카테고리/채널/협찬내용/마감일/영업시간/가능요일 + 출처URL.
+- `scrape-dinnerqueen.js` — robots 허용 범위 내 서울 최신 수집. 산출 필드: 매장명/주소/카테고리/채널/협찬내용/마감일/영업시간/가능요일 + 출처URL. 인자: 숫자=상세 수집 상한, `--all-seoul`=서울 17개 area2 소지역 순회+dedup(전체 `area2=전체`는 첫 렌더 ~37건만; 소지역 순회 시 ~450건 커버). 예 `node scripts/scrape-dinnerqueen.js --all-seoul 100`.
 - `normalize-dinnerqueen.js` — 제외(배송형[랜덤픽]·비서울·주소없음), 카테고리 확정, 내용 아티팩트 정리, **채널별 개별 행**(디너의여왕은 채널마다 별도 캠페인).
 - `dedupe-against-prod.js` — 운영 매장/캠페인과 대조. **활성 캠페인과 채널이 겹칠 때만 중복 제외, 만료분만 겹치면 갱신으로 유지.**
 

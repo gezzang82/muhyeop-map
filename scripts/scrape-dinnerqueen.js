@@ -20,7 +20,10 @@ const path = require('path');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36';
 const BASE = 'https://dinnerqueen.net';
-const LIST_URL = `${BASE}/taste?ct=${encodeURIComponent('지역')}&area1=${encodeURIComponent('서울')}&area2=${encodeURIComponent('전체')}`;
+const listUrl = (area2) => `${BASE}/taste?ct=${encodeURIComponent('지역')}&area1=${encodeURIComponent('서울')}&area2=${encodeURIComponent(area2)}`;
+const LIST_URL = listUrl('전체');
+// 서울 area2 소지역(전체 첫 렌더 너머 커버용) — 각 소지역이 서로 다른 매장을 반환
+const SEOUL_AREA2 = ['강남/논현/압구정', '강동/천호', '강서/목동/마곡', '건대/왕십리', '관악/신림', '교대/사당', '노원/강북', '명동/이태원', '삼성/선릉', '서초/반포', '송파/잠실', '수유/동대문/중랑', '시청/남대문', '여의도/영등포/구로', '종로/대학로', '홍대/마포/신촌', '기타'];
 const DELAY_MS = 1500; // 저빈도 예의
 const OUT_DIR = path.join(__dirname, '..', 'scrape_out');
 
@@ -210,14 +213,17 @@ function parseDeadline(html) {
 }
 
 function parseContent(html) {
-  const txt = stripTags(html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, ''));
+  const txt = stripTags(html
+    .replace(/<script[\s\S]*?<\/script>/g, '')
+    .replace(/<style[\s\S]*?<\/style>/g, '')
+    .replace(/<!--[\s\S]*?-->/g, ' ')); // HTML 주석 제거(매장정보 주석 유출 방지)
   const i = txt.indexOf('제공 내역');
   if (i < 0) return '';
   let seg = txt.slice(i + 5);
-  // "참여 전 필수 확인사항" 이전까지가 제공내역
-  const cut = seg.search(/참여\s*전|필수\s*확인|유의사항|주의사항/);
+  // 제공내역 뒤 다른 섹션(참여전 확인/매장정보/방문예약/블로그키워드/링크) 경계에서 컷
+  const cut = seg.search(/참여\s*전|필수\s*확인|유의사항|주의사항|매장\s*정보|방문\s*및\s*예약|방문\s*위치|블로그\s*키워드|체험\s*시간|예약\s*필수|https?:\/\//);
   if (cut > 0) seg = seg.slice(0, cut);
-  return seg.replace(/^내역\s*/, '').replace(/(\s*\+\s*){2,}/g, ' + ').trim().slice(0, 300);
+  return seg.replace(/^내역\s*/, '').replace(/-->/g, ' ').replace(/(\s*\+\s*){2,}/g, ' + ').replace(/\s+/g, ' ').trim().slice(0, 300);
 }
 
 function parseNaverLink(html) {
@@ -236,15 +242,32 @@ function guessCategory(content, name) {
 }
 
 async function main() {
-  const limit = process.argv[2] ? parseInt(process.argv[2], 10) : Infinity;
+  const argv = process.argv.slice(2);
+  const allSeoul = argv.includes('--all-seoul');
+  const limitArg = argv.find((a) => /^\d+$/.test(a));
+  const limit = limitArg ? parseInt(limitArg, 10) : Infinity;
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  console.log('[1] 서울 목록 로드:', LIST_URL);
-  const listHtml = await fetchText(LIST_URL);
-  const ids = [...new Set([...listHtml.matchAll(/\/taste\/(\d+)/g)].map((m) => parseInt(m[1], 10)))];
-  ids.sort((a, b) => b - a); // id 내림차순 = 최신순 근사
+  const idSet = new Set();
+  if (allSeoul) {
+    console.log(`[1] 서울 ${SEOUL_AREA2.length}개 소지역 순회 (전체 첫 렌더 너머 커버)`);
+    for (const a2 of SEOUL_AREA2) {
+      try {
+        const h = await fetchText(listUrl(a2));
+        const found = [...h.matchAll(/\/taste\/(\d+)/g)].map((m) => parseInt(m[1], 10));
+        found.forEach((id) => idSet.add(id));
+        console.log(`    ${a2}: +${found.length} (누적 고유 ${idSet.size})`);
+      } catch (e) { console.log(`    ${a2} ERROR ${e.message}`); }
+      await sleep(800);
+    }
+  } else {
+    console.log('[1] 서울 목록 로드(전체):', LIST_URL);
+    const listHtml = await fetchText(LIST_URL);
+    [...listHtml.matchAll(/\/taste\/(\d+)/g)].forEach((m) => idSet.add(parseInt(m[1], 10)));
+  }
+  const ids = [...idSet].sort((a, b) => b - a); // id 내림차순 = 최신순 근사
   const targets = ids.slice(0, limit);
-  console.log(`    고유 캠페인 ${ids.length}건 중 최신 ${targets.length}건 수집`);
+  console.log(`    고유 캠페인 ${ids.length}건 중 ${targets.length}건 수집`);
 
   const rows = [];
   for (let i = 0; i < targets.length; i++) {
