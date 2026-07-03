@@ -115,7 +115,7 @@ function parseVisit(html) {
   if (bi >= 0) {
     const be = txt.indexOf('방문 위치', bi);
     const block = txt.slice(bi, be > 0 ? be : bi + 800);
-    const bans = (block.match(/[월화수목금토일][월화수목금토일요,\s및]*\s*(?:체험|방문|이용)\s*(?:불가|휴무)/g) || []).join(' ');
+    const bans = (block.match(/[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*)?(?:체험|방문|이용)\s*(?:불가|휴무)/g) || []).join(' ');
     if (bans) closedRaw += ' ' + bans;
   }
   return { hours, closedRaw };
@@ -207,11 +207,17 @@ function cleanHours(hours) {
   const tidy = (s) => s.replace(/\s+/g, ' ').replace(/\(\s*\)/g, ' ').replace(/[\s★•\-:：/·,]+$/, '').replace(/\s+/g, ' ').trim();
   const src = stripExclusionNotes(hours);
   const times = src.match(TIME_RE) || [];
-  if (times.length !== 1) return tidy(src); // 0 or 여러 시간대 → (제외문구만 뺀) 원문 유지
-  let h = stripDayClosed(src);
-  // 선두 요일 표기 제거: "주말, 월요일", "월~금", "금,토", "평일", "일~목 :" 등
-  h = h.replace(/^[\s★•\-]*(?:주말|평일|매일|모든\s*요일|[월화수목금토일])[월화수목금토일요주말평일및,\s~\-–]*\s*[:：]?\s*/, '');
-  return tidy(h);
+  let out;
+  if (times.length !== 1) {
+    out = tidy(src); // 0 or 여러 시간대 → (제외문구만 뺀) 원문 유지
+  } else {
+    let h = stripDayClosed(src);
+    // 선두 요일 표기 제거: "주말, 월요일", "월~금", "금,토", "평일", "일~목 :" 등
+    h = h.replace(/^[\s★•\-]*(?:주말|평일|매일|모든\s*요일|[월화수목금토일])[월화수목금토일요주말평일및,\s~\-–]*\s*[:：]?\s*/, '');
+    out = tidy(h);
+  }
+  // 실제 시간 표기(숫자)가 없으면(예약컨디션 확인 등 플레이스홀더) 공백 처리. '24시간' 등 숫자 있으면 유지
+  return /\d/.test(out) ? out : '';
 }
 
 // 공휴일불가: 공휴일이 '체험불가/휴무/제외' 문맥이면 'Y', 그 외(영업시간에 공휴일 포함 등)면 ''.
