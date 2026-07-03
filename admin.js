@@ -1405,7 +1405,7 @@ async function importExcelData() {
 
   let added = 0, skipped = 0;
   for (const row of parsedRows) {
-    const [name, address, category, platform, channelRaw, content, deadline, hours, daysRaw, excludeHolidayRaw] = row;
+    const [name, address, category, platform, channelRaw, content, deadline, hours, daysRaw, excludeHolidayRaw, sourceUrl] = row;
     if (!name || !address || !platform || !content) { skipped++; continue; }
 
     const channels = String(channelRaw).split(',').map(s => s.trim()).filter(Boolean);
@@ -1432,7 +1432,7 @@ async function importExcelData() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         placeId: place.id, platform: String(platform), channels,
-        content: String(content), deadline: deadline ? String(deadline) : '', link: '',
+        content: String(content), deadline: deadline ? String(deadline) : '', link: sourceUrl ? String(sourceUrl).trim() : '',
         operatingDays, operatingHours: String(hours) || '', excludeHoliday, source: 'admin'
       })
     });
