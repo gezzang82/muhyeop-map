@@ -57,8 +57,8 @@ const CATEGORY_PINS = {
   '기타':      { color: '#8E8E8E', icon: '<circle cx="10" cy="15" r="1.5" fill="#fff"/><circle cx="15" cy="15" r="1.5" fill="#fff"/><circle cx="20" cy="15" r="1.5" fill="#fff"/>' }
 };
 const DEFAULT_PIN = { color: '#8E8E8E', icon: '<circle cx="15" cy="15" r="2.2" fill="#fff"/>' };
-// 캠페인 없는(회색) 핀은 이 줌 이상에서만 노출 (네이버 스케일 20m ≈ zoom 19)
-const GRAY_PIN_MIN_ZOOM = 19;
+// 캠페인 없는(회색) 핀은 이 줌 이상에서만 노출 (네이버 스케일 50m ≈ zoom 17, 60m와 가장 가까운 단계)
+const GRAY_PIN_MIN_ZOOM = 17;
 let _grayPinVisible = null;
 
 const PLATFORM_COLORS = {
