@@ -56,7 +56,7 @@ for (const r of raw) {
   rowsOut.push({
     name: r.name, address: r.address, category: cat, platform: '디너의여왕',
     channel: r.channel || '', content, deadline: r.deadline || '',
-    hours: r.hours || '', days: r.days || '', holiday: '',
+    hours: r.hours || '', days: r.days || '', holiday: r.excludeHoliday || '',
     url: r.url, naver: r.naverLink || '', catFlagged, id: r.id,
   });
 }
@@ -72,7 +72,7 @@ const finalRows = rowsOut.map((r) => {
   return {
     name: r.name, address: r.address, category: r.category, platform: '디너의여왕',
     channel: r.channel, content: r.content, deadline: r.deadline, hours: r.hours, days: r.days,
-    holiday: '', url: r.url, naver: r.naver, note: note.join(' '),
+    holiday: r.holiday || '', url: r.url, naver: r.naver, note: note.join(' '),
   };
 });
 

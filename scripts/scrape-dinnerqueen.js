@@ -123,26 +123,33 @@ function daysFromText(t) {
 // 확신 못하면 '' 반환(어드민이 전체 기본으로 처리)
 // 체험불가/휴무 요일 마커: 마커 "뒤" (체험불가 : 월,금,토) 와 "앞" (주말체험 불가) 모두 대응
 const CLOSED_AFTER = /(?:체험\s*불가|불가|휴무일?|휴무)\s*[:：\-]?\s*([월화수목금토일,\s~\-–]*)/g;
-const CLOSED_BEFORE = /(주말|평일|[월화수목금토일][월화수목금토일,\s~\-–]*)\s*(?:체험\s*)?(?:불가|휴무)/g;
+// lookbehind: '공휴일'·'매일'의 '일'을 요일 시작으로 오인하지 않게. '/' 허용: "토,일 / 체험불가" 묶음 인식
+const CLOSED_BEFORE = /(?<![가-힣])(주말|평일|[월화수목금토일][월화수목금토일,\s~\-–/]*)\s*(?:체험\s*)?(?:불가|휴무)/g;
+// 주말/평일과 '불가/휴무/제외' 사이에 '이용','및 공휴일','체험' 등 중간어가 낀 경우 보강(공휴일은 요일 계산 전 제거됨)
+const WEEKEND_CLOSE = /(주말|평일)[가-힣\s및]{0,6}(?:불가|휴무|제외)/g;
 function collectClosed(text) {
   const set = new Set();
   for (const m of text.matchAll(CLOSED_AFTER)) daysFromText(m[1]).forEach((d) => set.add(d));
   for (const m of text.matchAll(CLOSED_BEFORE)) daysFromText(m[1]).forEach((d) => set.add(d));
   return set;
 }
-function deriveDays(hours, closedRaw) {
+function deriveDays(hoursIn, closedIn) {
+  // 공휴일은 요일이 아니므로 요일 계산 전에 제거('공휴일'의 '일' 오독 방지). Y/N은 parseExcludeHoliday가 별도 처리.
+  const hours = (hoursIn || '').replace(/공휴일?/g, ' ').replace(/\s+/g, ' ');
+  const closedRaw = (closedIn || '').replace(/공휴일?/g, ' ').replace(/\s+/g, ' ');
   // 1) 영업요일 집합 (체험불가 구간은 먼저 제거해 영업요일로 오인 방지)
   let openSet;
   if (/매일|모든\s*요일|연중무휴|무휴/.test(hours)) {
     openSet = new Set(ALL_DAYS);
   } else {
-    const openText = hours.replace(CLOSED_BEFORE, ' ').replace(CLOSED_AFTER, ' ');
+    const openText = hours.replace(CLOSED_BEFORE, ' ').replace(WEEKEND_CLOSE, ' ').replace(CLOSED_AFTER, ' ');
     const s = daysFromText(openText);
     openSet = s.size ? s : new Set(ALL_DAYS); // 요일 정보 없으면 전체로 두고 휴무일로만 차감
   }
-  // 2) 체험불가 요일 = 체험시간 마커(앞뒤) + 휴무일 필드
+  // 2) 체험불가 요일 = 체험시간 마커(앞뒤) + 휴무일 필드 + "주말/평일 …불가"(중간어 허용)
   const closed = collectClosed(hours);
   daysFromText(closedRaw).forEach((d) => closed.add(d));
+  for (const m of `${hours} ${closedRaw}`.matchAll(WEEKEND_CLOSE)) daysFromText(m[1]).forEach((d) => closed.add(d));
 
   const avail = ALL_DAYS.filter((d) => openSet.has(d) && !closed.has(d));
   if (avail.length === 0) return '';       // 모순/불명 → 비움
@@ -166,6 +173,14 @@ function cleanHours(hours) {
   // 선두 요일 표기 제거: "주말, 월요일", "월~금", "금,토", "평일", "일~목 :" 등
   h = h.replace(/^[\s★•\-]*(?:주말|평일|매일|모든\s*요일|[월화수목금토일])[월화수목금토일요주말평일및,\s~\-–]*\s*[:：]?\s*/, '');
   return h.replace(/\s+/g, ' ').replace(/[\s★•\-:：]+$/, '').trim();
+}
+
+// 공휴일불가: 공휴일이 '체험불가/휴무/제외' 문맥이면 'Y', 그 외(영업시간에 공휴일 포함 등)면 ''.
+function parseExcludeHoliday(hours, closedRaw) {
+  const blob = `${hours} ${closedRaw}`;
+  if (!/공휴/.test(blob)) return '';
+  if (/공휴일?[^가-힣]{0,8}(체험\s*불가|불가|휴무|제외|불가능)|(체험\s*불가|불가|휴무|제외)[^가-힣]{0,10}공휴일?/.test(blob)) return 'Y';
+  return '';
 }
 
 function parseDeadline(html) {
@@ -228,6 +243,7 @@ async function main() {
       const { hours: rawHours, closedRaw } = parseVisit(html);
       const days = deriveDays(rawHours, closedRaw); // 요일은 원문 기준 산출
       const hours = cleanHours(rawHours);           // 표시는 요일 중복 제거
+      const excludeHoliday = parseExcludeHoliday(rawHours, closedRaw); // 'Y' or ''
 
       const flags = [];
       if (!name) flags.push('매장명?');
@@ -237,7 +253,7 @@ async function main() {
       if (!channel) flags.push('채널확인');
       if (!category) flags.push('카테고리확인');
 
-      rows.push({ id, url, region, name, channelRaw, channel, category, address, deadline, content, hours, closedRaw, days, naverLink, ogTitle: og, flags });
+      rows.push({ id, url, region, name, channelRaw, channel, category, address, deadline, content, hours, closedRaw, days, excludeHoliday, naverLink, ogTitle: og, flags });
       console.log(`    [${i + 1}/${targets.length}] ${id} ${name || '???'} | ${category || '?'} | ${channel || '?'} | ~${deadline || '?'} | ${days || '요일?'} ${flags.length ? '⚠ ' + flags.join(',') : '✓'}`);
     } catch (e) {
       console.log(`    [${i + 1}/${targets.length}] ${id} ERROR ${e.message}`);
@@ -260,7 +276,7 @@ async function main() {
     if (r.error) continue;
     lines.push([
       r.name, r.address, r.category, '디너의여왕', r.channel, r.content, r.deadline,
-      r.hours || '', r.days || '', '', r.url, r.naverLink, (r.flags || []).join(' '),
+      r.hours || '', r.days || '', r.excludeHoliday || '', r.url, r.naverLink, (r.flags || []).join(' '),
     ].map(csvEsc).join(','));
   }
   const csv = '﻿' + lines.join('\r\n'); // UTF-8 BOM (Excel 한글)
@@ -277,4 +293,4 @@ if (require.main === module) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }
 
-module.exports = { deriveDays, daysFromText, parseTitle, parseChannel, parseVisit, cleanHours };
+module.exports = { deriveDays, daysFromText, parseTitle, parseChannel, parseVisit, cleanHours, parseExcludeHoliday };
