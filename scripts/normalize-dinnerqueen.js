@@ -80,7 +80,7 @@ const finalRows = rowsOut.map((r) => {
 const esc = (v) => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const BOM = '﻿';
 
-const header = ['매장명', '주소', '카테고리', '플랫폼', '채널', '협찬내용', '마감일', '영업시간', '가능요일', '공휴일불가', '_출처URL', '_지도링크', '_검수메모'];
+const header = ['매장명', '주소', '카테고리', '플랫폼', '채널', '협찬내용', '마감일', '영업시간', '가능요일', '공휴일불가', '출처URL', '_지도링크', '_검수메모'];
 const lines = [header.join(',')];
 for (const r of finalRows) {
   lines.push([r.name, r.address, r.category, r.platform, r.channel, r.content, r.deadline, r.hours, r.days, r.holiday, r.url, r.naver, r.note].map(esc).join(','));

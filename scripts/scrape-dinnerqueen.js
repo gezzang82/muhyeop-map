@@ -250,7 +250,7 @@ async function main() {
   fs.writeFileSync(path.join(OUT_DIR, 'dinnerqueen_raw.json'), JSON.stringify(rows, null, 2));
 
   // 초안 CSV (어드민 업로드 10컬럼 + 검수 보조 3컬럼)
-  const header = ['매장명', '주소', '카테고리', '플랫폼', '채널', '협찬내용', '마감일', '영업시간', '가능요일', '공휴일불가', '_출처URL', '_지도링크', '_검수플래그'];
+  const header = ['매장명', '주소', '카테고리', '플랫폼', '채널', '협찬내용', '마감일', '영업시간', '가능요일', '공휴일불가', '출처URL', '_지도링크', '_검수플래그'];
   const csvEsc = (v) => {
     const s = String(v == null ? '' : v);
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;

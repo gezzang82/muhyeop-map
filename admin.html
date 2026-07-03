@@ -527,7 +527,7 @@
                   <tr>
                     <th>매장명</th><th>주소</th><th>카테고리</th>
                     <th>플랫폼</th><th>채널</th><th>협찬내용</th><th>마감일</th><th>영업시간</th>
-                    <th>가능요일</th><th>공휴일불가</th>
+                    <th>가능요일</th><th>공휴일불가</th><th>출처URL</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -542,6 +542,7 @@
                     <td>12:00~22:00</td>
                     <td>월,화,수,목,금</td>
                     <td>Y</td>
+                    <td>https://www.revu.net/campaign/123456</td>
                   </tr>
                 </tbody>
               </table>
@@ -552,6 +553,7 @@
               <li>주소를 기준으로 좌표를 자동 변환합니다 (네트워크 필요, 주소를 못 찾으면 해당 행은 건너뜁니다)</li>
               <li>가능요일은 쉼표로 구분 (예: <code>월,화,수,목,금</code>), 비워두면 요일 제한 없음</li>
               <li>공휴일불가는 <code>Y</code> 입력 시 공휴일 불가, 비워두면 공휴일도 가능</li>
+              <li>출처URL은 캠페인 원문 링크(선택, 비워도 됨) — 관리·추후 신청 연결용으로 저장됩니다</li>
               <li>기존에 같은 매장명이 있으면 캠페인만 추가됩니다</li>
             </ul>
             <button class="btn-download" onclick="downloadTemplate()"><svg class="icon"><use href="#icon-download"></use></svg> 양식 다운로드</button>
