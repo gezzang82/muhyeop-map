@@ -72,7 +72,10 @@ function parseChannel(html) {
   if (/nv-blog|_blog\b/.test(blob)) ch.push('블로그');
   if (/sns-ins|_insta/.test(blob) && !ch.includes('릴스')) ch.push('인스타그램');
   if (/youtube|ytb/.test(blob)) ch.push('유튜브');
-  return ch.join(','); // 대개 1개, 복수면 콤마
+  // 디너의여왕은 클립·블로그가 별도 캠페인 → 클립 페이지가 블로그 아이콘도 노출하므로 클립만 남김
+  let out = ch;
+  if (out.includes('클립') && out.includes('블로그')) out = out.filter((c) => c !== '블로그');
+  return out.join(','); // 대개 1개
 }
 
 function parseAddress(html, storeName) {
@@ -124,7 +127,7 @@ function daysFromText(t) {
 // 체험불가/휴무 요일 마커: 마커 "뒤" (체험불가 : 월,금,토) 와 "앞" (주말체험 불가) 모두 대응
 const CLOSED_AFTER = /(?:체험\s*불가|불가|휴무일?|휴무)\s*[:：\-]?\s*([월화수목금토일,\s~\-–]*)/g;
 // lookbehind: '공휴일'·'매일'의 '일'을 요일 시작으로 오인하지 않게. '/' 허용: "토,일 / 체험불가" 묶음 인식
-const CLOSED_BEFORE = /(?<![가-힣])(주말|평일|[월화수목금토일][월화수목금토일,\s~\-–/]*)\s*(?:체험\s*)?(?:불가|휴무)/g;
+const CLOSED_BEFORE = /(?<![가-힣])(주말|평일|[월화수목금토일][월화수목금토일요,\s~\-–/]*)\s*(?:체험\s*)?(?:불가|휴무)/g;
 // 주말/평일과 '불가/휴무/제외' 사이에 '이용','및 공휴일','체험' 등 중간어가 낀 경우 보강(공휴일은 요일 계산 전 제거됨)
 const WEEKEND_CLOSE = /(주말|평일)[가-힣\s및]{0,6}(?:불가|휴무|제외)/g;
 function collectClosed(text) {
@@ -165,14 +168,22 @@ function stripDayClosed(text) {
     .replace(CLOSED_BEFORE, (m, g) => (daysFromText(g).size ? ' ' : m))
     .replace(CLOSED_AFTER, (m, g) => (daysFromText(g).size ? ' ' : m));
 }
+// 영업시간 표시에서 요일/주말/공휴일 기반 체험불가·휴무·제외 문구 삭제
+// (가능요일·공휴일불가 컬럼에 이미 반영됨). 시간기반(18:00~20:00 체험불가)·브레이크타임은 보존.
+function stripExclusionNotes(s) {
+  const t = s.replace(/[(（★•]*\s*(?:(?:[월화수목금토일](?:요일)?|주말|평일|공휴일?)[\s,/및·]*)+(?:체험\s*|이용\s*|방문\s*)?(?:불가|휴무|제외)\s*[)）]?/g, ' ');
+  return t.replace(/\(\s*\)/g, ' ').replace(/\s+/g, ' ').trim();
+}
 function cleanHours(hours) {
   if (!hours) return '';
-  const times = hours.match(TIME_RE) || [];
-  if (times.length !== 1) return hours.replace(/\s+/g, ' ').trim(); // 0 or 여러 시간대 → 원문 유지
-  let h = stripDayClosed(hours);
+  const tidy = (s) => s.replace(/\s+/g, ' ').replace(/\(\s*\)/g, ' ').replace(/[\s★•\-:：/·,]+$/, '').replace(/\s+/g, ' ').trim();
+  const src = stripExclusionNotes(hours);
+  const times = src.match(TIME_RE) || [];
+  if (times.length !== 1) return tidy(src); // 0 or 여러 시간대 → (제외문구만 뺀) 원문 유지
+  let h = stripDayClosed(src);
   // 선두 요일 표기 제거: "주말, 월요일", "월~금", "금,토", "평일", "일~목 :" 등
   h = h.replace(/^[\s★•\-]*(?:주말|평일|매일|모든\s*요일|[월화수목금토일])[월화수목금토일요주말평일및,\s~\-–]*\s*[:：]?\s*/, '');
-  return h.replace(/\s+/g, ' ').replace(/[\s★•\-:：]+$/, '').trim();
+  return tidy(h);
 }
 
 // 공휴일불가: 공휴일이 '체험불가/휴무/제외' 문맥이면 'Y', 그 외(영업시간에 공휴일 포함 등)면 ''.
