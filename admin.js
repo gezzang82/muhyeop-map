@@ -106,16 +106,35 @@ async function loadStaged(status) {
   renderStagedRows();
 }
 const DEDUPE_LABEL = { new_place: '신규매장', add_channel: '+채널', renew: '갱신' };
+let collectEditingId = null;
+const esc = (s) => String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
 function renderStagedRows() {
   const body = document.getElementById('collectStagedBody');
   if (!collectStagedRows.length) {
     body.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#aaa;padding:24px;">${collectSub === 'pending' ? '승인 대기 항목이 없어요. 위에서 수집을 실행하세요.' : '항목이 없어요.'}</td></tr>`;
     return;
   }
+  const inp = (id, val, w) => `<input id="${id}" value="${esc(val)}" style="width:${w || 100}px;padding:4px;border:1px solid #ccc;border-radius:6px;font-size:12px;">`;
   body.innerHTML = collectStagedRows.map(r => {
     const badge = DEDUPE_LABEL[r.dedupe_status] || r.dedupe_status || '';
+    if (r.id === collectEditingId) {
+      const catOpts = EXCEL_CATEGORY_OPTIONS.map(o => `<option value="${o}"${o === r.category ? ' selected' : ''}>${o}</option>`).join('');
+      return `<tr style="background:#fffbe9;">
+        <td>${inp('ed-name-' + r.id, r.name, 120)}<div style="margin-top:4px;">${inp('ed-addr-' + r.id, r.address, 160)}</div></td>
+        <td><select id="ed-cat-${r.id}" class="excel-cell-select" style="font-size:12px;">${catOpts}</select></td>
+        <td>${inp('ed-ch-' + r.id, r.channel, 90)}</td>
+        <td>${inp('ed-content-' + r.id, r.content, 200)}</td>
+        <td>${inp('ed-deadline-' + r.id, r.deadline, 90)}</td>
+        <td>${inp('ed-days-' + r.id, r.days, 110)}</td>
+        <td>${inp('ed-hours-' + r.id, r.hours, 150)}</td>
+        <td><input type="checkbox" id="ed-holiday-${r.id}"${r.exclude_holiday ? ' checked' : ''}></td>
+        <td><span class="badge-status">${badge}</span></td>
+        <td style="font-size:12px;color:#c47f00;">${r.flags || ''}</td>
+        <td style="white-space:nowrap;"><button class="btn-dark" style="padding:4px 10px;" onclick="saveStaged(${r.id})">저장</button> <button class="btn-ghost" style="padding:4px 10px;" onclick="cancelStaged()">취소</button></td>
+      </tr>`;
+    }
     const actions = collectSub === 'pending'
-      ? `<button class="btn-dark" style="padding:4px 10px;" onclick="approveStaged(${r.id})">승인</button> <button class="btn-ghost" style="padding:4px 10px;color:#E82A2D;" onclick="rejectStaged(${r.id})">반려</button>`
+      ? `<button class="btn-dark" style="padding:4px 10px;" onclick="approveStaged(${r.id})">승인</button> <button class="btn-ghost" style="padding:4px 10px;" onclick="editStaged(${r.id})">수정</button> <button class="btn-ghost" style="padding:4px 10px;color:#E82A2D;" onclick="rejectStaged(${r.id})">반려</button>`
       : (r.status === 'registered' ? '<span style="color:#1a9d4b;">등록됨</span>' : '<span style="color:#E82A2D;">반려됨</span>');
     return `<tr>
       <td><a href="${r.source_url}" target="_blank" style="color:#333;">${r.name || ''}</a></td>
@@ -131,6 +150,24 @@ function renderStagedRows() {
       <td style="white-space:nowrap;">${actions}</td>
     </tr>`;
   }).join('');
+}
+function editStaged(id) { collectEditingId = id; renderStagedRows(); }
+function cancelStaged() { collectEditingId = null; renderStagedRows(); }
+async function saveStaged(id) {
+  const g = (k) => document.getElementById(`ed-${k}-${id}`);
+  const payload = {
+    name: g('name').value.trim(), address: g('addr').value.trim(), category: g('cat').value,
+    channel: g('ch').value.trim(), content: g('content').value.trim(), deadline: g('deadline').value.trim(),
+    days: g('days').value.trim(), hours: g('hours').value.trim(), excludeHoliday: g('holiday').checked
+  };
+  await fetch(`/api/campaigns?action=editstaged&id=${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  });
+  const row = collectStagedRows.find(x => x.id === id);
+  if (row) Object.assign(row, { name: payload.name, address: payload.address, category: payload.category, channel: payload.channel, content: payload.content, deadline: payload.deadline, days: payload.days, hours: payload.hours, exclude_holiday: payload.excludeHoliday ? 1 : 0 });
+  collectEditingId = null;
+  renderStagedRows();
+  adminToast('수정 저장됨');
 }
 async function approveStaged(id) {
   const r = collectStagedRows.find(x => x.id === id);

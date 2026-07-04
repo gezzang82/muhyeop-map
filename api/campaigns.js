@@ -127,6 +127,20 @@ module.exports = async function handler(req, res) {
       });
       return res.status(200).json({ id, status });
     }
+    if (action === 'editstaged' && req.method === 'PATCH') {
+      const id = Number(req.query.id);
+      if (!id) return res.status(400).json({ error: 'id는 필수입니다.' });
+      const b = req.body || {};
+      const sets = []; const args = [];
+      for (const f of ['name', 'address', 'category', 'channel', 'content', 'deadline', 'hours', 'days']) {
+        if (b[f] !== undefined) { sets.push(`${f} = ?`); args.push(String(b[f])); }
+      }
+      if (b.excludeHoliday !== undefined) { sets.push('exclude_holiday = ?'); args.push(b.excludeHoliday ? 1 : 0); }
+      if (!sets.length) return res.status(200).json({ id });
+      args.push(id);
+      await db.execute({ sql: `UPDATE scraped_items SET ${sets.join(', ')} WHERE id = ?`, args });
+      return res.status(200).json({ id });
+    }
     return res.status(400).json({ error: '지원하지 않는 action/method' });
   }
 
