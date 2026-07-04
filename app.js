@@ -1867,7 +1867,7 @@ function openReportModalForCampaign(campaignId) {
   const place = c ? places.find(p => p.id === c.placeId) : null;
   openReportModal();
   if (c && place) {
-    setReportTargetType('campaign');
+    setReportTargetType('campaign', true); // 특정 캠페인 지정 진입 → 신고 대상 자동 캠페인
     reportSelectedId = campaignId;
     document.getElementById('reportSearchInput').value = place.name;
     renderReportResults();
@@ -1878,7 +1878,7 @@ function openReportModalForPlace(placeId) {
   const place = places.find(p => p.id === placeId);
   openReportModal();
   if (place) {
-    setReportTargetType('campaign');
+    setReportTargetType('campaign', false); // 매장명으로 캠페인 목록 노출(아직 대상 선택 전 → '선택하세요')
     reportSelectedId = null;
     document.getElementById('reportSearchInput').value = place.name;
     renderReportResults();
@@ -1895,7 +1895,7 @@ function resetReportModal() {
   reportSelectedPlaceId = null;
   _reportReviews = [];
   reportSelectedReason = null;
-  setReportTargetType('campaign');
+  setReportTargetType('campaign', false); // 기본 유형 캠페인(검색 즉시 작동)이되 트리거는 '선택하세요'
   document.getElementById('reportSearchInput').value = '';
   document.getElementById('reportResultsList').innerHTML = '';
   document.getElementById('reportDetail').value = '';
@@ -1951,10 +1951,20 @@ function populateReportReasons(type) {
 }
 
 // 신고 대상 유형 변경 (매장/캠페인/후기)
-function setReportTargetType(type) {
+let reportTypeChosen = false; // 신고 대상 유형을 실제로 선택했는지(false면 트리거에 '선택하세요')
+const REPORT_TYPE_LABEL = { place: '매장', campaign: '캠페인', review: '후기' };
+function syncReportTypeTrigger() {
+  const val = document.getElementById('reportTargetTypeSelectValue');
+  if (!val) return;
+  if (reportTypeChosen) { val.textContent = REPORT_TYPE_LABEL[reportTargetType] || '선택하세요'; val.classList.add('selected'); }
+  else { val.textContent = '선택하세요'; val.classList.remove('selected'); }
+}
+function setReportTargetType(type, chosen) {
   reportTargetType = ['place', 'campaign', 'review'].includes(type) ? type : 'campaign';
   const sel = document.getElementById('reportTargetTypeSelect');
-  if (sel) { sel.value = reportTargetType; syncSelectTrigger('reportTargetTypeSelect'); }
+  if (sel) sel.value = reportTargetType;
+  reportTypeChosen = !!chosen;
+  syncReportTypeTrigger();
   updateReportTargetLabel();
   populateReportReasons(reportTargetType);
 }
@@ -1964,7 +1974,7 @@ function updateReportTargetLabel() {
   if (label && label.firstChild) label.firstChild.nodeValue = '매장 선택 ';
 }
 function selectReportTargetType(select) {
-  setReportTargetType(select.value);   // 유형/라벨/트리거 동기화 + 이유 옵션 교체
+  setReportTargetType(select.value, true);   // 사용자가 직접 선택 → chosen(트리거에 유형 표시)
   reportSelectedId = null; reportSelectedPlaceId = null; _reportReviews = [];
   document.getElementById('reportResultsList').innerHTML = '';
   clearFieldError('reportTarget');
@@ -2067,6 +2077,8 @@ function reportPlatformTag(platform) {
 
 function selectReportTarget(id) {
   reportSelectedId = reportSelectedId === id ? null : id;
+  // 매장 선택에서 대상을 고르면 신고 대상 유형을 자동 선택(기본 캠페인)
+  if (reportSelectedId && !reportTypeChosen) { reportTypeChosen = true; syncReportTypeTrigger(); }
   clearFieldError('reportTarget');
   renderReportResults();
 }
