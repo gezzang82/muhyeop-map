@@ -101,7 +101,9 @@ module.exports = async function handler(req, res) {
     }
     const sessionCookie = createSessionCookie({ userId, nickname: profile.nickname, provider: stateData.provider, email: sessionEmail });
     res.setHeader('Set-Cookie', [sessionCookie, clearStateCookie()]);
+    // 오픈 리다이렉트 방지: 같은 출처의 상대경로('/...')만 허용, '//evil.com'·절대 URL 차단
     let redirectTo = stateData.redirectTo || '/';
+    if (!/^\/(?!\/)/.test(redirectTo)) redirectTo = '/';
     if (isNewUser) {
       redirectTo += redirectTo.includes('?') ? '&signup=1' : '?signup=1';
     }

@@ -177,8 +177,9 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     const q = req.query || {};
-    // 어드민 조회: 서버 사이드 검색/필터/페이지네이션 (수천 건+ 대응)
+    // 어드민 조회: 서버 사이드 검색/필터/페이지네이션 (수천 건+ 대응). 이메일 등 PII 포함이라 관리자만.
     if (q.admin) {
+      if (!requireAdmin(req, res)) return;
       const page = Math.max(1, parseInt(q.page, 10) || 1);
       const size = Math.min(500, Math.max(1, parseInt(q.size, 10) || 100));
       const where = []; const args = [];
@@ -201,8 +202,9 @@ module.exports = async function handler(req, res) {
       const rows = rowsRes.rows.map(r => ({ ...toCampaign(r), placeName: r.place_name || '' }));
       return res.status(200).json({ rows, total, page, size });
     }
+    // 공개 지도 조회: 이메일(PII)은 제외하고 반환
     const result = await db.execute('SELECT * FROM campaigns');
-    return res.status(200).json(result.rows.map(toCampaign));
+    return res.status(200).json(result.rows.map(r => { const c = toCampaign(r); delete c.reporterEmail; return c; }));
   }
 
   if (req.method === 'POST') {
