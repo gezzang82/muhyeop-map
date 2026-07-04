@@ -100,3 +100,35 @@ CREATE TABLE IF NOT EXISTS review_likes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_review_likes_review_id ON review_likes(review_id);
+
+-- 데이터 자동수집 스테이징 (어드민 데이터수집 Phase 1) — api/campaigns.js ?action=scrape|staged|runs|review
+CREATE TABLE IF NOT EXISTS scraped_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  platform TEXT NOT NULL,            -- 'dinnerqueen'/'디너의여왕'
+  source_id INTEGER,                 -- 플랫폼 캠페인 id (커서/멱등키)
+  source_url TEXT,
+  name TEXT, address TEXT, category TEXT, channel TEXT, content TEXT, deadline TEXT,
+  hours TEXT, days TEXT, exclude_holiday INTEGER DEFAULT 0,
+  flags TEXT,                        -- 규칙검증 플래그(카테고리확인 등)
+  dedupe_status TEXT,                -- new_place | add_channel | renew | dup_active
+  matched_place_id INTEGER,          -- 기존 매장 매칭 시 place.id
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | approved | rejected | registered
+  created_campaign_id INTEGER,       -- 등록완료 시 생성된 campaign.id
+  created_at TEXT DEFAULT (datetime('now','+9 hours')),
+  reviewed_at TEXT,
+  UNIQUE(platform, source_id)
+);
+
+CREATE TABLE IF NOT EXISTS scrape_state (
+  platform TEXT PRIMARY KEY,
+  last_max_id INTEGER,               -- 증분 커서(마지막 처리한 최대 source_id)
+  last_run_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS scrape_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  platform TEXT NOT NULL,
+  run_at TEXT DEFAULT (datetime('now','+9 hours')),
+  cursor_from INTEGER, cursor_to INTEGER,
+  fetched INTEGER, staged INTEGER, excluded INTEGER, note TEXT
+);

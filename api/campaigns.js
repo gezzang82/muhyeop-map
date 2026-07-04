@@ -1,6 +1,7 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { requireAdmin } = require('./auth/_admin');
+const { runDinnerqueen } = require('./_scrape');
 
 function toCampaign(row) {
   return {
@@ -61,6 +62,73 @@ module.exports = async function handler(req, res) {
       UNIQUE(campaign_id, kind, visitor_key)
     )`);
   } catch (e) {}
+  // 데이터수집(Phase 1) 스테이징 테이블
+  try {
+    await db.execute(`CREATE TABLE IF NOT EXISTS scraped_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform TEXT NOT NULL, source_id INTEGER, source_url TEXT,
+      name TEXT, address TEXT, category TEXT, channel TEXT, content TEXT, deadline TEXT,
+      hours TEXT, days TEXT, exclude_holiday INTEGER DEFAULT 0,
+      flags TEXT, dedupe_status TEXT, matched_place_id INTEGER,
+      status TEXT NOT NULL DEFAULT 'pending', created_campaign_id INTEGER,
+      created_at TEXT DEFAULT (datetime('now','+9 hours')), reviewed_at TEXT,
+      UNIQUE(platform, source_id)
+    )`);
+    await db.execute(`CREATE TABLE IF NOT EXISTS scrape_state (
+      platform TEXT PRIMARY KEY, last_max_id INTEGER, last_run_at TEXT
+    )`);
+    await db.execute(`CREATE TABLE IF NOT EXISTS scrape_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, platform TEXT NOT NULL,
+      run_at TEXT DEFAULT (datetime('now','+9 hours')),
+      cursor_from INTEGER, cursor_to INTEGER, fetched INTEGER, staged INTEGER, excluded INTEGER, note TEXT
+    )`);
+  } catch (e) {}
+
+  // ===== 데이터수집(Phase 1): ?action=scrape|staged|runs|review (모두 관리자 전용) =====
+  const action = req.query.action;
+  if (action) {
+    if (!requireAdmin(req, res)) return;
+    if (action === 'scrape' && req.method === 'POST') {
+      const mode = req.query.mode === 'all-seoul' ? 'all-seoul' : 'jeonche';
+      const limit = Math.min(60, Math.max(1, parseInt(req.query.limit, 10) || 40));
+      try {
+        const summary = await runDinnerqueen({ db, mode, limit });
+        return res.status(200).json(summary);
+      } catch (e) {
+        return res.status(500).json({ error: '수집 실패: ' + (e.message || e) });
+      }
+    }
+    if (action === 'staged' && req.method === 'GET') {
+      const status = req.query.status || 'pending';
+      const args = [];
+      let sql = 'SELECT * FROM scraped_items';
+      const where = [];
+      if (status !== 'all') { where.push('status = ?'); args.push(status); }
+      if (req.query.platform) { where.push('platform = ?'); args.push(req.query.platform); }
+      if (where.length) sql += ' WHERE ' + where.join(' AND ');
+      sql += ' ORDER BY id DESC LIMIT 500';
+      const r = await db.execute({ sql, args });
+      return res.status(200).json(r.rows);
+    }
+    if (action === 'runs' && req.method === 'GET') {
+      const r = await db.execute('SELECT * FROM scrape_runs ORDER BY id DESC LIMIT 50');
+      return res.status(200).json(r.rows);
+    }
+    if (action === 'review' && req.method === 'PATCH') {
+      const id = Number(req.query.id);
+      if (!id) return res.status(400).json({ error: 'id는 필수입니다.' });
+      const { status, createdCampaignId } = req.body || {};
+      if (!['pending', 'approved', 'rejected', 'registered'].includes(status)) {
+        return res.status(400).json({ error: 'status 값이 올바르지 않습니다.' });
+      }
+      await db.execute({
+        sql: `UPDATE scraped_items SET status = ?, created_campaign_id = ?, reviewed_at = datetime('now','+9 hours') WHERE id = ?`,
+        args: [status, createdCampaignId || null, id],
+      });
+      return res.status(200).json({ id, status });
+    }
+    return res.status(400).json({ error: '지원하지 않는 action/method' });
+  }
 
   // 조회/클릭 트래킹: POST /api/campaigns?track=view|click&id=123 (IP+일자 기준 중복 제거)
   if (req.method === 'POST' && (req.query.track === 'view' || req.query.track === 'click')) {
