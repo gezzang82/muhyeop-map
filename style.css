@@ -2653,6 +2653,11 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   top: 10px;
   color: #999;
 }
+.sidebar-notice strong {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-position: from-font;
+}
 
 @media (max-width: 640px) {
   .sidebar-notice {

@@ -1008,7 +1008,7 @@ function renderSidebar() {
     return;
   }
 
-  const noticeHtml = '<div class="sidebar-notice">모집 일정·조건·내용은 변경될 수 있어요. 신청 전 해당 플랫폼에서 최신 정보를 꼭 확인해 주세요.</div>';
+  const noticeHtml = '<div class="sidebar-notice">모집 일정·조건·내용은 변경될 수 있어요. 신청 전 <strong>해당 플랫폼에서 최신 정보를 꼭 확인</strong>해 주세요.</div>';
   list.innerHTML = noticeHtml + activePlaces.map(place => {
     const active = getActiveCampaigns(place.id);
 
