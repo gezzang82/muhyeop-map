@@ -409,7 +409,11 @@ function fbParseDetail(html) {
   m = txt.match(/휴무일\s*[:：]?\s*([가-힣0-9,·\s]{0,25})/); if (m) closedRaw = m[1].replace(/\s+/g, ' ').trim();
   const bans = (txt.match(/(?<![가-힣])[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*){0,2}(?:불가|휴무|제외)/g) || []).join(' ');
   if (bans) closedRaw += ' ' + bans;
-  return { address, hours, closedRaw, daysExplicit, holidayExplicit };
+  // 모집 마감일: 캘린더 '리뷰어 모집' 종료일(연도 포함, REQ_CLOSE=선정일과 혼동 방지)
+  let deadline = '';
+  const cal = html.match(/title\s*:\s*["'][^"']*모집[^"']*["']\s*,\s*start\s*:\s*["'][\d\-]+["']\s*,\s*end\s*:\s*["']([\d\-]{8,10})["']/);
+  if (cal) deadline = cal[1];
+  return { address, hours, closedRaw, daysExplicit, holidayExplicit, deadline };
 }
 
 async function runFoblog({ db, limit = 40 }) {
@@ -444,11 +448,11 @@ async function runFoblog({ db, limit = 40 }) {
       const { name } = fbName(it.CAMPAIGN_NM);
       const channel = FB_CH[String(it.CATEGORY || '').toLowerCase()] || '';
       const content = cleanContent(String(it.REVIEWER_BENEFIT || ''));
-      const deadline = fbDeadline(it.REQ_CLOSE_DT);
       const html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`);
-      const { address, hours: rawHours, closedRaw, daysExplicit, holidayExplicit } = fbParseDetail(html);
+      const { address, hours: rawHours, closedRaw, daysExplicit, holidayExplicit, deadline: dlCal } = fbParseDetail(html);
       if (!address) { excluded++; await sleep(500); continue; }
       if (!/^서울/.test(address)) { excluded++; await sleep(500); continue; } // 서울만
+      const deadline = dlCal || fbDeadline(it.REQ_CLOSE_DT); // 캘린더 '리뷰어 모집' 종료일 우선
       const days = daysExplicit || deriveDays(rawHours, closedRaw);       // 포블로그 명시 요일 우선
       const hours = cleanHours(rawHours);
       const excludeHoliday = holidayExplicit || parseExcludeHoliday(rawHours, closedRaw);
@@ -502,7 +506,7 @@ async function reparsePending({ db, platform }) {
   let updated = 0, failed = 0;
   for (const r of rows) {
     try {
-      let address, hours, days, excludeHoliday, category = r.category;
+      let address, hours, days, excludeHoliday, category = r.category, deadline = r.deadline;
       if (isFb) {
         const html = await fetchText(r.source_url);
         const p = fbParseDetail(html);
@@ -511,6 +515,7 @@ async function reparsePending({ db, platform }) {
         days = p.daysExplicit || deriveDays(p.hours, p.closedRaw);
         excludeHoliday = p.holidayExplicit || parseExcludeHoliday(p.hours, p.closedRaw);
         category = categoryByKeyword(String(r.content || ''), r.name) || r.category;
+        if (p.deadline) deadline = p.deadline;
       } else {
         const html = await fetchText(`${BASE}/taste/${r.source_id}`);
         const d = scrapeDetail(html, r.source_id);
@@ -518,10 +523,11 @@ async function reparsePending({ db, platform }) {
         hours = d.hours; days = d.days; excludeHoliday = d.excludeHoliday;
         const mapped = mapCategory(d.platformCategory || '', d.content || r.content, r.name);
         category = mapped.cat || r.category;
+        if (d.deadline) deadline = d.deadline;
       }
       await db.execute({
-        sql: 'UPDATE scraped_items SET address=?, hours=?, days=?, exclude_holiday=?, category=? WHERE id=?',
-        args: [address, hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, category, r.id],
+        sql: 'UPDATE scraped_items SET address=?, hours=?, days=?, exclude_holiday=?, category=?, deadline=? WHERE id=?',
+        args: [address, hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, category, deadline || '', r.id],
       });
       updated++;
     } catch (e) { failed++; }
