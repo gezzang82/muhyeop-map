@@ -595,29 +595,19 @@
         <div id="sub-reg-collect" style="display:none;">
         <div class="reg-notice">플랫폼에서 최신 캠페인을 수집해 승인 대기에 쌓습니다. 검토 후 승인하면 지도에 반영돼요.</div>
         <div class="form-card">
-          <div class="form-row">
-            <div class="form-group">
-              <label>플랫폼</label>
-              <select id="collectPlatform">
-                <option value="dinnerqueen">디너의여왕</option>
-              </select>
+          <div class="filter-grid">
+            <div class="filter-field"><label>플랫폼</label>
+              <select id="collectPlatform"><option value="dinnerqueen">디너의여왕</option></select>
             </div>
-            <div class="form-group">
-              <label>범위</label>
-              <select id="collectMode">
-                <option value="jeonche">전체(최신 첫 화면)</option>
-                <option value="all-seoul">서울 전역(소지역 순회)</option>
-              </select>
+            <div class="filter-field"><label>범위</label>
+              <select id="collectMode"><option value="jeonche">전체(최신)</option><option value="all-seoul">서울 전역</option></select>
             </div>
-            <div class="form-group">
-              <label>최대 건수</label>
+            <div class="filter-field"><label>최대 건수</label>
               <input type="number" id="collectLimit" value="20" min="1" max="60">
             </div>
-          </div>
-          <div class="form-row form-actions">
             <button class="btn-search-red" id="collectBtn" onclick="collectScrape()"><svg class="icon"><use href="#icon-search"></use></svg> 최신 캠페인 수집</button>
-            <span id="collectStatus" class="collect-status"></span>
           </div>
+          <div class="collect-status" id="collectStatus"></div>
         </div>
 
           <div class="subtab-bar collect-subtab-bar">
