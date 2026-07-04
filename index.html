@@ -567,14 +567,6 @@
           <h2>신고하기</h2>
         </div>
         <div class="form-group">
-          <label id="reportTargetLabel">매장 선택 <span class="required">*</span></label>
-          <div class="addr-row">
-            <input type="text" id="reportSearchInput" placeholder="매장명으로 검색" autocomplete="off" oninput="searchReportTarget()">
-          </div>
-          <span class="field-error-msg" id="reportTargetError">신고할 대상을 선택해주세요.</span>
-        </div>
-        <div id="reportResultsList" class="place-results-list"></div>
-        <div class="form-group">
           <label>신고 대상 <span class="required">*</span></label>
           <select id="reportTargetTypeSelect" style="display:none" onchange="selectReportTargetType(this)">
             <option value="place">매장</option>
@@ -585,6 +577,14 @@
             <span class="custom-select-value" id="reportTargetTypeSelectValue">선택하세요</span>
           </div>
         </div>
+        <div class="form-group">
+          <label id="reportTargetLabel">신고할 대상 <span class="required">*</span></label>
+          <div class="addr-row">
+            <input type="text" id="reportSearchInput" placeholder="매장명으로 검색" autocomplete="off" oninput="searchReportTarget()">
+          </div>
+          <span class="field-error-msg" id="reportTargetError">신고할 대상을 선택해주세요.</span>
+        </div>
+        <div id="reportResultsList" class="place-results-list"></div>
         <div class="form-group">
           <label>신고 이유 <span class="required">*</span></label>
           <select id="reportReasonSelect" style="display:none" onchange="selectReportReason(this)">

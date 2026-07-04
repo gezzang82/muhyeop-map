@@ -1878,7 +1878,7 @@ function openReportModalForPlace(placeId) {
   const place = places.find(p => p.id === placeId);
   openReportModal();
   if (place) {
-    setReportTargetType('campaign', false); // 매장명으로 캠페인 목록 노출(아직 대상 선택 전 → '선택하세요')
+    setReportTargetType('campaign', true); // 특정 매장에서 진입 → 기본 캠페인으로 그 매장 캠페인 목록 노출(유형 전환 가능)
     reportSelectedId = null;
     document.getElementById('reportSearchInput').value = place.name;
     renderReportResults();
@@ -1969,9 +1969,11 @@ function setReportTargetType(type, chosen) {
   populateReportReasons(reportTargetType);
 }
 function updateReportTargetLabel() {
-  // 검색 필드 라벨은 '매장 선택'으로 고정(Figma). 신고 대상 유형은 별도 셀렉트에서 선택.
+  // 신고 대상 유형을 고른 뒤 라벨을 '신고할 캠페인/매장/후기'로. 미선택 시 '신고할 대상'.
   const label = document.getElementById('reportTargetLabel');
-  if (label && label.firstChild) label.firstChild.nodeValue = '매장 선택 ';
+  if (!label || !label.firstChild) return;
+  const map = { place: '신고할 매장', campaign: '신고할 캠페인', review: '신고할 후기' };
+  label.firstChild.nodeValue = (reportTypeChosen ? (map[reportTargetType] || '신고할 대상') : '신고할 대상') + ' ';
 }
 function selectReportTargetType(select) {
   setReportTargetType(select.value, true);   // 사용자가 직접 선택 → chosen(트리거에 유형 표시)
@@ -1999,8 +2001,9 @@ function reportResultItem(id, name, metaHtml, selected) {
 }
 
 function renderReportResults() {
-  const q = document.getElementById('reportSearchInput').value.trim();
   const listEl = document.getElementById('reportResultsList');
+  if (!reportTypeChosen) { listEl.innerHTML = '<div class="search-hint">신고 대상을 먼저 선택하세요.</div>'; return; }
+  const q = document.getElementById('reportSearchInput').value.trim();
   if (reportTargetType === 'place') return renderReportPlaces(q, listEl);
   if (reportTargetType === 'review') return renderReportReviews(q, listEl);
   return renderReportCampaigns(q, listEl);
@@ -2077,8 +2080,6 @@ function reportPlatformTag(platform) {
 
 function selectReportTarget(id) {
   reportSelectedId = reportSelectedId === id ? null : id;
-  // 매장 선택에서 대상을 고르면 신고 대상 유형을 자동 선택(기본 캠페인)
-  if (reportSelectedId && !reportTypeChosen) { reportTypeChosen = true; syncReportTypeTrigger(); }
   clearFieldError('reportTarget');
   renderReportResults();
 }
