@@ -112,6 +112,8 @@ function renderStagedRows() {
   const body = document.getElementById('collectStagedBody');
   const cnt = document.getElementById('collectCount');
   if (cnt) cnt.textContent = collectStagedRows.length;
+  // 마감일 임박순 정렬(빈 값은 뒤로)
+  collectStagedRows.sort((a, b) => (a.deadline || '9999-99-99').localeCompare(b.deadline || '9999-99-99'));
   if (!collectStagedRows.length) {
     body.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#aaa;padding:24px;">${collectSub === 'pending' ? '승인 대기 항목이 없어요. 위에서 수집을 실행하세요.' : '항목이 없어요.'}</td></tr>`;
     return;

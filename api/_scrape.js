@@ -185,7 +185,7 @@ function cleanContent(c) {
 function categoryByKeyword(content, name) {
   const s = content + ' ' + name;
   if (/사주|타로|운세|점집|신점|철학관|작명|무속|명리|손금|관상/.test(s)) return '기타';
-  if (/원데이\s*클래스|클래스\s*체험|보컬|레슨|트레이닝|학원|공방|드로잉|플라워|캔들|공예|만들기|전시|관람|원데이클래스/.test(s)) return '문화';
+  if (/원데이\s*클래스|클래스\s*체험|보컬|레슨|트레이닝|학원|공방|드로잉|플라워|캔들|공예|만들기|전시|관람|원데이클래스|파티룸|대관|모임\s*공간|공간\s*대여|스튜디오|셀프사진|포토부스|방탈출|보드게임/.test(s)) return '문화';
   if (/케이크|디저트|베이커리|커피|브런치|룸카페|스터디카페|카페/.test(s)) return '카페';
   if (/네일|피부|왁싱|헤어|미용|에스테틱|마사지|태닝|속눈썹|반영구|필러|보톡스|두피|체형|다이어트|\b펌\b|염색|풋앤바디|풋마사지|발마사지|타이마사지|스웨디시|아로마|경락|림프|바디케어|스킨케어|피부관리/.test(s)) return '뷰티';
   if (/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|리조트|게스트하우스|한옥스테이|캠핑/.test(s)) return '숙박/여가';
@@ -358,7 +358,8 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40 }) {
 
 // ===== 포블로그 (4blog.net) =====
 const FB_BASE = 'https://4blog.net';
-const FB_CH = { blog: '블로그', reels: '릴스', clip: '클립', insta: '인스타그램', instar21: '인스타그램', instagram: '인스타그램', youtube: '유튜브' };
+// 포블로그 채널값 → 무협맵 채널(블로그/클립/인스타그램/릴스/유튜브). tiktok·threads·etc는 대응값 없어 '' (검수)
+const FB_CH = { blog: '블로그', reels: '릴스', clip: '클립', insta: '인스타그램', instar21: '인스타그램', instagram: '인스타그램', youtube: '유튜브', youtube21: '유튜브', shorts: '유튜브' };
 const fbListUrl = (offset, limit) => `${FB_BASE}/loadMoreDataCategory?offset=${offset}&limit=${limit}&category=&category1=local&location=seoul&location1=&search=&bid=`;
 async function fbFetchList(offset, limit) {
   const res = await fetch(fbListUrl(offset, limit), { headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest', Referer: `${FB_BASE}/list/all/local/seoul` } });
@@ -416,20 +417,21 @@ async function runFoblog({ db, limit = 40 }) {
   const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [platform] });
   const lastMaxId = Number(stRes.rows[0]?.last_max_id || 0);
 
-  // 리스트 JSON을 offset으로 순회하며 커서 이후(CID>lastMaxId) 신규만 수집
-  const newItems = []; let offset = 0; let maxSeen = lastMaxId; let reachedSeen = false;
-  while (offset < 300 && !reachedSeen) {
+  // 리스트 JSON을 offset으로 순회(목록이 CID정렬이 아니라 조기중단 없이 여러 페이지 수집 후 커서 필터)
+  const newItems = []; let offset = 0; let maxSeen = lastMaxId;
+  while (offset < 150) {
     let batch;
     try { batch = await fbFetchList(offset, 30); } catch (e) { break; }
     if (!batch || !batch.length) break;
+    let pageNew = 0;
     for (const it of batch) {
       const cid = Number(it.CID);
       if (cid > maxSeen) maxSeen = cid;
-      if (cid <= lastMaxId) { reachedSeen = true; continue; }
-      if ((it.CATEGORY1 || 'local') === 'local') newItems.push(it);
+      if (cid > lastMaxId && (it.CATEGORY1 || 'local') === 'local') { newItems.push(it); pageNew++; }
     }
     offset += 30;
-    if (newItems.length >= limit * 2) break;
+    if (newItems.length >= limit * 3) break;    // 충분히 모음
+    if (offset >= 60 && pageNew === 0) break;    // 최근 2페이지 신규 없으면 중단
     await sleep(600);
   }
   const targets = newItems.sort((a, b) => Number(b.CID) - Number(a.CID)).slice(0, limit);
