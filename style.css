@@ -1769,15 +1769,15 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
 .about-policy-links {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 12px 0 4px;
+  padding: 28px 0 8px;
 }
 .about-policy-links button {
   border: none; background: none; cursor: pointer; padding: 0;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 11px; color: #999;
+  font-size: 13px; color: #999;
 }
 .about-policy-links button:hover { color: #555; text-decoration: underline; }
-.about-policy-sep { font-size: 11px; color: #ddd; }
+.about-policy-sep { font-size: 13px; color: #ddd; }
 
 .about-section { padding: 14px 0; border-bottom: 1px solid #f5f5f0; }
 .about-section:last-child { border-bottom: none; }
@@ -1844,9 +1844,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .intro-card-text { display: flex; flex-direction: column; gap: 8px; color: #555; font-size: 16px; line-height: 24px; letter-spacing: -0.64px; }
 .intro-card-text p { margin: 0; }
 .intro-card-center-text { margin: 0; color: #555; font-size: 16px; line-height: 22px; letter-spacing: -0.64px; }
-.intro-card-img { display: block; object-fit: contain; }
-.intro-card-img--report { width: 200px; height: 180px; }
-.intro-card-img--grow { width: 128px; height: 180px; }
+.intro-card-img { display: block; height: 180px; width: auto; object-fit: contain; }
 
 .intro-steps { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 16px; }
 .intro-step { display: flex; flex-direction: column; gap: 8px; }
@@ -1864,11 +1862,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .intro-legal li { color: #000; font-size: 16px; line-height: 1.5; }
 .intro-legal li + li { margin-top: 6px; }
 
-/* 모바일: 상단 헤더바 숨김 (Figma는 배지가 타이틀 역할) / PC 사이드패널은 헤더 유지 → 배지 숨김 */
-@media (max-width: 640px) {
-  #aboutOverlay .modal-header { display: none; }
-}
-body.pc-about-mode #aboutOverlay .intro-badge { display: none; }
+/* 소개 페이지는 별도 타이틀 규칙: 기본 헤더바를 숨기고 pill 배지가 타이틀 역할 (PC/모바일 공통) */
+#aboutOverlay .modal-header { display: none; }
 
 .btn-about-mobile { display: none; }
 
