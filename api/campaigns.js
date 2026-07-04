@@ -1,7 +1,7 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { requireAdmin } = require('./auth/_admin');
-const { runDinnerqueen } = require('./_scrape');
+const { runScrape } = require('./_scrape');
 
 function toCampaign(row) {
   return {
@@ -89,10 +89,11 @@ module.exports = async function handler(req, res) {
   if (action) {
     if (!requireAdmin(req, res)) return;
     if (action === 'scrape' && req.method === 'POST') {
+      const platform = req.query.platform || 'dinnerqueen';
       const mode = req.query.mode === 'all-seoul' ? 'all-seoul' : 'jeonche';
       const limit = Math.min(60, Math.max(1, parseInt(req.query.limit, 10) || 40));
       try {
-        const summary = await runDinnerqueen({ db, mode, limit });
+        const summary = await runScrape({ db, platform, mode, limit });
         return res.status(200).json(summary);
       } catch (e) {
         return res.status(500).json({ error: '수집 실패: ' + (e.message || e) });

@@ -85,10 +85,11 @@ async function collectScrape() {
   if (btn.disabled) return;
   btn.disabled = true;
   statusEl.textContent = '수집 중… (플랫폼 접속·파싱, 최대 1~2분)';
+  const platform = document.getElementById('collectPlatform').value;
   const mode = document.getElementById('collectMode').value;
   const limit = document.getElementById('collectLimit').value || 20;
   try {
-    const res = await fetch(`/api/campaigns?action=scrape&mode=${mode}&limit=${limit}`, { method: 'POST' });
+    const res = await fetch(`/api/campaigns?action=scrape&platform=${platform}&mode=${mode}&limit=${limit}`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '수집 실패');
     statusEl.textContent = `신규 ${data.staged}건 적재 (처리 ${data.processed} · 제외 ${data.excluded} · 중복 ${data.dupActive || 0}). 커서 ${data.cursorFrom}→${data.cursorTo}`;
@@ -191,7 +192,7 @@ async function approveStaged(id) {
     const cres = await fetch('/api/campaigns', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        placeId: place.id, platform: '디너의여왕', channels, content: r.content,
+        placeId: place.id, platform: r.platform || '디너의여왕', channels, content: r.content,
         deadline: r.deadline || '', link: r.source_url || '', operatingDays,
         operatingHours: r.hours || '', excludeHoliday: !!r.exclude_holiday, source: 'admin'
       })

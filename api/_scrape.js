@@ -356,4 +356,126 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40 }) {
   return { platform, mode, cursorFrom: lastMaxId, cursorTo: newCursor, newCandidates: newIds.length, processed: targets.length, staged, excluded, dupActive, failed };
 }
 
-module.exports = { runDinnerqueen };
+// ===== 포블로그 (4blog.net) =====
+const FB_BASE = 'https://4blog.net';
+const FB_CH = { blog: '블로그', reels: '릴스', clip: '클립', insta: '인스타그램', instar21: '인스타그램', instagram: '인스타그램', youtube: '유튜브' };
+const fbListUrl = (offset, limit) => `${FB_BASE}/loadMoreDataCategory?offset=${offset}&limit=${limit}&category=&category1=local&location=seoul&location1=&search=&bid=`;
+async function fbFetchList(offset, limit) {
+  const res = await fetch(fbListUrl(offset, limit), { headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest', Referer: `${FB_BASE}/list/all/local/seoul` } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+function fbName(nm) {
+  const m = String(nm || '').match(/^\[([^\]]*)\]\s*(.+)$/);
+  return { region: m ? m[1] : '', name: (m ? m[2] : String(nm || '')).replace(/\s*\d+\s*차\s*$/, '').trim() };
+}
+function fbDeadline(mmdd) {
+  const m = String(mmdd || '').match(/(\d{1,2})\.(\d{1,2})/);
+  if (!m) return '';
+  const now = new Date(); let y = now.getFullYear(); const mo = +m[1], da = +m[2];
+  if ((now - new Date(y, mo - 1, da)) > 45 * 86400000) y++;
+  return `${y}-${String(mo).padStart(2, '0')}-${String(da).padStart(2, '0')}`;
+}
+function fbParseDetail(html) {
+  // 주소: campaigninfo '체험 장소' 라벨
+  let address = '';
+  const im = html.match(/campaigninfo-label"?>\s*체험\s*장소\s*<\/label>\s*<div class="campaigninfo-text"[^>]*>([\s\S]*?)<\/div>/);
+  if (im) {
+    const a = im[1].replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').replace(/^\s*주소\s*/, '').trim();
+    const am = a.match(/[가-힣][가-힣A-Za-z0-9\s\-]+?\d[\d\-]*(?:\s*[가-힣]+\s*\d[\d\-]*)*/);
+    address = am ? am[0].trim() : '';
+  }
+  // 영업/이용시간·휴무·요일제약: 본문 free-text
+  const txt = stripTags(html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' '));
+  let hours = '';
+  let m = txt.match(/블로거\s*이용\s*시간\s*([0-9:~\-\s]+)/) || txt.match(/영업\s*시간\s*([0-9:~\-\s]+)/) || txt.match(/이용\s*시간\s*([0-9:~\-\s]+)/);
+  if (m) hours = m[1].replace(/\s+/g, ' ').trim().slice(0, 60);
+  let closedRaw = '';
+  m = txt.match(/휴무일\s*[:：]?\s*([^*<\n]{0,40})/); if (m) closedRaw = m[1].replace(/\s+/g, ' ').trim();
+  const bans = (txt.match(/(?<![가-힣])[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*){0,2}(?:불가|휴무|제외)/g) || []).join(' ');
+  if (bans) closedRaw += ' ' + bans;
+  return { address, hours, closedRaw };
+}
+
+async function runFoblog({ db, limit = 40 }) {
+  const platform = '포블로그';
+  const today = new Date().toISOString().slice(0, 10);
+  const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [platform] });
+  const lastMaxId = Number(stRes.rows[0]?.last_max_id || 0);
+
+  // 리스트 JSON을 offset으로 순회하며 커서 이후(CID>lastMaxId) 신규만 수집
+  const newItems = []; let offset = 0; let maxSeen = lastMaxId; let reachedSeen = false;
+  while (offset < 300 && !reachedSeen) {
+    let batch;
+    try { batch = await fbFetchList(offset, 30); } catch (e) { break; }
+    if (!batch || !batch.length) break;
+    for (const it of batch) {
+      const cid = Number(it.CID);
+      if (cid > maxSeen) maxSeen = cid;
+      if (cid <= lastMaxId) { reachedSeen = true; continue; }
+      if ((it.CATEGORY1 || 'local') === 'local') newItems.push(it);
+    }
+    offset += 30;
+    if (newItems.length >= limit * 2) break;
+    await sleep(600);
+  }
+  const targets = newItems.sort((a, b) => Number(b.CID) - Number(a.CID)).slice(0, limit);
+
+  const dedupe = await loadDedupe(db);
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0;
+
+  for (let i = 0; i < targets.length; i++) {
+    const it = targets[i];
+    try {
+      const { name } = fbName(it.CAMPAIGN_NM);
+      const channel = FB_CH[String(it.CATEGORY || '').toLowerCase()] || '';
+      const content = cleanContent(String(it.REVIEWER_BENEFIT || ''));
+      const deadline = fbDeadline(it.REQ_CLOSE_DT);
+      const html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`);
+      const { address, hours: rawHours, closedRaw } = fbParseDetail(html);
+      if (!address) { excluded++; await sleep(500); continue; }
+      const days = deriveDays(rawHours, closedRaw);
+      const hours = cleanHours(rawHours);
+      const excludeHoliday = parseExcludeHoliday(rawHours, closedRaw);
+      const auto = categoryByKeyword(String(it.KEYWORD || '') + ' ' + content, name);
+      const category = auto || '음식점';
+      const flags = [];
+      if (!auto) flags.push('카테고리확인(기본값 음식점)');
+      if (!channel) flags.push('채널확인');
+      if (!days) flags.push('가능요일확인');
+      const item = { name, url: `${FB_BASE}/campaign/${it.CID}/`, channel, category, address, deadline, content, hours, days, excludeHoliday, flags: flags.join(' ') };
+      const cls = classify(item, dedupe, today);
+      if (cls.status === 'dup_active') { dupActive++; await sleep(500); continue; }
+      const ins = await db.execute({
+        sql: `INSERT OR IGNORE INTO scraped_items
+          (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+        args: [platform, Number(it.CID), item.url, name, address, category, channel, content, deadline || '',
+          hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, item.flags || '', cls.status, cls.matchedPlaceId],
+      });
+      if (ins.rowsAffected > 0) staged++;
+    } catch (e) { failed++; }
+    if (i < targets.length - 1) await sleep(600);
+  }
+
+  const newCursor = Math.max(lastMaxId, maxSeen);
+  await db.execute({
+    sql: `INSERT INTO scrape_state (platform, last_max_id, last_run_at) VALUES (?, ?, datetime('now','+9 hours'))
+          ON CONFLICT(platform) DO UPDATE SET last_max_id = excluded.last_max_id, last_run_at = excluded.last_run_at`,
+    args: [platform, newCursor],
+  });
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [platform, lastMaxId, newCursor, targets.length, staged, excluded + dupActive, `신규후보 ${newItems.length} 처리 ${targets.length} (dup_active ${dupActive}, 실패 ${failed})`],
+  });
+  return { platform, cursorFrom: lastMaxId, cursorTo: newCursor, newCandidates: newItems.length, processed: targets.length, staged, excluded, dupActive, failed };
+}
+
+// 플랫폼 디스패처
+async function runScrape({ db, platform, mode, limit }) {
+  if (platform === 'foblog' || platform === '포블로그') return runFoblog({ db, limit });
+  return runDinnerqueen({ db, mode, limit });
+}
+
+module.exports = { runDinnerqueen, runFoblog, runScrape };
