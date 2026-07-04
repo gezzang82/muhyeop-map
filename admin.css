@@ -645,3 +645,8 @@ body {
   opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 9999;
 }
 .admin-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* 데이터 수집(등록 서브탭) */
+.form-actions { display: flex; align-items: center; gap: 12px; }
+.collect-status { font-size: 13px; color: #555; }
+.collect-subtab-bar { margin: 16px 0; }

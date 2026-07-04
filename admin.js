@@ -60,7 +60,6 @@ function showTab(tab) {
   if (tab === 'reports') renderReportList();
   if (tab === 'reviews') renderReviewList();
   if (tab === 'users') renderUserList();
-  if (tab === 'collect') renderCollect();
 }
 
 // ===== 데이터 수집 (Phase 2) =====
@@ -229,12 +228,12 @@ async function loadCollectRuns() {
 // 조회(매장/캠페인) · 등록(등록/엑셀) 서브탭 전환
 function showSubtab(group, key) {
   if (group === 'register') {
-    const add = key === 'add';
-    document.getElementById('sub-reg-add').style.display = add ? 'block' : 'none';
-    document.getElementById('sub-reg-excel').style.display = add ? 'none' : 'block';
-    document.getElementById('subtab-reg-add').classList.toggle('active', add);
-    document.getElementById('subtab-reg-excel').classList.toggle('active', !add);
-    if (add) populatePlaceSelect();
+    ['add', 'excel', 'collect'].forEach(k => {
+      document.getElementById('sub-reg-' + k).style.display = k === key ? 'block' : 'none';
+      document.getElementById('subtab-reg-' + k).classList.toggle('active', k === key);
+    });
+    if (key === 'add') populatePlaceSelect();
+    if (key === 'collect') renderCollect();
   } else if (group === 'view') {
     const isPlaces = key === 'places';
     document.getElementById('sub-view-places').style.display = isPlaces ? 'block' : 'none';
