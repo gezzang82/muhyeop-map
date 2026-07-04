@@ -595,7 +595,7 @@
         <div id="sub-reg-collect" style="display:none;">
         <div class="reg-notice">플랫폼에서 최신 캠페인을 수집해 승인 대기에 쌓습니다. 검토 후 승인하면 지도에 반영돼요.</div>
         <div class="form-card">
-          <div class="filter-grid">
+          <div class="filter-grid collect-filter">
             <div class="filter-field"><label>플랫폼</label>
               <select id="collectPlatform"><option value="dinnerqueen">디너의여왕</option></select>
             </div>
@@ -617,7 +617,12 @@
             <button class="subtab" id="collectSub-runs" onclick="collectShowSub('runs')">수집 이력</button>
           </div>
 
-          <div id="collectStagedWrap">
+          <div id="collectStagedWrap" class="result-card">
+            <div class="result-bar">
+              <div class="result-bar-left">
+                <span class="result-count">전체 <b id="collectCount">0</b>건</span>
+              </div>
+            </div>
             <div class="table-wrap">
               <table class="admin-table">
                 <thead><tr>
@@ -627,7 +632,10 @@
               </table>
             </div>
           </div>
-          <div id="collectRunsWrap" style="display:none;">
+          <div id="collectRunsWrap" class="result-card" style="display:none;">
+            <div class="result-bar">
+              <div class="result-bar-left"><span class="result-count">수집 이력</span></div>
+            </div>
             <div class="table-wrap">
               <table class="admin-table">
                 <thead><tr><th>ID</th><th>실행시각</th><th>커서(from→to)</th><th>처리</th><th>적재</th><th>제외</th><th>비고</th></tr></thead>

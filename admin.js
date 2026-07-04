@@ -109,6 +109,8 @@ let collectEditingId = null;
 const esc = (s) => String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
 function renderStagedRows() {
   const body = document.getElementById('collectStagedBody');
+  const cnt = document.getElementById('collectCount');
+  if (cnt) cnt.textContent = collectStagedRows.length;
   if (!collectStagedRows.length) {
     body.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#aaa;padding:24px;">${collectSub === 'pending' ? '승인 대기 항목이 없어요. 위에서 수집을 실행하세요.' : '항목이 없어요.'}</td></tr>`;
     return;

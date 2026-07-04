@@ -647,6 +647,9 @@ body {
 .admin-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* 데이터 수집(등록 서브탭) */
+.collect-filter { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
+.collect-filter .filter-field { flex: 0 0 auto; min-width: 150px; }
+.collect-filter .btn-search-red { margin-left: auto; }
 .collect-status { font-size: 13px; color: #555; margin-top: 10px; }
 .collect-status:empty { display: none; }
 .collect-subtab-bar { margin: 16px 0; }
