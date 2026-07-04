@@ -501,7 +501,7 @@ async function runScrape({ db, platform, mode, limit }) {
 
 // 승인 대기(pending) 항목을 현재(개선된) 파서로 재파싱해 요일/시간/주소/공휴일/카테고리 갱신.
 // 매장명·내용·채널·마감은 유지(손실 없음). 파서 개선 후 기존 스테이징 보정용.
-async function reparsePending({ db, platform }) {
+async function reparsePending({ db, platform, only }) {
   const isFb = platform === 'foblog' || platform === '포블로그';
   const plat = isFb ? '포블로그' : '디너의여왕';
   const rows = (await db.execute({ sql: "SELECT * FROM scraped_items WHERE status='pending' AND platform=?", args: [plat] })).rows;
@@ -527,11 +527,16 @@ async function reparsePending({ db, platform }) {
         category = mapped.cat || r.category;
         if (d.deadline) deadline = d.deadline;
       }
-      const name = String(r.name || '').replace(NAME_CH_SUFFIX, '').trim();
-      await db.execute({
-        sql: 'UPDATE scraped_items SET name=?, address=?, hours=?, days=?, exclude_holiday=?, category=?, deadline=? WHERE id=?',
-        args: [name, address, hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, category, deadline || '', r.id],
-      });
+      if (only === 'deadline') {
+        // 마감일만 보정(수동 수정한 요일/시간/카테고리는 그대로 둠)
+        await db.execute({ sql: 'UPDATE scraped_items SET deadline=? WHERE id=?', args: [deadline || '', r.id] });
+      } else {
+        const name = String(r.name || '').replace(NAME_CH_SUFFIX, '').trim();
+        await db.execute({
+          sql: 'UPDATE scraped_items SET name=?, address=?, hours=?, days=?, exclude_holiday=?, category=?, deadline=? WHERE id=?',
+          args: [name, address, hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, category, deadline || '', r.id],
+        });
+      }
       updated++;
     } catch (e) { failed++; }
     await sleep(500);

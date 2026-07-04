@@ -102,7 +102,7 @@ module.exports = async function handler(req, res) {
     if (action === 'reparse' && req.method === 'POST') {
       const platform = req.query.platform || 'dinnerqueen';
       try {
-        const summary = await reparsePending({ db, platform });
+        const summary = await reparsePending({ db, platform, only: req.query.only });
         return res.status(200).json(summary);
       } catch (e) {
         return res.status(500).json({ error: '재파싱 실패: ' + (e.message || e) });

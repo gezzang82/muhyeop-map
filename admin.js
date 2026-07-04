@@ -100,18 +100,19 @@ async function collectScrape() {
     btn.disabled = false;
   }
 }
-async function collectReparse() {
+async function collectReparse(only) {
   const platform = document.getElementById('collectPlatform').value;
   const statusEl = document.getElementById('collectStatus');
-  const btn = document.getElementById('collectReparseBtn');
+  const btn = document.getElementById(only === 'deadline' ? 'collectFixDdlBtn' : 'collectReparseBtn');
   if (btn.disabled) return;
   btn.disabled = true;
-  statusEl.textContent = '재파싱 중… (승인 대기 항목 원문 다시 읽는 중)';
+  const label = only === 'deadline' ? '마감일 보정' : '검수 재파싱';
+  statusEl.textContent = `${label} 중… (승인 대기 항목 원문 다시 읽는 중)`;
   try {
-    const res = await fetch(`/api/campaigns?action=reparse&platform=${platform}`, { method: 'POST' });
+    const res = await fetch(`/api/campaigns?action=reparse&platform=${platform}${only ? '&only=' + only : ''}`, { method: 'POST' });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || '실패');
-    statusEl.textContent = `재파싱 완료: ${d.updated}/${d.pending}건 갱신 (요일·시간·주소·카테고리)`;
+    statusEl.textContent = `${label} 완료: ${d.updated}/${d.pending}건 갱신`;
     collectShowSub('pending');
   } catch (e) {
     statusEl.textContent = '오류: ' + e.message;
