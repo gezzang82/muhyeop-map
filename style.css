@@ -2653,3 +2653,9 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   top: 10px;
   color: #999;
 }
+
+@media (max-width: 640px) {
+  .sidebar-notice {
+    font-size: 14px;
+  }
+}

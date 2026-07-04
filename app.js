@@ -997,8 +997,6 @@ function renderSidebar() {
     .filter(p => hasActiveCampaign(p.id))
     .sort((a, b) => latestCreatedAt(b).localeCompare(latestCreatedAt(a)));
   countEl.textContent = activePlaces.length;
-  const noticeEl = document.getElementById('campaignNotice');
-  if (noticeEl) noticeEl.style.display = activePlaces.length ? 'block' : 'none';
 
   if (activePlaces.length === 0) {
     list.innerHTML = `
@@ -1010,7 +1008,8 @@ function renderSidebar() {
     return;
   }
 
-  list.innerHTML = activePlaces.map(place => {
+  const noticeHtml = '<div class="sidebar-notice">모집 일정·조건·내용은 변경될 수 있어요. 신청 전 해당 플랫폼에서 최신 정보를 꼭 확인해 주세요.</div>';
+  list.innerHTML = noticeHtml + activePlaces.map(place => {
     const active = getActiveCampaigns(place.id);
 
     // 채널 아이콘 (중복 제거)
