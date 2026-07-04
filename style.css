@@ -1802,6 +1802,74 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .about-step strong { font-size: 13px; color: #1a1a2e; display: block; margin-bottom: 2px; }
 .about-step p { font-size: 12px; color: #777; line-height: 1.6; margin: 0; }
 
+/* ===== 무협맵 소개 (Figma 1279-11291) ===== */
+/* 섹션별 좌우 패딩이 달라(히어로 24 / 카드·안내 20) modal-body 좌우 패딩을 제거하고 섹션이 직접 관리 */
+#aboutOverlay .modal-body { padding-left: 0; padding-right: 0; padding-top: 0; gap: 0; }
+.intro { display: flex; flex-direction: column; }
+.intro strong { color: inherit; }
+
+/* 01. 히어로 : 섹션 gap24, 타이틀그룹 gap16, 설명 gap8 */
+.intro-hero {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 24px; padding: 40px 24px;
+}
+.intro-hero-title-group { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
+.intro-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #ffeded; color: #e82a2d; font-weight: 600; font-size: 16px;
+  letter-spacing: -0.32px; padding: 6px 12px; border-radius: 16px;
+}
+.intro-hero-title { margin: 0; font-size: 32px; font-weight: 600; line-height: 42px; color: #000; }
+.intro-hero-sub { margin: 0; font-size: 18px; font-weight: 400; line-height: 28px; color: #000; letter-spacing: -0.36px; }
+.intro-hero-img { display: block; width: 100%; max-width: 301px; height: auto; }
+.intro-hero-desc { display: flex; flex-direction: column; gap: 8px; color: #555; font-size: 18px; line-height: 28px; letter-spacing: -0.36px; }
+.intro-hero-desc p { margin: 0; }
+
+/* 02. 카드 : 좌우 20px, 카드 간 20px */
+.intro-cards { display: flex; flex-direction: column; gap: 20px; padding: 0 20px; }
+.intro-card { box-sizing: border-box; border-radius: 16px; width: 100%; }
+.intro-card--gray { background: #f2f2f2; padding: 32px 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 24px; }
+.intro-card--blue { background: #edf3ff; }
+.intro-card--beige { background: #fdf2e3; }
+.intro-card--center { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 24px; padding: 24px 16px; }
+.intro-card-group { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; }
+
+.intro-tag {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px; color: #fff; font-weight: 600; white-space: nowrap;
+}
+.intro-tag--red { background: #e82a2d; padding: 4px 8px; font-size: 18px; letter-spacing: -0.36px; }
+.intro-tag--dark { background: #313131; padding: 6px 8px; font-size: 16px; font-weight: 700; letter-spacing: -0.32px; }
+
+.intro-card-text { display: flex; flex-direction: column; gap: 8px; color: #555; font-size: 16px; line-height: 24px; letter-spacing: -0.64px; }
+.intro-card-text p { margin: 0; }
+.intro-card-center-text { margin: 0; color: #555; font-size: 16px; line-height: 22px; letter-spacing: -0.64px; }
+.intro-card-img { display: block; object-fit: contain; }
+.intro-card-img--report { width: 200px; height: 180px; }
+.intro-card-img--grow { width: 128px; height: 180px; }
+
+.intro-steps { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 16px; }
+.intro-step { display: flex; flex-direction: column; gap: 8px; }
+.intro-step-head { display: flex; align-items: center; gap: 6px; }
+.intro-step-badge {
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
+  background: #e82a2d; color: #fff; font-size: 13px; font-weight: 700; letter-spacing: -0.52px;
+  display: flex; align-items: center; justify-content: center;
+}
+.intro-step-head strong { font-size: 16px; font-weight: 700; color: #000; letter-spacing: -0.64px; }
+.intro-step > p { margin: 0; color: #555; font-size: 16px; line-height: 22px; letter-spacing: -0.64px; }
+
+/* 03. 안내 : 좌우 20px */
+.intro-legal { margin: 0; padding: 20px 20px 4px 44px; list-style: disc; }
+.intro-legal li { color: #000; font-size: 16px; line-height: 1.5; }
+.intro-legal li + li { margin-top: 6px; }
+
+/* 모바일: 상단 헤더바 숨김 (Figma는 배지가 타이틀 역할) / PC 사이드패널은 헤더 유지 → 배지 숨김 */
+@media (max-width: 640px) {
+  #aboutOverlay .modal-header { display: none; }
+}
+body.pc-about-mode #aboutOverlay .intro-badge { display: none; }
+
 .btn-about-mobile { display: none; }
 
 @media (max-width: 640px) {
