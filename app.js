@@ -2500,6 +2500,11 @@ async function submitCampaign() {
     showFieldError('inputPlatform'); valid = false;
   }
   if (!content) { showFieldError('inputContent'); valid = false; }
+  if (!deadline) {
+    showFieldError('inputDeadline');
+    ['inputDeadlineYearTrigger', 'inputDeadlineMonthTrigger', 'inputDeadlineDayTrigger'].forEach(id => document.getElementById(id)?.classList.add('input-error'));
+    valid = false;
+  }
   if (!valid) return;
 
   _submittingCampaign = true;
@@ -3250,6 +3255,9 @@ function pickSelectItem(selectId, value, label) {
     } else {
       clearFieldError('inputPlatform');
     }
+  } else if (selectId.startsWith('inputDeadline')) {
+    clearFieldError('inputDeadline');
+    ['inputDeadlineYearTrigger', 'inputDeadlineMonthTrigger', 'inputDeadlineDayTrigger'].forEach(id => document.getElementById(id)?.classList.remove('input-error'));
   } else {
     clearFieldError(selectId);
   }
