@@ -1959,9 +1959,9 @@ function setReportTargetType(type) {
   populateReportReasons(reportTargetType);
 }
 function updateReportTargetLabel() {
+  // 검색 필드 라벨은 '매장 선택'으로 고정(Figma). 신고 대상 유형은 별도 셀렉트에서 선택.
   const label = document.getElementById('reportTargetLabel');
-  const map = { place: '신고할 매장', campaign: '신고할 캠페인', review: '신고할 후기' };
-  if (label && label.firstChild) label.firstChild.nodeValue = (map[reportTargetType] || '신고할 대상') + ' ';
+  if (label && label.firstChild) label.firstChild.nodeValue = '매장 선택 ';
 }
 function selectReportTargetType(select) {
   setReportTargetType(select.value);   // 유형/라벨/트리거 동기화 + 이유 옵션 교체
