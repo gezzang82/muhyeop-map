@@ -360,9 +360,10 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40 }) {
 const FB_BASE = 'https://4blog.net';
 // 포블로그 채널값 → 무협맵 채널(블로그/클립/인스타그램/릴스/유튜브). tiktok·threads·etc는 대응값 없어 '' (검수)
 const FB_CH = { blog: '블로그', reels: '릴스', clip: '클립', insta: '인스타그램', instar21: '인스타그램', instagram: '인스타그램', youtube: '유튜브', youtube21: '유튜브', shorts: '유튜브' };
-const fbListUrl = (offset, limit) => `${FB_BASE}/loadMoreDataCategory?offset=${offset}&limit=${limit}&category=&category1=local&location=seoul&location1=&search=&bid=`;
+// 오늘오픈(오늘 신규) 지역 캠페인. location 필터는 부정확해서 전지역 받고 상세 주소로 서울만 거른다.
+const fbListUrl = (offset, limit) => `${FB_BASE}/loadMoreDataCategory?offset=${offset}&limit=${limit}&category=today&category1=local&location=&location1=&search=&bid=`;
 async function fbFetchList(offset, limit) {
-  const res = await fetch(fbListUrl(offset, limit), { headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest', Referer: `${FB_BASE}/list/all/local/seoul` } });
+  const res = await fetch(fbListUrl(offset, limit), { headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest', Referer: `${FB_BASE}/list/today` } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -417,21 +418,19 @@ async function runFoblog({ db, limit = 40 }) {
   const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [platform] });
   const lastMaxId = Number(stRes.rows[0]?.last_max_id || 0);
 
-  // 리스트 JSON을 offset으로 순회(목록이 CID정렬이 아니라 조기중단 없이 여러 페이지 수집 후 커서 필터)
+  // 오늘오픈 목록(전지역 소량)을 받아 커서 이후 신규만. 서울 여부는 상세 주소로 판정.
   const newItems = []; let offset = 0; let maxSeen = lastMaxId;
-  while (offset < 150) {
+  while (offset < 90) {
     let batch;
     try { batch = await fbFetchList(offset, 30); } catch (e) { break; }
     if (!batch || !batch.length) break;
-    let pageNew = 0;
     for (const it of batch) {
       const cid = Number(it.CID);
       if (cid > maxSeen) maxSeen = cid;
-      if (cid > lastMaxId && (it.CATEGORY1 || 'local') === 'local') { newItems.push(it); pageNew++; }
+      if (cid > lastMaxId && (it.CATEGORY1 || 'local') === 'local') newItems.push(it);
     }
+    if (batch.length < 30) break; // 마지막 페이지
     offset += 30;
-    if (newItems.length >= limit * 3) break;    // 충분히 모음
-    if (offset >= 60 && pageNew === 0) break;    // 최근 2페이지 신규 없으면 중단
     await sleep(600);
   }
   const targets = newItems.sort((a, b) => Number(b.CID) - Number(a.CID)).slice(0, limit);
@@ -449,6 +448,7 @@ async function runFoblog({ db, limit = 40 }) {
       const html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`);
       const { address, hours: rawHours, closedRaw, daysExplicit, holidayExplicit } = fbParseDetail(html);
       if (!address) { excluded++; await sleep(500); continue; }
+      if (!/^서울/.test(address)) { excluded++; await sleep(500); continue; } // 서울만
       const days = daysExplicit || deriveDays(rawHours, closedRaw);       // 포블로그 명시 요일 우선
       const hours = cleanHours(rawHours);
       const excludeHoliday = holidayExplicit || parseExcludeHoliday(rawHours, closedRaw);
