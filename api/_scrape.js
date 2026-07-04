@@ -411,10 +411,15 @@ function fbParseDetail(html) {
   m = txt.match(/휴무일\s*[:：]?\s*([가-힣0-9,·\s]{0,25})/); if (m) closedRaw = m[1].replace(/\s+/g, ' ').trim();
   const bans = (txt.match(/(?<![가-힣])[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*){0,2}(?:불가|휴무|제외)/g) || []).join(' ');
   if (bans) closedRaw += ' ' + bans;
-  // 모집 마감일: 캘린더 '리뷰어 모집' 종료일(연도 포함, REQ_CLOSE=선정일과 혼동 방지)
+  // 모집 마감일: 캘린더 '리뷰어 모집' end. FullCalendar end는 exclusive(마지막날 다음날)이라 −1일 = 실제 모집 마감.
+  // (end 그대로면 선정일이 됨 — 모집 13일까지 / 선정 14일)
   let deadline = '';
   const cal = html.match(/title\s*:\s*["'][^"']*모집[^"']*["']\s*,\s*start\s*:\s*["'][\d\-]+["']\s*,\s*end\s*:\s*["']([\d\-]{8,10})["']/);
-  if (cal) deadline = cal[1];
+  if (cal) {
+    const dt = new Date(cal[1] + 'T00:00:00');
+    dt.setDate(dt.getDate() - 1);
+    deadline = dt.toISOString().slice(0, 10);
+  }
   return { address, hours, closedRaw, daysExplicit, holidayExplicit, deadline };
 }
 
