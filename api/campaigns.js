@@ -1,7 +1,7 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { requireAdmin } = require('./auth/_admin');
-const { runScrape } = require('./_scrape');
+const { runScrape, reparsePending } = require('./_scrape');
 
 function toCampaign(row) {
   return {
@@ -97,6 +97,15 @@ module.exports = async function handler(req, res) {
         return res.status(200).json(summary);
       } catch (e) {
         return res.status(500).json({ error: '수집 실패: ' + (e.message || e) });
+      }
+    }
+    if (action === 'reparse' && req.method === 'POST') {
+      const platform = req.query.platform || 'dinnerqueen';
+      try {
+        const summary = await reparsePending({ db, platform });
+        return res.status(200).json(summary);
+      } catch (e) {
+        return res.status(500).json({ error: '재파싱 실패: ' + (e.message || e) });
       }
     }
     if (action === 'staged' && req.method === 'GET') {

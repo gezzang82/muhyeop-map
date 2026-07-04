@@ -100,6 +100,25 @@ async function collectScrape() {
     btn.disabled = false;
   }
 }
+async function collectReparse() {
+  const platform = document.getElementById('collectPlatform').value;
+  const statusEl = document.getElementById('collectStatus');
+  const btn = document.getElementById('collectReparseBtn');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  statusEl.textContent = '재파싱 중… (승인 대기 항목 원문 다시 읽는 중)';
+  try {
+    const res = await fetch(`/api/campaigns?action=reparse&platform=${platform}`, { method: 'POST' });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || '실패');
+    statusEl.textContent = `재파싱 완료: ${d.updated}/${d.pending}건 갱신 (요일·시간·주소·카테고리)`;
+    collectShowSub('pending');
+  } catch (e) {
+    statusEl.textContent = '오류: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
 async function loadStaged(status) {
   const res = await fetch(`/api/campaigns?action=staged&status=${status}`);
   collectStagedRows = res.ok ? await res.json() : [];

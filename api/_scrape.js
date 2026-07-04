@@ -493,4 +493,41 @@ async function runScrape({ db, platform, mode, limit }) {
   return runDinnerqueen({ db, mode, limit });
 }
 
-module.exports = { runDinnerqueen, runFoblog, runScrape, fbParseDetail, fbName, fbDeadline };
+// 승인 대기(pending) 항목을 현재(개선된) 파서로 재파싱해 요일/시간/주소/공휴일/카테고리 갱신.
+// 매장명·내용·채널·마감은 유지(손실 없음). 파서 개선 후 기존 스테이징 보정용.
+async function reparsePending({ db, platform }) {
+  const isFb = platform === 'foblog' || platform === '포블로그';
+  const plat = isFb ? '포블로그' : '디너의여왕';
+  const rows = (await db.execute({ sql: "SELECT * FROM scraped_items WHERE status='pending' AND platform=?", args: [plat] })).rows;
+  let updated = 0, failed = 0;
+  for (const r of rows) {
+    try {
+      let address, hours, days, excludeHoliday, category = r.category;
+      if (isFb) {
+        const html = await fetchText(r.source_url);
+        const p = fbParseDetail(html);
+        address = p.address || r.address;
+        hours = cleanHours(p.hours);
+        days = p.daysExplicit || deriveDays(p.hours, p.closedRaw);
+        excludeHoliday = p.holidayExplicit || parseExcludeHoliday(p.hours, p.closedRaw);
+        category = categoryByKeyword(String(r.content || ''), r.name) || r.category;
+      } else {
+        const html = await fetchText(`${BASE}/taste/${r.source_id}`);
+        const d = scrapeDetail(html, r.source_id);
+        address = d.address || r.address;
+        hours = d.hours; days = d.days; excludeHoliday = d.excludeHoliday;
+        const mapped = mapCategory(d.platformCategory || '', d.content || r.content, r.name);
+        category = mapped.cat || r.category;
+      }
+      await db.execute({
+        sql: 'UPDATE scraped_items SET address=?, hours=?, days=?, exclude_holiday=?, category=? WHERE id=?',
+        args: [address, hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, category, r.id],
+      });
+      updated++;
+    } catch (e) { failed++; }
+    await sleep(500);
+  }
+  return { platform: plat, pending: rows.length, updated, failed };
+}
+
+module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline };
