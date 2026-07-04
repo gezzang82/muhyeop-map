@@ -367,9 +367,11 @@ async function fbFetchList(offset, limit) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+const NAME_CH_SUFFIX = /\s*[(（](?:인스타그램|인스타|블로그|릴스|클립|유튜브|쇼츠|틱톡|스레드|reels|clip)[)）]\s*$/i;
 function fbName(nm) {
   const m = String(nm || '').match(/^\[([^\]]*)\]\s*(.+)$/);
-  return { region: m ? m[1] : '', name: (m ? m[2] : String(nm || '')).replace(/\s*\d+\s*차\s*$/, '').trim() };
+  let name = (m ? m[2] : String(nm || '')).replace(/\s*\d+\s*차\s*$/, '').replace(NAME_CH_SUFFIX, '').trim();
+  return { region: m ? m[1] : '', name };
 }
 function fbDeadline(mmdd) {
   const m = String(mmdd || '').match(/(\d{1,2})\.(\d{1,2})/);
@@ -525,9 +527,10 @@ async function reparsePending({ db, platform }) {
         category = mapped.cat || r.category;
         if (d.deadline) deadline = d.deadline;
       }
+      const name = String(r.name || '').replace(NAME_CH_SUFFIX, '').trim();
       await db.execute({
-        sql: 'UPDATE scraped_items SET address=?, hours=?, days=?, exclude_holiday=?, category=?, deadline=? WHERE id=?',
-        args: [address, hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, category, deadline || '', r.id],
+        sql: 'UPDATE scraped_items SET name=?, address=?, hours=?, days=?, exclude_holiday=?, category=?, deadline=? WHERE id=?',
+        args: [name, address, hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, category, deadline || '', r.id],
       });
       updated++;
     } catch (e) { failed++; }
