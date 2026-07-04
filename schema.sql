@@ -132,3 +132,10 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
   cursor_from INTEGER, cursor_to INTEGER,
   fetched INTEGER, staged INTEGER, excluded INTEGER, note TEXT
 );
+
+-- 레이트리밋 고정 윈도우 카운터 (api/_ratelimit.js가 런타임 생성)
+CREATE TABLE IF NOT EXISTS rate_limits (
+  bucket TEXT PRIMARY KEY,       -- "<name>:<ip>:<windowStart>"
+  count INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL    -- epoch초, 지난 버킷은 opportunistic 삭제
+);

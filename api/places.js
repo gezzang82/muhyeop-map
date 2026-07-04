@@ -1,6 +1,7 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { isAdmin, requireAdmin } = require('./auth/_admin');
+const { enforceRateLimit } = require('./_ratelimit');
 
 function toPlace(row) {
   return {
@@ -99,6 +100,8 @@ module.exports = async function handler(req, res) {
 
     // 검증(미저장 미리보기): POST ?reviews=validate { url, placeId }
     if (req.method === 'POST' && action === 'validate') {
+      // 외부 블로그 fetch 남용 방지: IP당 1분에 20회
+      if (!await enforceRateLimit(req, res, { name: 'review', limit: 20, windowSec: 60 })) return;
       const { url, placeId } = req.body || {};
       const pr = await db.execute({ sql: 'SELECT name FROM places WHERE id = ?', args: [Number(placeId)] });
       if (!pr.rows[0]) return res.status(404).json({ error: '매장을 찾을 수 없어요.' });
@@ -109,6 +112,8 @@ module.exports = async function handler(req, res) {
     // 등록: POST ?reviews=create { url, placeId } (로그인 필요)
     if (req.method === 'POST' && action === 'create') {
       if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+      // 후기 등록 스팸 방지: IP당 1분에 15회
+      if (!await enforceRateLimit(req, res, { name: 'review', limit: 15, windowSec: 60 })) return;
       const { url, placeId } = req.body || {};
       const pid = Number(placeId);
       const pr = await db.execute({ sql: 'SELECT name FROM places WHERE id = ?', args: [pid] });
@@ -214,6 +219,8 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
+    // 매장 제보 스팸 방지: IP당 1분에 15회
+    if (!await enforceRateLimit(req, res, { name: 'write', limit: 15, windowSec: 60 })) return;
     const { name, address, lat, lng, category, founderEmail, founderUrl } = req.body || {};
     if (!name || !address || lat == null || lng == null || !category) {
       return res.status(400).json({ error: 'name, address, lat, lng, category는 필수입니다.' });

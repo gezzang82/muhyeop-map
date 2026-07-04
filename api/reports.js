@@ -1,6 +1,7 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { requireAdmin } = require('./auth/_admin');
+const { enforceRateLimit } = require('./_ratelimit');
 
 const TARGET_TYPES = ['place', 'campaign', 'review'];
 
@@ -68,6 +69,8 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
+    // 신고 스팸 방지: IP당 1분에 15회
+    if (!await enforceRateLimit(req, res, { name: 'report', limit: 15, windowSec: 60 })) return;
     const { targetType, campaignId, placeId, reviewId, reason, detail } = req.body || {};
     const type = TARGET_TYPES.includes(targetType) ? targetType : 'campaign';
     if (!reason) return res.status(400).json({ error: 'reason은 필수입니다.' });

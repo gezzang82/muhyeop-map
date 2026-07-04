@@ -2,6 +2,7 @@ const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { requireAdmin } = require('./auth/_admin');
 const { runScrape, reparsePending } = require('./_scrape');
+const { enforceRateLimit } = require('./_ratelimit');
 
 function toCampaign(row) {
   return {
@@ -208,6 +209,8 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
+    // 제보 스팸 방지: IP당 1분에 15회
+    if (!await enforceRateLimit(req, res, { name: 'write', limit: 15, windowSec: 60 })) return;
     const {
       placeId, platform, channels, content, deadline, link,
       operatingDays, operatingHours, excludeHoliday,

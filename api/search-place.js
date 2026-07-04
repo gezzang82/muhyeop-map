@@ -1,8 +1,13 @@
+const { enforceRateLimit } = require('./_ratelimit');
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
+
+  // 네이버 검색 API 쿼터 보호: IP당 1분에 40회
+  if (!await enforceRateLimit(req, res, { name: 'search', limit: 40, windowSec: 60 })) return;
 
   const query = String(req.query.query || '').trim();
   if (!query) {

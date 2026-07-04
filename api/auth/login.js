@@ -2,10 +2,13 @@ const { getProvider } = require('./_provider');
 const { createStateCookie } = require('./_state');
 const { getBaseUrl } = require('./_http');
 const { createAdminCookie, checkPassword } = require('./_admin');
+const { enforceRateLimit } = require('../_ratelimit');
 
 module.exports = async function handler(req, res) {
   // 어드민 로그인: POST /api/auth/login?admin=1  { password }
   if (req.method === 'POST' && req.query.admin === '1') {
+    // 브루트포스 방지: IP당 5분에 8회
+    if (!await enforceRateLimit(req, res, { name: 'adminlogin', limit: 8, windowSec: 300 })) return;
     const password = (req.body && req.body.password) || '';
     if (!process.env.ADMIN_PASSWORD) {
       res.status(503).json({ error: '어드민 로그인이 아직 설정되지 않았습니다.' });
