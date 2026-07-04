@@ -1862,6 +1862,12 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .intro-legal li { color: #000; font-size: 16px; line-height: 1.5; }
 .intro-legal li + li { margin-top: 6px; }
 
+/* PC 사이드패널 열림 시 어두워진 지도 영역: 클릭하면 협찬찾기로 복귀(app.js) → 클릭 가능 커서 */
+body.pc-report-mode #map::after,
+body.pc-reportissue-mode #map::after,
+body.pc-about-mode #map::after,
+body.pc-myinfo-mode #map::after { cursor: pointer; }
+
 /* 소개 페이지는 별도 타이틀 규칙: 기본 헤더바를 숨기고 pill 배지가 타이틀 역할 (PC/모바일 공통) */
 #aboutOverlay .modal-header { display: none; }
 

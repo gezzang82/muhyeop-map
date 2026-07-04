@@ -266,6 +266,17 @@ function initMap() {
     }
   }, { passive: false });
 
+  // PC: 사이드패널(제보/신고/소개/내정보)이 열려 지도가 어두워진 상태에서
+  // 지도 영역을 클릭하면 패널을 닫고 자연스럽게 협찬찾기(지도)로 복귀
+  document.getElementById('map').addEventListener('click', function() {
+    if (window.innerWidth <= 640) return;
+    const b = document.body.classList;
+    if (b.contains('pc-report-mode') || b.contains('pc-reportissue-mode') ||
+        b.contains('pc-about-mode') || b.contains('pc-myinfo-mode')) {
+      switchPcTab('campaigns');
+    }
+  });
+
   // 모바일: 네이버 로고를 바텀시트 위로 올림
   if (window.innerWidth <= 640) {
     const liftNaverLogo = () => {
