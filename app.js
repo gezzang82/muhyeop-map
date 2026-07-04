@@ -997,6 +997,8 @@ function renderSidebar() {
     .filter(p => hasActiveCampaign(p.id))
     .sort((a, b) => latestCreatedAt(b).localeCompare(latestCreatedAt(a)));
   countEl.textContent = activePlaces.length;
+  const noticeEl = document.getElementById('campaignNotice');
+  if (noticeEl) noticeEl.style.display = activePlaces.length ? 'block' : 'none';
 
   if (activePlaces.length === 0) {
     list.innerHTML = `

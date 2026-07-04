@@ -2633,3 +2633,23 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   #reviewFormOverlay .signup-btn-cancel,
   #reviewFormOverlay .signup-btn-confirm { height: 48px; font-size: 16px; }
 }
+
+/* 모집 중인 협찬 리스트 상단 안내 문구 */
+.sidebar-notice {
+  margin: 0 16px 8px;
+  padding: 10px 12px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #777;
+  position: relative;
+  padding-left: 22px;
+}
+.sidebar-notice::before {
+  content: "•";
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  color: #999;
+}
