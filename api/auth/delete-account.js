@@ -22,6 +22,13 @@ module.exports = async function handler(req, res) {
     try {
       await db.execute({ sql: 'UPDATE places SET founder_user_id = NULL WHERE founder_user_id = ?', args: [session.userId] });
     } catch (e) {}
+    // 후기: 작성자 계정과의 연결만 해제(블로그 필명 표기는 유지), 좋아요 기록은 삭제
+    try {
+      await db.execute({ sql: 'UPDATE reviews SET user_id = NULL WHERE user_id = ?', args: [session.userId] });
+    } catch (e) {}
+    try {
+      await db.execute({ sql: 'DELETE FROM review_likes WHERE voter_key = ?', args: ['u' + session.userId] });
+    } catch (e) {}
 
     await db.execute({ sql: 'DELETE FROM users WHERE id = ?', args: [session.userId] });
 
