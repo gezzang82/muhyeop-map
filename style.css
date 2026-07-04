@@ -1883,6 +1883,38 @@ body.pc-myinfo-mode #map::after { cursor: pointer; }
   100% { transform: scale(2.6); opacity: 0; }
 }
 
+/* ===== 검색 결과 위치 핀 (image/ic_pin_28.svg) ===== */
+/* 주변 캠페인 핀과 색이 비슷해 묻히므로, 등장 시 바운스 드롭 + 상하 bob + 레이더 링으로 시선 유도 */
+.search-pin {
+  position: relative; width: 28px; height: 28px;
+  transform-origin: 50% 100%;
+  animation: searchPinDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.search-pin img {
+  position: relative; z-index: 1; display: block; width: 28px; height: 28px;
+  animation: searchPinBob 1.6s ease-in-out 0.5s infinite;
+}
+.search-pin-ring {
+  position: absolute; left: 50%; bottom: 2px; z-index: 0;
+  width: 16px; height: 8px; border-radius: 50%;
+  background: rgba(232, 42, 45, 0.35); pointer-events: none;
+  animation: searchPinRing 1.6s ease-out infinite;
+}
+@keyframes searchPinDrop {
+  0%   { transform: translateY(-64px); opacity: 0; }
+  60%  { opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes searchPinBob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+@keyframes searchPinRing {
+  0%   { transform: translate(-50%, 0) scale(0.6); opacity: 0.5; }
+  70%  { opacity: 0; }
+  100% { transform: translate(-50%, 0) scale(1.9); opacity: 0; }
+}
+
 /* 소개 페이지는 별도 타이틀 규칙: 기본 헤더바를 숨기고 pill 배지가 타이틀 역할 (PC/모바일 공통) */
 #aboutOverlay .modal-header { display: none; }
 /* 모바일 상단 드래그 핸들(회색 라인) 제거 */

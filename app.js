@@ -358,6 +358,26 @@ function showMyLocationMarker(lat, lng) {
   });
 }
 
+// 검색 결과 위치 핀 (image/ic_pin_28.svg) — 검색할 때마다 위치 갱신, 다른 검색/선택 시 제거
+let searchPinMarker = null;
+function showSearchPin(lat, lng) {
+  // 매 검색마다 재생성 → 바운스 드롭 인터랙션이 다시 재생됨
+  clearSearchPin();
+  searchPinMarker = new naver.maps.Marker({
+    position: new naver.maps.LatLng(lat, lng),
+    map,
+    zIndex: 900,
+    clickable: false,
+    icon: {
+      content: '<div class="search-pin"><span class="search-pin-ring"></span><img src="image/ic_pin_28.svg" width="28" height="28" alt="검색 위치" draggable="false"></div>',
+      anchor: new naver.maps.Point(14, 25)
+    }
+  });
+}
+function clearSearchPin() {
+  if (searchPinMarker) { searchPinMarker.setMap(null); searchPinMarker = null; }
+}
+
 // 최초 진입 시 내 위치로 지도 중심 이동 (권한 거부/실패 시 기본 위치 유지)
 function tryInitialLocation() {
   if (!navigator.geolocation) return;
@@ -1174,6 +1194,7 @@ function searchRegion() {
   if (placeMatch) {
     // 진행 중인 캠페인이 있는 매장만 지도에 핀/카드를 노출. 종료된(비활성) 매장은
     // 검색되어 위치로 이동은 하되, 핀이 없으므로 카드(말풍선)는 띄우지 않음.
+    clearSearchPin();
     if (getActiveCampaigns(placeMatch.id).length > 0) {
       setSelectedMarker(placeMatch.id);
       focusPlace(placeMatch.id);
@@ -1192,6 +1213,7 @@ function searchRegion() {
       if (status === naver.maps.Service.Status.OK && items?.length) {
         map.setCenter(new naver.maps.LatLng(parseFloat(items[0].y), parseFloat(items[0].x)));
         map.setZoom(15);
+        showSearchPin(parseFloat(items[0].y), parseFloat(items[0].x));
       } else if (fallback) {
         trySearch(fallback, null);
       } else {
@@ -1219,6 +1241,7 @@ async function searchRegionViaLocalSearch(query) {
       if (status === naver.maps.Service.Status.OK && item) {
         map.setCenter(new naver.maps.LatLng(parseFloat(item.y), parseFloat(item.x)));
         map.setZoom(15);
+        showSearchPin(parseFloat(item.y), parseFloat(item.x));
       } else {
         showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
       }
