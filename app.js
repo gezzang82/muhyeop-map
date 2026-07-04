@@ -341,6 +341,23 @@ function initMap() {
   showBannerPopup();
 }
 
+// 내 위치 표시 마커 (사용자 SVG + 큰 원 pulse 애니메이션)
+let myLocationMarker = null;
+function showMyLocationMarker(lat, lng) {
+  const pos = new naver.maps.LatLng(lat, lng);
+  if (myLocationMarker) { myLocationMarker.setPosition(pos); return; }
+  myLocationMarker = new naver.maps.Marker({
+    position: pos,
+    map,
+    zIndex: 1000,
+    clickable: false,
+    icon: {
+      content: '<div class="my-loc-marker"><span class="my-loc-ripple"></span><img src="image/ic_my_local_24.svg" width="24" height="24" alt="내 위치" draggable="false"></div>',
+      anchor: new naver.maps.Point(12, 12)
+    }
+  });
+}
+
 // 최초 진입 시 내 위치로 지도 중심 이동 (권한 거부/실패 시 기본 위치 유지)
 function tryInitialLocation() {
   if (!navigator.geolocation) return;
@@ -348,6 +365,7 @@ function tryInitialLocation() {
     pos => {
       map.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
       map.setZoom(15);
+      showMyLocationMarker(pos.coords.latitude, pos.coords.longitude);
       renderSidebar();
     },
     () => {},
@@ -1064,6 +1082,7 @@ function moveToMyLocation() {
     pos => {
       map.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
       map.setZoom(15);
+      showMyLocationMarker(pos.coords.latitude, pos.coords.longitude);
       restore();
       renderSidebar();
     },

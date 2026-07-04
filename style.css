@@ -1868,6 +1868,21 @@ body.pc-reportissue-mode #map::after,
 body.pc-about-mode #map::after,
 body.pc-myinfo-mode #map::after { cursor: pointer; }
 
+/* ===== 내 위치 마커 (image/ic_my_local_24.svg + 큰 원 pulse) ===== */
+.my-loc-marker { position: relative; width: 24px; height: 24px; }
+.my-loc-marker img { position: relative; display: block; width: 24px; height: 24px; z-index: 1; }
+.my-loc-ripple {
+  position: absolute; top: 50%; left: 50%; width: 24px; height: 24px;
+  margin: -12px 0 0 -12px; border-radius: 50%; background: #00A2FF;
+  z-index: 0; opacity: 0.4; pointer-events: none;
+  animation: myLocPulse 1.8s ease-out infinite;
+}
+@keyframes myLocPulse {
+  0%   { transform: scale(0.7); opacity: 0.4; }
+  70%  { opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
 /* 소개 페이지는 별도 타이틀 규칙: 기본 헤더바를 숨기고 pill 배지가 타이틀 역할 (PC/모바일 공통) */
 #aboutOverlay .modal-header { display: none; }
 /* 모바일 상단 드래그 핸들(회색 라인) 제거 */
