@@ -387,14 +387,27 @@ function fbParseDetail(html) {
   }
   // 영업/이용시간·휴무·요일제약: 본문 free-text
   const txt = stripTags(html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' '));
+  // 시간: 체험가능시간 > 블로거이용시간 > 이용시간 > 영업시간 (리뷰어 기준 우선)
   let hours = '';
-  let m = txt.match(/블로거\s*이용\s*시간\s*([0-9:~\-\s]+)/) || txt.match(/영업\s*시간\s*([0-9:~\-\s]+)/) || txt.match(/이용\s*시간\s*([0-9:~\-\s]+)/);
+  let m = txt.match(/체험\s*가능\s*시간\s*[:：]?\s*([0-9시분:~\-\s오전후]{3,40})/)
+    || txt.match(/블로거\s*이용\s*시간\s*([0-9:~\-\s]+)/) || txt.match(/이용\s*시간\s*([0-9:~\-\s]+)/) || txt.match(/영업\s*시간\s*([0-9:~\-\s]+)/);
   if (m) hours = m[1].replace(/\s+/g, ' ').trim().slice(0, 60);
+  // 포블로그 명시 필드: '체험 가능 요일' / '체험 불가능 요일(+공휴일)'
+  let daysExplicit = '', holidayExplicit = '';
+  const av = txt.match(/체험\s*가능\s*요일\s*[:：]?\s*([월화수목금토일\s\/,·]+)/);
+  const un = txt.match(/체험\s*불가능?\s*요일\s*[:：]?\s*([월화수목금토일\s\/,·.]*(?:공휴일)?)/);
+  if (av || un) {
+    const avSet = new Set(av ? (av[1].match(/[월화수목금토일]/g) || []) : ALL_DAYS);
+    const unSet = new Set(un ? (un[1].match(/[월화수목금토일]/g) || []) : []);
+    daysExplicit = ALL_DAYS.filter((d) => avSet.has(d) && !unSet.has(d)).join(',');
+    if (un && /공휴일/.test(un[1])) holidayExplicit = 'Y';
+  }
+  // 휴무 + 요일불가(중간어 허용)
   let closedRaw = '';
-  m = txt.match(/휴무일\s*[:：]?\s*([^*<\n]{0,40})/); if (m) closedRaw = m[1].replace(/\s+/g, ' ').trim();
+  m = txt.match(/휴무일\s*[:：]?\s*([가-힣0-9,·\s]{0,25})/); if (m) closedRaw = m[1].replace(/\s+/g, ' ').trim();
   const bans = (txt.match(/(?<![가-힣])[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*){0,2}(?:불가|휴무|제외)/g) || []).join(' ');
   if (bans) closedRaw += ' ' + bans;
-  return { address, hours, closedRaw };
+  return { address, hours, closedRaw, daysExplicit, holidayExplicit };
 }
 
 async function runFoblog({ db, limit = 40 }) {
@@ -432,11 +445,11 @@ async function runFoblog({ db, limit = 40 }) {
       const content = cleanContent(String(it.REVIEWER_BENEFIT || ''));
       const deadline = fbDeadline(it.REQ_CLOSE_DT);
       const html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`);
-      const { address, hours: rawHours, closedRaw } = fbParseDetail(html);
+      const { address, hours: rawHours, closedRaw, daysExplicit, holidayExplicit } = fbParseDetail(html);
       if (!address) { excluded++; await sleep(500); continue; }
-      const days = deriveDays(rawHours, closedRaw);
+      const days = daysExplicit || deriveDays(rawHours, closedRaw);       // 포블로그 명시 요일 우선
       const hours = cleanHours(rawHours);
-      const excludeHoliday = parseExcludeHoliday(rawHours, closedRaw);
+      const excludeHoliday = holidayExplicit || parseExcludeHoliday(rawHours, closedRaw);
       const auto = categoryByKeyword(String(it.KEYWORD || '') + ' ' + content, name);
       const category = auto || '음식점';
       const flags = [];
@@ -478,4 +491,4 @@ async function runScrape({ db, platform, mode, limit }) {
   return runDinnerqueen({ db, mode, limit });
 }
 
-module.exports = { runDinnerqueen, runFoblog, runScrape };
+module.exports = { runDinnerqueen, runFoblog, runScrape, fbParseDetail, fbName, fbDeadline };
