@@ -43,10 +43,9 @@ module.exports = async function handler(req, res) {
     args: [finalPlatform, finalId, finalEmail, session.userId]
   });
 
-  // 세션 쿠키의 email도 갱신 → 이후 제보/신고 시 founder_email/reporter_email 자동입력이 따라옴
-  // (특히 카카오는 OAuth 이메일이 비어 세션에 없었음)
+  // email은 users 테이블에만 저장(위 UPDATE). 세션 쿠키에는 담지 않음 → 제보/신고 시 userId로 DB 조회
   res.setHeader('Set-Cookie', createSessionCookie({
-    userId: session.userId, nickname: session.nickname, provider: session.provider, email: finalEmail
+    userId: session.userId, nickname: session.nickname, provider: session.provider
   }));
   res.status(200).json({ ok: true, urlPlatform: finalPlatform, urlId: finalId, email: finalEmail });
 };

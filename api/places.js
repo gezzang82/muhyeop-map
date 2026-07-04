@@ -213,8 +213,8 @@ module.exports = async function handler(req, res) {
       const rows = rowsRes.rows.map(r => ({ ...toPlace(r), activeCount: Number(r.active_count || 0) }));
       return res.status(200).json({ rows, total, page, size });
     }
-    // 공개 지도 조회: 이메일(PII)은 제외하고 반환
-    const result = await db.execute('SELECT * FROM places');
+    // 공개 지도 조회: 숨김 매장 제외 + 이메일(PII) 제외하고 반환
+    const result = await db.execute('SELECT * FROM places WHERE COALESCE(hidden,0)=0');
     return res.status(200).json(result.rows.map(r => { const p = toPlace(r); delete p.founderEmail; return p; }));
   }
 
@@ -228,7 +228,12 @@ module.exports = async function handler(req, res) {
     // 어드민 등록(source='admin')은 운영자가 대신 입력하는 것이므로 로그인 세션을 최초 제보자로 기록하지 않음
     const session = (req.body?.source === 'admin') ? null : readSession(req);
     const founderNickname = session ? session.nickname : (req.body?.founderNickname || '');
-    const finalFounderEmail = session ? (session.email || '') : (founderEmail || '');
+    // 로그인 사용자의 이메일은 세션이 아닌 DB에서 조회(세션 쿠키 최소노출), 비로그인은 입력값 사용
+    let finalFounderEmail = founderEmail || '';
+    if (session) {
+      finalFounderEmail = '';
+      try { const er = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [session.userId] }); finalFounderEmail = er.rows[0]?.email || ''; } catch (_e) {}
+    }
     const founderUserId = session ? session.userId : null;
     const result = await db.execute({
       sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id)

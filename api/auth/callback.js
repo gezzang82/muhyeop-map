@@ -91,15 +91,8 @@ module.exports = async function handler(req, res) {
       userId = Number(inserted.lastInsertRowid);
     }
 
-    // 세션에 담을 이메일은 DB의 유효 이메일(카카오는 OAuth 비어도 '내 정보'에서 넣은 값이 보존됨)
-    let sessionEmail = profile.email || '';
-    if (!sessionEmail) {
-      try {
-        const r = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [userId] });
-        sessionEmail = r.rows[0]?.email || '';
-      } catch (e) {}
-    }
-    const sessionCookie = createSessionCookie({ userId, nickname: profile.nickname, provider: stateData.provider, email: sessionEmail });
+    // 세션 쿠키에는 email을 담지 않음(최소노출) — 제보/신고 시 userId로 DB에서 조회
+    const sessionCookie = createSessionCookie({ userId, nickname: profile.nickname, provider: stateData.provider });
     res.setHeader('Set-Cookie', [sessionCookie, clearStateCookie()]);
     // 오픈 리다이렉트 방지: 같은 출처의 상대경로('/...')만 허용, '//evil.com'·절대 URL 차단
     let redirectTo = stateData.redirectTo || '/';

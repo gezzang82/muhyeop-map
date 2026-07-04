@@ -203,8 +203,11 @@ module.exports = async function handler(req, res) {
       const rows = rowsRes.rows.map(r => ({ ...toCampaign(r), placeName: r.place_name || '' }));
       return res.status(200).json({ rows, total, page, size });
     }
-    // 공개 지도 조회: 이메일(PII)은 제외하고 반환
-    const result = await db.execute('SELECT * FROM campaigns');
+    // 공개 지도 조회: 숨김 캠페인 + 숨김 매장 소속 캠페인 제외, 이메일(PII) 제외하고 반환
+    const result = await db.execute(`
+      SELECT c.* FROM campaigns c
+      LEFT JOIN places p ON p.id = c.place_id
+      WHERE COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0`);
     return res.status(200).json(result.rows.map(r => { const c = toCampaign(r); delete c.reporterEmail; return c; }));
   }
 
@@ -222,7 +225,12 @@ module.exports = async function handler(req, res) {
     // 어드민 등록(source='admin')은 운영자가 대신 입력하는 것이므로 로그인 세션을 제보자로 기록하지 않음
     const session = (source === 'admin') ? null : readSession(req);
     const reporterNickname = session ? session.nickname : (req.body?.reporterNickname || '');
-    const reporterEmail = session ? (session.email || '') : (req.body?.reporterEmail || '');
+    // 로그인 사용자의 이메일은 세션이 아닌 DB에서 조회(세션 쿠키 최소노출), 비로그인은 입력값 사용
+    let reporterEmail = req.body?.reporterEmail || '';
+    if (session) {
+      reporterEmail = '';
+      try { const er = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [session.userId] }); reporterEmail = er.rows[0]?.email || ''; } catch (_e) {}
+    }
     const userId = session ? session.userId : null;
     const result = await db.execute({
       sql: `INSERT INTO campaigns (place_id, platform, channels, content, deadline, link, operating_days, operating_hours, exclude_holiday, reporter_nickname, reporter_email, reporter_blog, reporter_instagram, reporter_url, source, user_id)
