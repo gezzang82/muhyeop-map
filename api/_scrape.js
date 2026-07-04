@@ -81,7 +81,7 @@ function parseVisit(html) {
   if (bi >= 0) {
     const be = txt.indexOf('방문 위치', bi);
     const block = txt.slice(bi, be > 0 ? be : bi + 800);
-    const bans = (block.match(/[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*)?(?:체험|방문|이용)\s*(?:불가|휴무)/g) || []).join(' ');
+    const bans = (block.match(/(?<![가-힣])[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*)?(?:체험|방문|이용)\s*(?:불가|휴무)/g) || []).join(' ');
     if (bans) closedRaw += ' ' + bans;
     if (!/\d/.test(hours)) {
       const bm = block.match(/(?:방문\s*가능\s*시간|영업\s*시간|이용\s*시간|체험\s*가능\s*시간)\s*[-:：]?\s*([^★]*?\d[^★]*)/);
@@ -159,7 +159,7 @@ function cleanHours(hours) {
 function parseExcludeHoliday(hours, closedRaw) {
   const blob = `${hours} ${closedRaw}`;
   if (!/공휴/.test(blob)) return '';
-  if (/공휴일?[^가-힣]{0,8}(체험\s*불가|불가|휴무|제외|불가능)|(체험\s*불가|불가|휴무|제외)[^가-힣]{0,10}공휴일?/.test(blob)) return 'Y';
+  if (/공휴일?[^\d]{0,6}(체험\s*불가|불가|휴무|제외|불가능)|(체험\s*불가|불가|휴무|제외)[^가-힣]{0,10}공휴일?/.test(blob)) return 'Y';
   return '';
 }
 function parseDeadline(html) {

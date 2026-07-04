@@ -116,7 +116,7 @@ function parseVisit(html) {
     const be = txt.indexOf('방문 위치', bi);
     const block = txt.slice(bi, be > 0 ? be : bi + 800);
     // (a) 'X요일 … 방문/체험 불가|휴무' 요일제한 타겟 추출(보일러플레이트 오탐 방지)
-    const bans = (block.match(/[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*)?(?:체험|방문|이용)\s*(?:불가|휴무)/g) || []).join(' ');
+    const bans = (block.match(/(?<![가-힣])[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*)?(?:체험|방문|이용)\s*(?:불가|휴무)/g) || []).join(' ');
     if (bans) closedRaw += ' ' + bans;
     // (b) 체험시간 라벨이 플레이스홀더(시간 숫자 없음)면 블록의 '방문가능시간/영업시간'을 영업시간으로
     if (!/\d/.test(hours)) {
@@ -230,7 +230,7 @@ function cleanHours(hours) {
 function parseExcludeHoliday(hours, closedRaw) {
   const blob = `${hours} ${closedRaw}`;
   if (!/공휴/.test(blob)) return '';
-  if (/공휴일?[^가-힣]{0,8}(체험\s*불가|불가|휴무|제외|불가능)|(체험\s*불가|불가|휴무|제외)[^가-힣]{0,10}공휴일?/.test(blob)) return 'Y';
+  if (/공휴일?[^\d]{0,6}(체험\s*불가|불가|휴무|제외|불가능)|(체험\s*불가|불가|휴무|제외)[^가-힣]{0,10}공휴일?/.test(blob)) return 'Y';
   return '';
 }
 
