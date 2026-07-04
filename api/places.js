@@ -221,17 +221,16 @@ module.exports = async function handler(req, res) {
   if (req.method === 'POST') {
     // 매장 제보 스팸 방지: IP당 1분에 15회
     if (!await enforceRateLimit(req, res, { name: 'write', limit: 15, windowSec: 60 })) return;
-    const { name, address, lat, lng, category, founderEmail, founderUrl } = req.body || {};
+    const { name, address, lat, lng, category, founderUrl } = req.body || {};
     if (!name || !address || lat == null || lng == null || !category) {
       return res.status(400).json({ error: 'name, address, lat, lng, category는 필수입니다.' });
     }
     // 어드민 등록(source='admin')은 운영자가 대신 입력하는 것이므로 로그인 세션을 최초 제보자로 기록하지 않음
     const session = (req.body?.source === 'admin') ? null : readSession(req);
     const founderNickname = session ? session.nickname : (req.body?.founderNickname || '');
-    // 로그인 사용자의 이메일은 세션이 아닌 DB에서 조회(세션 쿠키 최소노출), 비로그인은 입력값 사용
-    let finalFounderEmail = founderEmail || '';
+    // 이메일은 로그인 사용자만 DB에서 조회해 저장(비로그인은 수집하지 않음 — 타인 이메일 임의 저장 방지)
+    let finalFounderEmail = '';
     if (session) {
-      finalFounderEmail = '';
       try { const er = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [session.userId] }); finalFounderEmail = er.rows[0]?.email || ''; } catch (_e) {}
     }
     const founderUserId = session ? session.userId : null;

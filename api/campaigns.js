@@ -225,10 +225,9 @@ module.exports = async function handler(req, res) {
     // 어드민 등록(source='admin')은 운영자가 대신 입력하는 것이므로 로그인 세션을 제보자로 기록하지 않음
     const session = (source === 'admin') ? null : readSession(req);
     const reporterNickname = session ? session.nickname : (req.body?.reporterNickname || '');
-    // 로그인 사용자의 이메일은 세션이 아닌 DB에서 조회(세션 쿠키 최소노출), 비로그인은 입력값 사용
-    let reporterEmail = req.body?.reporterEmail || '';
+    // 이메일은 로그인 사용자만 DB에서 조회해 저장(비로그인은 수집하지 않음 — 타인 이메일 임의 저장 방지)
+    let reporterEmail = '';
     if (session) {
-      reporterEmail = '';
       try { const er = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [session.userId] }); reporterEmail = er.rows[0]?.email || ''; } catch (_e) {}
     }
     const userId = session ? session.userId : null;

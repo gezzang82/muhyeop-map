@@ -1,5 +1,5 @@
 const { getDb } = require('./_db');
-const { requireAdmin } = require('./auth/_admin');
+const { requireAdmin, isAdmin } = require('./auth/_admin');
 
 function toBanner(row) {
   return {
@@ -25,7 +25,11 @@ module.exports = async function handler(req, res) {
   try { await db.execute("ALTER TABLE banners ADD COLUMN hidden INTEGER DEFAULT 0"); } catch (e) {}
 
   if (req.method === 'GET') {
-    const result = await db.execute('SELECT * FROM banners ORDER BY id DESC');
+    // 공개는 숨김 배너 제외, 관리자(mh_admin)만 전체 조회(숨김 관리용)
+    const sql = isAdmin(req)
+      ? 'SELECT * FROM banners ORDER BY id DESC'
+      : 'SELECT * FROM banners WHERE COALESCE(hidden,0)=0 ORDER BY id DESC';
+    const result = await db.execute(sql);
     return res.status(200).json(result.rows.map(toBanner));
   }
 

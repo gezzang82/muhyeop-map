@@ -24,7 +24,9 @@ module.exports = async function handler(req, res) {
   }
 
   const provider = req.query.provider;
-  const redirectTo = req.query.redirectTo || '/';
+  // 오픈 리다이렉트 방지: state에 저장하기 전에 같은 출처 상대경로('/...')로 정규화 (callback에서도 재차 차단)
+  let redirectTo = req.query.redirectTo || '/';
+  if (!/^\/(?!\/)/.test(redirectTo)) redirectTo = '/';
 
   let p;
   try {
