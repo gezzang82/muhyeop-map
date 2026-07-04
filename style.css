@@ -1851,7 +1851,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .intro-step-head { display: flex; align-items: center; gap: 6px; }
 .intro-step-badge {
   flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
-  background: #e82a2d; color: #000; font-size: 13px; font-weight: 700; letter-spacing: -0.52px;
+  background: #000; color: #fff; font-size: 13px; font-weight: 700; letter-spacing: -0.52px;
   display: flex; align-items: center; justify-content: center;
 }
 .intro-step-head strong { font-size: 16px; font-weight: 700; color: #000; letter-spacing: -0.64px; }
@@ -1870,6 +1870,20 @@ body.pc-myinfo-mode #map::after { cursor: pointer; }
 
 /* 소개 페이지는 별도 타이틀 규칙: 기본 헤더바를 숨기고 pill 배지가 타이틀 역할 (PC/모바일 공통) */
 #aboutOverlay .modal-header { display: none; }
+/* 모바일 상단 드래그 핸들(회색 라인) 제거 */
+#aboutOverlay .about-drag-handle { display: none; }
+
+/* 소개 페이지 하단 닫기 버튼: Figma 스펙(흰 배경 + 회색 테두리 + 검정 텍스트) */
+.about-footer .btn-next {
+  background: #fff; color: #000; font-weight: 400;
+  border: 1px solid rgba(170,170,170,0.87);
+}
+.about-footer .btn-next:hover { background: #f5f5f5; }
+
+/* 모바일: 개인정보처리방침/이용약관은 메뉴에 있으므로 소개 화면에서는 숨김 */
+@media (max-width: 640px) {
+  #aboutOverlay .about-policy-links { display: none; }
+}
 
 /* PC 사이드패널: 배지(무협맵 소개)·정책링크(개인정보처리방침/이용약관) 제외 나머지 텍스트 2px 축소 */
 body.pc-about-mode #aboutOverlay .intro-hero-title { font-size: 30px; }
