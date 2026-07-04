@@ -75,7 +75,7 @@ function parseVisit(html) {
   const txt = stripTags(html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, ''));
   const hm = txt.match(/체험\s*시간\s*[:：]?\s*(.+?)(?=\s*휴무일|\s*방문\s*위치|\s*해당\s*캠페인|$)/);
   const cm = txt.match(/휴무일\s*[:：]?\s*(.+?)(?=\s*방문\s*위치|\s*해당\s*캠페인|\s*예약\s*문의|$)/);
-  const hours = hm ? hm[1].replace(/\s+/g, ' ').trim().slice(0, 150) : '';
+  let hours = hm ? hm[1].replace(/\s+/g, ' ').trim().slice(0, 150) : '';
   let closedRaw = cm ? cm[1].replace(/\s+/g, ' ').trim().slice(0, 80) : '';
   const bi = txt.indexOf('방문 및 예약');
   if (bi >= 0) {
@@ -83,6 +83,10 @@ function parseVisit(html) {
     const block = txt.slice(bi, be > 0 ? be : bi + 800);
     const bans = (block.match(/[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*)?(?:체험|방문|이용)\s*(?:불가|휴무)/g) || []).join(' ');
     if (bans) closedRaw += ' ' + bans;
+    if (!/\d/.test(hours)) {
+      const bm = block.match(/(?:방문\s*가능\s*시간|영업\s*시간|이용\s*시간|체험\s*가능\s*시간)\s*[-:：]?\s*([^★]*?\d[^★]*)/);
+      if (bm) hours = bm[1].replace(/\s+/g, ' ').trim().slice(0, 150);
+    }
   }
   return { hours, closedRaw };
 }

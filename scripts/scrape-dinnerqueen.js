@@ -108,16 +108,21 @@ function parseVisit(html) {
   const txt = stripTags(html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, ''));
   const hm = txt.match(/체험\s*시간\s*[:：]?\s*(.+?)(?=\s*휴무일|\s*방문\s*위치|\s*해당\s*캠페인|$)/);
   const cm = txt.match(/휴무일\s*[:：]?\s*(.+?)(?=\s*방문\s*위치|\s*해당\s*캠페인|\s*예약\s*문의|$)/);
-  const hours = hm ? hm[1].replace(/\s+/g, ' ').trim().slice(0, 150) : '';
+  let hours = hm ? hm[1].replace(/\s+/g, ' ').trim().slice(0, 150) : '';
   let closedRaw = cm ? cm[1].replace(/\s+/g, ' ').trim().slice(0, 80) : '';
-  // 요일 제한이 체험시간/휴무일이 아니라 예약안내 블록에 '일,토요일 방문불가'처럼 적히는 경우 보강.
-  // 블록(방문 및 예약 ~ 방문 위치)에서 'X요일 … 방문/체험 불가|휴무' 형태만 타겟 추출(보일러플레이트 오탐 방지).
+  // 요일 제한/체험시간이 체험시간·휴무일 라벨이 아니라 예약안내 블록('해당 캠페인은 예약 필수…')에 적히는 경우 보강.
   const bi = txt.indexOf('방문 및 예약');
   if (bi >= 0) {
     const be = txt.indexOf('방문 위치', bi);
     const block = txt.slice(bi, be > 0 ? be : bi + 800);
+    // (a) 'X요일 … 방문/체험 불가|휴무' 요일제한 타겟 추출(보일러플레이트 오탐 방지)
     const bans = (block.match(/[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*)?(?:체험|방문|이용)\s*(?:불가|휴무)/g) || []).join(' ');
     if (bans) closedRaw += ' ' + bans;
+    // (b) 체험시간 라벨이 플레이스홀더(시간 숫자 없음)면 블록의 '방문가능시간/영업시간'을 영업시간으로
+    if (!/\d/.test(hours)) {
+      const bm = block.match(/(?:방문\s*가능\s*시간|영업\s*시간|이용\s*시간|체험\s*가능\s*시간)\s*[-:：]?\s*([^★]*?\d[^★]*)/);
+      if (bm) hours = bm[1].replace(/\s+/g, ' ').trim().slice(0, 150);
+    }
   }
   return { hours, closedRaw };
 }
