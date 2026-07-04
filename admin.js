@@ -60,6 +60,133 @@ function showTab(tab) {
   if (tab === 'reports') renderReportList();
   if (tab === 'reviews') renderReviewList();
   if (tab === 'users') renderUserList();
+  if (tab === 'collect') renderCollect();
+}
+
+// ===== 데이터 수집 (Phase 2) =====
+let collectStagedRows = [];
+let collectSub = 'pending';
+function renderCollect() {
+  collectShowSub('pending');
+}
+function collectShowSub(sub) {
+  collectSub = sub;
+  ['pending', 'registered', 'rejected', 'runs'].forEach(s => {
+    const el = document.getElementById('collectSub-' + s);
+    if (el) el.classList.toggle('active', s === sub);
+  });
+  const runs = sub === 'runs';
+  document.getElementById('collectStagedWrap').style.display = runs ? 'none' : 'block';
+  document.getElementById('collectRunsWrap').style.display = runs ? 'block' : 'none';
+  if (runs) loadCollectRuns(); else loadStaged(sub);
+}
+async function collectScrape() {
+  const btn = document.getElementById('collectBtn');
+  const statusEl = document.getElementById('collectStatus');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  statusEl.textContent = '수집 중… (플랫폼 접속·파싱, 최대 1~2분)';
+  const mode = document.getElementById('collectMode').value;
+  const limit = document.getElementById('collectLimit').value || 20;
+  try {
+    const res = await fetch(`/api/campaigns?action=scrape&mode=${mode}&limit=${limit}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '수집 실패');
+    statusEl.textContent = `신규 ${data.staged}건 적재 (처리 ${data.processed} · 제외 ${data.excluded} · 중복 ${data.dupActive || 0}). 커서 ${data.cursorFrom}→${data.cursorTo}`;
+    collectShowSub('pending');
+  } catch (e) {
+    statusEl.textContent = '오류: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+async function loadStaged(status) {
+  const res = await fetch(`/api/campaigns?action=staged&status=${status}`);
+  collectStagedRows = res.ok ? await res.json() : [];
+  renderStagedRows();
+}
+const DEDUPE_LABEL = { new_place: '신규매장', add_channel: '+채널', renew: '갱신' };
+function renderStagedRows() {
+  const body = document.getElementById('collectStagedBody');
+  if (!collectStagedRows.length) {
+    body.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#aaa;padding:24px;">${collectSub === 'pending' ? '승인 대기 항목이 없어요. 위에서 수집을 실행하세요.' : '항목이 없어요.'}</td></tr>`;
+    return;
+  }
+  body.innerHTML = collectStagedRows.map(r => {
+    const badge = DEDUPE_LABEL[r.dedupe_status] || r.dedupe_status || '';
+    const actions = collectSub === 'pending'
+      ? `<button class="btn-dark" style="padding:4px 10px;" onclick="approveStaged(${r.id})">승인</button> <button class="btn-ghost" style="padding:4px 10px;color:#E82A2D;" onclick="rejectStaged(${r.id})">반려</button>`
+      : (r.status === 'registered' ? '<span style="color:#1a9d4b;">등록됨</span>' : '<span style="color:#E82A2D;">반려됨</span>');
+    return `<tr>
+      <td><a href="${r.source_url}" target="_blank" style="color:#333;">${r.name || ''}</a></td>
+      <td>${r.category || ''}</td>
+      <td>${r.channel || '<span style="color:#E82A2D;">?</span>'}</td>
+      <td style="max-width:220px;">${r.content || ''}</td>
+      <td>${r.deadline || ''}</td>
+      <td>${r.days || ''}</td>
+      <td style="max-width:180px;font-size:12px;color:#666;">${r.hours || ''}</td>
+      <td>${r.exclude_holiday ? 'Y' : ''}</td>
+      <td><span class="badge-status">${badge}</span></td>
+      <td style="font-size:12px;color:#c47f00;">${r.flags || ''}</td>
+      <td style="white-space:nowrap;">${actions}</td>
+    </tr>`;
+  }).join('');
+}
+async function approveStaged(id) {
+  const r = collectStagedRows.find(x => x.id === id);
+  if (!r) return;
+  const channels = String(r.channel || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (!channels.length) { adminToast('채널이 비어 있어요. 플랫폼 페이지 확인 후 수동 등록하거나 반려하세요.'); return; }
+  const operatingDays = String(r.days || '').split(',').map(s => s.trim()).filter(Boolean);
+  try {
+    let place = places.find(p => p.name.replace(/\s/g, '') === String(r.name).replace(/\s/g, ''));
+    if (!place) {
+      const coords = await geocodeAddress(String(r.address));
+      if (!coords) { adminToast(`좌표 변환 실패: ${r.address} — 주소 확인 필요`); return; }
+      const pres = await fetch('/api/places', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: String(r.name), address: String(r.address), lat: coords.lat, lng: coords.lng, category: r.category || '기타' })
+      });
+      place = await pres.json();
+      places.push(place);
+    }
+    const cres = await fetch('/api/campaigns', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        placeId: place.id, platform: '디너의여왕', channels, content: r.content,
+        deadline: r.deadline || '', link: r.source_url || '', operatingDays,
+        operatingHours: r.hours || '', excludeHoliday: !!r.exclude_holiday, source: 'admin'
+      })
+    });
+    const camp = await cres.json();
+    await fetch(`/api/campaigns?action=review&id=${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'registered', createdCampaignId: camp.id })
+    });
+    adminToast(`등록 완료: ${r.name}`);
+    collectStagedRows = collectStagedRows.filter(x => x.id !== id);
+    renderStagedRows();
+  } catch (e) {
+    adminToast('등록 실패: ' + e.message);
+  }
+}
+async function rejectStaged(id) {
+  await fetch(`/api/campaigns?action=review&id=${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'rejected' })
+  });
+  collectStagedRows = collectStagedRows.filter(x => x.id !== id);
+  renderStagedRows();
+}
+async function loadCollectRuns() {
+  const res = await fetch('/api/campaigns?action=runs');
+  const runs = res.ok ? await res.json() : [];
+  const body = document.getElementById('collectRunsBody');
+  body.innerHTML = runs.length ? runs.map(r => `<tr>
+    <td>${r.id}</td><td>${r.run_at || ''}</td><td>${r.cursor_from}→${r.cursor_to}</td>
+    <td>${r.fetched}</td><td>${r.staged}</td><td>${r.excluded}</td>
+    <td style="font-size:12px;color:#666;">${r.note || ''}</td></tr>`).join('')
+    : '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px;">수집 이력이 없어요.</td></tr>';
 }
 
 // 조회(매장/캠페인) · 등록(등록/엑셀) 서브탭 전환

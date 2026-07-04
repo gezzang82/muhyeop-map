@@ -165,6 +165,7 @@
         <a class="nav-item" onclick="showTab('reviews')" id="tab-reviews"><img class="nav-ic" src="image/ic_admin_07review_24.svg" width="20" height="20" alt=""> 후기 관리</a>
         <a class="nav-item" onclick="showTab('users')" id="tab-users"><img class="nav-ic" src="image/ic_admin_05users_24.svg" width="20" height="20" alt=""> 회원 목록</a>
         <a class="nav-item" onclick="showTab('banners')" id="tab-banners"><img class="nav-ic" src="image/ic_admin_06popup_24.svg" width="20" height="20" alt=""> 이벤트 팝업</a>
+        <a class="nav-item" onclick="showTab('collect')" id="tab-collect"><img class="nav-ic" src="image/ic_admin_02store_add_24.svg" width="20" height="20" alt=""> 데이터 수집</a>
       </nav>
     </aside>
 
@@ -779,6 +780,60 @@
             </table>
           </div>
           <div class="pager" id="rmPager"></div>
+        </div>
+      </div>
+
+      <!-- 데이터 수집 -->
+      <div id="page-collect" class="admin-page" style="display:none;">
+        <h1 class="page-title">데이터 수집</h1>
+        <div class="filter-card">
+          <div class="user-filter" style="align-items:flex-end;gap:12px;flex-wrap:wrap;">
+            <div>
+              <label style="display:block;font-size:12px;color:#777;margin-bottom:4px;">플랫폼</label>
+              <select id="collectPlatform" class="excel-cell-select" style="min-width:140px;">
+                <option value="dinnerqueen">디너의여왕</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:#777;margin-bottom:4px;">범위</label>
+              <select id="collectMode" class="excel-cell-select" style="min-width:160px;">
+                <option value="jeonche">전체(최신 첫 화면)</option>
+                <option value="all-seoul">서울 전역(소지역 순회)</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:#777;margin-bottom:4px;">최대 건수</label>
+              <input id="collectLimit" type="number" value="20" min="1" max="60" style="width:80px;padding:8px;border:1px solid #ddd;border-radius:8px;">
+            </div>
+            <button class="btn-dark" onclick="collectScrape()" id="collectBtn">최신 캠페인 수집</button>
+            <span id="collectStatus" style="font-size:13px;color:#555;"></span>
+          </div>
+        </div>
+
+        <div class="subtab-bar" style="margin:16px 0;">
+          <button class="subtab active" id="collectSub-pending" onclick="collectShowSub('pending')">승인 대기</button>
+          <button class="subtab" id="collectSub-registered" onclick="collectShowSub('registered')">등록 완료</button>
+          <button class="subtab" id="collectSub-rejected" onclick="collectShowSub('rejected')">반려</button>
+          <button class="subtab" id="collectSub-runs" onclick="collectShowSub('runs')">수집 이력</button>
+        </div>
+
+        <div id="collectStagedWrap">
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead><tr>
+                <th>매장명</th><th>카테고리</th><th>채널</th><th>협찬내용</th><th>마감일</th><th>가능요일</th><th>영업시간</th><th>공휴</th><th>구분</th><th>검수</th><th>관리</th>
+              </tr></thead>
+              <tbody id="collectStagedBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="collectRunsWrap" style="display:none;">
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>ID</th><th>실행시각</th><th>커서(from→to)</th><th>처리</th><th>적재</th><th>제외</th><th>비고</th></tr></thead>
+              <tbody id="collectRunsBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
