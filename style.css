@@ -1865,6 +1865,19 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* 소개 페이지는 별도 타이틀 규칙: 기본 헤더바를 숨기고 pill 배지가 타이틀 역할 (PC/모바일 공통) */
 #aboutOverlay .modal-header { display: none; }
 
+/* PC 사이드패널: 배지(무협맵 소개)·정책링크(개인정보처리방침/이용약관) 제외 나머지 텍스트 2px 축소 */
+body.pc-about-mode #aboutOverlay .intro-hero-title { font-size: 30px; }
+body.pc-about-mode #aboutOverlay .intro-hero-sub { font-size: 16px; }
+body.pc-about-mode #aboutOverlay .intro-hero-desc { font-size: 16px; }
+body.pc-about-mode #aboutOverlay .intro-tag--red { font-size: 16px; }
+body.pc-about-mode #aboutOverlay .intro-tag--dark { font-size: 14px; }
+body.pc-about-mode #aboutOverlay .intro-card-text { font-size: 14px; }
+body.pc-about-mode #aboutOverlay .intro-card-center-text { font-size: 14px; }
+body.pc-about-mode #aboutOverlay .intro-step-badge { font-size: 11px; }
+body.pc-about-mode #aboutOverlay .intro-step-head strong { font-size: 14px; }
+body.pc-about-mode #aboutOverlay .intro-step > p { font-size: 14px; }
+body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
+
 .btn-about-mobile { display: none; }
 
 @media (max-width: 640px) {
