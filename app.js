@@ -3092,7 +3092,7 @@ function initSheetSwipeToDismiss() {
   function onTouchStart(e) {
     // 탭/버튼/링크/입력 등 인터랙티브 요소 위에서는 드래그 시작 안 함
     // (탭 탭(tap)이 미세 드래그로 잡혀 click이 취소되는 문제 방지)
-    if (e.target.closest('button, a, input, textarea, select, .rv-tab, .rv-register-btn, .rv-like')) { dragging = false; return; }
+    if (e.target.closest('button, a, input, textarea, select, .rv-tab, .rv-register-btn, .rv-like, .detail-report-link, .detail-name-link')) { dragging = false; return; }
     // 리스트가 스크롤돼 있으면 시트 드래그 안 함(리스트 스크롤 우선). 실제 스크롤 요소는 .detail-scroll.
     const scroller = e.target.closest('.detail-scroll');
     if (scroller && scroller.scrollTop > 0) { dragging = false; return; }
