@@ -2432,6 +2432,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   display: flex; align-items: center; gap: 12px; flex-shrink: 0;
   padding: 10px 20px;
 }
+/* 앱: 하단 이용약관/개인정보 링크를 16px 위로 */
+.native-app .side-menu-footer { padding-bottom: 26px; }
 .side-menu-footer-link {
   border: none; background: none; cursor: pointer; padding: 0;
   font-size: 14px; color: #555; line-height: 32px;
@@ -2611,8 +2613,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .native-app .modal-sticky-header { height: calc(56px + env(safe-area-inset-top)); padding-top: calc(10px + env(safe-area-inset-top)); }
   .native-app .side-menu-header { height: calc(72px + env(safe-area-inset-top)); padding-top: calc(10px + env(safe-area-inset-top)); }
   /* 후기 등록: 제보/신고 모달과 타이틀 위치(세이프에어리어)·버튼 크기 통일 */
-  #reviewFormOverlay .signup-content { padding-top: max(40px, env(safe-area-inset-top, 40px)); }
-  #reviewFormOverlay .signup-footer { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  #reviewFormOverlay .signup-content { padding-top: calc(24px + env(safe-area-inset-top)); }
+  #reviewFormOverlay .signup-footer { padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); }
   #reviewFormOverlay .signup-btn-cancel,
   #reviewFormOverlay .signup-btn-confirm { height: 64px; font-size: 20px; }
 
