@@ -1680,6 +1680,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   display: flex; justify-content: space-between; align-items: center;
   flex-shrink: 0;
 }
+/* 앱: 모바일에선 이 스크롤 헤더가 상단에 노출되므로 상태바·노치만큼 아래로 내림 */
+.native-app .step1-scroll-header,
+.native-app .step2-scroll-header,
+.native-app .modal-scroll-header { padding-top: env(safe-area-inset-top); }
 /* PC에서는 정적 .modal-header가 보이므로 스크롤 헤더는 숨김 (모바일에서만 노출) */
 @media (min-width: 641px) {
   .profile-modal .modal-scroll-header { display: none; }
@@ -1813,6 +1817,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   display: flex; flex-direction: column; align-items: center; text-align: center;
   gap: 24px; padding: 40px 24px;
 }
+/* 앱: 소개 페이지 최상단 히어로를 상태바·노치 아래로 (모바일에서 헤더 숨김 상태라 히어로가 최상단) */
+.native-app #aboutOverlay .intro-hero { padding-top: calc(40px + env(safe-area-inset-top)); }
 .intro-hero-title-group { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
 .intro-badge {
   display: inline-flex; align-items: center; justify-content: center;
@@ -2159,6 +2165,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
     pointer-events: none;
     transition: opacity 0.2s ease, visibility 0.2s ease;
   }
+  /* 앱: 콜랩스 바텀시트가 세이프에어리어만큼 커졌으므로 제보하기 캐릭터도 그만큼 위로 */
+  .native-app .live-alert { bottom: calc(152px + env(safe-area-inset-bottom)); }
   .live-bubble {
     font-size: 14px;
     padding: 12px 16px;
@@ -2499,6 +2507,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
     gap: 10px;
     pointer-events: none;
   }
+  /* 앱: 지도를 상태바까지 확장(contentInset:never)하므로 상단 UI를 노치/상태바 아래로 내림 */
+  .native-app .mobile-map-overlay { top: calc(16px + env(safe-area-inset-top)); }
   .mobile-map-overlay > * { pointer-events: auto; }
   .mobile-row1 {
     display: flex;
@@ -2533,6 +2543,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
     border-radius: 50%;
     z-index: 250;
   }
+  /* 앱: 콜랩스 바텀시트가 세이프에어리어만큼 커졌으므로 현재위치 버튼도 그만큼 위로 */
+  .native-app .btn-my-location { bottom: calc(100px + env(safe-area-inset-bottom)); }
   .btn-zoom-group { display: none !important; }
 
   /* 사이드바 → fixed 바텀시트 */
@@ -2557,6 +2569,12 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   }
   .sidebar.expanded { height: 50vh; }
   .sidebar.expanded-full { height: calc(100dvh - 120px); }
+  /* 앱: 바텀시트 콘텐츠를 하단 홈 인디케이터(세이프에어리어) 위로 올림 */
+  .native-app .sidebar { padding-bottom: env(safe-area-inset-bottom); }
+  .native-app .sidebar:not(.expanded):not(.expanded-full) { height: calc(78px + env(safe-area-inset-bottom)); }
+  .native-app .sidebar.expanded { height: calc(50vh + env(safe-area-inset-bottom)); }
+  /* 앱: 최대 확장 시 상단 칩스(검색+필터 오버레이) 바로 아래까지 올라오게 */
+  .native-app .sidebar.expanded-full { height: calc(100dvh - 128px - env(safe-area-inset-top)); }
 
   .sidebar-list .empty-state { min-height: 100%; justify-content: center; padding: 20px; box-sizing: border-box; }
 
@@ -2587,6 +2605,9 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   }
   .modal-header { padding-top: max(40px, env(safe-area-inset-top, 40px)); }
   .modal-overlay { align-items: stretch; }
+  /* 앱: 상단 고정 헤더(스티키/사이드메뉴)를 상태바·노치 아래로 내림 */
+  .native-app .modal-sticky-header { height: calc(56px + env(safe-area-inset-top)); padding-top: calc(10px + env(safe-area-inset-top)); }
+  .native-app .side-menu-header { height: calc(72px + env(safe-area-inset-top)); padding-top: calc(10px + env(safe-area-inset-top)); }
 
   /* 내 정보: 제보하기/신고하기와 동일하게 풀스크린 모달로 표시
      (.modal 기본 모바일 규칙 + .modal-footer 하단 고정 그대로 상속) */

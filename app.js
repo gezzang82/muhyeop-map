@@ -74,6 +74,8 @@ function openExternal(url) {
 }
 // 앱에서 다른 도메인으로 향하는 링크 클릭을 가로채 인앱 브라우저로 연다(제보자·캠페인·후기 링크 공통).
 if (isNativeApp()) {
+  // 앱에서만 세이프에어리어 대응(지도 풀블리드 + 상단 UI를 노치 아래로). CSS `.native-app`로 분기.
+  document.documentElement.classList.add('native-app');
   document.addEventListener('click', function (e) {
     const a = e.target.closest && e.target.closest('a[href]');
     if (!a) return;
