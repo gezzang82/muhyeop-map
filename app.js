@@ -332,7 +332,8 @@ function initMap() {
       });
       const logoContainer = logoA?.parentElement?.parentElement;
       if (logoContainer && logoContainer.style.bottom === '0px') {
-        logoContainer.style.bottom = '86px';
+        // 앱은 콜랩스 바텀시트가 세이프에어리어만큼 더 높으므로 로고도 그만큼 더 올려야 가려지지 않음(웹은 env=0)
+        logoContainer.style.bottom = 'calc(86px + env(safe-area-inset-bottom))';
       } else if (!logoContainer) {
         setTimeout(liftNaverLogo, 300);
       }
