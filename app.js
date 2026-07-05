@@ -2901,6 +2901,9 @@ function openNaverMap(name, address, lat, lng) {
   const query = encodeURIComponent(name);
   const webUrl = `https://map.naver.com/p/search/${query}`;
 
+  // 앱(Capacitor 웹뷰): nmap:// 딥링크·window.open이 안 먹으므로 인앱 브라우저로 네이버지도 웹을 연다.
+  if (isNativeApp()) { openExternal(webUrl); return; }
+
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if (isMobile) {
     // 앱 딥링크 시도: 좌표가 있으면 정확한 위치에 마커(place), 없으면 검색(search)
