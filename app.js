@@ -369,6 +369,9 @@ function initMap() {
     if (window.innerWidth > 640) closePcCard();
   });
 
+  // 지도 이동/줌이 멈추면(idle) 현재 보이는 영역 기준으로 하단 '모집 중인 협찬' 리스트 갱신
+  naver.maps.Event.addListener(map, 'idle', () => { renderSidebar(); });
+
   // 지도 밖 영역 클릭 시 PC 카드 닫기
   document.addEventListener('click', (e) => {
     if (!openPcCardPlaceId) return;
@@ -1626,7 +1629,7 @@ const POLICY_CONTENT = {
   privacy: {
     title: '개인정보처리방침',
     body: `
-      <p>무협맵(이하 '서비스')은 「개인정보 보호법」 및 「위치정보의 보호 및 이용 등에 관한 법률」을 준수하며, 이용자의 개인정보를 보호하기 위해 다음과 같이 처리방침을 둡니다.</p>
+      <p>무협맵(이하 '서비스')은 「개인정보 보호법」 및 「위치정보의 보호 및 이용 등에 관한 법률」을 준수하며, 이용자의 개인정보를 보호하기 위해 다음과 같이 처리방침을 둡니다. 본 방침은 서비스의 웹 및 모바일 앱(App Store 등을 통해 배포되는 iOS 등 앱)에 동일하게 적용됩니다.</p>
       <div class="about-section">
         <div class="about-section-title">1. 수집하는 개인정보 항목</div>
         <p class="about-desc">서비스는 필요한 최소한의 정보만 수집합니다.</p>
@@ -1686,7 +1689,7 @@ const POLICY_CONTENT = {
       </div>
       <div class="about-section">
         <div class="about-section-title">제2조 (서비스의 성격)</div>
-        <p class="about-desc">서비스는 여러 플랫폼에 흩어진 협찬 정보를 지도 위에서 탐색할 수 있도록 돕는 정보 제공 서비스이며, 협찬의 신청·진행·이행에 직접 관여하지 않습니다.</p>
+        <p class="about-desc">서비스는 여러 플랫폼에 흩어진 협찬 정보를 지도 위에서 탐색할 수 있도록 돕는 정보 제공 서비스이며, 협찬의 신청·진행·이행에 직접 관여하지 않습니다. 서비스는 웹 및 모바일 앱(App Store 등을 통해 배포되는 iOS 등 앱) 형태로 제공되며, 별도로 정하지 않는 한 본 약관이 동일하게 적용됩니다.</p>
       </div>
       <div class="about-section">
         <div class="about-section-title">제3조 (위치기반 서비스)</div>
