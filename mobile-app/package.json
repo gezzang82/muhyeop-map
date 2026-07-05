@@ -5,6 +5,7 @@
   "description": "무협맵 모바일 앱 (Capacitor 래핑)",
   "scripts": {
     "sync": "cap sync",
+    "assets": "capacitor-assets generate --ios --iconBackgroundColor '#F51122' --splashBackgroundColor '#F51122'",
     "open:ios": "cap open ios",
     "open:android": "cap open android"
   },
@@ -13,6 +14,11 @@
     "@capacitor/browser": "^8.0.3",
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
-    "@capacitor/ios": "^8.4.1"
+    "@capacitor/ios": "^8.4.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
   }
 }

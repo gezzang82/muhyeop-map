@@ -4,9 +4,27 @@
   "webDir": "www",
   "server": {
     "url": "https://muhyeop.com",
-    "cleartext": false
+    "cleartext": false,
+    "allowNavigation": [
+      "nid.naver.com",
+      "kauth.kakao.com",
+      "accounts.kakao.com",
+      "*.naver.com",
+      "*.kakao.com"
+    ]
   },
   "ios": {
-    "contentInset": "always"
+    "contentInset": "never"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#F51122",
+      "showSpinner": false,
+      "iosSpinnerStyle": "large",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
   }
 }
