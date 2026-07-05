@@ -1050,15 +1050,15 @@ function openReviewForm(placeId) {
 }
 function closeReviewForm() {
   document.getElementById('reviewFormOverlay').classList.remove('open');
+  resetModalScroll('reviewFormOverlay');
 }
 async function validateReviewUrl() {
   const url = document.getElementById('reviewUrl').value.trim();
   const preview = document.getElementById('reviewPreview');
-  const submitBtn = document.getElementById('reviewSubmitBtn');
   rvSetError('');
   if (!url) { rvSetError('URL을 입력해주세요.'); return; }
   preview.innerHTML = '<div class="rv-loading">검증 중…</div>';
-  submitBtn.disabled = true; _reviewValidated = false;
+  _reviewValidated = false;
   try {
     const res = await fetch('/api/places?reviews=validate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1069,7 +1069,6 @@ async function validateReviewUrl() {
     const previewAuthor = (currentUser && currentUser.nickname) || data.data.author;
     preview.innerHTML = `<p class="rv-preview-label">이 후기로 등록할까요?</p>` + reviewCardHtml(Object.assign({ likeCount: 0, liked: false, createdAt: '' }, data.data, { author: previewAuthor }), true);
     _reviewValidated = true;
-    submitBtn.disabled = false;
   } catch (e) { preview.innerHTML = ''; rvSetError('검증 중 오류가 발생했어요.'); }
 }
 async function submitReview() {
@@ -1721,12 +1720,19 @@ const POLICY_CONTENT = {
 function openPolicy(type) {
   const data = POLICY_CONTENT[type];
   if (!data) return;
-  document.getElementById('policyTitle').textContent = data.title;
-  document.getElementById('policyBody').innerHTML = data.body;
+  document.getElementById('policyTitle').textContent = data.title;        // PC 정적 헤더
+  document.getElementById('policyStickyTitle').textContent = data.title;  // 모바일 스크롤 시 sticky 헤더
+  document.getElementById('policyStickyHeader').classList.remove('show');
+  const body = document.getElementById('policyBody');
+  // 모바일: 제보하기처럼 큰 타이틀(scroll-header)이 본문 위에서 스크롤되어 사라지고 sticky가 등장
+  body.innerHTML = `<div class="modal-scroll-header" id="policyScrollHeader"><h2>${data.title}</h2></div>` + data.body;
+  body.scrollTop = 0;
   document.getElementById('policyOverlay').classList.add('open');
+  bindMobileScrollHeader('policyBody', 'policyScrollHeader', 'policyStickyHeader');
 }
 function closePolicy() {
   document.getElementById('policyOverlay').classList.remove('open');
+  resetModalScroll('policyOverlay');
 }
 
 // ===== 우측 슬라이드 메뉴 =====
@@ -1901,6 +1907,7 @@ function openMyInfoPanel() {
 }
 function closeProfileSheet() {
   document.getElementById('profileOverlay').classList.remove('open');
+  resetModalScroll('profileOverlay');
 }
 
 async function saveProfile() {
@@ -1998,6 +2005,7 @@ function openAbout() {
 }
 function closeAbout() {
   document.getElementById('aboutOverlay').classList.remove('open');
+  resetModalScroll('aboutOverlay');
   if (window.innerWidth > 640 && pcTabActive === 'about') {
     switchPcTab('campaigns');
   }
@@ -2044,6 +2052,7 @@ function openReportModalForPlace(placeId) {
 }
 function closeReportModal() {
   document.getElementById('reportOverlay').classList.remove('open');
+  resetModalScroll('reportOverlay');
   if (window.innerWidth > 640 && pcTabActive === 'reportissue') {
     switchPcTab('campaigns');
   }
@@ -2083,6 +2092,16 @@ function bindMobileScrollHeader(bodyId, scrollHeaderId, stickyHeaderId) {
   }
   body._mobileScrollHeaderHandler = handler;
   body.addEventListener('scroll', handler, { passive: true });
+}
+
+// 모달 닫을 때 스크롤 위치 초기화(다음에 다시 열면 항상 맨 위부터). 페이드아웃 후 리셋해 닫히는 중 튐 방지.
+function resetModalScroll(overlayId) {
+  setTimeout(() => {
+    const ov = document.getElementById(overlayId);
+    if (!ov) return;
+    ov.querySelectorAll('.modal-body, .signup-content, .detail-scroll').forEach(el => { el.scrollTop = 0; });
+    ov.querySelectorAll('.modal-sticky-header').forEach(el => el.classList.remove('show'));
+  }, 350);
 }
 
 // 모바일 공통: 정적 .modal-header는 모바일에서 숨기고 .modal-scroll-header로 대체
@@ -2338,6 +2357,7 @@ function openModal() {
 
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
+  resetModalScroll('modalOverlay');
   if (window.innerWidth > 640 && pcTabActive === 'report') {
     pcTabActive = 'campaigns';
     document.body.classList.remove('pc-report-mode');

@@ -393,6 +393,12 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 
 /* ===== 개인정보처리방침 / 이용약관 팝업 ===== */
 .policy-modal { max-width: 480px; }
+/* 정책 모달 하단 닫기 버튼: 무협맵 소개 페이지 닫기 버튼과 동일한 색(흰 배경·검정 글자·회색 테두리) */
+#policyOverlay .modal-footer .btn-next {
+  background: #fff; color: #000; font-weight: 400;
+  border: 1px solid rgba(170,170,170,0.87);
+}
+#policyOverlay .modal-footer .btn-next:hover { background: #f5f5f5; }
 .policy-modal .modal-body p { font-size: 14px; line-height: 1.6; color: #555; }
 .policy-modal .modal-body .about-section-title { font-size: 15px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; }
 
@@ -2617,8 +2623,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   #reviewFormOverlay .signup-footer { padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); }
   #reviewFormOverlay .signup-btn-cancel,
   #reviewFormOverlay .signup-btn-confirm { height: 64px; font-size: 20px; }
-  /* 정책(이용약관/개인정보) 모달: 후기 등록과 타이틀 위치 통일 */
-  #policyOverlay .modal-header { padding-top: calc(24px + env(safe-area-inset-top)); }
+  /* 정책 모달: 제보하기처럼 모바일은 modal-header 숨기고 body의 scroll-header(26px) 노출 + 스크롤 시 sticky */
+  #policyOverlay .modal-header { display: none; }
 
   /* 내 정보: 제보하기/신고하기와 동일하게 풀스크린 모달로 표시
      (.modal 기본 모바일 규칙 + .modal-footer 하단 고정 그대로 상속) */
@@ -2808,10 +2814,11 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   #reviewFormOverlay .signup-footer { padding: 20px; }
   #reviewFormOverlay .signup-btn-cancel,
   #reviewFormOverlay .signup-btn-confirm { height: 48px; font-size: 16px; }
-  /* 정책 모달: 후기 등록 PC 카드와 타이틀·닫기 버튼 통일 */
+  /* 정책 모달 PC: 제보처럼 정적 modal-header 노출, 큰 scroll-header는 숨김 */
   #policyOverlay .modal-header { padding-top: 24px; }
   #policyOverlay .modal-header h2 { font-size: 20px; }
   #policyOverlay .modal-footer .btn-next { height: 48px; font-size: 16px; }
+  .policy-modal .modal-scroll-header { display: none; }
 }
 
 /* 모집 중인 협찬 리스트 상단 안내 문구 */
