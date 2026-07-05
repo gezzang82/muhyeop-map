@@ -888,10 +888,25 @@ function showReviewLoading(pane) {
 function hideReviewLoading() {
   if (_rvLoadingAnim) { try { _rvLoadingAnim.destroy(); } catch (e) {} _rvLoadingAnim = null; }
 }
+// [임시 데모] URL에 ?rvdemo=<placeId> 가 있으면 그 매장 후기를 더미 10개로 표시(DB 미변경, 클라이언트 전용). 데모 종료 시 이 함수와 loadReviews의 데모 분기 제거.
+function _rvDemoReviews(placeId) {
+  const A = ['개짜장','먹킷리스트','산본맛집러','리뷰왕김씨','소바러버','퇴근후한잔','맛집탐험가','냠냠박','미식가이드','블로거정'];
+  const T = ['산본역 일식 마제소바 맛집 백소정 산본점 다녀왔어요','백소정 산본점 돈카츠 미쳤다… 인생 돈카츠 등극','군포 산본 데이트 코스로 딱! 백소정 후기','백소정 산본점 마제소바 + 붓카케 우동 조합 추천','비 오는 날 생각나는 백소정 산본점 카레우동','점심 웨이팅 있는 백소정 산본점, 그럴만한 이유','백소정 산본점 로스카츠 정식 가성비 후기','아이랑 가기 좋은 백소정 산본점 방문기','백소정 산본점 부타동 + 온천계란 조합 실화?','산본 로데오 백소정, 재방문 각 나오는 곳'];
+  const E = ['면발 탱글하고 소스 진하니 완전 취향저격이었어요. 계란 터뜨려서 비벼먹으면…','겉은 바삭 속은 촉촉, 등심인데도 부드러워서 놀랐네요. 소스도 짜지 않고 딱 좋아요.','분위기도 깔끔하고 좌석 간격도 넓어서 편하게 먹었어요. 주차는 근처 공영주차장.','두 가지 다 시켜서 나눠 먹었는데 마제소바가 더 취향. 양도 넉넉합니다.','국물이 깊고 진해서 속이 든든. 우동 면도 쫄깃하니 좋았어요.','12시 조금 넘으니 웨이팅 시작. 회전은 빠른 편이라 오래 안 기다렸어요.','밥 리필 되고 미소된장국도 계속 주셔서 배부르게 먹었습니다.','아이 의자도 있고 덜 맵게 조절 가능해서 가족 외식하기 좋아요.','따뜻한 밥에 부타동 올려서… 온천계란 노른자 터뜨리면 끝입니다.','전체적으로 만족도 높아서 다음엔 다른 메뉴도 도전해보려고요.'];
+  const D = ['2026.06.28','2026.06.22','2026.06.15','2026.06.10','2026.05.30','2026.05.21','2026.05.14','2026.05.03','2026.04.25','2026.03.14'];
+  const L = [42,18,7,25,3,11,0,9,33,1];
+  return Array.from({length:10}, (_, i) => ({ id: 900000+i, placeId, author: A[i], title: T[i], excerpt: E[i], thumbnail: (i===6||i===9) ? '' : `https://picsum.photos/seed/mh${i}/240/240`, url: 'https://blog.naver.com/pww010', postDate: D[i], likeCount: L[i], liked: i===0, mine: false }));
+}
 async function loadReviews(placeId, sort) {
   const pane = document.querySelector('#rvTabBody .rv-pane-review');
   if (!pane) return;
   if (sort) _reviewSort = sort;
+  const _demo = new URLSearchParams(location.search).get('rvdemo');
+  if (_demo && String(placeId) === String(_demo)) {
+    hideReviewLoading();
+    pane.innerHTML = renderReviewPane(placeId, _rvDemoReviews(placeId));
+    return;
+  }
   showReviewLoading(pane);
   try {
     const list = await fetch(`/api/places?reviews=list&placeId=${placeId}&sort=${_reviewSort === 'likes' ? 'likes' : 'latest'}`).then(r => r.json());
@@ -3091,8 +3106,9 @@ function initSheetSwipeToDismiss() {
     // 탭/버튼/링크/입력 등 인터랙티브 요소 위에서는 드래그 시작 안 함
     // (탭 탭(tap)이 미세 드래그로 잡혀 click이 취소되는 문제 방지)
     if (e.target.closest('button, a, input, textarea, select, .rv-tab, .rv-register-btn, .rv-like')) { dragging = false; return; }
-    // 컨텐츠 스크롤 중이면 무시 (맨 위일 때만 드래그 허용)
-    if (e.target.closest('.mobile-sheet-content') && content.scrollTop > 0) return;
+    // 리스트가 스크롤돼 있으면 시트 드래그 안 함(리스트 스크롤 우선). 실제 스크롤 요소는 .detail-scroll.
+    const scroller = e.target.closest('.detail-scroll');
+    if (scroller && scroller.scrollTop > 0) { dragging = false; return; }
     startY = e.touches[0].clientY;
     dragging = true;
     sheet.style.transition = 'none'; // 드래그 중 애니메이션 끔
