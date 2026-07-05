@@ -280,8 +280,8 @@ function hasPlatformAlready(placeId, platform) {
 // ===== 지도 초기화 =====
 function initMap() {
   map = new naver.maps.Map('map', {
-    center: new naver.maps.LatLng(37.5040, 127.0300),
-    zoom: 14,
+    center: new naver.maps.LatLng(37.5563, 126.9980),
+    zoom: 11,
     mapTypeControl: false,
     scaleControl: false,
     logoControl: true,
@@ -1140,6 +1140,22 @@ function renderSidebar() {
         ${campaignsHtml}
       </div>`;
   }).join('');
+  updateSidebarListFade();
+}
+
+// 바텀시트 리스트: 스크롤 위치에 따라 위/아래 화이트 페이드(마스크)를 조건부 적용.
+// 맨 위면 위 페이드 없음, 맨 아래면 아래 페이드 없음 → 스크롤 가능한 방향에만 페이드가 생김.
+function updateSidebarListFade() {
+  const list = document.getElementById('campaignList');
+  if (!list) return;
+  if (window.innerWidth > 640) { list.style.webkitMaskImage = ''; list.style.maskImage = ''; return; }
+  const atTop = list.scrollTop <= 4;
+  const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
+  const topStop = atTop ? '0px' : '16px';
+  const botStop = atBottom ? '100%' : 'calc(100% - 20px)';
+  const g = `linear-gradient(to bottom, transparent 0, #000 ${topStop}, #000 ${botStop}, transparent 100%)`;
+  list.style.webkitMaskImage = g;
+  list.style.maskImage = g;
 }
 
 // 현재위치 조회 통합: 앱은 Capacitor Geolocation(네이티브), 웹은 navigator.geolocation.
@@ -1147,7 +1163,7 @@ function renderSidebar() {
 function getGeoPosition() {
   const G = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation;
   if (isNativeApp() && G) {
-    return G.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 })
+    return G.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 })
       .then(p => ({ lat: p.coords.latitude, lng: p.coords.longitude }));
   }
   return new Promise((resolve, reject) => {
@@ -1155,7 +1171,7 @@ function getGeoPosition() {
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       err => reject(err),
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
     );
   });
 }
@@ -1363,6 +1379,7 @@ function toggleBottomSheet(e) {
   if (arrow) arrow.textContent = isExpanded ? '﹀' : '︿';
   setNaverLogoVisible(!isExpanded);
   if (isExpanded) renderSidebar();
+  setTimeout(updateSidebarListFade, 400); // 높이 트랜지션(0.35s) 후 페이드 재계산
 }
 
 // 리스트 스크롤 시 바텀시트 높이 자동 확장/축소
@@ -1370,6 +1387,7 @@ function initSidebarScrollExpand() {
   const list = document.getElementById('campaignList');
   if (!list) return;
   list.addEventListener('scroll', () => {
+    updateSidebarListFade();
     if (window.innerWidth > 640) return;
     const sidebar = document.getElementById('sidebar');
     if (!sidebar.classList.contains('expanded')) return;
