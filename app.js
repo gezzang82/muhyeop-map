@@ -1045,7 +1045,6 @@ function openReviewForm(placeId) {
   document.getElementById('reviewUrl').value = '';
   document.getElementById('reviewPreview').innerHTML = '';
   rvSetError('');
-  document.getElementById('reviewSubmitBtn').disabled = true;
   document.getElementById('reviewFormOverlay').classList.add('open');
 }
 function closeReviewForm() {
