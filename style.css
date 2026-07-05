@@ -1,6 +1,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
 /* 초기 로딩 오버레이 */
+/* 로딩 오버레이(기존): 지도 위 반투명 dim + 로티. 모바일=스플래시 뒤, PC=바로 노출 */
 .app-loading {
   position: fixed; inset: 0; z-index: 3000; background: rgba(255,255,255,0.6);
   display: flex; align-items: center; justify-content: center;
@@ -8,6 +9,24 @@
 }
 .app-loading.hide { opacity: 0; pointer-events: none; }
 .app-loading-anim { width: 70px; height: 70px; }
+
+/* 스플래시(모바일 전용, 부팅 애니메이션): 로딩 위(z 3100). PC는 숨김 */
+.app-splash {
+  position: fixed; inset: 0; z-index: 3100; background: #e82a2d;
+  overflow: hidden; transition: opacity 0.4s ease;
+}
+.app-splash.hide { opacity: 0; pointer-events: none; }
+@media (min-width: 641px) { .app-splash { display: none; } }
+.splash-logo-group {
+  position: absolute; top: 24%; left: 0; right: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.splash-sub { width: 80px; height: auto; display: block; }
+.splash-logo { width: 220px; height: auto; display: block; }
+.splash-char {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  width: 74%; max-width: 300px; height: auto; display: block;
+}
 
 html, body {
   touch-action: pan-x pan-y;

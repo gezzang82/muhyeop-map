@@ -313,8 +313,10 @@ function initMap() {
 
   // PC: 사이드패널(제보/신고/소개/내정보)이 열려 지도가 어두워진 상태에서
   // 지도 영역을 클릭하면 패널을 닫고 자연스럽게 협찬찾기(지도)로 복귀
-  document.getElementById('map').addEventListener('click', function() {
+  document.getElementById('map').addEventListener('click', function(e) {
     if (window.innerWidth <= 640) return;
+    // PC 카드(매장 상세) 내부 클릭(신고하기 등)은 '지도 클릭'으로 보지 않음 — 방금 연 패널이 바로 닫히던 버그 방지
+    if (e.target.closest('#pcCard')) return;
     const b = document.body.classList;
     if (b.contains('pc-report-mode') || b.contains('pc-reportissue-mode') ||
         b.contains('pc-about-mode') || b.contains('pc-myinfo-mode')) {
@@ -3238,6 +3240,37 @@ function initAppLoading() {
     });
   }
 }
+// 스플래시(모바일 전용): 화면에 뜬 뒤 로고 애니메이션을 처음부터 재생 → 애니메이션 후 페이드아웃해 뒤의 로딩을 노출. PC는 미노출.
+// 앱: 네이티브 스플래시(launchAutoHide:false)가 웹뷰를 덮는 동안 애니가 다 재생돼버리지 않도록,
+//     웹 스플래시가 그려진 뒤 네이티브 스플래시를 내리고 그 직후 애니메이션을 시작한다(화면 보일 때 처음부터 재생).
+function initSplash() {
+  const SP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen;
+  const splash = document.getElementById('appSplash');
+  const isMobile = window.innerWidth <= 640;
+  if (!splash || !isMobile) {
+    if (splash) splash.remove();
+    if (isNativeApp() && SP) SP.hide().catch(() => {}); // PC/스플래시 없음: 네이티브 스플래시 즉시 숨김
+    return;
+  }
+  const logo = document.getElementById('splashLogo');
+  const startAnim = () => {
+    requestAnimationFrame(() => requestAnimationFrame(() => { if (logo) logo.classList.add('play'); }));
+    setTimeout(() => {
+      splash.classList.add('hide');
+      setTimeout(() => { if (splash.parentNode) splash.remove(); }, 450);
+    }, 2400);
+  };
+  if (isNativeApp() && SP) {
+    setTimeout(() => SP.hide().catch(() => {}), 4000); // 안전장치: 무슨 일이 있어도 4s 내 네이티브 스플래시 숨김
+    requestAnimationFrame(() => {
+      SP.hide({ fadeOutDuration: 250 }).catch(() => {});
+      setTimeout(startAnim, 280);
+    });
+  } else {
+    startAnim();
+  }
+}
+document.addEventListener('DOMContentLoaded', initSplash);
 // 지도 로딩/인증 실패 시 지도 영역에 안내 화면 노출
 function showMapError() {
   const err = document.getElementById('mapError');
