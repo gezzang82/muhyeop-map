@@ -2,7 +2,7 @@
 
 /* 초기 로딩 오버레이 */
 .app-loading {
-  position: fixed; inset: 0; z-index: 3000; background: #fff;
+  position: fixed; inset: 0; z-index: 3000; background: rgba(255,255,255,0.6);
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.35s ease;
 }
@@ -2610,6 +2610,11 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   /* 앱: 상단 고정 헤더(스티키/사이드메뉴)를 상태바·노치 아래로 내림 */
   .native-app .modal-sticky-header { height: calc(56px + env(safe-area-inset-top)); padding-top: calc(10px + env(safe-area-inset-top)); }
   .native-app .side-menu-header { height: calc(72px + env(safe-area-inset-top)); padding-top: calc(10px + env(safe-area-inset-top)); }
+  /* 후기 등록: 제보/신고 모달과 타이틀 위치(세이프에어리어)·버튼 크기 통일 */
+  #reviewFormOverlay .signup-content { padding-top: max(40px, env(safe-area-inset-top, 40px)); }
+  #reviewFormOverlay .signup-footer { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  #reviewFormOverlay .signup-btn-cancel,
+  #reviewFormOverlay .signup-btn-confirm { height: 64px; font-size: 20px; }
 
   /* 내 정보: 제보하기/신고하기와 동일하게 풀스크린 모달로 표시
      (.modal 기본 모바일 규칙 + .modal-footer 하단 고정 그대로 상속) */
@@ -2690,6 +2695,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .rv-tab-body { width: 100%; }
 .rv-pane { width: 100%; }
 .rv-loading { padding: 28px 0; text-align: center; color: #999; font-size: 14px; }
+.rv-loading-anim { width: 48px; height: 48px; margin: 0 auto; }
 .rv-line { height: 1px; background: #eee; }
 
 /* PC 카드(info-window): 매장명과 동일한 20px 인셋 + 라인 아래 영역만 스크롤 */

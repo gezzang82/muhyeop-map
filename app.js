@@ -868,15 +868,33 @@ function switchDetailTab(placeId, tab) {
   if (tab === 'review' && !_reviewLoaded) { _reviewLoaded = true; loadReviews(placeId); }
 }
 
+// 후기 로딩 로티(bodymovin, image/loading.json). 앱 초기 로딩과 동일 방식.
+let _rvLoadingAnim = null;
+function showReviewLoading(pane) {
+  hideReviewLoading();
+  pane.innerHTML = '<div class="rv-loading"><div class="rv-loading-anim" id="rvLoadingAnim"></div></div>';
+  const el = document.getElementById('rvLoadingAnim');
+  if (el && window.lottie) {
+    _rvLoadingAnim = window.lottie.loadAnimation({
+      container: el, renderer: 'svg', loop: true, autoplay: true,
+      path: 'image/loading-review.json'
+    });
+  }
+}
+function hideReviewLoading() {
+  if (_rvLoadingAnim) { try { _rvLoadingAnim.destroy(); } catch (e) {} _rvLoadingAnim = null; }
+}
 async function loadReviews(placeId, sort) {
   const pane = document.querySelector('#rvTabBody .rv-pane-review');
   if (!pane) return;
   if (sort) _reviewSort = sort;
-  pane.innerHTML = '<div class="rv-loading">불러오는 중…</div>';
+  showReviewLoading(pane);
   try {
     const list = await fetch(`/api/places?reviews=list&placeId=${placeId}&sort=${_reviewSort === 'likes' ? 'likes' : 'latest'}`).then(r => r.json());
+    hideReviewLoading();
     pane.innerHTML = renderReviewPane(placeId, Array.isArray(list) ? list : []);
   } catch (e) {
+    hideReviewLoading();
     pane.innerHTML = '<div class="rv-loading">후기를 불러오지 못했어요.</div>';
   }
 }
