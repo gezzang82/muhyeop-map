@@ -1,0 +1,18 @@
+{
+  "name": "muhyeop-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "무협맵 모바일 앱 (Capacitor 래핑)",
+  "scripts": {
+    "sync": "cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/browser": "^8.0.3",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1"
+  }
+}

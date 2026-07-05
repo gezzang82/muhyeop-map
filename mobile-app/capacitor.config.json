@@ -1,0 +1,12 @@
+{
+  "appId": "com.muhyeop.app",
+  "appName": "무협맵",
+  "webDir": "www",
+  "server": {
+    "url": "https://muhyeop.com",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "always"
+  }
+}

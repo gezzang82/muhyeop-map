@@ -57,6 +57,33 @@ const CATEGORY_PINS = {
   '기타':      { color: '#8E8E8E', icon: '<circle cx="10" cy="15" r="1.5" fill="#fff"/><circle cx="15" cy="15" r="1.5" fill="#fff"/><circle cx="20" cy="15" r="1.5" fill="#fff"/>' }
 };
 const DEFAULT_PIN = { color: '#8E8E8E', icon: '<circle cx="15" cy="15" r="2.2" fill="#fff"/>' };
+
+// ===== 앱(Capacitor WebView) 인앱 브라우저 =====
+// 앱에서는 외부 링크를 시스템 Safari로 튕기지 않고 앱 내부(iOS SFSafariViewController)에서 연다.
+function isNativeApp() {
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+function openExternal(url) {
+  if (!url) return;
+  const B = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+  if (isNativeApp() && B) {
+    B.open({ url, presentationStyle: 'popover' }).catch(() => window.open(url, '_blank', 'noopener'));
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+// 앱에서 다른 도메인으로 향하는 링크 클릭을 가로채 인앱 브라우저로 연다(제보자·캠페인·후기 링크 공통).
+if (isNativeApp()) {
+  document.addEventListener('click', function (e) {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    const href = a.getAttribute('href') || '';
+    if (/^https?:\/\//i.test(href) && href.indexOf(location.host) === -1) {
+      e.preventDefault();
+      openExternal(href);
+    }
+  }, true);
+}
 // 캠페인 없는(회색) 핀은 이 줌 이상에서만 노출 (네이버 스케일 50m ≈ zoom 17, 60m와 가장 가까운 단계)
 const GRAY_PIN_MIN_ZOOM = 17;
 let _grayPinVisible = null;
@@ -409,7 +436,7 @@ function showBannerPopup() {
   const overlay = document.getElementById('bannerPopupOverlay');
   const img = document.getElementById('bannerPopupImage');
   img.src = banner.imageUrl;
-  img.onclick = () => { if (banner.linkUrl) window.open(banner.linkUrl, '_blank'); };
+  img.onclick = () => { if (banner.linkUrl) openExternal(banner.linkUrl); };
   img.style.cursor = banner.linkUrl ? 'pointer' : 'default';
   overlay.classList.add('show');
 }
@@ -620,7 +647,9 @@ function createInfoContent(place) {
               </div>
               ${rightBtnHtml}
             </div>
-            <p class="iw-content">${c.content}</p>
+            ${c.link
+              ? `<a class="iw-content-link" href="${c.link}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="iw-content">${c.content}</p><img src="image/ic_chevron_right_gray.svg" width="8" height="8" class="iw-content-chev" alt=""></a>`
+              : `<p class="iw-content">${c.content}</p>`}
             <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
           </div>`;
       }).join('')
@@ -737,7 +766,9 @@ function createMobileDetailContent(place) {
           </div>
           ${rightBtnHtml}
         </div>
-        <p class="detail-content">${c.content}</p>
+        ${c.link
+          ? `<a class="detail-content-link" href="${c.link}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="detail-content">${c.content}</p><img src="image/ic_chevron_right_gray.svg" width="10" height="10" class="detail-content-chev" alt=""></a>`
+          : `<p class="detail-content">${c.content}</p>`}
         <div class="detail-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
       </div>`;
   }).join('');
@@ -893,7 +924,7 @@ function reviewCardHtml(r, isPreview) {
     ? byline
     : `${byline}
        <button class="rv-like${r.liked ? ' liked' : ''}" onclick="event.stopPropagation();toggleReviewLike(${r.id}, this)">${rvHeart()}<span class="rv-like-count">${r.likeCount || 0}</span></button>`;
-  const clickAttr = isPreview ? '' : ` onclick="window.open('${rvEsc(r.url)}','_blank','noopener')"`;
+  const clickAttr = isPreview ? '' : ` onclick="openExternal('${rvEsc(r.url)}')"`;
   return `<div class="rv-card"${clickAttr}>
       ${thumb}
       <div class="rv-card-body">

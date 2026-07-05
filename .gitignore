@@ -5,3 +5,7 @@ node_modules
 .DS_Store
 **/.DS_Store
 scrape_out/
+mobile-app/ios/App/Pods
+mobile-app/ios/App/build
+mobile-app/ios/DerivedData
+mobile-app/android
