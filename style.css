@@ -2617,6 +2617,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   #reviewFormOverlay .signup-footer { padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); }
   #reviewFormOverlay .signup-btn-cancel,
   #reviewFormOverlay .signup-btn-confirm { height: 64px; font-size: 20px; }
+  /* 정책(이용약관/개인정보) 모달: 후기 등록과 타이틀 위치 통일 */
+  #policyOverlay .modal-header { padding-top: calc(24px + env(safe-area-inset-top)); }
 
   /* 내 정보: 제보하기/신고하기와 동일하게 풀스크린 모달로 표시
      (.modal 기본 모바일 규칙 + .modal-footer 하단 고정 그대로 상속) */
@@ -2806,6 +2808,10 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   #reviewFormOverlay .signup-footer { padding: 20px; }
   #reviewFormOverlay .signup-btn-cancel,
   #reviewFormOverlay .signup-btn-confirm { height: 48px; font-size: 16px; }
+  /* 정책 모달: 후기 등록 PC 카드와 타이틀·닫기 버튼 통일 */
+  #policyOverlay .modal-header { padding-top: 24px; }
+  #policyOverlay .modal-header h2 { font-size: 20px; }
+  #policyOverlay .modal-footer .btn-next { height: 48px; font-size: 16px; }
 }
 
 /* 모집 중인 협찬 리스트 상단 안내 문구 */
