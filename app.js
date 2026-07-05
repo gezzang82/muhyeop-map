@@ -256,6 +256,22 @@ function trackCampaignClick(id) {
   fetch(`/api/campaigns?track=click&id=${id}`, { method: 'POST', keepalive: true }).catch(() => {});
 }
 
+// [임시/오픈 전] 캠페인 상세의 파트너 링크 버튼을 전부 숨김(오픈 전 Referer로 우리 URL이 파트너 플랫폼에 노출되는 것 방지).
+// 아래 지정한 캠페인 1건만 테스트용으로 내 블로그에 연결한다.
+// 오픈 시 원복: campaignLink(c)를 `return c.link;`로 바꾸면 원래대로 실제 링크가 노출됨.
+const TEST_ONLY_CAMPAIGN_ID = 557; // 백소정 산본점
+const TEST_ONLY_CAMPAIGN_URL = 'https://blog.naver.com/pww010';
+function campaignLink(c) {
+  return c && c.id === TEST_ONLY_CAMPAIGN_ID ? TEST_ONLY_CAMPAIGN_URL : null;
+}
+
+// 링크 방어: 프로토콜(https://) 없이 저장된 외부 URL(어드민/엑셀 업로드 등)도 항상 절대 URL로 만들어
+// 앱 인앱 브라우저 인터셉터가 놓치지 않고 웹뷰로 열도록 함. 앱 입력은 이미 https를 붙이지만 이중 방어.
+function httpUrl(u) {
+  if (!u) return u;
+  return /^https?:\/\//i.test(u) ? u : 'https://' + String(u).replace(/^\/+/, '');
+}
+
 function hasPlatformAlready(placeId, platform) {
   const today = getKSTTodayUTC();
   return campaigns.some(c => c.placeId === placeId && !c.hidden && c.platform === platform && deadlineToUTC(c.deadline) >= today);
@@ -366,7 +382,8 @@ function initMap() {
   initSidebarScrollExpand();
   initSidebarSwipeToDismiss();
   initSheetSwipeToDismiss();
-  tryInitialLocation();
+  // 실행 시 자동 위치이동은 하지 않음(현재 서울만 등록 → 서울 전역 기본). '내 위치' 버튼으로만 현재위치 적용.
+  // tryInitialLocation();
   showBannerPopup();
 }
 
@@ -582,7 +599,7 @@ function createInfoContent(place) {
         <img src="image/ic_workspace_premium_24.svg" width="24" height="24" alt="">
         <div class="iw-founder-name-group">
           ${place.founderUrl
-            ? `<a class="iw-founder-name" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a><img src="image/ic_chevron_right_blue.svg" class="iw-founder-chevron" alt="">`
+            ? `<a class="iw-founder-name" href="${httpUrl(place.founderUrl)}" target="_blank">${place.founderNickname}</a><img src="image/ic_chevron_right_blue.svg" class="iw-founder-chevron" alt="">`
             : `<span class="iw-founder-name">${place.founderNickname}</span>`}
         </div>
       </div>
@@ -633,7 +650,7 @@ function createInfoContent(place) {
               <span class="iw-info-label">제보</span>
             </div>
             ${reporterUrl
-              ? `<div class="iw-reporter-group"><a class="iw-reporter-link" href="${reporterUrl}" target="_blank" onclick="trackCampaignClick(${c.id})">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" style="display:block;flex-shrink:0;" alt=""></div>`
+              ? `<div class="iw-reporter-group"><a class="iw-reporter-link" href="${httpUrl(reporterUrl)}" target="_blank" onclick="trackCampaignClick(${c.id})">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" style="display:block;flex-shrink:0;" alt=""></div>`
               : `<span class="iw-info-value">${c.reporterNickname}</span>`}
           </div>` : '';
 
@@ -649,8 +666,8 @@ function createInfoContent(place) {
               </div>
               ${rightBtnHtml}
             </div>
-            ${c.link
-              ? `<a class="iw-content-link" href="${c.link}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="iw-content">${c.content}</p><img src="image/ic_chevron_right_gray.svg" width="8" height="8" class="iw-content-chev" alt=""></a>`
+            ${campaignLink(c)
+              ? `<a class="iw-content-link" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="iw-content">${c.content}</p><img src="image/ic_chevron_right_gray.svg" width="8" height="8" class="iw-content-chev" alt=""></a>`
               : `<p class="iw-content">${c.content}</p>`}
             <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
           </div>`;
@@ -695,7 +712,7 @@ function createMobileDetailContent(place) {
         <img src="image/ic_workspace_premium_24.svg" width="24" height="24" alt="" class="detail-founder-icon-img">
         <div class="detail-founder-name-group">
           ${place.founderUrl
-            ? `<a class="detail-founder-link" href="${place.founderUrl}" target="_blank">${place.founderNickname}</a><img src="image/ic_chevron_right_blue.svg" class="detail-founder-chevron" alt="">`
+            ? `<a class="detail-founder-link" href="${httpUrl(place.founderUrl)}" target="_blank">${place.founderNickname}</a><img src="image/ic_chevron_right_blue.svg" class="detail-founder-chevron" alt="">`
             : `<span class="detail-founder-link">${place.founderNickname}</span>`}
         </div>
       </div>
@@ -752,7 +769,7 @@ function createMobileDetailContent(place) {
           <span class="detail-info-label">제보</span>
         </div>
         ${reporterUrl
-          ? `<div class="detail-reporter-group"><a class="detail-info-reporter-link" href="${reporterUrl}" target="_blank" onclick="trackCampaignClick(${c.id})">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" class="detail-reporter-chevron" alt=""></div>`
+          ? `<div class="detail-reporter-group"><a class="detail-info-reporter-link" href="${httpUrl(reporterUrl)}" target="_blank" onclick="trackCampaignClick(${c.id})">${c.reporterNickname}</a><img src="image/ic_chevron_right_gray.svg" class="detail-reporter-chevron" alt=""></div>`
           : `<span class="detail-info-value">${c.reporterNickname}</span>`}
       </div>` : '';
 
@@ -768,8 +785,8 @@ function createMobileDetailContent(place) {
           </div>
           ${rightBtnHtml}
         </div>
-        ${c.link
-          ? `<a class="detail-content-link" href="${c.link}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="detail-content">${c.content}</p><img src="image/ic_chevron_right_gray.svg" width="10" height="10" class="detail-content-chev" alt=""></a>`
+        ${campaignLink(c)
+          ? `<a class="detail-content-link" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="detail-content">${c.content}</p><img src="image/ic_chevron_right_gray.svg" width="10" height="10" class="detail-content-chev" alt=""></a>`
           : `<p class="detail-content">${c.content}</p>`}
         <div class="detail-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
       </div>`;
@@ -1125,22 +1142,34 @@ function renderSidebar() {
   }).join('');
 }
 
+// 현재위치 조회 통합: 앱은 Capacitor Geolocation(네이티브), 웹은 navigator.geolocation.
+// 둘 다 {lat, lng}로 resolve → 이후 지도 이동 동작은 웹/앱 동일.
+function getGeoPosition() {
+  const G = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation;
+  if (isNativeApp() && G) {
+    return G.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 })
+      .then(p => ({ lat: p.coords.latitude, lng: p.coords.longitude }));
+  }
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('geolocation unavailable')); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => reject(err),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+}
 function moveToMyLocation() {
-  if (!navigator.geolocation) { showToast('위치 정보를 사용할 수 없어요'); return; }
   const btn = document.querySelector('.btn-my-location');
-  btn.style.opacity = '0.4';
-  btn.disabled = true;
-  const restore = () => { btn.style.opacity = ''; btn.disabled = false; };
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      map.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
-      map.setZoom(15);
-      showMyLocationMarker(pos.coords.latitude, pos.coords.longitude);
-      restore();
-      renderSidebar();
-    },
-    () => { showToast('위치 권한을 허용해주세요'); restore(); }
-  );
+  if (btn) { btn.style.opacity = '0.4'; btn.disabled = true; }
+  const restore = () => { if (btn) { btn.style.opacity = ''; btn.disabled = false; } };
+  getGeoPosition().then(({ lat, lng }) => {
+    map.setCenter(new naver.maps.LatLng(lat, lng));
+    map.setZoom(15);
+    showMyLocationMarker(lat, lng);
+    restore();
+    renderSidebar();
+  }).catch(() => { showToast('위치 권한을 허용해주세요'); restore(); });
 }
 
 function focusPlace(placeId) {
