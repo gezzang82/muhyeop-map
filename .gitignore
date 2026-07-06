@@ -8,4 +8,8 @@ scrape_out/
 mobile-app/ios/App/Pods
 mobile-app/ios/App/build
 mobile-app/ios/DerivedData
-mobile-app/android
+mobile-app/android/.gradle
+mobile-app/android/build
+mobile-app/android/app/build
+mobile-app/android/capacitor-cordova-android-plugins
+mobile-app/android/local.properties
