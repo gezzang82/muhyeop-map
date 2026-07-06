@@ -13,6 +13,8 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- 시스템바 뒤 배경 = 흰색(하단 내비 흰색). 상단 상태바는 MainActivity에서 검정 뷰를 얹음 -->
+        <item name="android:windowBackground">@android:color/white</item>
     </style>
 
 

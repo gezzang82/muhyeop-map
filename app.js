@@ -3284,6 +3284,40 @@ function hideAppLoading() {
 }
 document.addEventListener('DOMContentLoaded', initAppLoading);
 
+// 안드로이드 앱 전용: 전체화면 흰 배경 모달이 열리면 상단 상태바를 흰색(어두운 아이콘)으로,
+// 지도로 돌아오면 검정으로 전환. iOS/웹엔 window.MuhyeopNativeUI가 없어 자동 무시됨.
+function initAndroidStatusBar() {
+  const WHITE_MODALS = ['modalOverlay', 'reportOverlay', 'aboutOverlay', 'policyOverlay',
+    'profileOverlay', 'reviewFormOverlay', 'signupInfoOverlay', 'signupDoneOverlay',
+    'withdrawConfirmOverlay', 'withdrawDoneOverlay'];
+  let tries = 0;
+  (function waitForBridge() {
+    const iface = window.MuhyeopNativeUI;
+    if (iface && typeof iface.setStatusBar === 'function') { setup(iface); return; }
+    if (tries++ > 20) return; // 최대 ~2초 대기 후 포기(비안드로이드)
+    setTimeout(waitForBridge, 100);
+  })();
+  function setup(iface) {
+    let last = null;
+    const update = () => {
+      const white = WHITE_MODALS.some(id => {
+        const el = document.getElementById(id);
+        return el && el.classList.contains('open');
+      });
+      if (white === last) return;
+      last = white;
+      try { iface.setStatusBar(white); } catch (e) {}
+    };
+    const obs = new MutationObserver(update);
+    WHITE_MODALS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+    });
+    update();
+  }
+}
+document.addEventListener('DOMContentLoaded', initAndroidStatusBar);
+
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
 document.addEventListener('touchmove', function(e) {
