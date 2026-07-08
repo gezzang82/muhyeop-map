@@ -1379,8 +1379,24 @@ function setNaverLogoVisible(visible) {
 }
 
 // ===== 바텀시트 토글 (모바일) =====
+let _sidebarSwipeAt = 0; // 스와이프로 열고/닫은 시각. 직후(~350ms) 따라오는 click만 무시
+
+// 접힘 → 펼침 (스와이프 업 / 필요 시 재사용). 탭 펼치기와 동일 동작
+function expandSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  if (window.innerWidth > 640 || sidebar.classList.contains('expanded')) return;
+  sidebar.style.transform = ''; sidebar.style.transition = '';
+  sidebar.classList.add('expanded');
+  const arrow = document.getElementById('sidebarArrow');
+  if (arrow) arrow.textContent = '﹀';
+  setNaverLogoVisible(false);
+  renderSidebar();
+  setTimeout(updateSidebarListFade, 400);
+}
+
 function toggleBottomSheet(e) {
   if (window.innerWidth > 640) return;
+  if (Date.now() - _sidebarSwipeAt < 350) return; // 스와이프 직후 따라온 click → 탭 무시
   const sidebar = document.getElementById('sidebar');
   // 헤더 영역 클릭 시에만 토글 (리스트 스크롤은 방해 안 함)
   if (e.target.closest('.sidebar-list') || e.target.closest('.sidebar-card')) return;
@@ -3003,18 +3019,24 @@ function initSidebarSwipeToDismiss() {
   let startY = 0;
   let currentY = 0;
   let dragging = false;
+  let dragMode = null; // 'collapse'(펼침→아래로 닫기) | 'expand'(접힘→위로 열기)
 
   function startDrag(y) {
     if (window.innerWidth > 640) return false;
-    if (!sidebar.classList.contains('expanded')) return false;
     startY = y; currentY = y; dragging = true;
-    sidebar.style.transition = 'none';
+    if (sidebar.classList.contains('expanded')) {
+      dragMode = 'collapse';
+      sidebar.style.transition = 'none';
+    } else {
+      dragMode = 'expand'; // 접힘 상태: 위로 쓸어 올려 펼치기 (임계값 방식)
+    }
     return true;
   }
 
   function moveDrag(y) {
     if (!dragging) return;
     currentY = y;
+    if (dragMode !== 'collapse') return; // 펼치기 모드는 라이브 변형 없이 임계값만 판단
     const delta = currentY - startY;
     if (delta < 0) return;
     sidebar.style.transform = `translateY(${delta}px)`;
@@ -3024,7 +3046,13 @@ function initSidebarSwipeToDismiss() {
     if (!dragging) return;
     dragging = false;
     const delta = currentY - startY;
+    if (dragMode === 'expand') {
+      // 위로 20px 이상 쓸면 펼치기 (뒤따르는 click 무시)
+      if (delta < -20) { _sidebarSwipeAt = Date.now(); expandSidebar(); }
+      return;
+    }
     if (delta > 80) {
+      _sidebarSwipeAt = Date.now(); // 스와이프로 닫음 → 직후 click 무시
       // peek(헤더 바) 상태로 복귀 — transform만 애니메이션(GPU 가속)해 부드럽게, 끝나면 height를 한 프레임에 교체
       const arrow = document.getElementById('sidebarArrow');
       if (arrow) arrow.textContent = '︿';
@@ -3061,6 +3089,7 @@ function initSidebarSwipeToDismiss() {
     startY = e.touches[0].clientY;
     currentY = startY;
     dragging = false;
+    dragMode = null;
   }, { passive: true });
   list.addEventListener('touchmove', (e) => {
     const y = e.touches[0].clientY;
@@ -3069,6 +3098,7 @@ function initSidebarSwipeToDismiss() {
     if (list.scrollTop <= 0 && delta > 0 && sidebar.classList.contains('expanded')) {
       if (!dragging) {
         dragging = true;
+        dragMode = 'collapse';
         sidebar.style.transition = 'none';
       }
       e.preventDefault();
