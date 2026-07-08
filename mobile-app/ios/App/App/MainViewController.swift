@@ -14,6 +14,10 @@ class MainViewController: CAPBridgeViewController {
         super.viewDidLoad()
         guard let webView = self.webView else { return }
         webView.allowsBackForwardNavigationGestures = true
+        // 웹뷰 문서 자체의 오버스크롤(러버밴드=아래로 내려갔다 올라옴) 제거.
+        // 고정 지도 셸이라 문서 스크롤/바운스가 불필요(내부 리스트/모달 스크롤은 별개로 유지됨).
+        webView.scrollView.bounces = false
+        webView.scrollView.alwaysBounceVertical = false
         urlObservation = webView.observe(\.url, options: [.initial, .new]) { [weak self] wv, _ in
             self?.applyInsetForCurrentURL(wv)
         }
