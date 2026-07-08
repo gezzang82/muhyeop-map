@@ -3059,7 +3059,8 @@ function initSidebarSwipeToDismiss() {
       setNaverLogoVisible(true);
       const PEEK_H = 78;
       const slideTo = Math.max(0, sidebar.offsetHeight - PEEK_H);
-      sidebar.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      // 감속(ease-out) 곡선 — 손가락 놓는 순간의 관성을 이어받아 팅김 없이 부드럽게
+      sidebar.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
       sidebar.style.transform = `translateY(${slideTo}px)`;
       setTimeout(() => {
         // 같은 화면 위치에서 height 축소 + transform 리셋을 원자적으로 교체 → 점프 없음
@@ -3072,9 +3073,9 @@ function initSidebarSwipeToDismiss() {
         requestAnimationFrame(() => { sidebar.style.transition = ''; });
       }, 300);
     } else {
-      sidebar.style.transition = 'none';
+      // 닫기 임계값 미만 → 원위치로 '부드럽게' 복귀(즉시 스냅 금지: 팅김 방지)
+      sidebar.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
       sidebar.style.transform = '';
-      requestAnimationFrame(() => { sidebar.style.transition = ''; });
     }
   }
 
