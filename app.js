@@ -3059,7 +3059,6 @@ function initSidebarSwipeToDismiss() {
       setNaverLogoVisible(true);
       const PEEK_H = 78;
       const slideTo = Math.max(0, sidebar.offsetHeight - PEEK_H);
-      // 감속(ease-out) 곡선 — 손가락 놓는 순간의 관성을 이어받아 팅김 없이 부드럽게
       sidebar.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
       sidebar.style.transform = `translateY(${slideTo}px)`;
       setTimeout(() => {
@@ -3072,16 +3071,25 @@ function initSidebarSwipeToDismiss() {
         if (list) list.scrollTop = 0;
         requestAnimationFrame(() => { sidebar.style.transition = ''; });
       }, 300);
-    } else {
-      // 닫기 임계값 미만 → 원위치로 '부드럽게' 복귀(즉시 스냅 금지: 팅김 방지)
+    } else if (Math.abs(delta) > 6) {
+      // 실제로 조금 드래그하다 놓음 → transform 스냅백 애니메이션 후 CSS(height) 트랜지션 복원
       sidebar.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+      sidebar.style.transform = '';
+      setTimeout(() => { sidebar.style.transition = ''; }, 250);
+    } else {
+      // 사실상 탭 → 인라인 트랜지션 즉시 제거해, 뒤따르는 click(toggle)이 CSS height 트랜지션으로 부드럽게 닫히게
+      sidebar.style.transition = '';
       sidebar.style.transform = '';
     }
   }
 
   // 헤더 영역
   header.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientY), { passive: true });
-  header.addEventListener('touchmove', (e) => moveDrag(e.touches[0].clientY), { passive: true });
+  header.addEventListener('touchmove', (e) => {
+    moveDrag(e.touches[0].clientY);
+    // 드래그 중엔 앱 WebView의 오버스크롤(러버밴드=팅김) 차단
+    if (dragging) e.preventDefault();
+  }, { passive: false });
   header.addEventListener('touchend', endDrag);
 
   // 리스트 영역: 맨 위에서 아래로 당길 때만 닫기
