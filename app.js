@@ -3020,10 +3020,11 @@ function initSidebarSwipeToDismiss() {
   let currentY = 0;
   let dragging = false;
   let dragMode = null; // 'collapse'(펼침→아래로 닫기) | 'expand'(접힘→위로 열기)
+  let startTime = 0;   // 플릭(속도) 판정용
 
   function startDrag(y) {
     if (window.innerWidth > 640) return false;
-    startY = y; currentY = y; dragging = true;
+    startY = y; currentY = y; dragging = true; startTime = Date.now();
     if (sidebar.classList.contains('expanded')) {
       dragMode = 'collapse';
       sidebar.style.transition = 'none';
@@ -3039,7 +3040,9 @@ function initSidebarSwipeToDismiss() {
     if (dragMode !== 'collapse') return; // 펼치기 모드는 라이브 변형 없이 임계값만 판단
     const delta = currentY - startY;
     if (delta < 0) return;
-    sidebar.style.transform = `translateY(${delta}px)`;
+    // peek 위치보다 더 내려가지 않게 클램프 → 놓을 때 다시 위로 튀는 오버슈트 방지
+    const maxDelta = Math.max(0, sidebar.offsetHeight - 78);
+    sidebar.style.transform = `translateY(${Math.min(delta, maxDelta)}px)`;
   }
 
   function endDrag() {
@@ -3051,7 +3054,9 @@ function initSidebarSwipeToDismiss() {
       if (delta < -20) { _sidebarSwipeAt = Date.now(); expandSidebar(); }
       return;
     }
-    if (delta > 80) {
+    // 닫기 판정: 충분히 내렸거나(80px+) 빠르게 아래로 플릭(속도)하면 닫기
+    const velocity = delta / Math.max(1, Date.now() - startTime); // px/ms (양수=아래로)
+    if (delta > 80 || (delta > 20 && velocity > 0.4)) {
       _sidebarSwipeAt = Date.now(); // 스와이프로 닫음 → 직후 click 무시
       // peek(헤더 바) 상태로 복귀 — transform만 애니메이션(GPU 가속)해 부드럽게, 끝나면 height를 한 프레임에 교체
       const arrow = document.getElementById('sidebarArrow');
@@ -3108,11 +3113,13 @@ function initSidebarSwipeToDismiss() {
       if (!dragging) {
         dragging = true;
         dragMode = 'collapse';
+        startTime = Date.now();
         sidebar.style.transition = 'none';
       }
       e.preventDefault();
       currentY = y;
-      sidebar.style.transform = `translateY(${delta}px)`;
+      const maxDelta = Math.max(0, sidebar.offsetHeight - 78);
+      sidebar.style.transform = `translateY(${Math.min(delta, maxDelta)}px)`;
     }
   }, { passive: false });
   list.addEventListener('touchend', endDrag);
