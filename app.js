@@ -2980,11 +2980,17 @@ function openMobileSheet(place) {
   overlay.classList.add('show');
   setSelectedMarker(place.id);
   trackPlaceCampaignViews(place);
-  // 핀을 바텀시트 위 영역 중앙으로 이동 (시트에 가리지 않게 위로 올림)
+  // 핀을 '보이는 지도 영역(상단 검색+필터 아래 ~ 시트 상단 위)'의 세로 중앙으로 이동.
+  // 시트 높이가 콘텐츠마다 달라(offsetHeight로 반영), 고정 오프셋 대신 동적으로 중앙 계산.
   const proj = map.getProjection();
   if (proj) {
+    const vpH = window.innerHeight;
+    const sheetTop = vpH - sheet.offsetHeight;
+    const topUI = document.querySelector('.mobile-map-overlay');
+    const topBound = topUI ? topUI.getBoundingClientRect().bottom : 120;
+    const visibleCenterY = (topBound + sheetTop) / 2;
     const off = proj.fromCoordToOffset(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
-    off.y += 150;
+    off.y += (vpH / 2 - visibleCenterY); // 지도 중앙에서 이만큼 위로 올려 보이는 영역 중앙에 배치
     map.panTo(proj.fromOffsetToCoord(off));
   }
   // 사이드바 오프스크린으로 내리기
