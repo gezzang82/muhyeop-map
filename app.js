@@ -1210,12 +1210,15 @@ function moveToMyLocation() {
   }).catch(() => { showToast('위치 권한을 허용해주세요'); restore(); });
 }
 
-function focusPlace(placeId) {
+function focusPlace(placeId, zoom) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
 
   map.setCenter(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
-  map.setZoom(16);
+  map.setZoom(zoom || 16);
+  // 종료(비활성) 매장은 이 줌(≥GRAY_PIN_MIN_ZOOM)에서만 회색핀이 뜬다. 현재 마커가 없으면
+  // 새 줌 기준으로 다시 그려 회색핀을 만들어야 아래 상세 오픈에서 setSelectedMarker가 핀을 선택함.
+  if (!markerMap[placeId]) renderMarkers();
 
   if (window.innerWidth <= 640) {
     // 모바일: 바텀시트 열고 사이드바 닫기
@@ -1292,11 +1295,11 @@ function searchRegion() {
   const nq = normalize(query);
   const placeMatch = places.find(p => normalize(p.name) === nq);
   if (placeMatch) {
-    // 매장명 정확 일치 → 상세(캠페인+후기 탭) 오픈. 종료(비활성) 매장도 선택해 후기를 볼 수 있게 함.
-    // 활성 매장은 핀도 선택되고, 종료 매장은 마커가 없어 setSelectedMarker가 no-op(상세만 열림, 후기 탭 기본).
+    // 매장명 정확 일치 → 상세(캠페인+후기 탭) 오픈 + 핀 선택.
+    // 종료(비활성) 매장은 회색핀이 뜨는 줌까지 확대해 핀도 선택되게 하고, 상세는 후기 탭 기본.
     clearSearchPin();
-    setSelectedMarker(placeMatch.id);
-    focusPlace(placeMatch.id);
+    const ended = getActiveCampaigns(placeMatch.id).length === 0;
+    focusPlace(placeMatch.id, ended ? GRAY_PIN_MIN_ZOOM : 16);
     return;
   }
 
