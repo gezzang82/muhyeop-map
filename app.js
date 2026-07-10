@@ -1387,6 +1387,9 @@ function expandSidebar() {
   if (window.innerWidth > 640 || sidebar.classList.contains('expanded')) return;
   sidebar.style.transform = ''; sidebar.style.transition = '';
   sidebar.classList.add('expanded');
+  // 닫힘 페이드가 도중이었을 수 있으니 리스트 불투명도 복원
+  const listEl = document.getElementById('campaignList');
+  if (listEl) { listEl.style.transition = ''; listEl.style.opacity = ''; }
   const arrow = document.getElementById('sidebarArrow');
   if (arrow) arrow.textContent = '﹀';
   setNaverLogoVisible(false);
@@ -3070,6 +3073,9 @@ function initSidebarSwipeToDismiss() {
       const slideTo = Math.max(0, sidebar.offsetHeight - peekH());
       sidebar.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
       sidebar.style.transform = `translateY(${slideTo}px)`;
+      // 리스트 내용은 내려가는 '끝 즈음'(딜레이 후 짧게) 페이드아웃 → 마지막에 툭 사라지지 않게
+      const listFade = document.getElementById('campaignList');
+      if (listFade) { listFade.style.transition = 'opacity 0.18s ease 0.1s'; listFade.style.opacity = '0'; }
       setTimeout(() => {
         // 같은 화면 위치에서 height 축소 + transform 리셋을 원자적으로 교체 → 점프 없음
         sidebar.style.transition = 'none';
@@ -3077,7 +3083,7 @@ function initSidebarSwipeToDismiss() {
         sidebar.classList.remove('expanded-full');
         sidebar.style.transform = '';
         const list = document.getElementById('campaignList');
-        if (list) list.scrollTop = 0;
+        if (list) { list.scrollTop = 0; list.style.transition = ''; list.style.opacity = ''; }
         requestAnimationFrame(() => { sidebar.style.transition = ''; });
       }, 300);
     } else if (Math.abs(delta) > 6) {
