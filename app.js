@@ -1292,17 +1292,11 @@ function searchRegion() {
   const nq = normalize(query);
   const placeMatch = places.find(p => normalize(p.name) === nq);
   if (placeMatch) {
-    // 진행 중인 캠페인이 있는 매장만 지도에 핀/카드를 노출. 종료된(비활성) 매장은
-    // 검색되어 위치로 이동은 하되, 핀이 없으므로 카드(말풍선)는 띄우지 않음.
+    // 매장명 정확 일치 → 상세(캠페인+후기 탭) 오픈. 종료(비활성) 매장도 선택해 후기를 볼 수 있게 함.
+    // 활성 매장은 핀도 선택되고, 종료 매장은 마커가 없어 setSelectedMarker가 no-op(상세만 열림, 후기 탭 기본).
     clearSearchPin();
-    if (getActiveCampaigns(placeMatch.id).length > 0) {
-      setSelectedMarker(placeMatch.id);
-      focusPlace(placeMatch.id);
-    } else {
-      map.setCenter(new naver.maps.LatLng(placeMatch.displayLat ?? placeMatch.lat, placeMatch.displayLng ?? placeMatch.lng));
-      map.setZoom(16);
-      showToast('현재 진행 중인 협찬이 없는 매장이에요');
-    }
+    setSelectedMarker(placeMatch.id);
+    focusPlace(placeMatch.id);
     return;
   }
 
