@@ -3022,6 +3022,10 @@ function initSidebarSwipeToDismiss() {
   let dragMode = null; // 'collapse'(펼침→아래로 닫기) | 'expand'(접힘→위로 열기)
   let startTime = 0;   // 플릭(속도) 판정용
 
+  // 접힘(peek) 높이 = 78px + 하단 세이프에어리어(앱 홈 인디케이터, 웹은 0).
+  // 드래그 클램프/닫기 목표 위치를 이 값으로 맞춰야 닫을 때 '더 내려갔다 튀어 올라옴'이 없음.
+  function peekH() { return 78 + (parseFloat(getComputedStyle(sidebar).paddingBottom) || 0); }
+
   function startDrag(y) {
     if (window.innerWidth > 640) return false;
     startY = y; currentY = y; dragging = true; startTime = Date.now();
@@ -3041,7 +3045,7 @@ function initSidebarSwipeToDismiss() {
     const delta = currentY - startY;
     if (delta < 0) return;
     // peek 위치보다 더 내려가지 않게 클램프 → 놓을 때 다시 위로 튀는 오버슈트 방지
-    const maxDelta = Math.max(0, sidebar.offsetHeight - 78);
+    const maxDelta = Math.max(0, sidebar.offsetHeight - peekH());
     sidebar.style.transform = `translateY(${Math.min(delta, maxDelta)}px)`;
   }
 
@@ -3062,8 +3066,8 @@ function initSidebarSwipeToDismiss() {
       const arrow = document.getElementById('sidebarArrow');
       if (arrow) arrow.textContent = '︿';
       setNaverLogoVisible(true);
-      const PEEK_H = 78;
-      const slideTo = Math.max(0, sidebar.offsetHeight - PEEK_H);
+      // 닫힘 목표 = peek 높이(78+세이프에어리어)만 남기고 내림. 하드코딩 78이면 앱에서 더 내려갔다 튀어 올라옴.
+      const slideTo = Math.max(0, sidebar.offsetHeight - peekH());
       sidebar.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
       sidebar.style.transform = `translateY(${slideTo}px)`;
       setTimeout(() => {
@@ -3118,7 +3122,7 @@ function initSidebarSwipeToDismiss() {
       }
       e.preventDefault();
       currentY = y;
-      const maxDelta = Math.max(0, sidebar.offsetHeight - 78);
+      const maxDelta = Math.max(0, sidebar.offsetHeight - peekH());
       sidebar.style.transform = `translateY(${Math.min(delta, maxDelta)}px)`;
     }
   }, { passive: false });
