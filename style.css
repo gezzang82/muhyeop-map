@@ -33,6 +33,13 @@ html, body {
   /* 앱 WebView의 오버스크롤(러버밴드=내려갔다 올라옴) 방지 — 고정 지도 셸이라 당겨서 바운스 불필요 */
   overscroll-behavior: none;
 }
+/* 안쪽 스크롤 영역(리스트/모달 바디 등)의 오버스크롤(러버밴드) 방지.
+   overscroll-behavior는 상속되지 않아 스크롤 컨테이너마다 직접 지정해야 함(iOS 16+ WebView).
+   → 바텀시트 리스트를 위로/아래로 당길 때 튕기던(내려갔다 올라옴) 현상 제거 */
+.sidebar-list, .detail-scroll, .modal-body, .signup-content,
+.select-sheet-list, .side-menu-content, .rv-pane-review {
+  overscroll-behavior: none;
+}
 
 body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
