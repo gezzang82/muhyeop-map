@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>무협맵 법률 검토 — 협찬 플랫폼 약관 분석</title>
+<style>
+  :root { --red:#e82a2d; --ink:#1f2430; --sub:#5b6472; --line:#e7e9ee; --bg:#f6f7f9; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    line-height:1.65; font-size:15px; }
+  .wrap { max-width:1080px; margin:0 auto; padding:32px 20px 80px; }
+  header.hero { background:var(--red); color:#fff; border-radius:16px; padding:28px 28px 24px; margin-bottom:24px; }
+  header.hero h1 { margin:0 0 8px; font-size:24px; font-weight:800; letter-spacing:-.3px; }
+  header.hero p { margin:4px 0; font-size:14px; opacity:.95; }
+  .order { display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+  .order span { background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.35);
+    padding:4px 10px; border-radius:999px; font-size:13px; font-weight:600; }
+  .note { background:#fff; border:1px solid var(--line); border-left:4px solid var(--red);
+    border-radius:10px; padding:14px 16px; margin:16px 0; font-size:13.5px; color:var(--sub); }
+  .note b { color:var(--ink); }
+  h2 { font-size:19px; margin:34px 0 12px; padding-bottom:8px; border-bottom:2px solid var(--ink); }
+  h3 { font-size:15px; margin:22px 0 8px; color:var(--sub); }
+  table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.06); margin:10px 0 8px; font-size:13.5px; }
+  th, td { text-align:left; padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { background:#eef1f6; font-weight:700; font-size:12.5px; color:var(--sub); white-space:nowrap; }
+  tr:last-child td { border-bottom:none; }
+  td b { color:var(--red); }
+  .badge { display:inline-block; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .b-real { background:#e5f5ea; color:#1a7f3c; }
+  .b-pub  { background:#fff4d6; color:#9a6b00; }
+  .b-est  { background:#eceef2; color:#666e7d; }
+  .b-high { background:#fde3e3; color:#b3201f; }
+  .b-mid  { background:#fff0dc; color:#a15c00; }
+  ul.chk { list-style:none; padding-left:0; }
+  ul.chk li { padding:6px 0 6px 26px; position:relative; }
+  ul.chk li::before { content:'☐'; position:absolute; left:2px; color:var(--red); font-weight:700; }
+  ol.rec { padding-left:20px; }
+  ol.rec li { margin:8px 0; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--sub); margin-top:10px; }
+  footer { margin-top:36px; font-size:12px; color:var(--sub); text-align:center; }
+  @media (max-width:640px){ table{ font-size:12px; } th,td{ padding:8px; } header.hero h1{ font-size:20px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>무협맵 법률 검토 — 협찬 플랫폼 약관·개인정보 분석</h1>
+    <p>협찬 플랫폼의 캠페인 정보를 지도에 집약할 때 발생할 수 있는 법적 문제를 플랫폼별로 정리</p>
+    <div class="order">
+      <span>1. 리뷰노트</span><span>2. 강남맛집</span><span>3. 디너의여왕</span><span>4. 레뷰</span><span>5. 미블</span>
+    </div>
+  </header>
+
+  <div class="note">
+    <b>전제(현재 방향)</b> — 무협맵은 대량 자동수집을 보류하고 <b>커뮤니티(리뷰어) 제보 중심</b>으로 운영한다.
+    자동화는 저빈도·사실필드·출처링크백·사람검수의 제한적 형태로만 검토한다.
+  </div>
+  <div class="note">
+    ⚠️ <b>면책</b> — 2026-07 기준 공개정보·일부 실제 약관 확인·기존 검토를 종합한 정리로 <b>법률자문이 아니다</b>.
+    약관은 수시로 바뀌므로 실제 착수 전 <b>각 플랫폼 최신 약관 원문 + 변호사 검토</b>가 필수.
+    <div class="legend">
+      <span><span class="badge b-real">🟢 실측</span> 약관/정책 원문 확인</span>
+      <span><span class="badge b-pub">🟡 공개정보</span> 검색·소개페이지</span>
+      <span><span class="badge b-est">⚪ 추정</span> 동종 관행 기반</span>
+    </div>
+  </div>
+
+  <h2>1. 플랫폼별 요약</h2>
+  <table>
+    <thead><tr>
+      <th>#</th><th>플랫폼</th><th>운영사</th><th>접근형태</th><th>약관상 자동수집·영리이용 제한</th><th>저작권·DB 귀속</th><th>확인</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td><td><b>리뷰노트</b></td><td>리뷰노트</td><td>앱·웹(SPA)·로그인</td>
+        <td><b>제9조 금지행위</b>: 회사 동의 없이 서비스 정보를 영리·비영리 목적 복제·제3자 제공 금지 / 매크로·어뷰징 부정이용 금지 / 지재권 침해 금지</td>
+        <td><b>제13조 서비스 저작권 회사 귀속</b>, 제16조 콘텐츠 사용권 1년</td>
+        <td><span class="badge b-real">🟢</span></td>
+      </tr>
+      <tr>
+        <td>2</td><td><b>강남맛집</b></td><td>체험(주)</td><td>웹·로그인</td>
+        <td>상업행위 금지. 명시적 자동수집 금지 조항은 없음(리뷰노트·레뷰 대비 약함)</td>
+        <td><b>제19조: 체험 리뷰 저작권이 "회사"에 귀속</b>(임의 삭제·변경 시 상품가 변제)</td>
+        <td><span class="badge b-real">🟢</span></td>
+      </tr>
+      <tr>
+        <td>3</td><td><b>디너의여왕</b></td><td>디너의여왕</td><td>웹(SSR)·robots 일부 허용</td>
+        <td><b>금지행위 (g) 회사 동의 없이 영리목적 서비스 이용, (c) 지재권 침해</b> + 업무방해 금지. 매크로 명문 조항은 없음</td>
+        <td><b>제13조 서비스 저작권 회사 귀속</b>, 제16조 콘텐츠 영구 사용권</td>
+        <td><span class="badge b-real">🟢</span></td>
+      </tr>
+      <tr>
+        <td>4</td><td><b>레뷰(REVU)</b></td><td>레뷰코퍼레이션</td><td>웹·앱(SPA)·로그인</td>
+        <td><b>제9조 e항(리뷰노트와 동일 문구)</b>: 회사 동의 없이 서비스 정보 영리·비영리 복제·제3자 제공 금지. 플랫폼정책: 무단 수익링크·재판매 금지</td>
+        <td><b>제13조 서비스 저작권 회사 귀속</b>, 제16조 보상 콘텐츠 사용권</td>
+        <td><span class="badge b-real">🟢</span></td>
+      </tr>
+      <tr>
+        <td>5</td><td><b>미블(mrblog)</b></td><td>미블</td><td>웹(SPA)·로그인</td>
+        <td><b>11조</b>: 서비스로 얻은 정보를 개인 이용 외 복사·가공·번역 등 <b>2차저작·복제·배포·제3자 제공 금지</b>. <b>12조</b>: 광고·상업행위 시 콘텐츠 삭제</td>
+        <td>2차저작 전면 금지(11조)</td>
+        <td><span class="badge b-real">🟢</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="note" style="border-left-color:#1a7f3c;">
+    <b>업계 공통 패턴 (실측)</b> — <b>리뷰노트·레뷰는 사실상 동일한 약관 템플릿</b>을 사용하며, 둘 다 <b>제9조 e항</b> "회사 동의 없이 서비스 정보를 영리·비영리 목적으로 복제·제3자 제공 금지" + 매크로·부정이용 금지 + <b>제13조 서비스 저작권 회사 귀속</b>을 명문화. 미블은 제11조 2차저작 전면 금지, 강남맛집은 제19조 리뷰 저작권 회사 귀속. 명시적 "크롤링 금지" 문구가 없어도 <b>이 조항들로 사실상 커버</b>된다.
+  </div>
+
+  <h3>1-1. 실측 조항 상세 (원문 확인 🟢)</h3>
+  <table>
+    <thead><tr><th>플랫폼</th><th>핵심 조항(원문 발췌)</th></tr></thead>
+    <tbody>
+      <tr><td><b>리뷰노트</b></td><td><b>제9조 금지행위</b>: "회사의 동의 없이 서비스 정보를 변경하거나, <b>영리 또는 비영리 목적으로 정보를 복제·출판·방송 등에 사용하거나 제3자에게 제공하는 행위</b>" / "해킹, <b>매크로·어뷰징 등 부정한 방법</b>으로 서비스 이용" / 지재권 침해 금지. <b>제13조</b> 서비스 저작권 회사 귀속, <b>제16조</b> 콘텐츠 사용권 1년. 개인정보처리방침에 <b>매장명·매장주소·사업자정보</b>도 수집항목.</td></tr>
+      <tr><td><b>레뷰</b></td><td><b>제9조 e항</b>(리뷰노트와 동일 문구): "회사의 동의 없이 서비스 정보를… 영리 또는 비영리 목적으로 복제·제3자 제공 금지". <b>제13조</b> 서비스 저작권 회사 귀속, <b>제16조</b> 보상 콘텐츠 사용권. <b>플랫폼이용정책</b>: '콘텐츠' 정의에 "회사가 복제한 게시물 포함", 무단 수익링크·재판매 금지.</td></tr>
+      <tr><td><b>강남맛집</b></td><td><b>제19조</b>: "체험하고 작성한 모든 형태의 리뷰는… <b>그 저작권은 회사에 귀속</b>"(임의 삭제·변경 시 상품가 변제). <b>제12조</b> 회사가 콘텐츠 사본 저장. 상업행위 금지. 명시적 자동수집 금지 조항은 없음.</td></tr>
+      <tr><td><b>미블</b></td><td><b>제11조</b>: "서비스를 이용하여 얻은 정보를 개인적 이용 외에 <b>복사·가공·번역 등 2차적 저작을 통하여 복제·배포·제3자 제공하는 행위</b> 금지". <b>제12조</b> 상업행위 시 콘텐츠 삭제.</td></tr>
+      <tr><td><b>디너의여왕</b></td><td><b>금지행위</b>: "g. 회사의 동의 없이 <b>영리를 목적으로 서비스를 이용하는 행위</b>" / "c. 지적재산권 침해" / "d. 업무 방해". <b>제13조</b> 서비스 저작권 회사 귀속, <b>제16조</b> 콘텐츠 영구 사용권(복제·배포·2차저작). 개인정보 목적에 "서비스 부정이용 방지" 명시. robots 일부 허용·SSR로 5곳 중 유일하게 제한적 여지.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. 플랫폼별 우리(무협맵) 리스크 &amp; 대응</h2>
+  <table>
+    <thead><tr><th>#</th><th>플랫폼</th><th>핵심 리스크</th><th>무협맵 대응</th><th>강도</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>리뷰노트</b></td>
+        <td><b>제9조 e항 정면 저촉</b>(서비스 정보 영리·비영리 복제·제3자 제공 금지) + 매크로 부정이용 금지 + 제13조 저작권 회사귀속. 로그인 SPA → 우회 시 <b>정보통신망법 형사</b></td>
+        <td>공개영역 외 접근 금지. 자동수집 제외, 제보/제휴로만</td>
+        <td><span class="badge b-high">높음</span></td></tr>
+      <tr><td>2</td><td><b>강남맛집</b></td>
+        <td>리뷰 저작권 회사 귀속 → 리뷰 본문·이미지 복제 시 <b>저작권 침해</b></td>
+        <td>리뷰 본문/이미지 미복제. 매장·협찬 "사실"만, 원문 링크백</td>
+        <td><span class="badge b-mid">중간</span></td></tr>
+      <tr><td>3</td><td><b>디너의여왕</b></td>
+        <td>9조(g) 영리목적 무단이용·(c) 지재권. 대량요청 시 업무방해. <b>집계 서비스에 불리한 판례군</b></td>
+        <td>robots 범위 내 저빈도·사실필드·링크백·사람검수. 장기 <b>제휴로 9조 동의 확보</b></td>
+        <td><span class="badge b-mid">중간</span></td></tr>
+      <tr><td>4</td><td><b>레뷰</b></td>
+        <td><b>제9조 e항 정면 저촉</b>(리뷰노트와 동일 문구) + 제13조 저작권 회사귀속. 로그인·SPA → 우회 시 <b>정보통신망법</b></td>
+        <td>공개영역만. 자동수집 제외, 제휴 우선</td>
+        <td><span class="badge b-high">높음</span></td></tr>
+      <tr><td>5</td><td><b>미블</b></td>
+        <td>11조 2차저작 <b>전면 금지</b>가 명확 → 수집·재배포는 정면 위반. 로그인·SPA → 우회 시 형사</td>
+        <td><b>수집 대상에서 제외</b>. 제보/제휴 경로만</td>
+        <td><span class="badge b-high">높음</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. 공통 법적 프레임워크</h2>
+  <table>
+    <thead><tr><th>근거</th><th>내용</th><th>무협맵 관련성</th></tr></thead>
+    <tbody>
+      <tr><td><b>계약(약관) 위반</b></td><td>"영리목적 무단이용·2차저작·자동수집 금지" 위반 = 채무불이행</td><td>이용정지·손해배상 근거. 위반 소지 상존</td></tr>
+      <tr><td><b>저작권법 §93</b><br>DB제작자 권리</td><td>상당한 투자로 구축한 DB의 상당 부분 복제·전송 금지</td><td>목록 통째 수집 시 정면 충돌</td></tr>
+      <tr><td><b>저작권법 §2</b><br>편집저작물</td><td>소재의 선택·배열에 창작성 있는 편집물 보호</td><td>캠페인 큐레이션 복제 리스크</td></tr>
+      <tr><td><b>부정경쟁방지법</b><br>§2(1)(파)목</td><td>타인의 상당한 투자·노력의 <b>성과를 무단으로 자기 영업에 사용</b>(성과도용)</td><td>집계·경쟁 서비스에 가장 직접적</td></tr>
+      <tr><td><b>정보통신망법 §48</b></td><td>접근권한 없이/허용범위 넘어 <b>정보통신망 침입</b> → 형사</td><td><b>로그인 벽 우회(리뷰노트·레뷰·미블) 시 형사</b> — 절대 회피</td></tr>
+      <tr><td><b>형법 §314</b><br>업무방해</td><td>대량·고빈도 요청으로 서버 부하 유발</td><td>크롤링 빈도·병렬성 관리 필요</td></tr>
+      <tr><td><b>개인정보보호법</b></td><td>개인정보 무단 수집·이용 금지</td><td>우리가 다루는 건 매장 협찬 "사실"(개인정보 아님). 리뷰어 개인정보 미수집</td></tr>
+    </tbody>
+  </table>
+
+  <h3>참고 판례 (우리와 구조 유사 → 불리)</h3>
+  <table>
+    <thead><tr><th>판례</th><th>쟁점</th><th>결과</th><th>시사점</th></tr></thead>
+    <tbody>
+      <tr><td><b>잡코리아 vs 사람인</b></td><td>채용공고 DB 크롤링·집계</td><td>DB권 침해 + 부정경쟁 <b>인정(수집측 패)</b></td><td>"목록 긁어 집약" 구조가 그대로 패소</td></tr>
+      <tr><td><b>야놀자 vs 여기어때</b></td><td>제휴점 정보 크롤링/API</td><td><b>정보통신망법 형사 유죄</b></td><td>접근권한 우회는 민사 아닌 형사</td></tr>
+      <tr><td>(참고) 네이버 성과도용류</td><td>데이터 무단활용</td><td>성과도용 흐름 인정 경향</td><td>(파)목 리스크 방증</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. 종합 결론 &amp; 권고</h2>
+  <ol class="rec">
+    <li><b>기술적으로 가능 ≠ 법적으로 안전.</b> 집계형 서비스는 판례군이 불리 — "리스크 제거"가 아니라 <b>"리스크 관리"</b>.</li>
+    <li><b>로그인 벽 플랫폼(리뷰노트·레뷰·미블)은 자동수집 대상에서 제외.</b> 우회 시 정보통신망법 <b>형사</b> — 하지 않는다.</li>
+    <li><b>저작권·2차저작 조항(강남맛집·미블 등)</b> 때문에 리뷰 본문·이미지는 복제 금지. 무협맵은 매장·협찬 <b>"사실 필드"만</b>, 원문은 <b>출처 링크백</b>.</li>
+    <li><b>디너의여왕(SSR·robots 일부 허용)</b> 정도만 제한적 여지 — robots 준수 + 저빈도 + 사실필드 + 링크백 + 사람검수. 9조(g)는 <b>장기 제휴로 해소</b>.</li>
+    <li><b>최우선 전략 = 제휴/허락.</b> 무협맵이 신청자 트래픽을 플랫폼으로 보내주는 구조가 협상 카드. 그 전까지 데이터 원천은 <b>커뮤니티 제보 + 내부용 URL 단건 자동입력 검수 툴</b> 수준.</li>
+    <li><b>절대 하지 않는다</b>: 전국 협찬을 매일 대량 무단 크롤링해 무협맵 DB를 만드는 것.</li>
+  </ol>
+
+  <h3>실무 체크리스트</h3>
+  <ul class="chk">
+    <li>착수 전 대상 플랫폼 <b>최신 약관·robots.txt 원문</b> 재확인(변경 잦음)</li>
+    <li>로그인/접근권한 우회 없음(공개영역만)</li>
+    <li>이미지·리뷰 본문 미복제, 사실필드만 + 출처·링크백</li>
+    <li>저빈도·병렬 제한(업무방해 방지)</li>
+    <li>커뮤니티 제보 비중이 실제 다수 → 집계성 비중 최소화</li>
+    <li>중요 판단 전 <b>변호사 검토</b></li>
+  </ul>
+
+  <footer>무협맵 내부 검토 문서 · 2026-07 · 법률자문 아님(공개정보 기반 정리)</footer>
+</div>
+</body>
+</html>
