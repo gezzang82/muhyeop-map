@@ -2453,16 +2453,17 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 }
 .myinfo-stat {
   flex: 1 1 0; min-width: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  text-align: center;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 0 14px;
 }
 .myinfo-stat + .myinfo-stat { border-left: 1px solid #e5e5e5; }
 .myinfo-stat-label {
+  align-self: flex-start;
   display: flex; align-items: center; gap: 4px;
   font-size: 13px; color: #555; white-space: nowrap;
 }
 .myinfo-stat-label img { flex-shrink: 0; }
-.myinfo-stat-value { font-size: 14px; color: #000; white-space: nowrap; }
+.myinfo-stat-value { align-self: flex-end; font-size: 14px; color: #000; white-space: nowrap; }
 .myinfo-stat-value b { font-size: 20px; font-weight: 700; }
 .btn-change-sns {
   width: 100%; height: 48px; flex-shrink: 0;
