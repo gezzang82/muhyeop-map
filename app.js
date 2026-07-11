@@ -1880,8 +1880,11 @@ function populateProfileFields() {
   if (nick) nick.textContent = currentUser.nickname || '';
   const joined = document.getElementById('myinfoJoined');
   if (joined) joined.textContent = formatJoinDate(currentUser.createdAt);
-  const cnt = document.getElementById('myinfoReportCount');
-  if (cnt) cnt.textContent = currentUser.reportCount != null ? currentUser.reportCount : 0;
+  const setStat = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = Number(v || 0).toLocaleString(); };
+  setStat('myinfoVisitCount', currentUser.visitCount);
+  setStat('myinfoReportCount', currentUser.reportCount);
+  setStat('myinfoReviewCount', currentUser.reviewCount);
+  setStat('myinfoHelpfulCount', currentUser.helpfulCount);
   const emailEl = document.getElementById('profileEmail');
   if (emailEl) emailEl.value = currentUser.email || '';
   const sel = document.getElementById('profileUrlPlatform');

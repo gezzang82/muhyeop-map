@@ -25,10 +25,23 @@ module.exports = async function handler(req, res) {
   const result = await db.execute({ sql: 'SELECT email, url_platform, url_id, created_at FROM users WHERE id = ?', args: [session.userId] });
   const row = result.rows[0] || {};
 
-  let reportCount = 0;
+  // 기여 통계: 협찬 제보(내 캠페인) / 후기 등록(내 후기) / 도움돼요(내 후기가 받은 좋아요 총합) / 접속일 수
+  let reportCount = 0, reviewCount = 0, helpfulCount = 0, visitCount = 0;
   try {
     const cnt = await db.execute({ sql: 'SELECT COUNT(*) AS n FROM campaigns WHERE user_id = ?', args: [session.userId] });
     reportCount = Number(cnt.rows[0]?.n || 0);
+  } catch (e) {}
+  try {
+    const cnt = await db.execute({ sql: 'SELECT COUNT(*) AS n FROM reviews WHERE user_id = ?', args: [session.userId] });
+    reviewCount = Number(cnt.rows[0]?.n || 0);
+  } catch (e) {}
+  try {
+    const cnt = await db.execute({ sql: 'SELECT COUNT(*) AS n FROM review_likes rl JOIN reviews r ON r.id = rl.review_id WHERE r.user_id = ?', args: [session.userId] });
+    helpfulCount = Number(cnt.rows[0]?.n || 0);
+  } catch (e) {}
+  try {
+    const cnt = await db.execute({ sql: 'SELECT COUNT(*) AS n FROM user_visits WHERE user_id = ?', args: [session.userId] });
+    visitCount = Number(cnt.rows[0]?.n || 0);
   } catch (e) {}
 
   res.status(200).json({
@@ -40,7 +53,10 @@ module.exports = async function handler(req, res) {
       urlPlatform: row.url_platform || '',
       urlId: row.url_id || '',
       createdAt: row.created_at || '',
-      reportCount
+      reportCount,
+      reviewCount,
+      helpfulCount,
+      visitCount
     }
   });
 };
