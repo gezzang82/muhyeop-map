@@ -1743,8 +1743,10 @@ function openPolicy(type) {
   const body = document.getElementById('policyBody');
   // 모바일: 제보하기처럼 큰 타이틀(scroll-header)이 본문 위에서 스크롤되어 사라지고 sticky가 등장
   body.innerHTML = `<div class="modal-scroll-header" id="policyScrollHeader"><h2>${data.title}</h2></div>` + data.body;
+  const ov = document.getElementById('policyOverlay');
+  ov.classList.add('open');
+  void ov.offsetHeight;   // display:none→flex 반영 후에 리셋해야 브라우저의 스크롤 복원을 막음
   body.scrollTop = 0;
-  document.getElementById('policyOverlay').classList.add('open');
   bindMobileScrollHeader('policyBody', 'policyScrollHeader', 'policyStickyHeader');
 }
 function closePolicy() {
@@ -2356,6 +2358,14 @@ function switchPcTab(tab) {
   } else {
     document.getElementById('profileOverlay').classList.remove('open');
   }
+
+  // 협찬찾기로 복귀 시 "모집 중인 협찬" 리스트 스크롤을 맨 위로
+  // (사이드바가 display:none→flex로 다시 보일 때 브라우저가 직전 스크롤을 복원하는 것 방지)
+  if (tab === 'campaigns') {
+    const list = document.getElementById('campaignList');
+    if (list) { void list.offsetHeight; list.scrollTop = 0; }
+  }
+
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 50);
 }
 
