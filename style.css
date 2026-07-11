@@ -2452,11 +2452,14 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .myinfo-stat {
-  flex: 1 1 0; min-width: 0;
+  flex: 1 1 0; min-width: 0; position: relative;
   display: flex; flex-direction: column; gap: 8px;
   padding: 0 14px;
 }
-.myinfo-stat + .myinfo-stat { border-left: 1px solid #e5e5e5; }
+.myinfo-stat + .myinfo-stat::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 1px; height: 32px; background: #e5e5e5;
+}
 .myinfo-stat-label {
   align-self: flex-start;
   display: flex; align-items: center; gap: 4px;
