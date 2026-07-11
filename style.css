@@ -2314,6 +2314,16 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   z-index: 9999; transition: transform 0.3s ease; pointer-events: none;
 }
 .toast.show { transform: translateY(0); }
+/* PC: 토스트를 텍스트 폭에 맞춰 가운데 정렬 + 좌우 패딩 24px (전체 폭으로 늘어나던 문제) */
+@media (min-width: 641px) {
+  .toast {
+    left: 50%; right: auto;
+    width: max-content; max-width: calc(100vw - 48px);
+    padding: 16px 24px;
+    transform: translateX(-50%) translateY(calc(100% + 40px));
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+}
 
 /* ===== 모바일 맵 오버레이 (기본 숨김) ===== */
 .mobile-map-overlay { display: none; }
