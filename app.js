@@ -1932,11 +1932,41 @@ function closeProfileSheet() {
   resetModalScroll('profileOverlay');
 }
 
+// 버튼 안에 로딩 로티(흰 점 3개, 후기 로딩과 동일 애니)를 넣고 텍스트를 숨김. 완료 시 복원.
+function setButtonLoading(btn, loading) {
+  if (!btn) return;
+  if (loading) {
+    if (btn.dataset.loading === '1') return;
+    btn.dataset.loading = '1';
+    btn.disabled = true;
+    btn.classList.add('btn-loading');
+    const c = document.createElement('span');
+    c.className = 'btn-lottie';
+    btn.appendChild(c);
+    if (window.lottie) {
+      btn._lottieAnim = window.lottie.loadAnimation({
+        container: c, renderer: 'svg', loop: true, autoplay: true,
+        path: 'image/loading-review.json'
+      });
+    }
+  } else {
+    if (btn.dataset.loading !== '1') return;
+    btn.dataset.loading = '';
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    if (btn._lottieAnim) { try { btn._lottieAnim.destroy(); } catch (e) {} btn._lottieAnim = null; }
+    const c = btn.querySelector('.btn-lottie');
+    if (c) c.remove();
+  }
+}
+
 async function saveProfile() {
   const urlPlatform = document.getElementById('profileUrlPlatform').value;
   const urlId = document.getElementById('profileUrlId').value.trim();
   const email = document.getElementById('profileEmail')?.value.trim() || '';
   if (email && !isValidEmail(email)) { showAlert('이메일을 확인해주세요', '올바른 이메일 형식을 입력해주세요.'); return; }
+  const btn = document.querySelector('#profileOverlay .btn-submit');
+  setButtonLoading(btn, true);
   try {
     const res = await fetch('/api/auth/profile', {
       method: 'POST',
@@ -1950,6 +1980,8 @@ async function saveProfile() {
     showToast('프로필을 저장했어요.');
   } catch (e) {
     showAlert('저장 중 오류가 발생했어요.', '잠시 후 다시 시도해주세요.');
+  } finally {
+    setButtonLoading(btn, false);
   }
 }
 

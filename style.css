@@ -1795,6 +1795,17 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   transition: background 0.2s;
 }
 .btn-next:hover, .btn-submit:hover { background: #c82020; }
+/* 버튼 로딩 상태: 텍스트 숨기고 안에 흰색 로티 로더 */
+.btn-submit.btn-loading, .btn-next.btn-loading {
+  position: relative; color: transparent; pointer-events: none;
+}
+.btn-lottie {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.btn-lottie svg { width: 44px !important; height: 44px !important; }
+.btn-lottie svg path { fill: #fff !important; }
 
 /* ===== 서비스 소개 모달 ===== */
 .about-modal { max-width: 460px; }
