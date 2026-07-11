@@ -922,6 +922,25 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   width: 20px; height: 1px; background: #e0e0e0;
 }
 
+/* ===== PC 앱 다운로드 카드 (지도 좌하단, PC only) ===== */
+.pc-app-download {
+  position: fixed;
+  left: 512px; bottom: 20px;
+  z-index: 400;
+  width: 360px; box-sizing: border-box;
+  display: flex; align-items: center; gap: 16px;
+  background: #fff; border-radius: 8px; padding: 16px;
+  box-shadow: 0 0 6px rgba(0,0,0,0.16);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.pc-app-dl-icon { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.pc-app-dl-info { display: flex; flex-direction: column; justify-content: center; flex: 1 1 auto; min-width: 0; }
+.pc-app-dl-title { display: flex; align-items: center; gap: 4px; }
+.pc-app-dl-title span { font-size: 18px; font-weight: 600; color: #000; line-height: 22px; }
+.pc-app-dl-title img { display: block; flex-shrink: 0; }
+.pc-app-dl-desc { margin: 0; font-size: 14px; color: #777; line-height: 22px; white-space: nowrap; }
+.pc-app-dl-qr { width: 56px; height: 56px; flex-shrink: 0; border: 1px solid #e5e5e5; border-radius: 4px; background: #f7f7f7; }
+
 /* ===== 사이드바 (PC: 인플로우 왼쪽 패널) ===== */
 .sidebar {
   width: 360px;
@@ -2617,6 +2636,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   /* 앱: 콜랩스 바텀시트가 세이프에어리어만큼 커졌으므로 현재위치 버튼도 그만큼 위로 */
   .native-app .btn-my-location { bottom: calc(100px + env(safe-area-inset-bottom)); }
   .btn-zoom-group { display: none !important; }
+  .pc-app-download { display: none !important; }
 
   /* 사이드바 → fixed 바텀시트 */
   .sidebar-handle-wrap {

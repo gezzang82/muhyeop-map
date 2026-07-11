@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=51">
+  <link rel="stylesheet" href="style.css?v=52">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -449,6 +449,20 @@
       <button class="btn-zoom" onclick="map && map.setZoom(map.getZoom()+1)" title="확대">+</button>
       <div class="btn-zoom-divider"></div>
       <button class="btn-zoom" onclick="map && map.setZoom(map.getZoom()-1)" title="축소">−</button>
+    </div>
+
+    <!-- PC 앱 다운로드 카드 (PC only) -->
+    <div class="pc-app-download">
+      <img src="image/app_icon.png" alt="무협맵 앱 아이콘" class="pc-app-dl-icon">
+      <div class="pc-app-dl-info">
+        <div class="pc-app-dl-title">
+          <span>무협맵</span>
+          <img src="image/ic_appstore_20.svg" width="20" height="20" alt="App Store">
+          <img src="image/ic_googleplay_20.svg" width="20" height="20" alt="Google Play">
+        </div>
+        <p class="pc-app-dl-desc">모바일 앱으로 다운로드 받으세요!</p>
+      </div>
+      <div class="pc-app-dl-qr" aria-label="QR 코드 영역"></div>
     </div>
   </div>
 
