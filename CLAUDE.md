@@ -7,5 +7,8 @@
 - @docs/frontend.md — 이용자용 지도 화면 (index.html / app.js / style.css)
 - @docs/admin.md — 어드민 (admin.html / admin.js / admin.css)
 - @docs/api-db.md — API 서버리스 함수 + Turso DB 스키마
+- @docs/product/README.md — 기획/전략 문서 인덱스(비전·로드맵·수익·제휴·의사결정로그 등, `docs/product/NN-*.md`). 위 4개는 기술 문서, 이쪽은 비즈니스/전략.
+
+**대화에서 정리·결정된 내용은 그때그때 `docs/product/`의 해당 문서에 반영한다** (결정은 `06-decision-log.md`에 날짜+이유).
 
 이용자 대상 정책 문서(운영정책/개인정보처리방침/이용약관)는 `policy/` 디렉토리 참고.
