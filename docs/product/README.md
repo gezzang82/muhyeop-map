@@ -19,6 +19,7 @@
 | 11 | [competition](11-competition.md) | 경쟁사(콜라보매니저·리뷰플로우) vs 차별점 |
 | 12 | [brand](12-brand.md) | 브랜드 소개/톤 |
 | 13 | [ai-automation](13-ai-automation.md) | AI 활용(정제·분류·검증·중복·자동화 보조) |
+| 14 | [launch-checklist](14-launch-checklist.md) | **8/1 정식 오픈 점검 목록**(베타 없이 오픈, 확인/마무리 항목) |
 
 ## 관리 규칙
 
