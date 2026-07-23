@@ -1864,7 +1864,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 .about-inquiry-title { margin: 0; font-size: 16px; font-weight: 600; color: #000; }
 .about-inquiry-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.about-inquiry-label { flex: 1 0 0; min-width: 0; color: #555; }
+.about-inquiry-label { flex: 1 0 0; min-width: 0; display: flex; align-items: center; gap: 4px; color: #555; }
+.about-inquiry-label img { flex-shrink: 0; }
 .about-inquiry-value { color: #000; white-space: nowrap; }
 
 .about-policy-links {
@@ -2556,6 +2557,18 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .side-menu-item:active { opacity: 0.6; }
+/* 사이드 메뉴 하단 문의하기 카드 (Figma 1358:11500) — 테두리 없는 연한 파랑 카드, 콘텐츠 하단 밀착 */
+.side-menu-inquiry {
+  margin-top: auto; flex-shrink: 0;
+  background: #f2f6ff; border-radius: 8px; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.side-menu-inquiry-title { margin: 0; font-size: 14px; font-weight: 600; color: #000; }
+.side-menu-inquiry-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.side-menu-inquiry-label { flex: 1 0 0; min-width: 0; display: flex; align-items: center; gap: 4px; color: #555; }
+.side-menu-inquiry-label img { flex-shrink: 0; }
+.side-menu-inquiry-value { color: #000; white-space: nowrap; }
 .side-menu-footer {
   display: flex; align-items: center; gap: 12px; flex-shrink: 0;
   padding: 10px 20px;
