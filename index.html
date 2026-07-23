@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=54">
+  <link rel="stylesheet" href="style.css?v=55">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -392,7 +392,7 @@
       <div class="pc-map-top-row1">
         <div class="pc-search-wrap" onclick="event.stopPropagation(); document.getElementById('regionSearchPC').focus()">
           <svg class="pc-search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11 2.5C15.9706 2.5 20 6.52944 20 11.5C20 13.3146 19.4609 15.0025 18.5371 16.416L21.7178 19.5967C22.3032 20.1825 22.3034 21.1321 21.7178 21.7178C21.1321 22.3034 20.1825 22.3032 19.5967 21.7178L16.5 18.6211C14.9788 19.7977 13.072 20.5 11 20.5C6.02944 20.5 2 16.4706 2 11.5C2 6.52944 6.02944 2.5 11 2.5ZM11 5.5C7.68629 5.5 5 8.18629 5 11.5C5 14.8137 7.68629 17.5 11 17.5C14.3137 17.5 17 14.8137 17 11.5C17 8.18629 14.3137 5.5 11 5.5Z" fill="currentColor"/></svg>
-          <input type="text" id="regionSearchPC" placeholder="지역, 매장명, 역명으로 검색" autocomplete="off" onkeydown="if(event.key==='Enter' && !event.isComposing) searchRegionPC()">
+          <input type="search" id="regionSearchPC" placeholder="지역, 매장명, 역명으로 검색" autocomplete="off" onkeydown="if(event.key==='Enter' && !event.isComposing) searchRegionPC()">
         </div>
         <div class="pc-stat-pill">
           <div class="pc-stat-label">
@@ -430,7 +430,7 @@
       <div class="mobile-row1">
         <div class="mobile-header-search">
           <svg class="mobile-search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11 2.5C15.9706 2.5 20 6.52944 20 11.5C20 13.3146 19.4609 15.0025 18.5371 16.416L21.7178 19.5967C22.3032 20.1825 22.3034 21.1321 21.7178 21.7178C21.1321 22.3034 20.1825 22.3032 19.5967 21.7178L16.5 18.6211C14.9788 19.7977 13.072 20.5 11 20.5C6.02944 20.5 2 16.4706 2 11.5C2 6.52944 6.02944 2.5 11 2.5ZM11 5.5C7.68629 5.5 5 8.18629 5 11.5C5 14.8137 7.68629 17.5 11 17.5C14.3137 17.5 17 14.8137 17 11.5C17 8.18629 14.3137 5.5 11 5.5Z" fill="currentColor"/></svg>
-          <input type="text" id="regionSearchMobileOverlay" placeholder="지역, 매장명, 역명으로 검색" enterkeyhint="search" autocomplete="off" onkeydown="if(event.key==='Enter' && !event.isComposing){event.preventDefault();searchRegionMobileOverlay();}">
+          <input type="search" id="regionSearchMobileOverlay" placeholder="지역, 매장명, 역명으로 검색" enterkeyhint="search" autocomplete="off" onkeydown="if(event.key==='Enter' && !event.isComposing){event.preventDefault();searchRegionMobileOverlay();}">
         </div>
         <button class="mobile-icon-btn mobile-icon-add" onclick="openSideMenu()" title="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 14C9.5523 14 10 14.4477 10 15V23C10 23.5523 9.5523 24 9 24H1C0.4477 24 0 23.5523 0 23V15C0 14.4477 0.4477 14 1 14H9ZM23 14C23.5523 14 24 14.4477 24 15V23C24 23.5523 23.5523 24 23 24H15C14.4477 24 14 23.5523 14 23V15C14 14.4477 14.4477 14 15 14H23ZM9 0C9.5523 0 10 0.4477 10 1V9C10 9.5523 9.5523 10 9 10H1C0.4477 10 0 9.5523 0 9V1C0 0.4477 0.4477 0 1 0H9ZM23 0C23.5523 0 24 0.4477 24 1V9C24 9.5523 23.5523 10 23 10H15C14.4477 10 14 9.5523 14 9V1C14 0.4477 14.4477 0 15 0H23Z" fill="#E82A2D"/></svg></button>
       </div>

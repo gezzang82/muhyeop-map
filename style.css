@@ -485,6 +485,14 @@ img, a { -webkit-user-drag: none; user-drag: none; }
   padding-right: 24px;
 }
 .pc-search-wrap input::placeholder { color: #bbb; }
+/* type="search"로 인한 브라우저 기본 지우기(×) 버튼 숨김 (커스텀 .btn-input-clear 사용) */
+.pc-search-wrap input::-webkit-search-cancel-button,
+.pc-search-wrap input::-webkit-search-decoration,
+.mobile-header-search input::-webkit-search-cancel-button,
+.mobile-header-search input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
 .pc-search-wrap .btn-input-clear {
   position: absolute;
   right: 16px;
