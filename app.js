@@ -256,13 +256,13 @@ function trackCampaignClick(id) {
   fetch(`/api/campaigns?track=click&id=${id}`, { method: 'POST', keepalive: true }).catch(() => {});
 }
 
-// [임시/오픈 전] 캠페인 상세의 파트너 링크 버튼을 전부 숨김(오픈 전 Referer로 우리 URL이 파트너 플랫폼에 노출되는 것 방지).
-// 아래 지정한 캠페인 1건만 테스트용으로 내 블로그에 연결한다.
-// 오픈 시 원복: campaignLink(c)를 `return c.link;`로 바꾸면 원래대로 실제 링크가 노출됨.
-const TEST_ONLY_CAMPAIGN_ID = 557; // 백소정 산본점
-const TEST_ONLY_CAMPAIGN_URL = 'https://blog.naver.com/pww010';
+// 파트너(플랫폼) 신청 링크 노출 스위치.
+// false(오픈 전): 링크 버튼을 전부 숨김 — Referer로 우리 URL이 파트너 플랫폼에 노출되는 것 방지.
+// true(오픈일 8/1): 캠페인의 실제 신청 링크(c.link)를 노출. 이 한 줄만 바꾸면 됨.
+const LINKS_ENABLED = false;
 function campaignLink(c) {
-  return c && c.id === TEST_ONLY_CAMPAIGN_ID ? TEST_ONLY_CAMPAIGN_URL : null;
+  if (!LINKS_ENABLED) return null;
+  return c && c.link ? c.link : null;
 }
 
 // 링크 방어: 프로토콜(https://) 없이 저장된 외부 URL(어드민/엑셀 업로드 등)도 항상 절대 URL로 만들어
