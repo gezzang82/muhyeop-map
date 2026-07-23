@@ -2223,7 +2223,11 @@ function applyReportContext() {
   } else if (reportTargetType === 'review') {
     pickReportPlaceForReview(place.id);   // 후기 신고: 그 매장 후기 목록 바로 로드
   } else {
-    renderReportResults();                // 캠페인 신고: 그 매장의 진행 중 캠페인 목록
+    // 캠페인 신고: 그 매장의 진행 중 캠페인 목록. 1건뿐이면 자동 선택.
+    const today = getKSTTodayUTC();
+    const active = campaigns.filter(c => !c.hidden && c.placeId === place.id && deadlineToUTC(c.deadline) >= today);
+    if (active.length === 1) reportSelectedId = active[0].id;
+    renderReportResults();
   }
 }
 
