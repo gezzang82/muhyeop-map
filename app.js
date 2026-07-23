@@ -2080,6 +2080,7 @@ let reportSelectedId = null;            // 선택된 대상 id (타입별: place
 let reportSelectedPlaceId = null;       // review 타입에서 후기 목록을 불러올 매장 선택용
 let _reportReviews = [];                // review 타입: 선택 매장의 후기 목록 캐시
 let reportSelectedReason = null;
+let reportContextPlaceId = null;        // 매장에서 신고 진입 시 그 매장 맥락 유지(대상 유형 고르면 이 매장으로 자동 스코프)
 
 function openReportModal() {
   if (window.innerWidth > 640) {
@@ -2091,27 +2092,11 @@ function openReportModal() {
   bindMobileScrollHeader('reportBody', 'reportScrollHeader', 'reportStickyHeader');
   document.getElementById('reportOverlay').classList.add('open');
 }
-function openReportModalForCampaign(campaignId) {
-  const c = campaigns.find(c => c.id === campaignId);
-  const place = c ? places.find(p => p.id === c.placeId) : null;
-  openReportModal();
-  if (c && place) {
-    setReportTargetType('campaign', true); // 특정 캠페인 지정 진입 → 신고 대상 자동 캠페인
-    reportSelectedId = campaignId;
-    document.getElementById('reportSearchInput').value = place.name;
-    renderReportResults();
-  }
-}
-// 매장 단위 신고 진입점: 매장명으로 열어 기본 대상=캠페인으로 목록 노출 (대상유형 셀렉트로 매장/후기 전환 가능)
+// 매장 단위 신고 진입점: 대상 유형은 '미선택'으로 열어 넘겨짚지 않고, 그 매장 맥락만 기억한다.
+// 사용자가 대상(매장/캠페인/후기)을 고르면 applyReportContext()가 이 매장으로 자동 스코프한다.
 function openReportModalForPlace(placeId) {
-  const place = places.find(p => p.id === placeId);
-  openReportModal();
-  if (place) {
-    setReportTargetType('campaign', true); // 특정 매장에서 진입 → 기본 캠페인으로 그 매장 캠페인 목록 노출(유형 전환 가능)
-    reportSelectedId = null;
-    document.getElementById('reportSearchInput').value = place.name;
-    renderReportResults();
-  }
+  openReportModal();            // resetReportModal 포함 → 대상 미선택 + 검색칸 빈 상태
+  reportContextPlaceId = placeId;
 }
 function closeReportModal() {
   document.getElementById('reportOverlay').classList.remove('open');
@@ -2125,6 +2110,7 @@ function resetReportModal() {
   reportSelectedPlaceId = null;
   _reportReviews = [];
   reportSelectedReason = null;
+  reportContextPlaceId = null;
   setReportTargetType('campaign', false); // 기본 유형 캠페인(검색 즉시 작동)이되 트리거는 '선택하세요'
   document.getElementById('reportSearchInput').value = '';
   document.getElementById('reportResultsList').innerHTML = '';
@@ -2220,7 +2206,25 @@ function selectReportTargetType(select) {
   reportSelectedId = null; reportSelectedPlaceId = null; _reportReviews = [];
   document.getElementById('reportResultsList').innerHTML = '';
   clearFieldError('reportTarget');
+  // 매장에서 신고 진입했으면, 고른 유형을 그 매장으로 자동 스코프(다시 검색 불필요)
+  if (reportContextPlaceId) { applyReportContext(); return; }
   renderReportResults();
+}
+
+// 매장 맥락(reportContextPlaceId)을 현재 선택한 대상 유형에 맞게 적용
+function applyReportContext() {
+  const place = places.find(p => p.id === reportContextPlaceId);
+  const searchEl = document.getElementById('reportSearchInput');
+  if (!place) { renderReportResults(); return; }
+  searchEl.value = place.name;
+  if (reportTargetType === 'place') {
+    reportSelectedId = place.id;          // 매장 신고: 그 매장 자동 선택
+    renderReportResults();
+  } else if (reportTargetType === 'review') {
+    pickReportPlaceForReview(place.id);   // 후기 신고: 그 매장 후기 목록 바로 로드
+  } else {
+    renderReportResults();                // 캠페인 신고: 그 매장의 진행 중 캠페인 목록
+  }
 }
 
 function searchReportTarget() {
