@@ -1854,6 +1854,19 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .about-list { margin: 0 0 10px; padding-left: 18px; }
 .about-list li { font-size: 13px; color: #555; line-height: 1.7; }
 
+/* 소개 하단 제휴 문의 카드 (Figma 1316:11738) */
+.about-inquiry {
+  margin: 20px 20px 0;
+  background: #f2f6ff; border: 1px solid #006cff; border-radius: 8px;
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 16px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.about-inquiry-title { margin: 0; font-size: 16px; font-weight: 600; color: #000; }
+.about-inquiry-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.about-inquiry-label { flex: 1 0 0; min-width: 0; color: #555; }
+.about-inquiry-value { color: #000; white-space: nowrap; }
+
 .about-policy-links {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 28px 0 8px;
