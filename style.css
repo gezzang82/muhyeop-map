@@ -2911,6 +2911,9 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .rv-card-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; gap: 8px; }
 .rv-card-byline { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; }
 .rv-card-author { font-size: 14px; font-weight: 700; color: #555; line-height: 16px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 최초제보자 후기: 메달 아이콘 + 파란 닉네임 (상단 고정은 서버 정렬) */
+.rv-card-medal { flex-shrink: 0; display: block; margin-right: -2px; }
+.rv-card-author--founder { color: #006cff; }
 .rv-card-dot { width: 2px; height: 2px; border-radius: 50%; background: #bbb; flex-shrink: 0; }
 .rv-card-date { font-size: 12px; color: #777; line-height: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rv-like { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; padding: 2px 0 2px 8px; flex-shrink: 0; }

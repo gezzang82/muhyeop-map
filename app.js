@@ -611,7 +611,7 @@ function createInfoContent(place) {
     <div class="iw-founder">
       <span class="iw-founder-label">최초제보자</span>
       <div class="iw-founder-right">
-        <img src="image/ic_workspace_premium_24.svg" width="24" height="24" alt="">
+        <img src="image/ic_workspace_premium_24.svg" width="20" height="20" alt="">
         <div class="iw-founder-name-group">
           ${place.founderUrl
             ? `<a class="iw-founder-name" href="${httpUrl(place.founderUrl)}" target="_blank">${place.founderNickname}</a><img src="image/ic_chevron_right_blue.svg" class="iw-founder-chevron" alt="">`
@@ -724,7 +724,7 @@ function createMobileDetailContent(place) {
     <div class="detail-founder">
       <span class="detail-founder-label">최초제보자</span>
       <div class="detail-founder-right">
-        <img src="image/ic_workspace_premium_24.svg" width="24" height="24" alt="" class="detail-founder-icon-img">
+        <img src="image/ic_workspace_premium_24.svg" width="20" height="20" alt="" class="detail-founder-icon-img">
         <div class="detail-founder-name-group">
           ${place.founderUrl
             ? `<a class="detail-founder-link" href="${httpUrl(place.founderUrl)}" target="_blank">${place.founderNickname}</a><img src="image/ic_chevron_right_blue.svg" class="detail-founder-chevron" alt="">`
@@ -971,7 +971,9 @@ function reviewCardHtml(r, isPreview) {
     ? `<img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()">`
     : '';
   const thumb = `<div class="rv-thumb${r.thumbnail ? '' : ' rv-thumb-empty'}">${thumbInner}${delBadge}</div>`;
-  const byline = `<span class="rv-card-byline"><span class="rv-card-author">${rvEsc(r.author)}</span>${date ? `<span class="rv-card-dot"></span><span class="rv-card-date">${date}</span>` : ''}</span>`;
+  const founderMedal = r.isFounder ? `<img class="rv-card-medal" src="image/ic_workspace_premium_24.svg" width="20" height="20" alt="최초 제보자">` : '';
+  const authorCls = r.isFounder ? 'rv-card-author rv-card-author--founder' : 'rv-card-author';
+  const byline = `<span class="rv-card-byline">${founderMedal}<span class="${authorCls}">${rvEsc(r.author)}</span>${date ? `<span class="rv-card-dot"></span><span class="rv-card-date">${date}</span>` : ''}</span>`;
   const meta = isPreview
     ? byline
     : `${byline}

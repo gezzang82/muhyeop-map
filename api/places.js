@@ -64,7 +64,18 @@ module.exports = async function handler(req, res) {
     if (req.method === 'GET') {
       const placeId = Number(req.query.placeId);
       if (!placeId) return res.status(400).json({ error: 'placeId가 필요합니다.' });
-      const order = req.query.sort === 'likes' ? 'r.like_count DESC, r.id DESC' : 'r.id DESC';
+      // 최초제보자(매장 등록자)의 후기는 정렬과 무관하게 최상단 고정 + isFounder 뱃지
+      let founderUserId = null;
+      try {
+        const pf = await db.execute({ sql: 'SELECT founder_user_id FROM places WHERE id = ?', args: [placeId] });
+        const fv = pf.rows[0]?.founder_user_id;
+        founderUserId = (fv == null) ? null : Number(fv);
+      } catch (e) {}
+      const baseOrder = req.query.sort === 'likes' ? 'r.like_count DESC, r.id DESC' : 'r.id DESC';
+      // founderUserId는 우리 DB의 정수 PK(Number 강제)라 인라인 안전
+      const order = founderUserId != null
+        ? `CASE WHEN r.user_id = ${founderUserId} THEN 0 ELSE 1 END, ${baseOrder}`
+        : baseOrder;
       const r = await db.execute({
         sql: `SELECT r.*,
                      COALESCE(
@@ -94,6 +105,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(r.rows.map(row => {
         const rv = toReview(row, likedSet.has(row.id));
         rv.mine = !!(session && row.user_id != null && row.user_id === session.userId); // 본인 작성 여부(삭제 노출용)
+        rv.isFounder = founderUserId != null && row.user_id != null && Number(row.user_id) === founderUserId; // 최초제보자 후기
         return rv;
       }));
     }
