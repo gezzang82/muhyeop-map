@@ -2217,6 +2217,7 @@ function applyReportContext() {
   const searchEl = document.getElementById('reportSearchInput');
   if (!place) { renderReportResults(); return; }
   searchEl.value = place.name;
+  syncReportClearBtn();   // 코드가 자동 입력한 값에도 지우기(×) 버튼을 노출
   if (reportTargetType === 'place') {
     reportSelectedId = place.id;          // 매장 신고: 그 매장 자동 선택
     renderReportResults();
@@ -2291,10 +2292,9 @@ function renderReportPlaces(q, listEl) {
 // 후기 신고: 매장명 검색 → 매장 선택 → 그 매장 후기 목록 → 후기 선택
 function renderReportReviews(q, listEl) {
   if (reportSelectedPlaceId) {
-    const place = places.find(p => p.id === reportSelectedPlaceId);
-    const back = `<div class="search-hint report-review-back" onclick="backToReviewPlacePick()">← ${rvEsc(place ? place.name : '')} · 매장 다시 선택</div>`;
-    if (!_reportReviews.length) { listEl.innerHTML = back + '<div class="search-hint">등록된 후기가 없어요.</div>'; return; }
-    listEl.innerHTML = back + _reportReviews.map(rv => reportResultItem(rv.id, rv.title, `<span class="place-result-addr">${rvEsc(rv.author || '')}</span>`, reportSelectedId === rv.id)).join('');
+    // 매장은 검색칸의 X(전체삭제)로 다시 선택 (별도 백링크 없음)
+    if (!_reportReviews.length) { listEl.innerHTML = '<div class="search-hint">등록된 후기가 없어요.</div>'; return; }
+    listEl.innerHTML = _reportReviews.map(rv => reportResultItem(rv.id, rv.title, `<span class="place-result-addr">${rvEsc(rv.author || '')}</span>`, reportSelectedId === rv.id)).join('');
     return;
   }
   if (!q) { listEl.innerHTML = ''; return; }
@@ -2314,10 +2314,13 @@ async function pickReportPlaceForReview(placeId) {
   } catch (e) { _reportReviews = []; }
   renderReportResults();
 }
-function backToReviewPlacePick() {
-  reportSelectedPlaceId = null; reportSelectedId = null; _reportReviews = [];
-  document.getElementById('reportSearchInput').value = '';
-  renderReportResults();
+// 신고 검색칸의 지우기(×) 버튼을 현재 값에 맞게 노출/숨김 (프로그램적 값 설정 후 호출)
+function syncReportClearBtn() {
+  const input = document.getElementById('reportSearchInput');
+  if (!input) return;
+  const wrap = input.closest('.input-wrap');
+  const btn = wrap ? wrap.querySelector('.btn-input-clear') : null;
+  if (btn) btn.classList.toggle('show', input.value.length > 0);
 }
 
 function reportPlatformTag(platform) {
