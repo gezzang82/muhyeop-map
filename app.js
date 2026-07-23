@@ -265,6 +265,15 @@ function campaignLink(c) {
   return c && c.link ? c.link : null;
 }
 
+// 앱 다운로드 카드(지도 좌하단, PC) 노출 스위치.
+// false: 앱 스토어 출시 전까지 카드 숨김(현재는 스토어 링크·QR이 비어 있는 placeholder).
+// true(앱 출시일): 스토어 URL·QR을 채운 뒤 켜면 카드 노출.
+const APP_DOWNLOAD_ENABLED = false;
+function initAppDownloadCard() {
+  const el = document.getElementById('pcAppDownload');
+  if (el) el.style.display = APP_DOWNLOAD_ENABLED ? '' : 'none';
+}
+
 // 링크 방어: 프로토콜(https://) 없이 저장된 외부 URL(어드민/엑셀 업로드 등)도 항상 절대 URL로 만들어
 // 앱 인앱 브라우저 인터셉터가 놓치지 않고 웹뷰로 열도록 함. 앱 입력은 이미 https를 붙이지만 이중 방어.
 function httpUrl(u) {
@@ -3332,6 +3341,7 @@ function updateStatCount() {
 }
 
 document.addEventListener('DOMContentLoaded', setupClearButtons);
+document.addEventListener('DOMContentLoaded', initAppDownloadCard);
 
 // ===== 초기 로딩 애니메이션 =====
 let _loadingAnim = null;

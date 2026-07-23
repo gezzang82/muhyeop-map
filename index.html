@@ -451,8 +451,8 @@
       <button class="btn-zoom" onclick="map && map.setZoom(map.getZoom()-1)" title="축소">−</button>
     </div>
 
-    <!-- PC 앱 다운로드 카드 (PC only) -->
-    <div class="pc-app-download">
+    <!-- PC 앱 다운로드 카드 (PC only) — 앱 스토어 출시 전까지 숨김(app.js APP_DOWNLOAD_ENABLED) -->
+    <div class="pc-app-download" id="pcAppDownload" style="display:none">
       <img src="image/app_icon.png" alt="무협맵 앱 아이콘" class="pc-app-dl-icon">
       <div class="pc-app-dl-info">
         <div class="pc-app-dl-title">
@@ -989,7 +989,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=64"></script>
+  <script src="app.js?v=65"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
