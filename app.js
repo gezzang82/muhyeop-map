@@ -2814,7 +2814,14 @@ async function submitCampaign() {
       body: JSON.stringify({ category })
     });
     const place = places.find(p => p.id === placeId);
-    if (place) place.category = category;
+    if (place) {
+      place.category = category;
+      // 최초제보자가 없던 매장(어드민 시딩 등)이면 이 제보자를 최초제보자로 즉시 반영 (서버도 동일 조건으로 지정)
+      if (!place.founderNickname || !place.founderNickname.trim()) {
+        place.founderNickname = reporterNickname;
+        place.founderUrl = reporterUrl;
+      }
+    }
   }
 
   const newCampaign = await fetch('/api/campaigns', {

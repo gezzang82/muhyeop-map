@@ -242,6 +242,17 @@ module.exports = async function handler(req, res) {
       ]
     });
     const id = Number(result.lastInsertRowid);
+    // 최초제보자가 없는 매장(어드민 시딩 등)에 실제 유저가 제보하면 그 제보자를 최초제보자로 지정.
+    // 비로그인 유저의 최초 제보(founder_nickname 있음)는 WHERE 조건으로 보호되어 덮어쓰지 않음.
+    if (source !== 'admin') {
+      try {
+        await db.execute({
+          sql: `UPDATE places SET founder_nickname = ?, founder_url = ?, founder_user_id = ?
+                WHERE id = ? AND founder_user_id IS NULL AND (founder_nickname IS NULL OR founder_nickname = '')`,
+          args: [reporterNickname || '', reporterUrl || '', userId, placeId]
+        });
+      } catch (_e) {}
+    }
     return res.status(201).json({
       id, placeId, platform, channels: channels || [], content, deadline: deadline || '', link: link || '',
       operatingDays: operatingDays || [], operatingHours: operatingHours || '', excludeHoliday: !!excludeHoliday,
