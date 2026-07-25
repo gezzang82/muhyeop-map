@@ -1814,7 +1814,43 @@ async function refreshAuthUI() {
 }
 
 function openLoginSheet() {
+  // Apple 로그인 버튼은 네이티브 iOS 앱(+플러그인)에서만 노출. 웹은 카카오/네이버만.
+  const appleBtn = document.getElementById('loginAppleBtn');
+  if (appleBtn) {
+    const canApple = isNativeApp() && !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SignInWithApple);
+    appleBtn.style.display = canApple ? 'flex' : 'none';
+  }
   document.getElementById('loginOverlay').classList.add('open');
+}
+
+// Apple 네이티브 로그인: 플러그인으로 identityToken 받아 서버 검증 → 로그인
+async function appleSignIn() {
+  const plugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SignInWithApple;
+  if (!plugin) { showAlert('Apple 로그인', '앱에서만 사용할 수 있어요.'); return; }
+  try {
+    const result = await plugin.authorize({
+      clientId: 'com.muhyeop.app',
+      redirectURI: 'https://muhyeop.com/api/auth/callback',
+      scopes: 'email name'
+    });
+    const r = (result && result.response) || result || {};
+    const identityToken = r.identityToken;
+    if (!identityToken) { showAlert('Apple 로그인 실패', '다시 시도해주세요.'); return; }
+    const nickname = [r.givenName, r.familyName].filter(Boolean).join('');
+    const resp = await fetch('/api/auth/callback', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'apple', identityToken, nickname })
+    }).then(x => x.json());
+    if (resp && resp.ok) {
+      const url = new URL(window.location.href);
+      if (resp.isNewUser) url.searchParams.set('signup', '1');
+      window.location.href = url.toString();  // OAuth 리다이렉트처럼 새로고침해 로그인 반영
+    } else {
+      showAlert('Apple 로그인 실패', '다시 시도해주세요.');
+    }
+  } catch (e) {
+    // 사용자가 취소한 경우 등은 조용히 무시
+  }
 }
 function closeLoginSheet() {
   document.getElementById('loginOverlay').classList.remove('open');

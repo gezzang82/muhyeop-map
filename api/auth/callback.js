@@ -1,8 +1,31 @@
+const crypto = require('crypto');
 const { getDb } = require('../_db');
 const { getProvider } = require('./_provider');
 const { verifyStateCookie, clearStateCookie } = require('./_state');
 const { createSessionCookie } = require('./_session');
 const { getBaseUrl } = require('./_http');
+
+const APPLE_KEYS_URL = 'https://appleid.apple.com/auth/keys';
+const APPLE_BUNDLE_ID = 'com.muhyeop.app'; // 네이티브 Sign in with Apple의 aud(앱 번들ID)
+
+// Apple identityToken(JWT)을 애플 공개키(JWK)로 검증하고 payload 반환
+async function verifyAppleIdentityToken(idToken) {
+  const parts = String(idToken || '').split('.');
+  if (parts.length !== 3) throw new Error('invalid token');
+  const [h, p, s] = parts;
+  const header = JSON.parse(Buffer.from(h, 'base64url').toString());
+  const payload = JSON.parse(Buffer.from(p, 'base64url').toString());
+  const jwks = await fetch(APPLE_KEYS_URL).then(r => r.json());
+  const jwk = (jwks.keys || []).find(k => k.kid === header.kid);
+  if (!jwk) throw new Error('signing key not found');
+  const pubKey = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+  const valid = crypto.verify('RSA-SHA256', Buffer.from(`${h}.${p}`), pubKey, Buffer.from(s, 'base64url'));
+  if (!valid) throw new Error('signature verify failed');
+  if (payload.iss !== 'https://appleid.apple.com') throw new Error('bad issuer');
+  if (payload.aud !== APPLE_BUNDLE_ID) throw new Error('bad audience');
+  if (!payload.exp || payload.exp * 1000 < Date.now()) throw new Error('token expired');
+  return payload;
+}
 
 async function ensureUsersTable(db) {
   await db.execute(`CREATE TABLE IF NOT EXISTS users (
@@ -25,6 +48,49 @@ async function ensureUsersTable(db) {
 }
 
 module.exports = async function handler(req, res) {
+  // ===== Apple 네이티브 로그인: POST { provider:'apple', identityToken, nickname? } =====
+  // 앱에서 Sign in with Apple로 받은 identityToken을 서버가 검증 → 세션 발급 (JSON 응답)
+  if (req.method === 'POST') {
+    const body = req.body || {};
+    if (body.provider !== 'apple') { res.status(400).json({ error: '지원하지 않는 요청입니다.' }); return; }
+    try {
+      const payload = await verifyAppleIdentityToken(body.identityToken);
+      const providerUserId = String(payload.sub);
+      const email = payload.email || '';
+      const nickname = (body.nickname && String(body.nickname).trim()) || '애플사용자';
+      const db = getDb();
+      await ensureUsersTable(db);
+      const existing = await db.execute({
+        sql: 'SELECT id, nickname FROM users WHERE provider = ? AND provider_user_id = ?',
+        args: ['apple', providerUserId]
+      });
+      let userId, isNewUser = false, finalNick;
+      if (existing.rows.length) {
+        userId = existing.rows[0].id;
+        finalNick = existing.rows[0].nickname || nickname;
+        // 재로그인: 닉네임 유지, 이메일은 애플이 준 값이 있을 때만 갱신(보통 최초에만 줌)
+        await db.execute({
+          sql: "UPDATE users SET email = CASE WHEN ? = '' THEN email ELSE ? END WHERE id = ?",
+          args: [email, email, userId]
+        });
+      } else {
+        isNewUser = true;
+        finalNick = nickname;
+        const inserted = await db.execute({
+          sql: 'INSERT INTO users (provider, provider_user_id, nickname, email) VALUES (?, ?, ?, ?)',
+          args: ['apple', providerUserId, nickname, email]
+        });
+        userId = Number(inserted.lastInsertRowid);
+      }
+      const sessionCookie = createSessionCookie({ userId, nickname: finalNick, provider: 'apple' });
+      res.setHeader('Set-Cookie', sessionCookie);
+      res.status(200).json({ ok: true, isNewUser });
+    } catch (e) {
+      res.status(401).json({ error: 'Apple 로그인 검증에 실패했어요.' });
+    }
+    return;
+  }
+
   const { code, state } = req.query;
   const stateData = verifyStateCookie(req, state);
   if (!stateData) {

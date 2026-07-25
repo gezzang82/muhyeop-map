@@ -241,6 +241,8 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 .login-provider-spacer { width: 24px; height: 24px; flex-shrink: 0; }
 .login-provider-kakao { background: #FEE404; color: #1a1a1a; }
 .login-provider-naver { background: #08C659; color: white; }
+.login-provider-apple { background: #000; color: #fff; border: none; width: 100%; }
+.login-provider-apple svg { color: #fff; }
 .login-modal-header-spacer { display: none; }
 /* PC: Figma 디자인(폭 320px, 타이틀 가운데정렬, 그림자)에 맞춤 */
 @media (min-width: 641px) {
