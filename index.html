@@ -945,8 +945,8 @@
   <div id="mobileSheetOverlay" class="mobile-sheet-overlay" onclick="closeMobileSheet()"></div>
 
   <!-- 공지/이벤트 배너 팝업 -->
-  <div id="bannerPopupOverlay" class="banner-popup-overlay">
-    <div class="banner-popup">
+  <div id="bannerPopupOverlay" class="banner-popup-overlay" onclick="closeBannerPopup()">
+    <div class="banner-popup" onclick="event.stopPropagation()">
       <img id="bannerPopupImage" class="banner-popup-image" src="" alt="공지/이벤트">
       <div class="banner-popup-actions">
         <button class="banner-popup-btn" onclick="dismissBannerToday()">오늘 그만 보기</button>
@@ -1011,7 +1011,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=71"></script>
+  <script src="app.js?v=72"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

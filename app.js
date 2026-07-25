@@ -1806,11 +1806,18 @@ async function refreshAuthUI() {
     if (sideName) sideName.textContent = currentUser.nickname || '';
     const sideProviderIcon = document.getElementById('sideMenuProviderIcon');
     if (sideProviderIcon) {
-      sideProviderIcon.src = currentUser.provider === 'kakao' ? 'image/ic_login_kakao_16.svg' : 'image/ic_login_naver_16.svg';
+      sideProviderIcon.src = providerIconSrc(currentUser.provider);
     }
   }
   // 내 정보 패널이 열려 있으면 로그인 상태 변화 반영
   if (document.body.classList.contains('pc-myinfo-mode')) openMyInfoPanel();
+}
+
+// 로그인 provider별 아이콘 (카카오/네이버/애플) — 닉네임 앞 표시용
+function providerIconSrc(provider) {
+  if (provider === 'kakao') return 'image/ic_login_kakao_16.svg';
+  if (provider === 'apple') return 'image/ic_login_apple_16.svg';
+  return 'image/ic_login_naver_16.svg';
 }
 
 function openLoginSheet() {
@@ -1924,7 +1931,7 @@ function formatJoinDate(raw) {
 function populateProfileFields() {
   if (!currentUser) return;
   const icon = document.getElementById('myinfoProviderIcon');
-  if (icon) icon.src = currentUser.provider === 'kakao' ? 'image/ic_login_kakao_16.svg' : 'image/ic_login_naver_16.svg';
+  if (icon) icon.src = providerIconSrc(currentUser.provider);
   const nick = document.getElementById('myinfoNick');
   if (nick) nick.textContent = currentUser.nickname || '';
   const joined = document.getElementById('myinfoJoined');
