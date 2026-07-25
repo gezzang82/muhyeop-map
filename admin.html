@@ -654,8 +654,10 @@
           <div class="form-section-title">팝업 등록</div>
           <div class="form-row">
             <div class="form-group full">
-              <label>이미지 URL <span class="req">*</span></label>
-              <input type="text" id="bannerImageUrl" placeholder="https://...">
+              <label>이미지 <span class="req">*</span> <span class="hint">파일 첨부(자동 640px 리사이즈) 또는 URL 입력</span></label>
+              <input type="file" id="bannerImageFile" accept="image/*" onchange="handleBannerFile(this)">
+              <input type="text" id="bannerImageUrl" placeholder="또는 https:// 이미지 주소" style="margin-top:8px;" oninput="updateBannerPreview()">
+              <img id="bannerPreview" alt="미리보기" style="display:none; max-width:320px; margin-top:10px; border-radius:8px; border:1px solid #eee;">
             </div>
           </div>
           <div class="form-row">

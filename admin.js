@@ -780,17 +780,61 @@ function editBanner(id) {
   document.getElementById('bannerLinkUrl').value = b.linkUrl || '';
   gcalSetValue('bs', b.startDate);
   gcalSetValue('be', b.endDate);
+  updateBannerPreview();
   document.getElementById('bannerSubmitBtn').textContent = '수정 완료';
   document.getElementById('bannerCancelBtn').style.display = '';
   document.getElementById('page-banners').scrollIntoView({ block: 'start' });
+}
+
+// 파일 첨부 → 640px 리사이즈 + JPEG 압축 → base64 data URI로 imageUrl 채움
+// (별도 이미지 저장소 없이 DB의 image_url에 저장. 자동 리사이즈로 payload 최소화)
+function handleBannerFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { adminToast('이미지 파일만 첨부할 수 있어요.'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX_W = 640;
+      const scale = Math.min(1, MAX_W / img.width);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);      // 투명 배경은 흰색으로(JPEG는 투명 미지원)
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUri = canvas.toDataURL('image/jpeg', 0.85);
+      document.getElementById('bannerImageUrl').value = dataUri;
+      updateBannerPreview();
+      const kb = Math.round(dataUri.length * 0.75 / 1024);
+      adminToast(`이미지 첨부됨 (${w}×${h}, ~${kb}KB)`);
+    };
+    img.onerror = () => adminToast('이미지를 불러오지 못했어요.');
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateBannerPreview() {
+  const url = (document.getElementById('bannerImageUrl').value || '').trim();
+  const prev = document.getElementById('bannerPreview');
+  if (!prev) return;
+  if (url) { prev.src = url; prev.style.display = 'block'; }
+  else { prev.removeAttribute('src'); prev.style.display = 'none'; }
 }
 
 function resetBannerForm() {
   bannerEditId = null;
   document.getElementById('bannerImageUrl').value = '';
   document.getElementById('bannerLinkUrl').value = '';
+  const fileEl = document.getElementById('bannerImageFile');
+  if (fileEl) fileEl.value = '';
   gcalSetValue('bs', '');
   gcalSetValue('be', '');
+  updateBannerPreview();
   document.getElementById('bannerSubmitBtn').textContent = '등록하기';
   document.getElementById('bannerCancelBtn').style.display = 'none';
 }
@@ -814,7 +858,7 @@ async function submitBanner() {
   const startDate = document.getElementById('bannerStartDate').value;
   const endDate = document.getElementById('bannerEndDate').value;
   if (!imageUrl || !startDate || !endDate) {
-    adminToast('이미지 URL, 시작일, 종료일은 필수예요!'); return;
+    adminToast('이미지, 시작일, 종료일은 필수예요!'); return;
   }
   if (bannerEditId) {
     await fetch(`/api/banners?id=${bannerEditId}`, {
