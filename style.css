@@ -1289,7 +1289,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .banner-popup-overlay.show { opacity: 1; visibility: visible; pointer-events: auto; }
 .banner-popup {
   background: #fff; border-radius: 16px;
-  width: 320px; max-width: 90vw;
+  width: 480px; max-width: 90vw;
   display: flex; flex-direction: column; overflow: hidden;
   transform: translateY(16px) scale(0.96);
   transition: transform 0.25s ease;

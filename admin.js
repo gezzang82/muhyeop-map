@@ -796,7 +796,7 @@ function handleBannerFile(input) {
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
-      const MAX_W = 640;
+      const MAX_W = 960;
       const scale = Math.min(1, MAX_W / img.width);
       const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);
