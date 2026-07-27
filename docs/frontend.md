@@ -13,8 +13,9 @@
 - **활성 캠페인 캐시**: `getActiveCampaigns(placeId)`/`hasActiveCampaign`는 매 호출 `campaigns` 전체를 필터링하지 않고, `getActiveByPlaceMap()`가 만든 `placeId→활성캠페인[]` 맵을 재사용(지도 이동마다 O(매장×캠페인) 반복 스캔 제거). 캐시는 **명시적으로만 무효화**(`invalidateActiveCache()`): 데이터 로드 후, 제보 등록(`campaigns.push`) 후, 채널필터 변경(`filterChannel`) 시. `campaigns`를 직접 건드리면 이 무효화를 같이 호출해야 함. PC "총 협찬수"(`updateStatCount`)도 마감/숨김 제외한 활성만 집계.
 
 ## 사이드바 "모집 중인 협찬" 정렬
-- **등록순(최근 등록이 위)** 으로 정렬. 장소별 `getActiveCampaigns(p.id)`의 `createdAt` 중 최댓값을 구해 내림차순.
-- 과거에는 마감일(`earliestDeadlineUTC`) 기준이었으나 D-day/마감 시스템 제거 후 등록순으로 변경됨.
+- **마감임박순**으로 정렬(2026-07-27). 장소별 `getActiveCampaigns(p.id)`의 마감일 중 **가장 이른 것**(`deadlineToUTC`)을 오름차순. 마감일 빈 값(상시)은 `Infinity`라 **맨 아래**로 감. 마감일 동률이면 **최근 등록 먼저**(createdAt 최댓값 내림차순)로 tie-break.
+- 신선함/최신 제보는 "실시간 제보 알림 말풍선"이 담당하므로 리스트는 행동 유도(마감 전 신청) 목적의 마감임박순으로 분업.
+- 변경 이력: 마감일순 → (D-day/마감 시스템 제거 시기) 등록순 → **마감임박순으로 회귀**(마감일 필수화로 정렬 신뢰 가능).
 
 ## PC 모달 모드 클래스
 - `body.pc-report-mode`, `body.pc-reportissue-mode`: PC 사이드패널에서 보여지는 신고하기/제보하기 폼에 적용되는 오버라이드 클래스. Figma PC 디자인과 입력 높이(48px)/폰트(16px)/textarea(120px)/버튼(56px·18px) 등을 맞춰둠.

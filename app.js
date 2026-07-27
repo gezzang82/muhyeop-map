@@ -1124,10 +1124,19 @@ function renderSidebar() {
     ? places.filter(p => bounds.hasLatLng(new naver.maps.LatLng(p.lat, p.lng)))
     : places;
 
+  // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래). 동률이면 최근 등록 먼저.
+  const earliestDeadline = p => getActiveCampaigns(p.id).reduce((min, c) => {
+    const d = deadlineToUTC(c.deadline);
+    return d < min ? d : min;
+  }, Infinity);
   const latestCreatedAt = p => getActiveCampaigns(p.id).reduce((max, c) => c.createdAt > max ? c.createdAt : max, '');
   const activePlaces = visiblePlaces
     .filter(p => hasActiveCampaign(p.id))
-    .sort((a, b) => latestCreatedAt(b).localeCompare(latestCreatedAt(a)));
+    .sort((a, b) => {
+      const da = earliestDeadline(a), db = earliestDeadline(b);
+      if (da !== db) return da - db;
+      return latestCreatedAt(b).localeCompare(latestCreatedAt(a));
+    });
   countEl.textContent = activePlaces.length;
 
   if (activePlaces.length === 0) {
