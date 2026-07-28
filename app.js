@@ -1039,8 +1039,16 @@ async function deleteMyReview(reviewId) {
 }
 
 function openReportForPlace(placeId) {
-  // v1: 일반 제보 모달 열기 (해당 매장 자동선택은 후속 개선)
-  if (typeof openModal === 'function') openModal();
+  if (typeof openModal !== 'function') return;
+  openModal(); // 모바일: 오버레이+resetModal / PC: report 탭+resetModal (같은 #modalOverlay/#step1 재사용)
+  const place = places.find(p => p.id === placeId);
+  if (!place) return;
+  // step1을 이 매장이 검색·선택된 상태로 구성해 시작(매장 검색 단계 생략).
+  document.getElementById('inputName').value = place.name;
+  lastSearchQuery = place.name;
+  lastNaverResults = [];
+  placeResultsVisibleCount = PLACE_RESULTS_PAGE_SIZE;
+  selectExistingPlace(placeId); // modalSelected* 세팅 + 결과 리스트에 선택 상태로 렌더
 }
 
 // ===== 후기 등록 폼 =====

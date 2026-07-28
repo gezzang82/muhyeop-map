@@ -24,6 +24,7 @@
 ## 검색 결과 리스트 (신고하기 `#reportResultsList`, 제보하기 `#placeResultsList`)
 - 공통 클래스 `.place-results-list`로 간격 규칙 통일: 비어있으면 숨김, 내용 있으면 위에 8px 간격.
 - 신고하기(`renderReportResults()`)는 항목을 선택하면 리스트가 **선택된 1개만** 남도록 축약됨 (스크롤 불편 해소 목적). 다시 선택 해제하면 전체 리스트 복원.
+- **매장 상세 "협찬 없음 → 제보하기"**(`campaignEmptyHtml`의 버튼 → `openReportForPlace(placeId)`)는 제보 모달을 열면서 **그 매장을 step1에서 이미 선택된 상태로 시작**(매장 검색 단계 생략). `openModal()` 후 `inputName`/`lastSearchQuery`를 매장명으로 세팅하고 `selectExistingPlace(placeId)` 호출 — 모바일·PC(report 탭) 공통. 사용자는 바로 "다음"으로 step2 진입.
 
 ## 실시간 제보 알림 캐릭터/말풍선 (`#liveBubble`, `.live-character-wrap`)
 - 지도 우측 하단에 떠서 최근 등록된 매장을 랜덤 메시지 풀에서 순환 노출 (`showLiveBubble()`)
