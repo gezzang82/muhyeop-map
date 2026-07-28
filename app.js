@@ -1115,6 +1115,15 @@ const CHANNEL_ICONS = {
   '유튜브': 'image/ic_youtube_20.png',
 };
 
+// 같은 마감일(D-day) 그룹 안에서 섞어 노출하기 위한 장소별 안정 난수.
+// 페이지 로드마다 새로 생성 → 방문할 때마다 순서가 바뀌되, 세션 중엔 고정(지도 이동에도 안 튐).
+// 배치 등록(강남맛집 N건 → 디너의여왕 N건)으로 같은 플랫폼이 뭉치는 것을 방지.
+const _placeShuffleKey = new Map();
+function placeShuffleKey(id) {
+  if (!_placeShuffleKey.has(id)) _placeShuffleKey.set(id, Math.random());
+  return _placeShuffleKey.get(id);
+}
+
 function renderSidebar() {
   const list = document.getElementById('campaignList');
   const countEl = document.getElementById('campaignCount');
@@ -1124,18 +1133,18 @@ function renderSidebar() {
     ? places.filter(p => bounds.hasLatLng(new naver.maps.LatLng(p.lat, p.lng)))
     : places;
 
-  // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래). 동률이면 최근 등록 먼저.
+  // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래).
+  // 마감일 동률이면 세션마다 무작위로 섞어 노출(같은 플랫폼 배치가 뭉치지 않게, 고정 편중 방지).
   const earliestDeadline = p => getActiveCampaigns(p.id).reduce((min, c) => {
     const d = deadlineToUTC(c.deadline);
     return d < min ? d : min;
   }, Infinity);
-  const latestCreatedAt = p => getActiveCampaigns(p.id).reduce((max, c) => c.createdAt > max ? c.createdAt : max, '');
   const activePlaces = visiblePlaces
     .filter(p => hasActiveCampaign(p.id))
     .sort((a, b) => {
       const da = earliestDeadline(a), db = earliestDeadline(b);
       if (da !== db) return da - db;
-      return latestCreatedAt(b).localeCompare(latestCreatedAt(a));
+      return placeShuffleKey(a.id) - placeShuffleKey(b.id);
     });
   countEl.textContent = activePlaces.length;
 
