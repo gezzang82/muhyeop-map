@@ -682,7 +682,7 @@ function createInfoContent(place) {
               ${rightBtnHtml}
             </div>
             ${campaignLink(c)
-              ? `<a class="iw-content-link" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="iw-content">${c.content}</p><img src="image/ic_chevron_right_gray.svg" width="8" height="8" class="iw-content-chev" alt=""></a>`
+              ? `<a class="iw-content-link" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="iw-content">${c.content}</p></a>`
               : `<p class="iw-content">${c.content}</p>`}
             <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
           </div>`;
@@ -801,7 +801,7 @@ function createMobileDetailContent(place) {
           ${rightBtnHtml}
         </div>
         ${campaignLink(c)
-          ? `<a class="detail-content-link" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="detail-content">${c.content}</p><img src="image/ic_chevron_right_gray.svg" width="10" height="10" class="detail-content-chev" alt=""></a>`
+          ? `<a class="detail-content-link" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="detail-content">${c.content}</p></a>`
           : `<p class="detail-content">${c.content}</p>`}
         <div class="detail-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
       </div>`;

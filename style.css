@@ -2998,5 +2998,4 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   text-decoration: none; color: inherit; cursor: pointer;
 }
 .iw-content-link .iw-content, .detail-content-link .detail-content { flex: 1; min-width: 0; margin: 0; }
-.iw-content-chev, .detail-content-chev { flex-shrink: 0; opacity: 0.45; }
 .iw-content-link:active, .detail-content-link:active { opacity: 0.6; }
