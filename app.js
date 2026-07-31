@@ -271,9 +271,8 @@ function campaignLink(c) {
 }
 
 // 앱 다운로드 카드(지도 좌하단, PC) 노출 스위치.
-// false: 앱 스토어 출시 전까지 카드 숨김(현재는 스토어 링크·QR이 비어 있는 placeholder).
-// true(앱 출시일): 스토어 URL·QR을 채운 뒤 켜면 카드 노출.
-const APP_DOWNLOAD_ENABLED = false;
+// QR(muhyeop.com)·앱스토어 아이콘 채워 노출(2026-07-31 켬). 안드로이드 아이콘은 출시 전까지 숨김.
+const APP_DOWNLOAD_ENABLED = true;
 function initAppDownloadCard() {
   const el = document.getElementById('pcAppDownload');
   if (el) el.style.display = APP_DOWNLOAD_ENABLED ? '' : 'none';
