@@ -1307,6 +1307,49 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .banner-popup-btn:first-child { text-align: left; }
 .banner-popup-btn:last-child { text-align: right; }
 .banner-popup-btn:hover { color: #000; }
+
+/* 동명 매장 선택 팝업 */
+.place-picker-overlay {
+  display: flex; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 1600;
+  align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.place-picker-overlay.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.place-picker {
+  background: #fff; border-radius: 16px;
+  width: 360px; max-width: calc(100vw - 40px); max-height: 70vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateY(16px) scale(0.96); transition: transform 0.2s ease;
+}
+.place-picker-overlay.show .place-picker { transform: translateY(0) scale(1); }
+.place-picker-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px 12px; border-bottom: 1px solid #f0f0f0;
+}
+.place-picker-title { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+.place-picker-close {
+  border: none; background: none; font-size: 16px; color: #999;
+  cursor: pointer; padding: 4px; line-height: 1;
+}
+.place-picker-list { overflow-y: auto; padding: 8px; }
+.place-picker-item {
+  display: flex; flex-direction: column; gap: 4px; width: 100%;
+  text-align: left; border: none; background: #fff; cursor: pointer;
+  padding: 12px 12px; border-radius: 10px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.place-picker-item:hover { background: #f6f6f8; }
+.place-picker-item:active { background: #eee; }
+.place-picker-item-top { display: flex; align-items: center; gap: 8px; }
+.place-picker-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.place-picker-badge {
+  font-size: 11px; font-weight: 700; color: #F51122;
+  background: #F511221a; border-radius: 999px; padding: 2px 8px;
+}
+.place-picker-badge.ended { color: #999; background: #eee; }
+.place-picker-addr { font-size: 13px; color: #888; }
 @media (max-width: 640px) {
   .banner-popup-overlay { align-items: flex-end; }
   .banner-popup {

@@ -19,7 +19,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=62">
+  <link rel="stylesheet" href="style.css?v=63">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -964,6 +964,17 @@
     </div>
   </div>
 
+  <!-- 동명 매장 선택 팝업: 검색 시 같은 이름 매장이 2곳 이상이면 노출 -->
+  <div id="placePickerOverlay" class="place-picker-overlay" onclick="closePlacePicker()">
+    <div class="place-picker" onclick="event.stopPropagation()">
+      <div class="place-picker-head">
+        <span class="place-picker-title" id="placePickerTitle"></span>
+        <button class="place-picker-close" onclick="closePlacePicker()" aria-label="닫기">✕</button>
+      </div>
+      <div class="place-picker-list" id="placePickerList"></div>
+    </div>
+  </div>
+
   <!-- 회원탈퇴 확인 바텀시트 -->
   <div class="modal-overlay login-overlay withdraw-overlay" id="withdrawConfirmOverlay" onclick="closeWithdrawConfirm()">
     <div class="modal login-modal" onclick="event.stopPropagation()">
@@ -1020,7 +1031,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=78"></script>
+  <script src="app.js?v=79"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

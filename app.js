@@ -1341,13 +1341,8 @@ function searchRegion() {
     return;
   }
   if (placeMatches.length > 1) {
-    // 같은 이름 매장이 여러 곳(예: '온담' 서울·인천) → 모두 보이게 지도 맞추고 선택 유도
-    clearSearchPin();
-    const bounds = new naver.maps.LatLngBounds();
-    placeMatches.forEach(p => bounds.extend(new naver.maps.LatLng(p.lat, p.lng)));
-    map.fitBounds(bounds);
-    if (map.getZoom() > 15) map.setZoom(15);
-    showToast(`'${query}' ${placeMatches.length}곳이 있어요.<br>지도에서 원하는 매장을 선택하세요.`);
+    // 같은 이름 매장이 여러 곳(예: '온담' 서울·인천) → 주소가 적힌 선택 목록 팝업
+    showPlacePicker(placeMatches, query);
     return;
   }
 
@@ -1370,6 +1365,36 @@ function searchRegion() {
 
   const alreadyPrefixed = /^서울|^경기|^인천|^부산|^대구|^광주|^대전/.test(query);
   trySearch(query, alreadyPrefixed ? null : '서울 ' + query);
+}
+
+// 같은 이름 매장이 여러 곳일 때 주소로 구분해 고르는 선택 팝업
+function showPlacePicker(matches, query) {
+  const list = document.getElementById('placePickerList');
+  const titleEl = document.getElementById('placePickerTitle');
+  if (!list || !titleEl) return;
+  titleEl.textContent = `'${query}' ${matches.length}곳`;
+  list.innerHTML = matches.map(p => {
+    const active = getActiveCampaigns(p.id).length;
+    const badge = active > 0 ? `<span class="place-picker-badge">협찬 ${active}</span>` : '<span class="place-picker-badge ended">모집 없음</span>';
+    return `<button class="place-picker-item" onclick="pickSearchedPlace(${p.id})">
+        <span class="place-picker-item-top"><span class="place-picker-name">${p.name}</span>${badge}</span>
+        <span class="place-picker-addr">${p.address || ''}</span>
+      </button>`;
+  }).join('');
+  document.getElementById('placePickerOverlay').classList.add('show');
+}
+
+function closePlacePicker() {
+  document.getElementById('placePickerOverlay').classList.remove('show');
+}
+
+function pickSearchedPlace(id) {
+  closePlacePicker();
+  const p = places.find(x => x.id === id);
+  if (!p) return;
+  clearSearchPin();
+  const ended = getActiveCampaigns(p.id).length === 0;
+  focusPlace(p.id, ended ? GRAY_PIN_MIN_ZOOM : 16);
 }
 
 async function searchRegionViaLocalSearch(query) {
