@@ -55,18 +55,34 @@ module.exports = async function handler(req, res) {
       } catch (e) { /* 집계 실패는 무시 */ }
       return res.status(200).json({ ok: true });
     }
-    // 조회: 어드민 대시보드 GET ?visit=stats (오늘/누적 PV·UV + 최근 7일)
+    // 조회: 어드민 대시보드 GET ?visit=stats[&period=day|week|month]
     if (req.method === 'GET' && req.query.visit === 'stats') {
       if (!requireAdmin(req, res)) return;
       await ensureSiteVisitTables(db);
       const day = kstDay();
       const today = (await db.execute({ sql: "SELECT pv, uv FROM site_daily WHERE visit_date = ?", args: [day] })).rows[0] || {};
       const total = (await db.execute("SELECT COALESCE(SUM(pv),0) AS pv, COALESCE(SUM(uv),0) AS uv FROM site_daily")).rows[0] || {};
-      const recent = (await db.execute("SELECT visit_date, pv, uv FROM site_daily ORDER BY visit_date DESC LIMIT 14")).rows;
+
+      // 기간별 시계열: PV=SUM(pv)(site_daily), UV=COUNT(DISTINCT visitor_key)(site_visitor, 기간 내 진짜 고유)
+      const period = req.query.period === 'week' ? 'week' : req.query.period === 'month' ? 'month' : 'day';
+      let series;
+      if (period === 'day') {
+        const rows = (await db.execute("SELECT visit_date AS k, pv, uv FROM site_daily ORDER BY visit_date DESC LIMIT 14")).rows;
+        series = rows.map(r => ({ label: String(r.k).slice(5), pv: Number(r.pv || 0), uv: Number(r.uv || 0) })).reverse();
+      } else {
+        const keyExpr = period === 'week' ? "strftime('%Y-%W', visit_date)" : "substr(visit_date,1,7)";
+        const pvRows = (await db.execute(`SELECT ${keyExpr} AS k, SUM(pv) AS pv, MIN(visit_date) AS mind FROM site_daily GROUP BY k ORDER BY k DESC LIMIT 12`)).rows;
+        const uvRows = (await db.execute(`SELECT ${keyExpr} AS k, COUNT(DISTINCT visitor_key) AS uv FROM site_visitor GROUP BY k`)).rows;
+        const uvMap = {}; uvRows.forEach(r => { uvMap[r.k] = Number(r.uv || 0); });
+        series = pvRows.map(r => ({
+          label: period === 'month' ? (String(r.k).slice(5) + '월') : (String(r.mind || '').slice(5) + '~'),
+          pv: Number(r.pv || 0), uv: uvMap[r.k] || 0
+        })).reverse();
+      }
       return res.status(200).json({
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
-        recent: recent.map(r => ({ date: r.visit_date, pv: Number(r.pv || 0), uv: Number(r.uv || 0) }))
+        period, series
       });
     }
     return res.status(400).json({ error: 'visit 파라미터 오류' });

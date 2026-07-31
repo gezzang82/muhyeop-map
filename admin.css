@@ -230,6 +230,13 @@ body {
 .dday-cell.dday-today .dday-count { color: var(--brand); }
 
 /* 방문 추이 막대그래프 */
+.vc-period { display: inline-flex; gap: 4px; margin-left: 10px; vertical-align: middle; }
+.vc-period-btn {
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+  padding: 3px 12px; cursor: pointer;
+}
+.vc-period-btn.active { background: var(--brand); border-color: var(--brand); color: #fff; }
 .vc-legend { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 8px; }
 .vc-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin: 0 3px 0 8px; }
 .vc-legend .vc-lg-uv { background: var(--brand); }

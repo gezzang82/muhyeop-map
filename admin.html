@@ -237,7 +237,15 @@
 
         <div class="dashboard-row" style="grid-template-columns: 1fr;">
           <div class="dashboard-card">
-            <div class="card-title">방문 추이 (최근 14일) <span class="vc-legend"><i class="vc-lg-uv"></i>UV <i class="vc-lg-pv"></i>PV</span></div>
+            <div class="card-title">
+              방문 추이
+              <span class="vc-period">
+                <button class="vc-period-btn active" onclick="setVisitPeriod('day', this)">일별</button>
+                <button class="vc-period-btn" onclick="setVisitPeriod('week', this)">주별</button>
+                <button class="vc-period-btn" onclick="setVisitPeriod('month', this)">월별</button>
+              </span>
+              <span class="vc-legend"><i class="vc-lg-uv"></i>UV <i class="vc-lg-pv"></i>PV</span>
+            </div>
             <div id="visitChart" class="visit-chart"></div>
           </div>
         </div>
