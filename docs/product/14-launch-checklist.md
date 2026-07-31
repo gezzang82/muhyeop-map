@@ -34,7 +34,7 @@
 
 ## E. 8/1 당일 액션
 
-- **캠페인 신청 링크 켜기**: `app.js`의 `LINKS_ENABLED = false` → `true` 후 커밋·`vercel --prod` 배포. (오픈 전엔 꺼둠 — Referer로 우리 URL이 파트너 플랫폼에 노출 방지. 결정: [06-decision-log](06-decision-log.md) 2026-07-27)
+- ~~**캠페인 신청 링크 켜기**: `app.js`의 `LINKS_ENABLED = false` → `true`~~ ✅ **완료(2026-07-31, 하루 앞당겨 켬)**. (결정: [06-decision-log](06-decision-log.md) 2026-07-31)
 - 오픈 공지 팝업 배너 켜기(어드민, 시작일 8/1) — 이미지 960px 선명본 재업로드.
 - 정식 오픈 홍보/공지 시작. (앱 자체는 8/1 전 소프트 출시 가능)
 

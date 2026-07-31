@@ -258,8 +258,8 @@ function trackCampaignClick(id) {
 
 // 파트너(플랫폼) 신청 링크 노출 스위치.
 // false(오픈 전): 링크 버튼을 전부 숨김 — Referer로 우리 URL이 파트너 플랫폼에 노출되는 것 방지.
-// true(오픈일 8/1): 캠페인의 실제 신청 링크(c.link)를 노출. 이 한 줄만 바꾸면 됨.
-const LINKS_ENABLED = false;
+// true: 캠페인의 실제 신청 링크(c.link)를 노출 → 클릭 시 해당 플랫폼 상세로 이동. (2026-07-31 켬)
+const LINKS_ENABLED = true;
 function campaignLink(c) {
   if (!LINKS_ENABLED) return null;
   return c && c.link ? c.link : null;
