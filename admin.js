@@ -1153,7 +1153,7 @@ function onPlaceComboInput() {
   const matches = places.filter(p => p.name.replace(/\s/g, '').includes(kw)).slice(0, 8);
   if (!matches.length) { menu.innerHTML = ''; combo.classList.remove('open'); return; }
   menu.innerHTML = matches.map(p =>
-    `<div class="place-combo-item" onclick="pickExistingPlace(${p.id})"><b>${escHtml(p.name)}</b><span>${escHtml(p.category || '')}</span></div>`
+    `<div class="place-combo-item" onclick="pickExistingPlaceForNew(${p.id})"><b>${escHtml(p.name)}</b><span>${escHtml(p.category || '')}</span></div>`
   ).join('');
   combo.classList.add('open');
 }
@@ -1169,6 +1169,41 @@ function pickExistingPlace(id) {
   document.getElementById('addLng').value = (p.lng != null ? p.lng : '');
   document.getElementById('placeCombo').classList.remove('open');
   refreshAdminSelects();
+}
+
+// 콤보에서 기존 매장을 직접 고른 경우: 매장정보 + 그 매장의 직전 캠페인 값까지 프리필(마감일 제외).
+// 5일 주기로 같은 매장을 반복 등록할 때 마감일만 새로 넣으면 되도록. (editCampaign은 pickExistingPlace를
+// 직접 호출하므로 프리필 대상 아님)
+function pickExistingPlaceForNew(id) {
+  pickExistingPlace(id);
+  prefillCampaignFromLast(id);
+}
+
+// 해당 매장의 가장 최근(createdAt 기준) 캠페인 값으로 캠페인 필드를 채움. 마감일은 건드리지 않음.
+function prefillCampaignFromLast(placeId) {
+  if (campaignEditMode) return;
+  const prev = campaigns
+    .filter(c => c.placeId === placeId)
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0];
+  if (!prev) return;
+  document.getElementById('addPlatform').value = prev.platform || '';
+  ['블로그','클립','인스타그램','릴스','유튜브'].forEach(ch => {
+    const el = document.getElementById(`ach_${ch}`); if (el) el.checked = (prev.channels || []).includes(ch);
+  });
+  document.getElementById('addContent').value = prev.content || '';
+  document.getElementById('addLink').value = prev.link || '';
+  document.getElementById('addHours').value = prev.operatingHours || '';
+  document.querySelectorAll('.day-item').forEach(d => {
+    d.classList.toggle('on', (prev.operatingDays || []).includes(d.textContent.trim()));
+  });
+  const excludeEl = document.getElementById('addExcludeHoliday');
+  if (excludeEl) excludeEl.checked = prev.excludeHoliday || false;
+  const noDays = !(prev.operatingDays && prev.operatingDays.length);
+  const unknownEl = document.getElementById('addDaysUnknown');
+  if (unknownEl) unknownEl.checked = noDays;
+  document.querySelector('.day-group')?.classList.toggle('disabled', noDays);
+  refreshAdminSelects();
+  adminToast('직전 캠페인 값을 불러왔어요. 마감일만 새로 입력하세요.');
 }
 
 // 캠페인 수정 모드: 매장 정보(카테고리/매장선택/주소/위경도)를 읽기 전용으로 잠금
