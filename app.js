@@ -1327,16 +1327,27 @@ function searchRegion() {
   const query = document.getElementById('regionSearch').value.trim();
   if (!query) return;
 
-  // 1. 등록된 매장명과 정확히 일치하면 그 장소로 바로 이동 + 카드 오픈
+  // 1. 등록된 매장명과 정확히 일치하는 매장 찾기
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(query);
-  const placeMatch = places.find(p => normalize(p.name) === nq);
-  if (placeMatch) {
-    // 매장명 정확 일치 → 상세(캠페인+후기 탭) 오픈 + 핀 선택.
+  const placeMatches = places.filter(p => normalize(p.name) === nq);
+  if (placeMatches.length === 1) {
+    // 정확 일치 1곳 → 상세(캠페인+후기 탭) 오픈 + 핀 선택.
     // 종료(비활성) 매장은 회색핀이 뜨는 줌까지 확대해 핀도 선택되게 하고, 상세는 후기 탭 기본.
     clearSearchPin();
-    const ended = getActiveCampaigns(placeMatch.id).length === 0;
-    focusPlace(placeMatch.id, ended ? GRAY_PIN_MIN_ZOOM : 16);
+    const p = placeMatches[0];
+    const ended = getActiveCampaigns(p.id).length === 0;
+    focusPlace(p.id, ended ? GRAY_PIN_MIN_ZOOM : 16);
+    return;
+  }
+  if (placeMatches.length > 1) {
+    // 같은 이름 매장이 여러 곳(예: '온담' 서울·인천) → 모두 보이게 지도 맞추고 선택 유도
+    clearSearchPin();
+    const bounds = new naver.maps.LatLngBounds();
+    placeMatches.forEach(p => bounds.extend(new naver.maps.LatLng(p.lat, p.lng)));
+    map.fitBounds(bounds);
+    if (map.getZoom() > 15) map.setZoom(15);
+    showToast(`'${query}' ${placeMatches.length}곳이 있어요.<br>지도에서 원하는 매장을 선택하세요.`);
     return;
   }
 
