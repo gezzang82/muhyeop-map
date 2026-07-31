@@ -10,6 +10,8 @@ let _dataLoadPromise = null;
 function loadInitialData() {
   if (!_dataLoadPromise) {
     _dataLoadPromise = (async () => {
+      // 사이트 방문 집계(비차단, 페이지 로드 1회). 실패 무시 — 지도 로딩엔 영향 없음.
+      fetch('/api/places?visit=1', { method: 'POST', keepalive: true }).catch(() => {});
       const [placesRes, campaignsRes, bannersRes] = await Promise.all([
         fetch('/api/places'),
         fetch('/api/campaigns'),

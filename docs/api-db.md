@@ -5,7 +5,7 @@
 - `schema.sql`: 테이블 정의 원본. 실제 운영 DB 스키마 변경은 각 API 핸들러 내 `ALTER TABLE ... ADD COLUMN` try/catch 패턴으로 점진 적용되는 경우가 있음 (예: `campaigns.js`의 `source` 컬럼)
 
 ## 엔드포인트
-- `api/places.js` — 장소 CRUD. **공개 GET은 숨김 매장 제외 + `founderEmail`(PII) 제거**, `?admin=1` 서버사이드 조회는 `requireAdmin`(이메일 포함). 제보 POST에 레이트리밋(IP당 1분 15회), 이메일은 로그인 사용자만 `userId`로 `users`에서 조회해 저장(비로그인 미수집). 후기(리뷰) 라우팅도 합쳐짐(`?reviews=`)
+- `api/places.js` — 장소 CRUD. **공개 GET은 숨김 매장 제외 + `founderEmail`(PII) 제거**, `?admin=1` 서버사이드 조회는 `requireAdmin`(이메일 포함). 제보 POST에 레이트리밋(IP당 1분 15회), 이메일은 로그인 사용자만 `userId`로 `users`에서 조회해 저장(비로그인 미수집). 후기(리뷰) 라우팅도 합쳐짐(`?reviews=`). **사이트 방문 집계도 합쳐짐(`?visit=`)**: 공개 페이지 로드 시 `POST ?visit=1`(app.js `loadInitialData`에서 fire-and-forget)로 `site_daily`에 PV +1 / `site_visitor`(IP+KST일자 PK)로 UV 중복제거 후 +1(fail-open), `GET ?visit=stats`(requireAdmin)는 오늘·누적 PV/UV + 최근 7일 반환(어드민 대시보드 방문 카드)
 - `api/campaigns.js` — 협찬 캠페인 CRUD + 조회/클릭수 트래킹(`POST ?track=view|click&id=`). `view_count`/`click_count` 컬럼에 누적하며 `campaign_events(campaign_id, kind, visitor_key)` UNIQUE로 **IP+일자 기준 중복 제거**(클라이언트는 세션당 view 1회 디바운스). 표시는 아직 안 하고 데이터만 선누적(소급 불가). 함수 12개 제한 때문에 별도 엔드포인트 분리 없이 campaigns.js에 합침. `PATCH`는 두 갈래: 바디에 `platform` 없이 `hidden`만 오면 **hidden 토글만(부분 업데이트)** 처리(신고 목록의 캠페인 숨김/노출용), 그 외엔 전체 필드 수정. **공개 GET은 숨김 캠페인 + 숨김 매장 소속 캠페인 제외 + `reporterEmail`(PII) 제거**, `?admin=1` 조회는 `requireAdmin`. 제보 POST 레이트리밋(1분 15회), 이메일은 로그인 사용자만 DB 조회 저장(비로그인 미수집).
 - `api/reports.js` — 신고 처리. **매장/캠페인/후기 3종**(`target_type` + `campaign_id`/`place_id`/`review_id`, 모두 nullable). `POST`는 `targetType`+해당 id 저장(공개), `GET`은 타입별 대상명 조인(**requireAdmin**, 신고 목록=관리자 전용), `DELETE`는 신고기록 단순 삭제(관리자).
 - `api/banners.js` — 상단 배너 관리. **공개 GET은 숨김 배너 제외**(관리자 쿠키 `mh_admin` 있으면 전체 반환 — 숨김 관리용), 쓰기(POST/PATCH/DELETE)는 `requireAdmin`
@@ -28,6 +28,7 @@
 - `banners(id, image_url, link_url, start_date, end_date, created_at)`
 - `reports(id, target_type, campaign_id, place_id, review_id, reason, detail, user_id, created_at)` — 신고 3종(`target_type`='place'|'campaign'|'review', 해당 id만 채움, 나머지 NULL). `user_id`는 로그인 사용자가 신고 시 세션에서 조용히 채워짐(입력 필드 없음). 비로그인 신고는 NULL. (기존 campaign_id NOT NULL 스키마에서 2026-07-02 재구성)
 - `user_visits(user_id, visit_date)` — 로그인 사용자 접속 집계(1일 1회, `UNIQUE(user_id, visit_date)`). `me.js`가 로드 시 KST 날짜로 `INSERT OR IGNORE`. 어드민 회원 목록의 "접속수"에 사용
+- `site_daily(visit_date PK, pv, uv)` / `site_visitor(visit_date, visitor_key, PK(visit_date,visitor_key))` — **전체 사이트 방문 집계**(비로그인 포함). `places.js ?visit=1`이 PV 누적 + IP 기준 UV 중복제거. 어드민 대시보드 "오늘 방문(PV/UV)·누적 방문(PV)" 카드(`?visit=stats`). KST 일자 기준
 - `reviews(...)` — 후기(네이버 블로그). `user_id`(작성자), `hidden`, `post_date`(블로그 게시일), `click_count`(후기 카드 클릭수 누적). 어드민 후기 관리 + 공개 목록 `mine` 플래그(본인 삭제). 클릭 트래킹: 공개 후기 카드 클릭 시 `POST /api/places?reviews=track&id=`로 `click_count` +1(dedup 없이 단순 누적), `toReview`·어드민 목록(`?reviews=all`)이 `clickCount` 반환, 어드민 '후기 관리' 탭에 클릭수 컬럼 표시
 
 ## 데이터 매핑 규칙

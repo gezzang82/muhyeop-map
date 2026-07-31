@@ -18,6 +18,14 @@ function toPlace(row) {
   };
 }
 
+async function ensureSiteVisitTables(db) {
+  await db.execute("CREATE TABLE IF NOT EXISTS site_daily (visit_date TEXT PRIMARY KEY, pv INTEGER DEFAULT 0, uv INTEGER DEFAULT 0)");
+  await db.execute("CREATE TABLE IF NOT EXISTS site_visitor (visit_date TEXT NOT NULL, visitor_key TEXT NOT NULL, PRIMARY KEY(visit_date, visitor_key))");
+}
+function kstDay() {
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); // KST 날짜(YYYY-MM-DD)
+}
+
 module.exports = async function handler(req, res) {
   const db = getDb();
   try {
@@ -29,6 +37,39 @@ module.exports = async function handler(req, res) {
     await db.execute("ALTER TABLE places ADD COLUMN founder_user_id INTEGER REFERENCES users(id)");
   } catch (e) {
     // 컬럼이 이미 있으면 무시
+  }
+
+  // ===== 사이트 방문 집계 (?visit=1 기록 / ?visit=stats 조회) — 함수 12개 제한 때문에 places.js에 합침 =====
+  if (req.query.visit !== undefined) {
+    // 기록: 공개 페이지 로드 시 POST ?visit=1 (fire-and-forget). PV=총 방문, UV=IP+일 중복제거. fail-open.
+    if (req.method === 'POST' && req.query.visit === '1') {
+      try {
+        await ensureSiteVisitTables(db);
+        const day = kstDay();
+        const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+        await db.execute({ sql: "INSERT INTO site_daily (visit_date, pv, uv) VALUES (?, 1, 0) ON CONFLICT(visit_date) DO UPDATE SET pv = pv + 1", args: [day] });
+        const ins = await db.execute({ sql: "INSERT OR IGNORE INTO site_visitor (visit_date, visitor_key) VALUES (?, ?)", args: [day, ip] });
+        if (ins.rowsAffected > 0) {
+          await db.execute({ sql: "UPDATE site_daily SET uv = uv + 1 WHERE visit_date = ?", args: [day] });
+        }
+      } catch (e) { /* 집계 실패는 무시 */ }
+      return res.status(200).json({ ok: true });
+    }
+    // 조회: 어드민 대시보드 GET ?visit=stats (오늘/누적 PV·UV + 최근 7일)
+    if (req.method === 'GET' && req.query.visit === 'stats') {
+      if (!requireAdmin(req, res)) return;
+      await ensureSiteVisitTables(db);
+      const day = kstDay();
+      const today = (await db.execute({ sql: "SELECT pv, uv FROM site_daily WHERE visit_date = ?", args: [day] })).rows[0] || {};
+      const total = (await db.execute("SELECT COALESCE(SUM(pv),0) AS pv, COALESCE(SUM(uv),0) AS uv FROM site_daily")).rows[0] || {};
+      const recent = (await db.execute("SELECT visit_date, pv, uv FROM site_daily ORDER BY visit_date DESC LIMIT 7")).rows;
+      return res.status(200).json({
+        todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
+        totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
+        recent: recent.map(r => ({ date: r.visit_date, pv: Number(r.pv || 0), uv: Number(r.uv || 0) }))
+      });
+    }
+    return res.status(400).json({ error: 'visit 파라미터 오류' });
   }
 
   // ===== 후기(리뷰) 라우팅 — 함수 12개 제한 때문에 places.js에 합침 (?reviews=...) =====

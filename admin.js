@@ -390,6 +390,14 @@ function renderDashboard() {
     fetch('/api/users').then(r => r.json()).then(users => { statMembersEl.textContent = users.length; }).catch(() => {});
   }
 
+  // 사이트 방문 집계(오늘 PV/UV, 누적 PV)
+  fetch('/api/places?visit=stats').then(r => r.json()).then(s => {
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (v || 0).toLocaleString(); };
+    set('statVisitTodayPv', s.todayPv);
+    set('statVisitTodayUv', s.todayUv);
+    set('statVisitTotalPv', s.totalPv);
+  }).catch(() => {});
+
   // 마감 임박 (D-DAY ~ D-4): 활성 캠페인을 마감까지 남은 일수별로 집계. 상시(마감일 없음)는 제외.
   const DAY_MS = 86400000;
   const ddayStatsEl = document.getElementById('ddayStats');
