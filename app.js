@@ -688,7 +688,7 @@ function createInfoContent(place) {
             </div>
             <p class="iw-content">${c.content}</p>
             <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
-            ${campaignLink(c) ? `<a class="apply-btn" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})">신청하기</a>` : ''}
+            ${campaignLink(c) ? `<a class="apply-btn" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})">상세보기</a>` : ''}
           </div>`;
       }).join('')
     : '';
@@ -806,7 +806,7 @@ function createMobileDetailContent(place) {
         </div>
         <p class="detail-content">${c.content}</p>
         <div class="detail-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
-        ${campaignLink(c) ? `<a class="apply-btn" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})">신청하기</a>` : ''}
+        ${campaignLink(c) ? `<a class="apply-btn" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})">상세보기</a>` : ''}
       </div>`;
   }).join('');
 

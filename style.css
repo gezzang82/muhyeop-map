@@ -3036,7 +3036,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 }
 
 /* 캠페인 내용 → 플랫폼 페이지 링크(웹=새탭, 앱=인앱 브라우저) */
-/* 캠페인 '신청하기' 버튼 (인포윈도우·상세시트 공통). 링크 있는 캠페인에만 노출 */
+/* 캠페인 '상세보기' 버튼 (인포윈도우·상세시트 공통). 링크 있는 캠페인에만 노출 */
 .apply-btn {
   display: block; width: 100%; box-sizing: border-box;
   padding: 12px; border: 1px solid #aaa; border-radius: 8px;
