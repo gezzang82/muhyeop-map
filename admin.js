@@ -1205,7 +1205,8 @@ function prefillCampaignFromLast(placeId) {
     const el = document.getElementById(`ach_${ch}`); if (el) el.checked = (prev.channels || []).includes(ch);
   });
   document.getElementById('addContent').value = prev.content || '';
-  document.getElementById('addLink').value = prev.link || '';
+  // 협찬 링크(URL)는 캠페인마다 달라지므로 프리필하지 않고 비워 둠 — 매번 새로 입력.
+  document.getElementById('addLink').value = '';
   document.getElementById('addHours').value = prev.operatingHours || '';
   document.querySelectorAll('.day-item').forEach(d => {
     d.classList.toggle('on', (prev.operatingDays || []).includes(d.textContent.trim()));
@@ -1217,7 +1218,7 @@ function prefillCampaignFromLast(placeId) {
   if (unknownEl) unknownEl.checked = noDays;
   document.querySelector('.day-group')?.classList.toggle('disabled', noDays);
   refreshAdminSelects();
-  adminToast('직전 캠페인 값을 불러왔어요. 마감일만 새로 입력하세요.');
+  adminToast('직전 캠페인 값을 불러왔어요. 마감일과 협찬 링크는 새로 입력하세요.');
 }
 
 // 캠페인 수정 모드: 매장 정보(카테고리/매장선택/주소/위경도)를 읽기 전용으로 잠금
