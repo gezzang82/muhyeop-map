@@ -440,7 +440,8 @@ body {
   padding: 10px 12px; font-size: 14px; color: var(--text); border-radius: 6px; cursor: pointer;
 }
 .place-combo-item:hover { background: #f4f4f7; }
-.place-combo-item span { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.place-combo-item b { flex-shrink: 0; }
+.place-combo-item span { font-size: 12px; color: var(--muted); flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
 
 .addr-row { justify-content: flex-end; }
 .btn-search {

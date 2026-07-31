@@ -1166,9 +1166,11 @@ function onPlaceComboInput() {
   if (!kw) { menu.innerHTML = ''; combo.classList.remove('open'); return; }
   const matches = places.filter(p => p.name.replace(/\s/g, '').includes(kw)).slice(0, 8);
   if (!matches.length) { menu.innerHTML = ''; combo.classList.remove('open'); return; }
-  menu.innerHTML = matches.map(p =>
-    `<div class="place-combo-item" onclick="pickExistingPlaceForNew(${p.id})"><b>${escHtml(p.name)}</b><span>${escHtml(p.category || '')}</span></div>`
-  ).join('');
+  // 같은 이름 매장(예: '온담' 2곳)을 구분할 수 있도록 카테고리와 함께 주소도 표시
+  menu.innerHTML = matches.map(p => {
+    const meta = [p.category, p.address].filter(Boolean).map(escHtml).join(' · ');
+    return `<div class="place-combo-item" onclick="pickExistingPlaceForNew(${p.id})"><b>${escHtml(p.name)}</b><span>${meta}</span></div>`;
+  }).join('');
   combo.classList.add('open');
 }
 
