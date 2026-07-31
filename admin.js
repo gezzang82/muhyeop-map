@@ -362,6 +362,26 @@ function initAdmin() {
   enhanceSelects();
 }
 
+// 방문 추이 막대그래프(최근 N일). PV 막대 안에 UV를 브랜드컬러로 채워 고유방문 비중을 함께 표시.
+function renderVisitChart(recent) {
+  const el = document.getElementById('visitChart');
+  if (!el) return;
+  const days = recent.slice().reverse(); // DESC → 과거→오늘
+  if (!days.length) { el.innerHTML = '<div class="empty-msg">아직 방문 데이터가 없어요.</div>'; return; }
+  const maxPv = Math.max(1, ...days.map(d => d.pv || 0));
+  el.innerHTML = days.map(d => {
+    const pv = d.pv || 0, uv = d.uv || 0;
+    const pvH = Math.round(pv / maxPv * 100);
+    const uvH = pv ? Math.round(uv / pv * 100) : 0;
+    const md = String(d.date || '').slice(5); // MM-DD
+    return `<div class="vc-col" title="${d.date} · PV ${pv} · UV ${uv}">
+        <div class="vc-val">${pv}</div>
+        <div class="vc-bar"><div class="vc-bar-pv" style="height:${pvH}%"><div class="vc-bar-uv" style="height:${uvH}%"></div></div></div>
+        <div class="vc-label">${md}</div>
+      </div>`;
+  }).join('');
+}
+
 // ===== 대시보드 =====
 function renderDashboard() {
   const today = getKSTTodayUTC();
@@ -396,6 +416,7 @@ function renderDashboard() {
     set('statVisitTodayPv', s.todayPv);
     set('statVisitTodayUv', s.todayUv);
     set('statVisitTotalPv', s.totalPv);
+    renderVisitChart(s.recent || []);
   }).catch(() => {});
 
   // 마감 임박 (D-DAY ~ D-4): 활성 캠페인을 마감까지 남은 일수별로 집계. 상시(마감일 없음)는 제외.

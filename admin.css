@@ -229,6 +229,19 @@ body {
 .dday-cell.dday-today .dday-label,
 .dday-cell.dday-today .dday-count { color: var(--brand); }
 
+/* 방문 추이 막대그래프 */
+.vc-legend { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 8px; }
+.vc-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin: 0 3px 0 8px; }
+.vc-legend .vc-lg-uv { background: var(--brand); }
+.vc-legend .vc-lg-pv { background: #e3e3ea; }
+.visit-chart { display: flex; align-items: flex-end; gap: 6px; height: 170px; }
+.vc-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.vc-val { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.vc-bar { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
+.vc-bar-pv { width: 60%; max-width: 28px; min-height: 3px; background: #e3e3ea; border-radius: 4px 4px 0 0; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.vc-bar-uv { width: 100%; background: var(--brand); }
+.vc-label { font-size: 11px; color: var(--muted); margin-top: 6px; white-space: nowrap; }
+
 .stat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .stat-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); white-space: nowrap; min-width: 60px; text-align: center; }
 .stat-ch { font-size: 13px; min-width: 90px; display: flex; align-items: center; gap: 6px; color: var(--text); }

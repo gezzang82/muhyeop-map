@@ -62,7 +62,7 @@ module.exports = async function handler(req, res) {
       const day = kstDay();
       const today = (await db.execute({ sql: "SELECT pv, uv FROM site_daily WHERE visit_date = ?", args: [day] })).rows[0] || {};
       const total = (await db.execute("SELECT COALESCE(SUM(pv),0) AS pv, COALESCE(SUM(uv),0) AS uv FROM site_daily")).rows[0] || {};
-      const recent = (await db.execute("SELECT visit_date, pv, uv FROM site_daily ORDER BY visit_date DESC LIMIT 7")).rows;
+      const recent = (await db.execute("SELECT visit_date, pv, uv FROM site_daily ORDER BY visit_date DESC LIMIT 14")).rows;
       return res.status(200).json({
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
