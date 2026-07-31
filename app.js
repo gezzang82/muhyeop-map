@@ -681,10 +681,9 @@ function createInfoContent(place) {
               </div>
               ${rightBtnHtml}
             </div>
-            ${campaignLink(c)
-              ? `<a class="iw-content-link" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="iw-content">${c.content}</p></a>`
-              : `<p class="iw-content">${c.content}</p>`}
+            <p class="iw-content">${c.content}</p>
             <div class="iw-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
+            ${campaignLink(c) ? `<a class="apply-btn" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})">신청하기</a>` : ''}
           </div>`;
       }).join('')
     : '';
@@ -800,10 +799,9 @@ function createMobileDetailContent(place) {
           </div>
           ${rightBtnHtml}
         </div>
-        ${campaignLink(c)
-          ? `<a class="detail-content-link" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})"><p class="detail-content">${c.content}</p></a>`
-          : `<p class="detail-content">${c.content}</p>`}
+        <p class="detail-content">${c.content}</p>
         <div class="detail-info-rows">${daysHtml}${hoursHtml}${reporterHtml}</div>
+        ${campaignLink(c) ? `<a class="apply-btn" href="${httpUrl(campaignLink(c))}" target="_blank" onclick="trackCampaignClick(${c.id})">신청하기</a>` : ''}
       </div>`;
   }).join('');
 
