@@ -882,6 +882,20 @@ async function submitBanner() {
 
 // ===== 회원 목록 =====
 const PROVIDER_LABELS = { kakao: '카카오', naver: '네이버' };
+
+// DB의 created_at은 UTC(datetime('now'))로 저장됨 → 어드민 표시는 한국시간(KST)으로 변환.
+// SQLite 형식 'YYYY-MM-DD HH:MM:SS'(UTC)를 파싱해 Asia/Seoul 기준 'YYYY-MM-DD HH:MM'로 반환.
+function fmtKST(dt) {
+  if (!dt) return '-';
+  const d = new Date(String(dt).replace(' ', 'T') + 'Z');
+  if (isNaN(d)) return dt;
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(d).reduce((o, x) => (o[x.type] = x.value, o), {});
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+}
+
 let allUsers = [];
 const userView = { page: 1, size: 50, field: 'all', keyword: '' };
 
@@ -926,7 +940,7 @@ function renderUserRows() {
       <td>${u.reportCount != null ? u.reportCount : 0}</td>
       <td>${u.reviewCount != null ? u.reviewCount : 0}</td>
       <td>${u.visitCount != null ? u.visitCount : 0}</td>
-      <td>${u.createdAt}</td>
+      <td>${fmtKST(u.createdAt)}</td>
     </tr>`).join('') || `<tr><td colspan="9" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
   renderUserPager(totalPages);
 }
@@ -1052,7 +1066,7 @@ function renderReportRows() {
       <td>${escHtml(r.reason)}</td>
       <td>${escHtml(r.detail) || '-'}</td>
       <td>${escHtml(r.reporterNickname) || '비회원'}</td>
-      <td>${r.createdAt}</td>
+      <td>${fmtKST(r.createdAt)}</td>
       <td>${reportActionButtons(r)}</td>
     </tr>`).join('') || `<tr><td colspan="10" class="empty-msg">신고 내역 없음</td></tr>`;
   document.getElementById('rvTotal').textContent = reports.length;

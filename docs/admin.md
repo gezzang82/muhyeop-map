@@ -5,6 +5,9 @@
 - `admin.js` — 어드민 로직
 - `admin.css` — 어드민 전용 스타일
 
+## 날짜/시간 표시 (KST 변환)
+- DB의 `created_at`은 `datetime('now')`로 **UTC 저장**(스키마 대부분. `scraped_items`만 `+9 hours`). 어드민 목록의 **일시 표시는 `fmtKST()`로 KST 변환** 후 출력(회원목록 가입일시 `u.createdAt`, 신고목록 신고일시 `r.createdAt`). `fmtKST`는 SQLite UTC 문자열을 `Asia/Seoul` 기준 `YYYY-MM-DD HH:MM`으로. 대시보드 "오늘 가입" 집계(`isCreatedToday`)도 KST 기준. (후기 목록의 게시일은 `postDate` 날짜값이라 변환 대상 아님)
+
 ## 대시보드 통계
 - `statPlaces`(장소 수), `statCampaigns`(전체 캠페인 수), `statActive`(마감일이 오늘 이후인 캠페인 수), `statUserReported`(사용자 제보 수), `statMembers`(가입 회원 수, `/api/users` 응답 길이) 카드로 구성
 - "마감 완료" 통계 카드는 D-day/마감 시스템 제거 후 함께 삭제됨 (`expired` 필터, `statExpired` 더 이상 없음)
