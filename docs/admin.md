@@ -10,6 +10,7 @@
 
 ## 대시보드 통계
 - `statPlaces`(장소 수), `statCampaigns`(전체 캠페인 수), `statActive`(마감일이 오늘 이후인 캠페인 수), `statUserReported`(사용자 제보 수), `statMembers`(가입 회원 수, `/api/users` 응답 길이) 카드로 구성
+- **마감 임박 카드**(`#ddayStats`, 2026-07-31): 활성 캠페인을 마감까지 남은 일수별로 **D-DAY(오늘 마감)~D-4** 5칸으로 집계 표시. `deadlineToUTC(c.deadline) - today === n*86400000`(KST 기준), 상시(마감일 빈 값=Infinity)는 제외. D-DAY 칸은 브랜드컬러 강조. 체험단 마감이 ~5일이라 매일 얼마나 갱신해야 하는지 파악용.
 - "마감 완료" 통계 카드는 D-day/마감 시스템 제거 후 함께 삭제됨 (`expired` 필터, `statExpired` 더 이상 없음)
 
 ## Excel 업로드

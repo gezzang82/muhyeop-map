@@ -390,6 +390,20 @@ function renderDashboard() {
     fetch('/api/users').then(r => r.json()).then(users => { statMembersEl.textContent = users.length; }).catch(() => {});
   }
 
+  // 마감 임박 (D-DAY ~ D-4): 활성 캠페인을 마감까지 남은 일수별로 집계. 상시(마감일 없음)는 제외.
+  const DAY_MS = 86400000;
+  const ddayStatsEl = document.getElementById('ddayStats');
+  if (ddayStatsEl) {
+    const labels = ['D-DAY', 'D-1', 'D-2', 'D-3', 'D-4'];
+    ddayStatsEl.innerHTML = labels.map((label, n) => {
+      const cnt = active.filter(c => (deadlineToUTC(c.deadline) - today) === n * DAY_MS).length;
+      return `<div class="dday-cell${n === 0 ? ' dday-today' : ''}">
+        <span class="dday-label">${label}</span>
+        <span class="dday-count">${cnt}</span>
+      </div>`;
+    }).join('');
+  }
+
   // 플랫폼별
   const platformCount = {};
   active.forEach(c => { platformCount[c.platform] = (platformCount[c.platform] || 0) + 1; });
