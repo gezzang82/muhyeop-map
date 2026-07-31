@@ -108,6 +108,7 @@ async function ensureReviewTables(db) {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
   try { await db.execute("ALTER TABLE reviews ADD COLUMN post_date TEXT DEFAULT ''"); } catch (e) { /* 이미 있으면 무시 */ }
+  try { await db.execute("ALTER TABLE reviews ADD COLUMN click_count INTEGER DEFAULT 0"); } catch (e) { /* 이미 있으면 무시 */ }
   await db.execute(`CREATE TABLE IF NOT EXISTS review_likes (
     review_id INTEGER NOT NULL,
     voter_key TEXT NOT NULL,
@@ -128,6 +129,7 @@ function toReview(row, liked) {
     excerpt: row.excerpt || '',
     author: row.user_nickname || row.author || '',
     likeCount: Number(row.like_count || 0),
+    clickCount: Number(row.click_count || 0),
     liked: !!liked,
     postDate: row.post_date || '',
     createdAt: row.created_at

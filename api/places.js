@@ -55,9 +55,20 @@ module.exports = async function handler(req, res) {
         url: row.url, title: row.title || '블로그 후기',
         author: row.user_nickname || row.author || '',
         likeCount: Number(row.like_count || 0),
+        clickCount: Number(row.click_count || 0),
         postDate: row.post_date || '', createdAt: row.created_at,
         hidden: !!row.hidden
       })));
+    }
+
+    // 클릭수 트래킹: POST ?reviews=track&id= (공개, 후기 카드 클릭 시 블로그로 이동하며 호출)
+    if (req.method === 'POST' && action === 'track') {
+      const id = Number(req.query.id);
+      if (!id) return res.status(400).json({ error: 'id 필요' });
+      try {
+        await db.execute({ sql: 'UPDATE reviews SET click_count = COALESCE(click_count,0) + 1 WHERE id = ?', args: [id] });
+      } catch (e) { /* 트래킹 실패는 무시(fail-open) */ }
+      return res.status(200).json({ ok: true });
     }
 
     // 목록: GET ?reviews=list&placeId=&sort=latest|likes

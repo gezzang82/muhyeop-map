@@ -1018,13 +1018,14 @@ function renderReviewRows() {
       <td>${escHtml(r.author) || '-'}</td>
       <td>${(r.postDate || r.createdAt || '').slice(0, 10) || '-'}</td>
       <td>${r.likeCount || 0}</td>
+      <td>${r.clickCount || 0}</td>
       <td><a href="${escHtml(r.url)}" target="_blank" rel="noopener">블로그 열기</a></td>
       <td><span class="badge-status ${r.hidden ? 'expired' : 'active'}">${r.hidden ? '숨김' : '노출'}</span></td>
       <td>
         <button class="btn-edit-sm" onclick="toggleReviewHiddenAdmin(${r.id})">${r.hidden ? '노출' : '숨김'}</button>
         <button class="btn-del-sm" onclick="confirmDelete('review', ${r.id})">삭제</button>
       </td>
-    </tr>`).join('') || `<tr><td colspan="9" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 후기 없음'}</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="10" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 후기 없음'}</td></tr>`;
   document.getElementById('rmTotal').textContent = allReviews.length;
   document.getElementById('rmShown').textContent = total;
   renderReviewPager(totalPages);
