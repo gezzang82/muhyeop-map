@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /styleguide.html
+Disallow: /api/
+
+Sitemap: https://muhyeop.com/sitemap.xml
