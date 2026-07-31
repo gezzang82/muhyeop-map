@@ -19,7 +19,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=64">
+  <link rel="stylesheet" href="style.css?v=65">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -473,11 +473,14 @@
         <div class="pc-app-dl-title">
           <span>무협맵</span>
           <img src="image/ic_appstore_20.svg" width="20" height="20" alt="App Store">
-          <img src="image/ic_googleplay_20.svg" width="20" height="20" alt="Google Play">
+          <!-- 안드로이드(구글플레이) 출시 전까지 숨김 -->
+          <img src="image/ic_googleplay_20.svg" width="20" height="20" alt="Google Play" style="display:none">
         </div>
         <p class="pc-app-dl-desc">모바일 앱으로 다운로드 받으세요!</p>
       </div>
-      <div class="pc-app-dl-qr" aria-label="QR 코드 영역"></div>
+      <div class="pc-app-dl-qr" aria-label="무협맵 QR 코드">
+        <img src="image/qr_muhyeop.png" alt="무협맵 QR 코드" class="pc-app-dl-qr-img">
+      </div>
     </div>
   </div>
 
