@@ -447,7 +447,7 @@ function renderDashboard() {
   const DAY_MS = 86400000;
   const ddayStatsEl = document.getElementById('ddayStats');
   if (ddayStatsEl) {
-    const labels = ['D-DAY', 'D-1', 'D-2', 'D-3', 'D-4'];
+    const labels = ['D-DAY', 'D-1', 'D-2', 'D-3', 'D-4', 'D-5', 'D-6', 'D-7'];
     ddayStatsEl.innerHTML = labels.map((label, n) => {
       const cnt = active.filter(c => (deadlineToUTC(c.deadline) - today) === n * DAY_MS).length;
       return `<div class="dday-cell${n === 0 ? ' dday-today' : ''}">

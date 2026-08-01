@@ -13,7 +13,7 @@
 - **방문 카드**(2026-07-31): `statVisitTodayPv`(오늘 PV)·`statVisitTodayUv`(오늘 UV=IP+일 중복제거)·`statVisitTotalPv`(누적 PV). `GET /api/places?visit=stats`로 조회(비로그인 포함 전체 방문). 집계는 공개 페이지 로드 시 `POST ?visit=1`(app.js). 기존 회원목록 "접속수"는 로그인 회원 한정이라 별개.
 - **유입경로 카드**(`#referrerStats`, `renderReferrers`): `?visit=stats`의 `referrers`(누적 top8)로 채널별(네이버/인스타/구글/당근/직접·앱/기타 호스트) 막대 표시. 방문 핑에 `document.referrer`를 실어 보내 `site_referrer`에 채널 분류(`classifyReferrer`) 누적. 내부이동(muhyeop.com)은 제외, referrer 빈 값(다이렉트·앱·일부 인앱브라우저)은 '직접·앱'. 검색어까진 안 보임.
 - **방문 추이 그래프**(`#visitChart`, `renderVisitChart`): 순수 CSS 막대그래프(차트 라이브러리 없음). **일별/주별/월별 토글**(`setVisitPeriod`) — `?visit=stats&period=day|week|month`. PV=SUM, UV는 기간 내 **진짜 고유**(`COUNT(DISTINCT visitor_key)` from `site_visitor`)라 일별 UV 단순합보다 정확. PV 막대 안에 UV를 브랜드컬러로 채워 비중 표시. day=최근 14일, week/month=최근 12구간.
-- **마감 임박 카드**(`#ddayStats`, 2026-07-31): 활성 캠페인을 마감까지 남은 일수별로 **D-DAY(오늘 마감)~D-4** 5칸으로 집계 표시. `deadlineToUTC(c.deadline) - today === n*86400000`(KST 기준), 상시(마감일 빈 값=Infinity)는 제외. D-DAY 칸은 브랜드컬러 강조. 체험단 마감이 ~5일이라 매일 얼마나 갱신해야 하는지 파악용.
+- **마감 임박 카드**(`#ddayStats`, 2026-07-31): 활성 캠페인을 마감까지 남은 일수별로 **D-DAY(오늘 마감)~D-7** 8칸으로 집계 표시(2026-08-02 D-4→D-7 확장). `deadlineToUTC(c.deadline) - today === n*86400000`(KST 기준), 상시(마감일 빈 값=Infinity)는 제외. D-DAY 칸은 브랜드컬러 강조. 체험단 마감이 ~5일이라 매일 얼마나 갱신해야 하는지 파악용.
 - "마감 완료" 통계 카드는 D-day/마감 시스템 제거 후 함께 삭제됨 (`expired` 필터, `statExpired` 더 이상 없음)
 
 ## Excel 업로드
