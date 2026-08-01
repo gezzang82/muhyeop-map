@@ -381,6 +381,21 @@ function renderVisitChart(series) {
   }).join('');
 }
 
+// 유입경로 집계(누적). platform-stats 스타일 재사용(막대 + 개수).
+function renderReferrers(refs) {
+  const el = document.getElementById('referrerStats');
+  if (!el) return;
+  if (!refs || !refs.length) { el.innerHTML = '<div class="empty-msg">아직 유입 데이터가 없어요.</div>'; return; }
+  const labelMap = { direct: '직접·앱', naver: '네이버', instagram: '인스타그램', google: '구글', daum: '다음', kakao: '카카오', youtube: '유튜브', facebook: '페이스북', daangn: '당근' };
+  const max = Math.max(1, ...refs.map(r => r.cnt || 0));
+  el.innerHTML = refs.map(r => `
+      <div class="stat-row">
+        <span class="stat-badge" style="background:#39395c1a;color:#39395c">${labelMap[r.ref] || escHtml(r.ref)}</span>
+        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round((r.cnt || 0) / max * 100)}%;background:#39395c"></div></div>
+        <span class="stat-num">${r.cnt || 0}</span>
+      </div>`).join('');
+}
+
 // 방문 추이 기간 토글(일별/주별/월별)
 let _visitPeriod = 'day';
 function setVisitPeriod(period, btn) {
@@ -425,6 +440,7 @@ function renderDashboard() {
     set('statVisitTodayUv', s.todayUv);
     set('statVisitTotalPv', s.totalPv);
     renderVisitChart(s.series || []);
+    renderReferrers(s.referrers || []);
   }).catch(() => {});
 
   // 마감 임박 (D-DAY ~ D-4): 활성 캠페인을 마감까지 남은 일수별로 집계. 상시(마감일 없음)는 제외.

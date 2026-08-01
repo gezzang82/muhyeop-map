@@ -13,7 +13,11 @@ function loadInitialData() {
       // 사이트 방문 집계(비차단, 페이지 로드 1회). 실패 무시 — 지도 로딩엔 영향 없음.
       // 어드민(admin.js도 loadInitialData 사용)에서는 집계 제외 — 관리자 새로고침이 PV에 안 잡히게.
       if (!/^\/admin/.test(location.pathname)) {
-        fetch('/api/places?visit=1', { method: 'POST', keepalive: true }).catch(() => {});
+        fetch('/api/places?visit=1', {
+          method: 'POST', keepalive: true,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ref: document.referrer || '' })
+        }).catch(() => {});
       }
       const [placesRes, campaignsRes, bannersRes] = await Promise.all([
         fetch('/api/places'),

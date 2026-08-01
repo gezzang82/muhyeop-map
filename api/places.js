@@ -21,9 +21,27 @@ function toPlace(row) {
 async function ensureSiteVisitTables(db) {
   await db.execute("CREATE TABLE IF NOT EXISTS site_daily (visit_date TEXT PRIMARY KEY, pv INTEGER DEFAULT 0, uv INTEGER DEFAULT 0)");
   await db.execute("CREATE TABLE IF NOT EXISTS site_visitor (visit_date TEXT NOT NULL, visitor_key TEXT NOT NULL, PRIMARY KEY(visit_date, visitor_key))");
+  await db.execute("CREATE TABLE IF NOT EXISTS site_referrer (ref TEXT PRIMARY KEY, cnt INTEGER DEFAULT 0)");
 }
 function kstDay() {
   return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); // KST 날짜(YYYY-MM-DD)
+}
+// 유입경로 분류: referrer URL → 채널 키. 빈 값=직접, 내부이동은 null(집계 제외), 주요 채널은 묶고 그 외엔 호스트명.
+function classifyReferrer(ref) {
+  if (!ref) return 'direct';
+  let host;
+  try { host = new URL(ref).hostname.toLowerCase(); } catch (e) { return 'direct'; }
+  host = host.replace(/^(www\.|m\.|l\.)/, '');
+  if (host === 'muhyeop.com' || host.endsWith('.muhyeop.com')) return null; // 내부 이동 제외
+  if (host.includes('naver')) return 'naver';
+  if (host.includes('instagram')) return 'instagram';
+  if (host.includes('google')) return 'google';
+  if (host.includes('daum')) return 'daum';
+  if (host.includes('kakao') || host.includes('kko')) return 'kakao';
+  if (host.includes('youtube') || host.includes('youtu.be')) return 'youtube';
+  if (host.includes('facebook') || host === 'fb.com') return 'facebook';
+  if (host.includes('daangn') || host.includes('karrot')) return 'daangn';
+  return host;
 }
 
 module.exports = async function handler(req, res) {
@@ -52,6 +70,10 @@ module.exports = async function handler(req, res) {
         if (ins.rowsAffected > 0) {
           await db.execute({ sql: "UPDATE site_daily SET uv = uv + 1 WHERE visit_date = ?", args: [day] });
         }
+        const refKey = classifyReferrer(req.body && req.body.ref);
+        if (refKey) {
+          await db.execute({ sql: "INSERT INTO site_referrer (ref, cnt) VALUES (?, 1) ON CONFLICT(ref) DO UPDATE SET cnt = cnt + 1", args: [refKey] });
+        }
       } catch (e) { /* 집계 실패는 무시 */ }
       return res.status(200).json({ ok: true });
     }
@@ -79,10 +101,12 @@ module.exports = async function handler(req, res) {
           pv: Number(r.pv || 0), uv: uvMap[r.k] || 0
         })).reverse();
       }
+      const refRows = (await db.execute("SELECT ref, cnt FROM site_referrer ORDER BY cnt DESC LIMIT 8")).rows;
       return res.status(200).json({
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
-        period, series
+        period, series,
+        referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) }))
       });
     }
     return res.status(400).json({ error: 'visit 파라미터 오류' });

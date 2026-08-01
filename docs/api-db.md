@@ -28,7 +28,7 @@
 - `banners(id, image_url, link_url, start_date, end_date, created_at)`
 - `reports(id, target_type, campaign_id, place_id, review_id, reason, detail, user_id, created_at)` — 신고 3종(`target_type`='place'|'campaign'|'review', 해당 id만 채움, 나머지 NULL). `user_id`는 로그인 사용자가 신고 시 세션에서 조용히 채워짐(입력 필드 없음). 비로그인 신고는 NULL. (기존 campaign_id NOT NULL 스키마에서 2026-07-02 재구성)
 - `user_visits(user_id, visit_date)` — 로그인 사용자 접속 집계(1일 1회, `UNIQUE(user_id, visit_date)`). `me.js`가 로드 시 KST 날짜로 `INSERT OR IGNORE`. 어드민 회원 목록의 "접속수"에 사용
-- `site_daily(visit_date PK, pv, uv)` / `site_visitor(visit_date, visitor_key, PK(visit_date,visitor_key))` — **전체 사이트 방문 집계**(비로그인 포함). `places.js ?visit=1`이 PV 누적 + IP 기준 UV 중복제거. 어드민 대시보드 "오늘 방문(PV/UV)·누적 방문(PV)" 카드(`?visit=stats`). KST 일자 기준
+- `site_daily(visit_date PK, pv, uv)` / `site_visitor(visit_date, visitor_key, PK(visit_date,visitor_key))` / `site_referrer(ref PK, cnt)` — **전체 사이트 방문 집계**(비로그인 포함). `places.js ?visit=1`이 PV 누적 + IP 기준 UV 중복제거 + `document.referrer`를 `classifyReferrer`로 채널 분류해 `site_referrer` 누적. 어드민 대시보드 "방문 카드/추이 그래프(일·주·월)/유입경로"(`?visit=stats[&period=]`). KST 일자 기준
 - `reviews(...)` — 후기(네이버 블로그). `user_id`(작성자), `hidden`, `post_date`(블로그 게시일), `click_count`(후기 카드 클릭수 누적). 어드민 후기 관리 + 공개 목록 `mine` 플래그(본인 삭제). 클릭 트래킹: 공개 후기 카드 클릭 시 `POST /api/places?reviews=track&id=`로 `click_count` +1(dedup 없이 단순 누적), `toReview`·어드민 목록(`?reviews=all`)이 `clickCount` 반환, 어드민 '후기 관리' 탭에 클릭수 컬럼 표시
 
 ## 데이터 매핑 규칙
