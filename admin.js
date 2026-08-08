@@ -88,8 +88,9 @@ async function collectScrape() {
   const platform = document.getElementById('collectPlatform').value;
   const mode = document.getElementById('collectMode').value;
   const limit = document.getElementById('collectLimit').value || 20;
+  const reset = document.getElementById('collectReset')?.checked ? '&reset=1' : '';
   try {
-    const res = await fetch(`/api/campaigns?action=scrape&platform=${platform}&mode=${mode}&limit=${limit}`, { method: 'POST' });
+    const res = await fetch(`/api/campaigns?action=scrape&platform=${platform}&mode=${mode}&limit=${limit}${reset}`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '수집 실패');
     statusEl.textContent = `신규 ${data.staged}건 적재 (처리 ${data.processed} · 제외 ${data.excluded} · 중복 ${data.dupActive || 0}). 커서 ${data.cursorFrom}→${data.cursorTo}`;
@@ -98,6 +99,7 @@ async function collectScrape() {
     statusEl.textContent = '오류: ' + e.message;
   } finally {
     btn.disabled = false;
+    const rst = document.getElementById('collectReset'); if (rst) rst.checked = false; // 리셋은 1회성
   }
 }
 async function collectReparse(only) {
