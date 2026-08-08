@@ -311,36 +311,47 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40 }) {
   const lastMaxId = Number(stRes.rows[0]?.last_max_id || 0);
 
   const allIds = await collectIds(mode);
-  const cursorTo = allIds.length ? Math.max(...allIds) : lastMaxId;
-  const newIds = allIds.filter((id) => id > lastMaxId).sort((a, b) => b - a);
+  // 신규(커서 초과)를 '오름차순'으로 처리 → limit에 걸려 못 받은 상위 신규는 다음 실행에서 이어받음(스킵 방지)
+  const newIds = allIds.filter((id) => id > lastMaxId).sort((a, b) => a - b);
   const targets = newIds.slice(0, limit);
 
   const dedupe = await loadDedupe(db);
   let staged = 0, excluded = 0, dupActive = 0, failed = 0;
+  // 커서는 '연속으로 성공 처리한 대상의 최댓값'까지만 전진(과거: 목록 최댓값으로 점프 → 미처리 신규 영구 스킵 버그).
+  // 실패가 나면 그 지점 이후는 커서를 올리지 않아 다음 실행에서 재시도(누락 방지).
+  let cursorAdvance = lastMaxId, sawFail = false;
 
   for (let i = 0; i < targets.length; i++) {
     const id = targets[i];
+    let ok = false;
     try {
       const html = await fetchText(`${BASE}/taste/${id}`);
       const d = scrapeDetail(html, id);
       const nz = normalizeItem(d);
-      if (nz.excluded) { excluded++; continue; }
-      const it = nz.item;
-      const cls = classify(it, dedupe, today);
-      if (cls.status === 'dup_active') { dupActive++; continue; } // 활성 중복은 스테이징 안 함
-      const ins = await db.execute({
-        sql: `INSERT OR IGNORE INTO scraped_items
-          (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
-        args: [platform, id, it.url, it.name, it.address, it.category, it.channel, it.content, it.deadline || '',
-          it.hours || '', it.days || '', it.excludeHoliday === 'Y' ? 1 : 0, it.flags || '', cls.status, cls.matchedPlaceId],
-      });
-      if (ins.rowsAffected > 0) staged++;
+      if (nz.excluded) { excluded++; ok = true; }
+      else {
+        const it = nz.item;
+        const cls = classify(it, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; ok = true; } // 활성 중복은 스테이징 안 함
+        else {
+          const ins = await db.execute({
+            sql: `INSERT OR IGNORE INTO scraped_items
+              (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+            args: [platform, id, it.url, it.name, it.address, it.category, it.channel, it.content, it.deadline || '',
+              it.hours || '', it.days || '', it.excludeHoliday === 'Y' ? 1 : 0, it.flags || '', cls.status, cls.matchedPlaceId],
+          });
+          if (ins.rowsAffected > 0) staged++;
+          ok = true;
+        }
+      }
     } catch (e) { failed++; }
+    if (ok && !sawFail) cursorAdvance = id; // 실패 전까지의 연속 성공 구간만 커서 전진
+    else if (!ok) sawFail = true;
     if (i < targets.length - 1) await sleep(600);
   }
 
-  const newCursor = Math.max(lastMaxId, cursorTo);
+  const newCursor = Math.max(lastMaxId, cursorAdvance);
   await db.execute({
     sql: `INSERT INTO scrape_state (platform, last_max_id, last_run_at) VALUES (?, ?, datetime('now','+9 hours'))
           ON CONFLICT(platform) DO UPDATE SET last_max_id = excluded.last_max_id, last_run_at = excluded.last_run_at`,
@@ -430,61 +441,70 @@ async function runFoblog({ db, limit = 40 }) {
   const lastMaxId = Number(stRes.rows[0]?.last_max_id || 0);
 
   // 오늘오픈 목록(전지역 소량)을 받아 커서 이후 신규만. 서울 여부는 상세 주소로 판정.
-  const newItems = []; let offset = 0; let maxSeen = lastMaxId;
+  const newItems = []; let offset = 0;
   while (offset < 90) {
     let batch;
     try { batch = await fbFetchList(offset, 30); } catch (e) { break; }
     if (!batch || !batch.length) break;
     for (const it of batch) {
       const cid = Number(it.CID);
-      if (cid > maxSeen) maxSeen = cid;
       if (cid > lastMaxId && (it.CATEGORY1 || 'local') === 'local') newItems.push(it);
     }
     if (batch.length < 30) break; // 마지막 페이지
     offset += 30;
     await sleep(600);
   }
-  const targets = newItems.sort((a, b) => Number(b.CID) - Number(a.CID)).slice(0, limit);
+  const targets = newItems.sort((a, b) => Number(a.CID) - Number(b.CID)).slice(0, limit); // 오름차순: limit 초과분은 다음 실행에서 이어받음(스킵 방지)
 
   const dedupe = await loadDedupe(db);
   let staged = 0, excluded = 0, dupActive = 0, failed = 0;
+  // 커서는 '연속 성공 처리한 CID 최댓값'까지만 전진(과거: maxSeen으로 점프 → 미처리 신규 영구 스킵 버그)
+  let cursorAdvance = lastMaxId, sawFail = false;
 
   for (let i = 0; i < targets.length; i++) {
     const it = targets[i];
+    const cid = Number(it.CID);
+    let ok = false;
     try {
       const { name } = fbName(it.CAMPAIGN_NM);
       const channel = FB_CH[String(it.CATEGORY || '').toLowerCase()] || '';
       const content = cleanContent(String(it.REVIEWER_BENEFIT || ''));
       const html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`);
       const { address, hours: rawHours, closedRaw, daysExplicit, holidayExplicit, deadline: dlCal } = fbParseDetail(html);
-      if (!address) { excluded++; await sleep(500); continue; }
-      if (!/^서울/.test(address)) { excluded++; await sleep(500); continue; } // 서울만
-      const deadline = dlCal || fbDeadline(it.REQ_CLOSE_DT); // 캘린더 '리뷰어 모집' 종료일 우선
-      const days = daysExplicit || deriveDays(rawHours, closedRaw);       // 포블로그 명시 요일 우선
-      const hours = cleanHours(rawHours);
-      const excludeHoliday = holidayExplicit || parseExcludeHoliday(rawHours, closedRaw);
-      const auto = categoryByKeyword(String(it.KEYWORD || '') + ' ' + content, name);
-      const category = auto || '음식점';
-      const flags = [];
-      if (!auto) flags.push('카테고리확인(기본값 음식점)');
-      if (!channel) flags.push('채널확인');
-      if (!days) flags.push('가능요일확인');
-      const item = { name, url: `${FB_BASE}/campaign/${it.CID}/`, channel, category, address, deadline, content, hours, days, excludeHoliday, flags: flags.join(' ') };
-      const cls = classify(item, dedupe, today);
-      if (cls.status === 'dup_active') { dupActive++; await sleep(500); continue; }
-      const ins = await db.execute({
-        sql: `INSERT OR IGNORE INTO scraped_items
-          (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
-        args: [platform, Number(it.CID), item.url, name, address, category, channel, content, deadline || '',
-          hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, item.flags || '', cls.status, cls.matchedPlaceId],
-      });
-      if (ins.rowsAffected > 0) staged++;
+      if (!address || !/^서울/.test(address)) { excluded++; ok = true; } // 주소 없거나 서울 아님
+      else {
+        const deadline = dlCal || fbDeadline(it.REQ_CLOSE_DT); // 캘린더 '리뷰어 모집' 종료일 우선
+        const days = daysExplicit || deriveDays(rawHours, closedRaw);       // 포블로그 명시 요일 우선
+        const hours = cleanHours(rawHours);
+        const excludeHoliday = holidayExplicit || parseExcludeHoliday(rawHours, closedRaw);
+        const auto = categoryByKeyword(String(it.KEYWORD || '') + ' ' + content, name);
+        const category = auto || '음식점';
+        const flags = [];
+        if (!auto) flags.push('카테고리확인(기본값 음식점)');
+        if (!channel) flags.push('채널확인');
+        if (!days) flags.push('가능요일확인');
+        const item = { name, url: `${FB_BASE}/campaign/${it.CID}/`, channel, category, address, deadline, content, hours, days, excludeHoliday, flags: flags.join(' ') };
+        const cls = classify(item, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; ok = true; }
+        else {
+          const ins = await db.execute({
+            sql: `INSERT OR IGNORE INTO scraped_items
+              (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+            args: [platform, Number(it.CID), item.url, name, address, category, channel, content, deadline || '',
+              hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, item.flags || '', cls.status, cls.matchedPlaceId],
+          });
+          if (ins.rowsAffected > 0) staged++;
+          ok = true;
+        }
+      }
     } catch (e) { failed++; }
+    if (ok && !sawFail) cursorAdvance = cid; // 실패 전까지의 연속 성공 구간만 커서 전진
+    else if (!ok) sawFail = true;
     if (i < targets.length - 1) await sleep(600);
   }
 
-  const newCursor = Math.max(lastMaxId, maxSeen);
+  const newCursor = Math.max(lastMaxId, cursorAdvance);
   await db.execute({
     sql: `INSERT INTO scrape_state (platform, last_max_id, last_run_at) VALUES (?, ?, datetime('now','+9 hours'))
           ON CONFLICT(platform) DO UPDATE SET last_max_id = excluded.last_max_id, last_run_at = excluded.last_run_at`,
