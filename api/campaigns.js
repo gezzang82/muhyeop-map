@@ -211,10 +211,16 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ rows, total, page, size });
     }
     // 공개 지도 조회: 숨김 캠페인 + 숨김 매장 소속 캠페인 제외, 이메일(PII) 제외하고 반환
-    const result = await db.execute(`
-      SELECT c.* FROM campaigns c
+    // ?active=1: 만료(마감 지난) 캠페인 제외 → 공개 페이로드 대폭 축소(만료분은 화면에 안 쓰임). 공개 앱만 사용.
+    const activeOnly = q.active === '1';
+    const kstToday = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const extra = activeOnly ? " AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)" : '';
+    const result = await db.execute({
+      sql: `SELECT c.* FROM campaigns c
       LEFT JOIN places p ON p.id = c.place_id
-      WHERE COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0`);
+      WHERE COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0${extra}`,
+      args: activeOnly ? [kstToday] : []
+    });
     return res.status(200).json(result.rows.map(r => { const c = toCampaign(r); delete c.reporterEmail; return c; }));
   }
 

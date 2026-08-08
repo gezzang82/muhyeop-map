@@ -19,9 +19,11 @@ function loadInitialData() {
           body: JSON.stringify({ ref: document.referrer || '' })
         }).catch(() => {});
       }
+      // 공개 앱은 활성 캠페인만 받아 페이로드 최소화(만료분은 화면에 안 쓰임). 어드민은 통계용으로 전체 필요.
+      const campaignsUrl = /^\/admin/.test(location.pathname) ? '/api/campaigns' : '/api/campaigns?active=1';
       const [placesRes, campaignsRes, bannersRes] = await Promise.all([
         fetch('/api/places'),
-        fetch('/api/campaigns'),
+        fetch(campaignsUrl),
         fetch('/api/banners')
       ]);
       places = await placesRes.json();
