@@ -80,6 +80,7 @@ module.exports = async function handler(req, res) {
     // 조회: 어드민 대시보드 GET ?visit=stats[&period=day|week|month]
     if (req.method === 'GET' && req.query.visit === 'stats') {
       if (!requireAdmin(req, res)) return;
+      try {
       await ensureSiteVisitTables(db);
       const day = kstDay();
       const today = (await db.execute({ sql: "SELECT pv, uv FROM site_daily WHERE visit_date = ?", args: [day] })).rows[0] || {};
@@ -108,6 +109,10 @@ module.exports = async function handler(req, res) {
         period, series,
         referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) }))
       });
+      } catch (e) {
+        // 500으로 통째 실패 대신, 에러 메시지를 응답에 담아 진단 가능하게(대시보드는 빈 값으로 degrade)
+        return res.status(200).json({ todayPv: 0, todayUv: 0, totalPv: 0, totalUv: 0, period: 'day', series: [], referrers: [], _error: String((e && e.message) || e) });
+      }
     }
     return res.status(400).json({ error: 'visit 파라미터 오류' });
   }
