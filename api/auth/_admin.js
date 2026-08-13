@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { sign, parseCookies } = require('./_session');
 
 const COOKIE_NAME = 'mh_admin';
-const MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7일
+const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30일
 
 function createAdminCookie() {
   const payloadB64 = Buffer.from(JSON.stringify({ admin: true, exp: Date.now() + MAX_AGE_SECONDS * 1000 })).toString('base64url');
