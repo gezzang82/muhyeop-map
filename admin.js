@@ -1839,17 +1839,19 @@ window.addEventListener('DOMContentLoaded', async () => {
   // 네이버 지도 스크립트가 로드되지 않았으면 상단 안내 배너 노출
   if (!isNaverReady()) showMapApiBanner();
   if (sessionStorage.getItem('adminLoggedIn') === 'true') {
-    // 쿠키가 실제로 유효한지 확인 — 만료 시 sessionStorage만 남아 '반쪽 대시보드'가 되는 것 방지.
-    // 401이면 세션 만료 → 로그인 화면으로 돌림.
+    // 낙관적으로 즉시 앱 표시(로그인 화면 깜빡임 방지). 쿠키 유효성은 백그라운드로 검증.
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminApp').style.display = 'flex';
     let sessionValid = true;
     try { sessionValid = (await fetch('/api/places?visit=stats')).status !== 401; } catch (e) {}
     if (sessionValid) {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('adminApp').style.display = 'flex';
       await dataReady;
       initAdmin();
     } else {
-      sessionStorage.removeItem('adminLoggedIn'); // 만료 → 로그인 화면 노출(기본 상태 유지)
+      // 세션 만료 → 로그인 화면으로 되돌림(반쪽 대시보드 방지)
+      document.getElementById('adminApp').style.display = 'none';
+      document.getElementById('loginScreen').style.display = '';
+      sessionStorage.removeItem('adminLoggedIn');
     }
   }
   // 엔터키 로그인
