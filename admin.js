@@ -1220,7 +1220,12 @@ function onPlaceComboInput() {
   document.getElementById('addPlaceSelect').value = '';
   const kw = input.value.trim().replace(/\s/g, '');
   if (!kw) { menu.innerHTML = ''; combo.classList.remove('open'); return; }
-  const matches = places.filter(p => p.name.replace(/\s/g, '').includes(kw)).slice(0, 8);
+  // 정확일치 > 접두일치 > 부분일치 순으로 정렬 후 앞 8개. (흔한 글자로 검색해도 정확한 매장이 8개 밖으로 밀려 안 뜨던 문제 수정)
+  const norm = s => (s || '').replace(/\s/g, '');
+  const rank = n => n === kw ? 0 : n.startsWith(kw) ? 1 : 2;
+  const matches = places.filter(p => norm(p.name).includes(kw))
+    .sort((a, b) => rank(norm(a.name)) - rank(norm(b.name)) || norm(a.name).length - norm(b.name).length)
+    .slice(0, 8);
   if (!matches.length) { menu.innerHTML = ''; combo.classList.remove('open'); return; }
   // 같은 이름 매장(예: '온담' 2곳)을 구분할 수 있도록 카테고리와 함께 주소도 표시
   menu.innerHTML = matches.map(p => {
