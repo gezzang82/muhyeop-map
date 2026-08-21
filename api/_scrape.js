@@ -163,7 +163,9 @@ function cleanHours(hours) {
 function parseExcludeHoliday(hours, closedRaw) {
   const blob = `${hours} ${closedRaw}`;
   if (!/공휴/.test(blob)) return '';
-  if (/공휴일?[^\d]{0,6}(체험\s*불가|불가|휴무|제외|불가능)|(체험\s*불가|불가|휴무|제외)[^가-힣]{0,10}공휴일?/.test(blob)) return 'Y';
+  // 공휴일 ~(최대 12자, '전날 방문' 등 사이문구 허용)~ 불가/휴무/제외  또는 그 역순
+  if (/공휴일?.{0,12}(체험\s*불가|불가능|불가|휴무|제외)/.test(blob)) return 'Y';
+  if (/(체험\s*불가|불가|휴무|제외)[^가-힣]{0,10}공휴일?/.test(blob)) return 'Y';
   return '';
 }
 function parseDeadline(html) {
@@ -252,11 +254,18 @@ function scrapeDetail(html, id) {
   const rawContent = parseContent(html);
   const platformCategory = parsePlatformCategory(html);
   const { hours: rawHours, closedRaw } = parseVisit(html);
-  const days = deriveDays(rawHours, closedRaw);
+  let days = deriveDays(rawHours, closedRaw);
   const hours = cleanHours(rawHours);
   const excludeHoliday = parseExcludeHoliday(rawHours, closedRaw);
   const content = cleanContent(rawContent);
-  return { id, url: `${BASE}/taste/${id}`, region, name, channel, platformCategory, address, deadline, content, hours, days, excludeHoliday };
+  // 예약필수·자유텍스트로 요일/공휴일이 안내문에만 있는 케이스 감지(예: "연중무휴"인데 실제 월~목·공휴일 불가).
+  // 제한 문구가 있는데 결과가 전 요일이면 → 틀린 전요일 대신 비우고 검수 플래그. 공휴일 언급인데 미반영도 플래그.
+  const noticeBlob = `${rawHours} ${closedRaw}`;
+  const hasDayRestriction = /(?:방문|체험|이용)\s*불가|방문\s*불가|휴무|제외/.test(noticeBlob);
+  let scheduleWarn = false;
+  if (hasDayRestriction && days.split(',').filter(Boolean).length === 7) { days = ''; scheduleWarn = true; }
+  if (/공휴/.test(noticeBlob) && excludeHoliday !== 'Y') scheduleWarn = true;
+  return { id, url: `${BASE}/taste/${id}`, region, name, channel, platformCategory, address, deadline, content, hours, days, excludeHoliday, scheduleWarn };
 }
 
 // 정규화 + 제외 판정 → 스테이징 후보 or null(제외)
@@ -273,6 +282,7 @@ function normalizeItem(d, reqRegion = '서울') {
   if (catFlagged) flags.push(d.platformCategory ? `카테고리확인(${d.platformCategory}→${cat})` : '카테고리확인');
   if (!d.channel) flags.push('채널확인');
   if (!d.days) flags.push('가능요일확인');
+  if (d.scheduleWarn) flags.push('요일·공휴일 재확인(안내문)');
   return { item: { ...d, category: cat, flags: flags.join(' ') } };
 }
 
