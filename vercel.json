@@ -4,5 +4,10 @@
       "path": "/api/campaigns?action=autopilot&scrape=dinnerqueen",
       "schedule": "0 21 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/campaigns.js": {
+      "maxDuration": 300
+    }
+  }
 }

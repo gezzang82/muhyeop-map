@@ -19,8 +19,8 @@
 const { geocodeServer } = require('./_geocode');
 const { judgeCandidate } = require('./_ai');
 
-const MAX_PER_RUN = 80;
-const MAX_AI_CALLS = 60; // 신규매장 AI 호출 상한(초과분은 검수큐로)
+const MAX_PER_RUN = 300; // 한 실행 처리 상한(실질 상한은 시간 예산 deadlineTs)
+const MAX_AI_CALLS = 200; // 신규매장 AI 호출 상한(비용 안전판; 초과분은 검수큐로)
 
 const csv = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean);
 const norm = (s) => String(s || '').replace(/\s/g, '').toLowerCase();
@@ -84,10 +84,10 @@ async function markSkipped(db, id, note) {
 }
 
 /**
- * @param {object} o { db, dry }
+ * @param {object} o { db, dry, deadlineTs }
  * @returns 요약 { processed, registered, review, skipped, remaining, dry, decisions[] }
  */
-async function runAutopilot({ db, dry = false }) {
+async function runAutopilot({ db, dry = false, deadlineTs = 0 }) {
   const today = kstToday();
 
   // 아직 자동판정 안 한 승인 대기만(auto_seen=0). 오래된 것부터.
@@ -103,11 +103,14 @@ async function runAutopilot({ db, dry = false }) {
   const placesRes = await db.execute('SELECT id, name FROM places');
   const places = placesRes.rows;
 
-  let registered = 0, review = 0, skipped = 0, aiCalls = 0;
+  let registered = 0, review = 0, skipped = 0, aiCalls = 0, processed = 0, timedOut = false;
   const decisions = [];
   const record = (r, route, note) => decisions.push({ id: r.id, name: r.name, route, note });
 
   for (const r of rows) {
+    // 시간 예산 초과 시 중단 — 못한 대기건은 auto_seen=0로 남아 다음 실행에서 이어받음.
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    processed++;
     const channels = csv(r.channel);
 
     // 🔴 마감 지남
@@ -167,8 +170,8 @@ async function runAutopilot({ db, dry = false }) {
     registered++; record(r, 'register', `신규매장 AI승인(${verdict.confidence.toFixed(2)})`);
   }
 
-  const remaining = Math.max(0, totalPending - rows.length);
-  const note = `자동등록 ${registered} · 검수 ${review} · 스킵 ${skipped}${remaining ? ` · 남은대기 ${remaining}` : ''}${dry ? ' · [미리보기]' : ''}`;
+  const remaining = Math.max(0, totalPending - processed);
+  const note = `자동등록 ${registered} · 검수 ${review} · 스킵 ${skipped}${remaining ? ` · 남은대기 ${remaining}` : ''}${timedOut ? ' · 시간초과중단' : ''}${dry ? ' · [미리보기]' : ''}`;
 
   // 실행 이력 기록(미리보기는 남기지 않음)
   if (!dry) {
@@ -176,12 +179,12 @@ async function runAutopilot({ db, dry = false }) {
       await db.execute({
         sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
               VALUES ('autopilot', 0, 0, ?, ?, ?, ?)`,
-        args: [rows.length, registered, skipped, note],
+        args: [processed, registered, skipped, note],
       });
     } catch (e) {}
   }
 
-  return { processed: rows.length, registered, review, skipped, remaining, dry, note, decisions };
+  return { processed, registered, review, skipped, remaining, dry, timedOut, note, decisions };
 }
 
 module.exports = { runAutopilot };

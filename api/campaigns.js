@@ -98,19 +98,31 @@ module.exports = async function handler(req, res) {
       const cronAuth = !!process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
       if (!cronAuth && !isAdmin(req)) return res.status(401).json({ error: '권한이 없습니다.' });
       const dry = req.query.dry === '1';
-      // scrape=<platform>이면 오토파일럿 전에 '전체(최신)' 증분 수집 먼저(하루 자동 흐름). 미리보기 땐 생략.
-      let scrape = null;
-      if (req.query.scrape && !dry) {
-        try {
-          scrape = await runScrape({ db, platform: req.query.scrape, mode: 'jeonche', limit: 40, region: '서울' });
-        } catch (e) { scrape = { error: '수집 실패: ' + (e.message || e) }; }
-      }
+      // 시간 예산: Vercel 함수 최대 300초. 240초 안에서 '검수·등록 먼저 → 남는 시간에 수집'.
+      // 각 단계가 예산 초과 시 중단하고 나머지는 다음 실행으로(증분 커서·auto_seen이 이어받음).
+      const start = Date.now();
+      const TOTAL_MS = 240000;
+      const AUTOPILOT_MS = 150000; // 검수·등록에 우선 배정(수집만 하고 등록 못 하는 상황 방지)
+      const willScrape = !!req.query.scrape && !dry;
+      // 1) 오토파일럿 먼저: 이미 쌓인 승인 대기부터 검수·등록. 수집이 붙는 크론이면 예산 분할, 아니면 전체.
+      // willScrape가 false면(수동 실행·미리보기) 오토파일럿에 전체 예산 배정. 미리보기도 300초 방지 위해 시간상한 둠.
+      let summary;
       try {
-        const summary = await runAutopilot({ db, dry });
-        return res.status(200).json({ ...summary, scrape });
+        summary = await runAutopilot({ db, dry, deadlineTs: start + (willScrape ? AUTOPILOT_MS : TOTAL_MS) });
       } catch (e) {
         return res.status(500).json({ error: '오토파일럿 실패: ' + (e.message || e) });
       }
+      // 2) 남는 시간에 신규 수집(다음 실행에서 검수·등록). limit은 크게 두고 시간 예산으로 상한.
+      let scrape = null;
+      if (willScrape) {
+        try {
+          scrape = await runScrape({
+            db, platform: req.query.scrape, mode: req.query.mode || 'jeonche',
+            limit: 250, region: req.query.region || '서울', deadlineTs: start + TOTAL_MS,
+          });
+        } catch (e) { scrape = { error: '수집 실패: ' + (e.message || e) }; }
+      }
+      return res.status(200).json({ ...summary, scrape });
     }
     if (!requireAdmin(req, res)) return;
     if (action === 'scrape' && req.method === 'POST') {

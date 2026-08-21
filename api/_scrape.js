@@ -347,7 +347,7 @@ function classify(item, dedupe, today) {
 /**
  * 증분 수집 실행. { db, mode:'jeonche'|'all-seoul', limit } → 요약
  */
-async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서울' }) {
+async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서울', deadlineTs = 0 }) {
   const platform = '디너의여왕'; // scraped_items에 저장되는 표시용 플랫폼명(지역 무관)
   // 커서는 수집 범위별로 분리 — taste ID가 전 지역 공통 번호라, 커서 하나로 여러 범위 돌리면 낮은 ID가 스킵됨.
   // 서울 전체/전역=기존 키('디너의여왕'), 서울 특정 하위지역='디너의여왕:서울:하위지역', 그 외 지역='디너의여왕:지역'.
@@ -369,7 +369,11 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서�
   // 실패가 나면 그 지점 이후는 커서를 올리지 않아 다음 실행에서 재시도(누락 방지).
   let cursorAdvance = lastMaxId, sawFail = false;
 
+  let timedOut = false, processed = 0;
   for (let i = 0; i < targets.length; i++) {
+    // 시간 예산 초과 시 중단 — 커서는 성공 구간까지만 전진하므로 못한 신규는 다음 실행에서 이어받음.
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    processed++;
     const id = targets[i];
     let ok = false;
     try {
@@ -408,11 +412,11 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서�
   await db.execute({
     sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    args: [stateKey, lastMaxId, newCursor, targets.length, staged, excluded + dupActive,
-      `mode=${mode} 지역=${region} 신규후보 ${newIds.length} 처리 ${targets.length} (dup_active ${dupActive}, 실패 ${failed})`],
+    args: [stateKey, lastMaxId, newCursor, processed, staged, excluded + dupActive,
+      `mode=${mode} 지역=${region} 신규후보 ${newIds.length} 처리 ${processed}/${targets.length} (dup_active ${dupActive}, 실패 ${failed}${timedOut ? ', 시간초과중단' : ''})`],
   });
 
-  return { platform, region, mode, cursorFrom: lastMaxId, cursorTo: newCursor, newCandidates: newIds.length, processed: targets.length, staged, excluded, dupActive, failed };
+  return { platform, region, mode, cursorFrom: lastMaxId, cursorTo: newCursor, newCandidates: newIds.length, processed, remaining: Math.max(0, newIds.length - processed), staged, excluded, dupActive, failed, timedOut };
 }
 
 // ===== 포블로그 (4blog.net) =====
@@ -567,9 +571,9 @@ async function runFoblog({ db, limit = 40 }) {
 }
 
 // 플랫폼 디스패처
-async function runScrape({ db, platform, mode, limit, region }) {
+async function runScrape({ db, platform, mode, limit, region, deadlineTs }) {
   if (platform === 'foblog' || platform === '포블로그') return runFoblog({ db, limit });
-  return runDinnerqueen({ db, mode, limit, region });
+  return runDinnerqueen({ db, mode, limit, region, deadlineTs });
 }
 
 // 승인 대기(pending) 항목을 현재(개선된) 파서로 재파싱해 요일/시간/주소/공휴일/카테고리 갱신.
