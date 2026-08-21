@@ -185,7 +185,7 @@ function renderStagedRows() {
       <td style="max-width:180px;font-size:12px;color:#666;">${r.hours || ''}</td>
       <td>${r.exclude_holiday ? 'Y' : ''}</td>
       <td><span class="badge-status">${badge}</span></td>
-      <td style="font-size:12px;color:#c47f00;">${r.flags || ''}</td>
+      <td style="font-size:12px;color:#c47f00;">${esc(r.auto_note || r.flags || '')}</td>
       <td style="white-space:nowrap;">${actions}</td>
     </tr>`;
   }).join('');
@@ -307,6 +307,35 @@ async function rejectStaged(id) {
   });
   collectStagedRows = collectStagedRows.filter(x => x.id !== id);
   renderStagedRows();
+}
+// ===== AI 자동등록(오토파일럿) =====
+async function execAutopilot(dry) {
+  const btn = document.getElementById(dry ? 'autopilotDryBtn' : 'autopilotRunBtn');
+  const statusEl = document.getElementById('autopilotStatus');
+  if (!dry && !confirm('지금 자동등록을 실행할까요?\n조건을 충족한 항목이 지도에 바로 등록됩니다. (애매한 건 승인 대기에 남습니다)')) return;
+  btn.disabled = true;
+  statusEl.textContent = dry ? '미리보기 분석 중… (지오코딩·AI 판정, 최대 1~2분)' : '자동등록 실행 중… (최대 1~2분)';
+  try {
+    const res = await fetch(`/api/campaigns?action=autopilot${dry ? '&dry=1' : ''}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '실행 실패');
+    statusEl.textContent = (dry ? '[미리보기] ' : '') + (data.note || '완료');
+    renderAutopilotDecisions(data.decisions);
+    if (!dry) collectShowSub('pending'); // 승인 대기 큐 새로고침
+  } catch (e) {
+    statusEl.textContent = '오류: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+function renderAutopilotDecisions(decisions) {
+  const el = document.getElementById('autopilotDecisions');
+  if (!decisions || !decisions.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;margin-top:8px;">처리할 승인 대기 항목이 없어요.</div>'; return; }
+  const label = { register: '🟢 자동등록', review: '🟡 검수대기', skip: '🔴 스킵' };
+  el.innerHTML = `<div class="table-wrap" style="margin-top:12px;"><table class="admin-table">
+    <thead><tr><th>매장명</th><th style="width:110px;">판정</th><th>사유</th></tr></thead><tbody>` +
+    decisions.map(d => `<tr><td>${esc(d.name || '')}</td><td>${label[d.route] || d.route}</td><td style="font-size:12px;color:#666;">${esc(d.note || '')}</td></tr>`).join('') +
+    `</tbody></table></div>`;
 }
 async function loadCollectRuns() {
   const res = await fetch('/api/campaigns?action=runs');

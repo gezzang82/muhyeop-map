@@ -1,8 +1,9 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
-const { requireAdmin } = require('./auth/_admin');
+const { requireAdmin, isAdmin } = require('./auth/_admin');
 const { runScrape, reparsePending, AREA2_BY_REGION } = require('./_scrape');
 const { enforceRateLimit } = require('./_ratelimit');
+const { runAutopilot } = require('./_autopilot');
 
 function toCampaign(row) {
   return {
@@ -75,6 +76,9 @@ module.exports = async function handler(req, res) {
       created_at TEXT DEFAULT (datetime('now','+9 hours')), reviewed_at TEXT,
       UNIQUE(platform, source_id)
     )`);
+    // 오토파일럿 추적 컬럼: auto_seen=1이면 이미 자동판정 완료(재평가 안 함), auto_note=판정 사유
+    try { await db.execute("ALTER TABLE scraped_items ADD COLUMN auto_seen INTEGER DEFAULT 0"); } catch (e) {}
+    try { await db.execute("ALTER TABLE scraped_items ADD COLUMN auto_note TEXT"); } catch (e) {}
     await db.execute(`CREATE TABLE IF NOT EXISTS scrape_state (
       platform TEXT PRIMARY KEY, last_max_id INTEGER, last_run_at TEXT
     )`);
@@ -88,6 +92,26 @@ module.exports = async function handler(req, res) {
   // ===== 데이터수집(Phase 1): ?action=scrape|staged|runs|review (모두 관리자 전용) =====
   const action = req.query.action;
   if (action) {
+    // 오토파일럿: 크론(Authorization: Bearer CRON_SECRET) 또는 관리자만. requireAdmin 게이트 앞에서 자체 인증.
+    // Vercel 크론은 GET으로 호출하므로 GET/POST 모두 허용. dry=1이면 미리보기(쓰기 없음).
+    if (action === 'autopilot' && (req.method === 'GET' || req.method === 'POST')) {
+      const cronAuth = !!process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+      if (!cronAuth && !isAdmin(req)) return res.status(401).json({ error: '권한이 없습니다.' });
+      const dry = req.query.dry === '1';
+      // scrape=<platform>이면 오토파일럿 전에 '전체(최신)' 증분 수집 먼저(하루 자동 흐름). 미리보기 땐 생략.
+      let scrape = null;
+      if (req.query.scrape && !dry) {
+        try {
+          scrape = await runScrape({ db, platform: req.query.scrape, mode: 'jeonche', limit: 40, region: '서울' });
+        } catch (e) { scrape = { error: '수집 실패: ' + (e.message || e) }; }
+      }
+      try {
+        const summary = await runAutopilot({ db, dry });
+        return res.status(200).json({ ...summary, scrape });
+      } catch (e) {
+        return res.status(500).json({ error: '오토파일럿 실패: ' + (e.message || e) });
+      }
+    }
     if (!requireAdmin(req, res)) return;
     if (action === 'scrape' && req.method === 'POST') {
       const platform = req.query.platform || 'dinnerqueen';
@@ -220,6 +244,7 @@ module.exports = async function handler(req, res) {
       if (q.reporter) { where.push('(c.reporter_nickname LIKE ? OR c.reporter_email LIKE ?)'); args.push('%' + q.reporter + '%', '%' + q.reporter + '%'); }
       if (q.source === 'user') where.push("c.source = 'user'");
       else if (q.source === 'admin') where.push("c.source = 'admin'");
+      else if (q.source === 'ai') where.push("c.source = 'ai'");
       const today = new Date().toISOString().slice(0, 10);
       if (q.status === 'active') { where.push("(c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)"); args.push(today); }
       else if (q.status === 'expired') { where.push("(c.deadline != '' AND c.deadline IS NOT NULL AND c.deadline < ?)"); args.push(today); }

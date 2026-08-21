@@ -350,6 +350,7 @@
                 <label class="rd"><input type="radio" name="cvSource" value="all" checked><span class="rd-dot"></span> 전체</label>
                 <label class="rd"><input type="radio" name="cvSource" value="user"><span class="rd-dot"></span> 유저</label>
                 <label class="rd"><input type="radio" name="cvSource" value="admin"><span class="rd-dot"></span> 어드민</label>
+                <label class="rd"><input type="radio" name="cvSource" value="ai"><span class="rd-dot"></span> AI</label>
               </div>
               <div class="radio-group"><span class="radio-label">상태</span>
                 <label class="rd"><input type="radio" name="cvStatus" value="all" checked><span class="rd-dot"></span> 전체</label>
@@ -659,6 +660,17 @@
             <button class="btn-ghost" id="collectReparseBtn" onclick="collectReparse()">검수 재파싱</button>
           </div>
           <div class="collect-status" id="collectStatus"></div>
+        </div>
+
+        <div class="form-card" style="margin-top:16px;">
+          <div class="form-section-title">AI 자동등록 (오토파일럿)</div>
+          <div class="reg-notice">승인 대기 항목을 규칙+AI로 자동 검수합니다. 확실한 건 자동등록(지도 반영), 애매한 건 아래 ‘승인 대기’에 사유와 함께 남겨 운영자가 검수해요. <b>매일 새벽 6시 자동 실행</b>되며, 아래 버튼으로 지금 즉시 돌리거나 미리 볼 수 있어요.</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn-ghost" id="autopilotDryBtn" onclick="execAutopilot(true)">미리보기 (등록 안 함)</button>
+            <button class="btn-search-red" id="autopilotRunBtn" onclick="execAutopilot(false)"><svg class="icon"><use href="#icon-search"></use></svg> 지금 자동등록 실행</button>
+          </div>
+          <div class="collect-status" id="autopilotStatus"></div>
+          <div id="autopilotDecisions"></div>
         </div>
 
           <div class="subtab-bar collect-subtab-bar">
