@@ -90,6 +90,11 @@ function parseVisit(html) {
     if (!/\d/.test(hours)) {
       const bm = block.match(/(?:방문\s*가능\s*시간|영업\s*시간|이용\s*시간|체험\s*가능\s*시간)\s*[-:：]?\s*([^★]*?\d[^★]*)/);
       if (bm) hours = bm[1].replace(/\s+/g, ' ').trim().slice(0, 150);
+      else {
+        // 라벨 없이 문장에 시간이 박힌 경우: "13:00 이후부터 체험가능", "17시 이후 방문가능", "11:00~22:00"
+        const tm = block.match(/(\d{1,2}\s*:\s*\d{2}(?:\s*[~\-–]\s*\d{1,2}\s*:\s*\d{2})?|\d{1,2}\s*시(?:\s*\d{1,2}\s*분?)?)\s*(이후|부터)?/);
+        if (tm) hours = (tm[1] + (tm[2] ? ' 이후' : '')).replace(/\s+/g, ' ').trim();
+      }
     }
   }
   return { hours, closedRaw };
@@ -262,7 +267,10 @@ function scrapeDetail(html, id) {
   // 제한 문구가 있는데 결과가 전 요일이면 → 틀린 전요일 대신 비우고 검수 플래그. 공휴일 언급인데 미반영도 플래그.
   const noticeBlob = `${rawHours} ${closedRaw}`;
   const hasDayRestriction = /(?:방문|체험|이용)\s*불가|방문\s*불가|휴무|제외/.test(noticeBlob);
+  // 격주/매월 N번째 요일 휴무처럼 단순 요일로 표현 불가한 케이스 → 요일 비우고 검수 플래그
+  const complexClosure = /(매월|매주|격주|첫\s*번?째|두\s*번?째|세\s*번?째|네\s*번?째|둘째|셋째|넷째|\d\s*주\s*차|주말\s*제외\s*격주)/.test(noticeBlob);
   let scheduleWarn = false;
+  if (complexClosure) { days = ''; scheduleWarn = true; }
   if (hasDayRestriction && days.split(',').filter(Boolean).length === 7) { days = ''; scheduleWarn = true; }
   if (/공휴/.test(noticeBlob) && excludeHoliday !== 'Y') scheduleWarn = true;
   return { id, url: `${BASE}/taste/${id}`, region, name, channel, platformCategory, address, deadline, content, hours, days, excludeHoliday, scheduleWarn };
