@@ -228,26 +228,43 @@ const CATEGORY_OVERRIDE = [
 ];
 
 // ===== 수집 파이프라인 =====
-async function collectIds(mode, region = '서울') {
+// 더보기(AJAX) 페이지: /taste/taste_list?...&page=N → {layout, has_next}. X-Requested-With 필수.
+async function fetchTasteListPage(area1, area2, page) {
+  const url = `${BASE}/taste/taste_list?ct=${encodeURIComponent('지역')}&area1=${encodeURIComponent(area1)}&area2=${encodeURIComponent(area2)}&page=${page}&ctype=&query=`;
+  const res = await fetch(url, { method: 'POST', headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest', Referer: listUrl(area2, area1) } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const j = await res.json();
+  const ids = [...String(j.layout || '').matchAll(/\/taste\/(\d+)/g)].map((m) => parseInt(m[1], 10));
+  return { ids, hasNext: !!j.has_next };
+}
+// 한 지역(area2)의 목록을 페이지네이션으로 수집. sinceId(커서)보다 최신인 페이지까지만 훑고 멈춤(증분=빠름, 리셋 후=깊게).
+async function collectAreaIds(area1, area2, sinceId = 0, maxPages = 10) {
   const idSet = new Set();
-  // all-seoul(하위지역 순회)·특정 하위지역은 서울 전용. 그 외/기본은 '전체' 목록 1회.
-  if (mode === 'all-seoul' && region === '서울') {
-    for (const a2 of SEOUL_AREA2) {
-      try {
-        const h = await fetchText(listUrl(a2, region));
-        [...h.matchAll(/\/taste\/(\d+)/g)].forEach((m) => idSet.add(parseInt(m[1], 10)));
-      } catch (e) { /* skip region on error */ }
-      await sleep(600);
-    }
-  } else if (AREA2_BY_REGION[region] && AREA2_BY_REGION[region].includes(mode)) {
-    // 특정 하위지역만(서울·경기)
-    const h = await fetchText(listUrl(mode, region));
-    [...h.matchAll(/\/taste\/(\d+)/g)].forEach((m) => idSet.add(parseInt(m[1], 10)));
-  } else {
-    const h = await fetchText(listUrl('전체', region));
-    [...h.matchAll(/\/taste\/(\d+)/g)].forEach((m) => idSet.add(parseInt(m[1], 10)));
+  for (let page = 1; page <= maxPages; page++) {
+    let r;
+    try { r = await fetchTasteListPage(area1, area2, page); } catch (e) { break; }
+    if (!r.ids.length) break;
+    r.ids.forEach((id) => idSet.add(id));
+    if (sinceId && Math.max(...r.ids) <= sinceId) break; // 이 페이지가 전부 커서 이하면 이후는 볼 필요 없음
+    if (!r.hasNext) break;
+    await sleep(600);
   }
   return [...idSet];
+}
+async function collectIds(mode, region = '서울', sinceId = 0) {
+  if (mode === 'all-seoul' && region === '서울') {
+    // 서울 전역: 하위지역별로 수집(각 지역은 페이지 얕게 3장까지 — 전역은 폭이 넓어 과도한 요청 방지)
+    const idSet = new Set();
+    for (const a2 of SEOUL_AREA2) {
+      for (const id of await collectAreaIds(region, a2, sinceId, 3)) idSet.add(id);
+      await sleep(300);
+    }
+    return [...idSet];
+  }
+  if (AREA2_BY_REGION[region] && AREA2_BY_REGION[region].includes(mode)) {
+    return collectAreaIds(region, mode, sinceId); // 특정 하위지역(서울·경기), 페이지네이션
+  }
+  return collectAreaIds(region, '전체', sinceId); // 지역 전체, 페이지네이션
 }
 
 function scrapeDetail(html, id) {
@@ -341,7 +358,7 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서�
   const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [stateKey] });
   const lastMaxId = Number(stRes.rows[0]?.last_max_id || 0);
 
-  const allIds = await collectIds(mode, region);
+  const allIds = await collectIds(mode, region, lastMaxId);
   // 신규(커서 초과)를 '오름차순'으로 처리 → limit에 걸려 못 받은 상위 신규는 다음 실행에서 이어받음(스킵 방지)
   const newIds = allIds.filter((id) => id > lastMaxId).sort((a, b) => a - b);
   const targets = newIds.slice(0, limit);
