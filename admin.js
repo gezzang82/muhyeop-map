@@ -91,7 +91,7 @@ async function collectScrape() {
   const limit = document.getElementById('collectLimit').value || 20;
   const reset = document.getElementById('collectReset')?.checked ? '&reset=1' : '';
   try {
-    const res = await fetch(`/api/campaigns?action=scrape&platform=${platform}&mode=${mode}&region=${encodeURIComponent(region)}&limit=${limit}${reset}`, { method: 'POST' });
+    const res = await fetch(`/api/campaigns?action=scrape&platform=${platform}&mode=${encodeURIComponent(mode)}&region=${encodeURIComponent(region)}&limit=${limit}${reset}`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '수집 실패');
     statusEl.textContent = `${data.region ? '[' + data.region + '] ' : ''}신규 ${data.staged}건 적재 (처리 ${data.processed} · 제외 ${data.excluded} · 중복 ${data.dupActive || 0}). 커서 ${data.cursorFrom}→${data.cursorTo}`;
@@ -193,18 +193,25 @@ function renderStagedRows() {
 function editStaged(id) { collectEditingId = id; renderStagedRows(); }
 function cancelStaged() { collectEditingId = null; renderStagedRows(); }
 
-// 지역이 서울이 아니면 '서울 전역(하위지역)'은 의미 없으므로 비활성 + '전체'로 고정
+// 디너의여왕 서울 하위지역(_scrape.js SEOUL_AREA2와 값이 정확히 일치해야 함)
+const SEOUL_AREA2 = ['강남/논현/압구정', '강동/천호', '강서/목동/마곡', '건대/왕십리', '관악/신림', '교대/사당', '노원/강북', '명동/이태원', '삼성/선릉', '서초/반포', '송파/잠실', '수유/동대문/중랑', '시청/남대문', '여의도/영등포/구로', '종로/대학로', '홍대/마포/신촌', '기타'];
+// 지역에 따라 '범위' 드롭다운을 다시 채움. 서울: 전체/전역/하위지역, 그 외: 전체만.
 function onCollectRegionChange() {
   const region = document.getElementById('collectRegion')?.value || '서울';
   const modeSel = document.getElementById('collectMode');
   if (!modeSel) return;
-  const allSeoul = [...modeSel.options].find(o => o.value === 'all-seoul');
-  if (region !== '서울') {
-    if (allSeoul) { allSeoul.disabled = true; allSeoul.hidden = true; } // 비서울은 아예 숨김
-    if (modeSel.value === 'all-seoul') modeSel.value = 'jeonche';
-  } else if (allSeoul) {
-    allSeoul.disabled = false; allSeoul.hidden = false;
+  const prev = modeSel.value;
+  let opts = '<option value="jeonche">전체(최신)</option>';
+  if (region === '서울') {
+    opts += '<option value="all-seoul">서울 전역(하위지역 전체)</option>';
+    opts += '<optgroup label="서울 하위지역">' + SEOUL_AREA2.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('') + '</optgroup>';
   }
+  modeSel.innerHTML = opts;
+  // 이전 선택 유지(가능하면)
+  if ([...modeSel.options].some(o => o.value === prev)) modeSel.value = prev;
+  else modeSel.value = 'jeonche';
+  // 커스텀 셀렉트(enhanceSelects) 트리거 라벨 동기화(메뉴는 열 때 옵션을 다시 읽어 자동 반영)
+  if (modeSel._cselectSync) modeSel._cselectSync();
 }
 
 // ===== 승인 대기 일괄 반려 =====
@@ -420,6 +427,7 @@ function initAdmin() {
   renderDashboard();
   populatePlaceSelect();
   enhanceSelects();
+  onCollectRegionChange(); // 수집 '범위' 드롭다운을 현재 지역 기준으로 채움(서울=하위지역 포함)
 }
 
 // 방문 추이 막대그래프. series=[{label,pv,uv}](과거→현재 정렬). PV 막대 안에 UV를 브랜드컬러로 채워 비중 표시.

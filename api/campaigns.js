@@ -1,7 +1,7 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { requireAdmin } = require('./auth/_admin');
-const { runScrape, reparsePending } = require('./_scrape');
+const { runScrape, reparsePending, SEOUL_AREA2 } = require('./_scrape');
 const { enforceRateLimit } = require('./_ratelimit');
 
 function toCampaign(row) {
@@ -91,18 +91,23 @@ module.exports = async function handler(req, res) {
     if (!requireAdmin(req, res)) return;
     if (action === 'scrape' && req.method === 'POST') {
       const platform = req.query.platform || 'dinnerqueen';
-      const mode = req.query.mode === 'all-seoul' ? 'all-seoul' : 'jeonche';
       let limit = Math.min(60, Math.max(1, parseInt(req.query.limit, 10) || 40));
-      // 지역(디너의여왕만): 서울/부산/경기/인천. 커서는 지역별로 분리 관리됨.
+      // 지역(디너의여왕만): 서울/부산/경기/인천. 커서는 범위(지역·서울하위지역)별로 분리 관리됨.
       const REGIONS = ['서울', '부산', '경기', '인천'];
       const region = REGIONS.includes(req.query.region) ? req.query.region : '서울';
+      // 범위(mode): 전체/서울전역/서울 특정 하위지역. 하위지역·전역은 서울에서만 유효.
+      const rawMode = req.query.mode || 'jeonche';
+      let mode = 'jeonche';
+      if (region === '서울' && (rawMode === 'all-seoul' || SEOUL_AREA2.includes(rawMode))) mode = rawMode;
+      // 커서 키: 스크래퍼(runDinnerqueen)와 동일 규칙
+      const cursorKey = (platform === 'foblog' || platform === '포블로그') ? '포블로그'
+        : (region !== '서울' ? `디너의여왕:${region}`
+          : (SEOUL_AREA2.includes(mode) ? `디너의여왕:서울:${mode}` : '디너의여왕'));
       try {
         if (req.query.reset === '1') {
           // 커서 리셋: 현재 목록 전체를 다시 훑어 놓친 것 복구/재수집(이미 있는 건 dup_active로 안전 제외).
-          // 목록 전체가 한 번에 담기도록 limit을 최대로 올림. (해당 플랫폼/지역의 커서만 리셋)
-          const isFb = (platform === 'foblog' || platform === '포블로그');
-          const dbPlat = isFb ? '포블로그' : (region === '서울' ? '디너의여왕' : `디너의여왕:${region}`);
-          await db.execute({ sql: "UPDATE scrape_state SET last_max_id = 0 WHERE platform = ?", args: [dbPlat] });
+          // 목록 전체가 한 번에 담기도록 limit을 최대로 올림. (해당 범위의 커서만 리셋)
+          await db.execute({ sql: "UPDATE scrape_state SET last_max_id = 0 WHERE platform = ?", args: [cursorKey] });
           limit = 60;
         }
         const summary = await runScrape({ db, platform, mode, limit, region });

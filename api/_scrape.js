@@ -219,7 +219,7 @@ const CATEGORY_OVERRIDE = [
 // ===== 수집 파이프라인 =====
 async function collectIds(mode, region = '서울') {
   const idSet = new Set();
-  // all-seoul(하위지역 순회)은 서울 전용. 그 외 지역은 '전체' 목록 1회.
+  // all-seoul(하위지역 순회)·특정 하위지역은 서울 전용. 그 외/기본은 '전체' 목록 1회.
   if (mode === 'all-seoul' && region === '서울') {
     for (const a2 of SEOUL_AREA2) {
       try {
@@ -228,6 +228,10 @@ async function collectIds(mode, region = '서울') {
       } catch (e) { /* skip region on error */ }
       await sleep(600);
     }
+  } else if (region === '서울' && SEOUL_AREA2.includes(mode)) {
+    // 특정 서울 하위지역만
+    const h = await fetchText(listUrl(mode, region));
+    [...h.matchAll(/\/taste\/(\d+)/g)].forEach((m) => idSet.add(parseInt(m[1], 10)));
   } else {
     const h = await fetchText(listUrl('전체', region));
     [...h.matchAll(/\/taste\/(\d+)/g)].forEach((m) => idSet.add(parseInt(m[1], 10)));
@@ -306,9 +310,10 @@ function classify(item, dedupe, today) {
  */
 async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서울' }) {
   const platform = '디너의여왕'; // scraped_items에 저장되는 표시용 플랫폼명(지역 무관)
-  // 커서는 지역별로 분리 — taste ID가 전 지역 공통 번호라, 커서 하나로 여러 지역 돌리면 낮은 ID가 스킵됨.
-  // 서울은 기존 키('디너의여왕') 유지(하위호환), 그 외는 '디너의여왕:지역'.
-  const stateKey = region === '서울' ? '디너의여왕' : `디너의여왕:${region}`;
+  // 커서는 수집 범위별로 분리 — taste ID가 전 지역 공통 번호라, 커서 하나로 여러 범위 돌리면 낮은 ID가 스킵됨.
+  // 서울 전체/전역=기존 키('디너의여왕'), 서울 특정 하위지역='디너의여왕:서울:하위지역', 그 외 지역='디너의여왕:지역'.
+  const stateKey = region !== '서울' ? `디너의여왕:${region}`
+    : (SEOUL_AREA2.includes(mode) ? `디너의여왕:서울:${mode}` : '디너의여왕');
   const today = new Date().toISOString().slice(0, 10);
 
   const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [stateKey] });
@@ -573,4 +578,4 @@ async function reparsePending({ db, platform, only }) {
   return { platform: plat, pending: rows.length, updated, failed };
 }
 
-module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline };
+module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2 };
