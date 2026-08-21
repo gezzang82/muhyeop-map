@@ -200,10 +200,10 @@ function onCollectRegionChange() {
   if (!modeSel) return;
   const allSeoul = [...modeSel.options].find(o => o.value === 'all-seoul');
   if (region !== '서울') {
-    if (allSeoul) allSeoul.disabled = true;
+    if (allSeoul) { allSeoul.disabled = true; allSeoul.hidden = true; } // 비서울은 아예 숨김
     if (modeSel.value === 'all-seoul') modeSel.value = 'jeonche';
   } else if (allSeoul) {
-    allSeoul.disabled = false;
+    allSeoul.disabled = false; allSeoul.hidden = false;
   }
 }
 
