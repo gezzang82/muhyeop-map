@@ -11,7 +11,7 @@
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36';
 const BASE = 'https://dinnerqueen.net';
-const listUrl = (area2) => `${BASE}/taste?ct=${encodeURIComponent('지역')}&area1=${encodeURIComponent('서울')}&area2=${encodeURIComponent(area2)}`;
+const listUrl = (area2, region = '서울') => `${BASE}/taste?ct=${encodeURIComponent('지역')}&area1=${encodeURIComponent(region)}&area2=${encodeURIComponent(area2)}`;
 const SEOUL_AREA2 = ['강남/논현/압구정', '강동/천호', '강서/목동/마곡', '건대/왕십리', '관악/신림', '교대/사당', '노원/강북', '명동/이태원', '삼성/선릉', '서초/반포', '송파/잠실', '수유/동대문/중랑', '시청/남대문', '여의도/영등포/구로', '종로/대학로', '홍대/마포/신촌', '기타'];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -217,18 +217,19 @@ const CATEGORY_OVERRIDE = [
 ];
 
 // ===== 수집 파이프라인 =====
-async function collectIds(mode) {
+async function collectIds(mode, region = '서울') {
   const idSet = new Set();
-  if (mode === 'all-seoul') {
+  // all-seoul(하위지역 순회)은 서울 전용. 그 외 지역은 '전체' 목록 1회.
+  if (mode === 'all-seoul' && region === '서울') {
     for (const a2 of SEOUL_AREA2) {
       try {
-        const h = await fetchText(listUrl(a2));
+        const h = await fetchText(listUrl(a2, region));
         [...h.matchAll(/\/taste\/(\d+)/g)].forEach((m) => idSet.add(parseInt(m[1], 10)));
       } catch (e) { /* skip region on error */ }
       await sleep(600);
     }
   } else {
-    const h = await fetchText(listUrl('전체'));
+    const h = await fetchText(listUrl('전체', region));
     [...h.matchAll(/\/taste\/(\d+)/g)].forEach((m) => idSet.add(parseInt(m[1], 10)));
   }
   return [...idSet];
@@ -251,10 +252,10 @@ function scrapeDetail(html, id) {
 }
 
 // 정규화 + 제외 판정 → 스테이징 후보 or null(제외)
-function normalizeItem(d) {
+function normalizeItem(d, reqRegion = '서울') {
   const region = d.region || '';
   if (/랜덤픽/.test(region)) return { excluded: '배송형(랜덤픽)' };
-  if (region && !region.startsWith('서울')) return { excluded: `비서울(${region})` };
+  if (region && !region.startsWith(reqRegion)) return { excluded: `지역불일치(${region}≠${reqRegion})` };
   if (!d.address) return { excluded: '주소없음' };
   const override = CATEGORY_OVERRIDE.find(([re]) => re.test(d.name));
   const mapped = mapCategory(d.platformCategory || '', d.content, d.name);
@@ -303,14 +304,17 @@ function classify(item, dedupe, today) {
 /**
  * 증분 수집 실행. { db, mode:'jeonche'|'all-seoul', limit } → 요약
  */
-async function runDinnerqueen({ db, mode = 'jeonche', limit = 40 }) {
-  const platform = '디너의여왕';
+async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서울' }) {
+  const platform = '디너의여왕'; // scraped_items에 저장되는 표시용 플랫폼명(지역 무관)
+  // 커서는 지역별로 분리 — taste ID가 전 지역 공통 번호라, 커서 하나로 여러 지역 돌리면 낮은 ID가 스킵됨.
+  // 서울은 기존 키('디너의여왕') 유지(하위호환), 그 외는 '디너의여왕:지역'.
+  const stateKey = region === '서울' ? '디너의여왕' : `디너의여왕:${region}`;
   const today = new Date().toISOString().slice(0, 10);
 
-  const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [platform] });
+  const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [stateKey] });
   const lastMaxId = Number(stRes.rows[0]?.last_max_id || 0);
 
-  const allIds = await collectIds(mode);
+  const allIds = await collectIds(mode, region);
   // 신규(커서 초과)를 '오름차순'으로 처리 → limit에 걸려 못 받은 상위 신규는 다음 실행에서 이어받음(스킵 방지)
   const newIds = allIds.filter((id) => id > lastMaxId).sort((a, b) => a - b);
   const targets = newIds.slice(0, limit);
@@ -327,7 +331,7 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40 }) {
     try {
       const html = await fetchText(`${BASE}/taste/${id}`);
       const d = scrapeDetail(html, id);
-      const nz = normalizeItem(d);
+      const nz = normalizeItem(d, region);
       if (nz.excluded) { excluded++; ok = true; }
       else {
         const it = nz.item;
@@ -355,16 +359,16 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40 }) {
   await db.execute({
     sql: `INSERT INTO scrape_state (platform, last_max_id, last_run_at) VALUES (?, ?, datetime('now','+9 hours'))
           ON CONFLICT(platform) DO UPDATE SET last_max_id = excluded.last_max_id, last_run_at = excluded.last_run_at`,
-    args: [platform, newCursor],
+    args: [stateKey, newCursor],
   });
   await db.execute({
     sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    args: [platform, lastMaxId, newCursor, targets.length, staged, excluded + dupActive,
-      `mode=${mode} 신규후보 ${newIds.length} 처리 ${targets.length} (dup_active ${dupActive}, 실패 ${failed})`],
+    args: [stateKey, lastMaxId, newCursor, targets.length, staged, excluded + dupActive,
+      `mode=${mode} 지역=${region} 신규후보 ${newIds.length} 처리 ${targets.length} (dup_active ${dupActive}, 실패 ${failed})`],
   });
 
-  return { platform, mode, cursorFrom: lastMaxId, cursorTo: newCursor, newCandidates: newIds.length, processed: targets.length, staged, excluded, dupActive, failed };
+  return { platform, region, mode, cursorFrom: lastMaxId, cursorTo: newCursor, newCandidates: newIds.length, processed: targets.length, staged, excluded, dupActive, failed };
 }
 
 // ===== 포블로그 (4blog.net) =====
@@ -519,9 +523,9 @@ async function runFoblog({ db, limit = 40 }) {
 }
 
 // 플랫폼 디스패처
-async function runScrape({ db, platform, mode, limit }) {
+async function runScrape({ db, platform, mode, limit, region }) {
   if (platform === 'foblog' || platform === '포블로그') return runFoblog({ db, limit });
-  return runDinnerqueen({ db, mode, limit });
+  return runDinnerqueen({ db, mode, limit, region });
 }
 
 // 승인 대기(pending) 항목을 현재(개선된) 파서로 재파싱해 요일/시간/주소/공휴일/카테고리 갱신.

@@ -93,15 +93,19 @@ module.exports = async function handler(req, res) {
       const platform = req.query.platform || 'dinnerqueen';
       const mode = req.query.mode === 'all-seoul' ? 'all-seoul' : 'jeonche';
       let limit = Math.min(60, Math.max(1, parseInt(req.query.limit, 10) || 40));
+      // 지역(디너의여왕만): 서울/부산/경기/인천. 커서는 지역별로 분리 관리됨.
+      const REGIONS = ['서울', '부산', '경기', '인천'];
+      const region = REGIONS.includes(req.query.region) ? req.query.region : '서울';
       try {
         if (req.query.reset === '1') {
           // 커서 리셋: 현재 목록 전체를 다시 훑어 놓친 것 복구/재수집(이미 있는 건 dup_active로 안전 제외).
-          // 목록 전체가 한 번에 담기도록 limit을 최대로 올림.
-          const dbPlat = (platform === 'foblog' || platform === '포블로그') ? '포블로그' : '디너의여왕';
+          // 목록 전체가 한 번에 담기도록 limit을 최대로 올림. (해당 플랫폼/지역의 커서만 리셋)
+          const isFb = (platform === 'foblog' || platform === '포블로그');
+          const dbPlat = isFb ? '포블로그' : (region === '서울' ? '디너의여왕' : `디너의여왕:${region}`);
           await db.execute({ sql: "UPDATE scrape_state SET last_max_id = 0 WHERE platform = ?", args: [dbPlat] });
           limit = 60;
         }
-        const summary = await runScrape({ db, platform, mode, limit });
+        const summary = await runScrape({ db, platform, mode, limit, region });
         return res.status(200).json(summary);
       } catch (e) {
         return res.status(500).json({ error: '수집 실패: ' + (e.message || e) });

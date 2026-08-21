@@ -87,13 +87,14 @@ async function collectScrape() {
   statusEl.textContent = '수집 중… (플랫폼 접속·파싱, 최대 1~2분)';
   const platform = document.getElementById('collectPlatform').value;
   const mode = document.getElementById('collectMode').value;
+  const region = document.getElementById('collectRegion')?.value || '서울';
   const limit = document.getElementById('collectLimit').value || 20;
   const reset = document.getElementById('collectReset')?.checked ? '&reset=1' : '';
   try {
-    const res = await fetch(`/api/campaigns?action=scrape&platform=${platform}&mode=${mode}&limit=${limit}${reset}`, { method: 'POST' });
+    const res = await fetch(`/api/campaigns?action=scrape&platform=${platform}&mode=${mode}&region=${encodeURIComponent(region)}&limit=${limit}${reset}`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '수집 실패');
-    statusEl.textContent = `신규 ${data.staged}건 적재 (처리 ${data.processed} · 제외 ${data.excluded} · 중복 ${data.dupActive || 0}). 커서 ${data.cursorFrom}→${data.cursorTo}`;
+    statusEl.textContent = `${data.region ? '[' + data.region + '] ' : ''}신규 ${data.staged}건 적재 (처리 ${data.processed} · 제외 ${data.excluded} · 중복 ${data.dupActive || 0}). 커서 ${data.cursorFrom}→${data.cursorTo}`;
     collectShowSub('pending');
   } catch (e) {
     statusEl.textContent = '오류: ' + e.message;
