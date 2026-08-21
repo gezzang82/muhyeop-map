@@ -193,19 +193,21 @@ function renderStagedRows() {
 function editStaged(id) { collectEditingId = id; renderStagedRows(); }
 function cancelStaged() { collectEditingId = null; renderStagedRows(); }
 
-// 디너의여왕 서울 하위지역(_scrape.js SEOUL_AREA2와 값이 정확히 일치해야 함)
-const SEOUL_AREA2 = ['강남/논현/압구정', '강동/천호', '강서/목동/마곡', '건대/왕십리', '관악/신림', '교대/사당', '노원/강북', '명동/이태원', '삼성/선릉', '서초/반포', '송파/잠실', '수유/동대문/중랑', '시청/남대문', '여의도/영등포/구로', '종로/대학로', '홍대/마포/신촌', '기타'];
-// 지역에 따라 '범위' 드롭다운을 다시 채움. 서울: 전체/전역/하위지역, 그 외: 전체만.
+// 디너의여왕 지역별 하위지역(_scrape.js AREA2_BY_REGION과 값이 정확히 일치해야 함)
+const AREA2_BY_REGION = {
+  '서울': ['강남/논현/압구정', '강동/천호', '강서/목동/마곡', '건대/왕십리', '관악/신림', '교대/사당', '노원/강북', '명동/이태원', '삼성/선릉', '서초/반포', '송파/잠실', '수유/동대문/중랑', '시청/남대문', '여의도/영등포/구로', '종로/대학로', '홍대/마포/신촌', '기타'],
+  '경기': ['수원/화성/오산/평택', '의정부/동두천', '성남/판교', '광명/시흥', '과천/안양/안산', '남양주/구리/하남', '일산/파주/고양/김포/포천'],
+};
+// 지역에 따라 '범위' 드롭다운을 다시 채움. 서울: 전체/전역/하위지역, 경기: 전체/하위지역, 부산·인천: 전체만.
 function onCollectRegionChange() {
   const region = document.getElementById('collectRegion')?.value || '서울';
   const modeSel = document.getElementById('collectMode');
   if (!modeSel) return;
   const prev = modeSel.value;
   let opts = '<option value="jeonche">전체(최신)</option>';
-  if (region === '서울') {
-    opts += '<option value="all-seoul">서울 전역(하위지역 전체)</option>';
-    opts += '<optgroup label="서울 하위지역">' + SEOUL_AREA2.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('') + '</optgroup>';
-  }
+  if (region === '서울') opts += '<option value="all-seoul">서울 전역(하위지역 전체)</option>';
+  const subs = AREA2_BY_REGION[region];
+  if (subs) opts += `<optgroup label="${escHtml(region)} 하위지역">` + subs.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('') + '</optgroup>';
   modeSel.innerHTML = opts;
   // 이전 선택 유지(가능하면)
   if ([...modeSel.options].some(o => o.value === prev)) modeSel.value = prev;

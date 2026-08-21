@@ -1,7 +1,7 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { requireAdmin } = require('./auth/_admin');
-const { runScrape, reparsePending, SEOUL_AREA2 } = require('./_scrape');
+const { runScrape, reparsePending, AREA2_BY_REGION } = require('./_scrape');
 const { enforceRateLimit } = require('./_ratelimit');
 
 function toCampaign(row) {
@@ -95,14 +95,16 @@ module.exports = async function handler(req, res) {
       // 지역(디너의여왕만): 서울/부산/경기/인천. 커서는 범위(지역·서울하위지역)별로 분리 관리됨.
       const REGIONS = ['서울', '부산', '경기', '인천'];
       const region = REGIONS.includes(req.query.region) ? req.query.region : '서울';
-      // 범위(mode): 전체/서울전역/서울 특정 하위지역. 하위지역·전역은 서울에서만 유효.
+      // 범위(mode): 전체 / 서울전역(all-seoul, 서울만) / 특정 하위지역(서울·경기). 유효하지 않으면 전체.
       const rawMode = req.query.mode || 'jeonche';
+      const subs = AREA2_BY_REGION[region];
       let mode = 'jeonche';
-      if (region === '서울' && (rawMode === 'all-seoul' || SEOUL_AREA2.includes(rawMode))) mode = rawMode;
+      if (region === '서울' && rawMode === 'all-seoul') mode = 'all-seoul';
+      else if (subs && subs.includes(rawMode)) mode = rawMode;
       // 커서 키: 스크래퍼(runDinnerqueen)와 동일 규칙
       const cursorKey = (platform === 'foblog' || platform === '포블로그') ? '포블로그'
-        : (region !== '서울' ? `디너의여왕:${region}`
-          : (SEOUL_AREA2.includes(mode) ? `디너의여왕:서울:${mode}` : '디너의여왕'));
+        : ((subs && subs.includes(mode)) ? `디너의여왕:${region}:${mode}`
+          : (region === '서울' ? '디너의여왕' : `디너의여왕:${region}`));
       try {
         if (req.query.reset === '1') {
           // 커서 리셋: 현재 목록 전체를 다시 훑어 놓친 것 복구/재수집(이미 있는 건 dup_active로 안전 제외).

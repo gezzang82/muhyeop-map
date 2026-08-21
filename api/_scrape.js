@@ -13,6 +13,10 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const BASE = 'https://dinnerqueen.net';
 const listUrl = (area2, region = '서울') => `${BASE}/taste?ct=${encodeURIComponent('지역')}&area1=${encodeURIComponent(region)}&area2=${encodeURIComponent(area2)}`;
 const SEOUL_AREA2 = ['강남/논현/압구정', '강동/천호', '강서/목동/마곡', '건대/왕십리', '관악/신림', '교대/사당', '노원/강북', '명동/이태원', '삼성/선릉', '서초/반포', '송파/잠실', '수유/동대문/중랑', '시청/남대문', '여의도/영등포/구로', '종로/대학로', '홍대/마포/신촌', '기타'];
+// 경기 하위지역(디너의여왕 area2). '인천/부천/부평'은 인천 지역과 겹쳐 제외.
+const GYEONGGI_AREA2 = ['수원/화성/오산/평택', '의정부/동두천', '성남/판교', '광명/시흥', '과천/안양/안산', '남양주/구리/하남', '일산/파주/고양/김포/포천'];
+// 지역별 하위지역 맵(하위지역 선택 수집 지원 지역만). 부산/인천은 하위지역 미지원(전체만).
+const AREA2_BY_REGION = { '서울': SEOUL_AREA2, '경기': GYEONGGI_AREA2 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function fetchText(url) {
@@ -228,8 +232,8 @@ async function collectIds(mode, region = '서울') {
       } catch (e) { /* skip region on error */ }
       await sleep(600);
     }
-  } else if (region === '서울' && SEOUL_AREA2.includes(mode)) {
-    // 특정 서울 하위지역만
+  } else if (AREA2_BY_REGION[region] && AREA2_BY_REGION[region].includes(mode)) {
+    // 특정 하위지역만(서울·경기)
     const h = await fetchText(listUrl(mode, region));
     [...h.matchAll(/\/taste\/(\d+)/g)].forEach((m) => idSet.add(parseInt(m[1], 10)));
   } else {
@@ -312,8 +316,8 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서�
   const platform = '디너의여왕'; // scraped_items에 저장되는 표시용 플랫폼명(지역 무관)
   // 커서는 수집 범위별로 분리 — taste ID가 전 지역 공통 번호라, 커서 하나로 여러 범위 돌리면 낮은 ID가 스킵됨.
   // 서울 전체/전역=기존 키('디너의여왕'), 서울 특정 하위지역='디너의여왕:서울:하위지역', 그 외 지역='디너의여왕:지역'.
-  const stateKey = region !== '서울' ? `디너의여왕:${region}`
-    : (SEOUL_AREA2.includes(mode) ? `디너의여왕:서울:${mode}` : '디너의여왕');
+  const stateKey = (AREA2_BY_REGION[region] && AREA2_BY_REGION[region].includes(mode)) ? `디너의여왕:${region}:${mode}`
+    : (region === '서울' ? '디너의여왕' : `디너의여왕:${region}`);
   const today = new Date().toISOString().slice(0, 10);
 
   const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [stateKey] });
@@ -578,4 +582,4 @@ async function reparsePending({ db, platform, only }) {
   return { platform: plat, pending: rows.length, updated, failed };
 }
 
-module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2 };
+module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION };
