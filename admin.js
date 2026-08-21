@@ -193,6 +193,20 @@ function renderStagedRows() {
 function editStaged(id) { collectEditingId = id; renderStagedRows(); }
 function cancelStaged() { collectEditingId = null; renderStagedRows(); }
 
+// 지역이 서울이 아니면 '서울 전역(하위지역)'은 의미 없으므로 비활성 + '전체'로 고정
+function onCollectRegionChange() {
+  const region = document.getElementById('collectRegion')?.value || '서울';
+  const modeSel = document.getElementById('collectMode');
+  if (!modeSel) return;
+  const allSeoul = [...modeSel.options].find(o => o.value === 'all-seoul');
+  if (region !== '서울') {
+    if (allSeoul) allSeoul.disabled = true;
+    if (modeSel.value === 'all-seoul') modeSel.value = 'jeonche';
+  } else if (allSeoul) {
+    allSeoul.disabled = false;
+  }
+}
+
 // ===== 승인 대기 일괄 반려 =====
 function updateBulkRejectCount() {
   const n = document.querySelectorAll('.staged-check:checked').length;
