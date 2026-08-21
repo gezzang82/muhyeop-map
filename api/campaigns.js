@@ -149,6 +149,18 @@ module.exports = async function handler(req, res) {
       });
       return res.status(200).json({ id, status });
     }
+    if (action === 'bulkreview' && req.method === 'PATCH') {
+      const { ids, status } = req.body || {};
+      if (!['pending', 'rejected'].includes(status)) return res.status(400).json({ error: 'status 값이 올바르지 않습니다.' });
+      const nums = (Array.isArray(ids) ? ids : []).map(Number).filter(Boolean).slice(0, 500);
+      if (!nums.length) return res.status(400).json({ error: 'ids가 필요합니다.' });
+      const placeholders = nums.map(() => '?').join(',');
+      await db.execute({
+        sql: `UPDATE scraped_items SET status = ?, reviewed_at = datetime('now','+9 hours') WHERE id IN (${placeholders}) AND status = 'pending'`,
+        args: [status, ...nums],
+      });
+      return res.status(200).json({ count: nums.length, status });
+    }
     if (action === 'editstaged' && req.method === 'PATCH') {
       const id = Number(req.query.id);
       if (!id) return res.status(400).json({ error: 'id는 필수입니다.' });

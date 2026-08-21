@@ -673,10 +673,14 @@
               <div class="result-bar-left">
                 <span class="result-count">전체 <b id="collectCount">0</b>건</span>
               </div>
+              <div class="result-bar-right">
+                <button class="btn-ghost" id="bulkRejectBtn" style="padding:6px 12px;color:#E82A2D;display:none;" onclick="bulkRejectStaged()">선택 반려 (<span id="bulkRejectCount">0</span>)</button>
+              </div>
             </div>
             <div class="table-wrap">
               <table class="admin-table">
                 <thead><tr>
+                  <th style="width:32px;"><input type="checkbox" id="stagedSelectAll" onclick="toggleStagedSelectAll(this)"></th>
                   <th>매장명</th><th>카테고리</th><th>채널</th><th>협찬내용</th><th>마감일</th><th>가능요일</th><th>영업시간</th><th>공휴</th><th>구분</th><th>검수</th><th>관리</th>
                 </tr></thead>
                 <tbody id="collectStagedBody"></tbody>

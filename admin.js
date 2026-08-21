@@ -137,8 +137,15 @@ function renderStagedRows() {
   if (cnt) cnt.textContent = collectStagedRows.length;
   // 마감일 임박순 정렬(빈 값은 뒤로)
   collectStagedRows.sort((a, b) => (a.deadline || '9999-99-99').localeCompare(b.deadline || '9999-99-99'));
+  // 승인 대기 서브탭에서만 일괄선택/선택반려 노출
+  const showBulk = collectSub === 'pending';
+  const bulkBtn = document.getElementById('bulkRejectBtn');
+  if (bulkBtn) bulkBtn.style.display = showBulk ? '' : 'none';
+  const selAll = document.getElementById('stagedSelectAll');
+  if (selAll) { selAll.checked = false; selAll.style.visibility = showBulk ? '' : 'hidden'; }
   if (!collectStagedRows.length) {
-    body.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#aaa;padding:24px;">${collectSub === 'pending' ? '승인 대기 항목이 없어요. 위에서 수집을 실행하세요.' : '항목이 없어요.'}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="12" style="text-align:center;color:#aaa;padding:24px;">${collectSub === 'pending' ? '승인 대기 항목이 없어요. 위에서 수집을 실행하세요.' : '항목이 없어요.'}</td></tr>`;
+    updateBulkRejectCount();
     return;
   }
   const inp = (id, val, w) => `<input id="${id}" value="${esc(val)}" style="width:${w || 100}px;padding:4px;border:1px solid #ccc;border-radius:6px;font-size:12px;">`;
@@ -147,6 +154,7 @@ function renderStagedRows() {
     if (r.id === collectEditingId) {
       const catOpts = EXCEL_CATEGORY_OPTIONS.map(o => `<option value="${o}"${o === r.category ? ' selected' : ''}>${o}</option>`).join('');
       return `<tr style="background:#fffbe9;">
+        <td></td>
         <td>${inp('ed-name-' + r.id, r.name, 120)}<div style="margin-top:4px;">${inp('ed-addr-' + r.id, r.address, 160)}</div></td>
         <td><select id="ed-cat-${r.id}" class="excel-cell-select" style="font-size:12px;">${catOpts}</select></td>
         <td>${inp('ed-ch-' + r.id, r.channel, 90)}</td>
@@ -163,7 +171,11 @@ function renderStagedRows() {
     const actions = collectSub === 'pending'
       ? `<button class="btn-dark" style="padding:4px 10px;" onclick="approveStaged(${r.id})">승인</button> <button class="btn-ghost" style="padding:4px 10px;" onclick="editStaged(${r.id})">수정</button> <button class="btn-ghost" style="padding:4px 10px;color:#E82A2D;" onclick="rejectStaged(${r.id})">반려</button>`
       : (r.status === 'registered' ? '<span style="color:#1a9d4b;">등록됨</span>' : '<span style="color:#E82A2D;">반려됨</span>');
+    const checkCell = collectSub === 'pending'
+      ? `<td><input type="checkbox" class="staged-check" value="${r.id}" onchange="updateBulkRejectCount()"></td>`
+      : '<td></td>';
     return `<tr>
+      ${checkCell}
       <td><a href="${r.source_url}" target="_blank" style="color:#333;">${r.name || ''}</a></td>
       <td>${r.category || ''}</td>
       <td>${r.channel || '<span style="color:#E82A2D;">?</span>'}</td>
@@ -180,6 +192,37 @@ function renderStagedRows() {
 }
 function editStaged(id) { collectEditingId = id; renderStagedRows(); }
 function cancelStaged() { collectEditingId = null; renderStagedRows(); }
+
+// ===== 승인 대기 일괄 반려 =====
+function updateBulkRejectCount() {
+  const n = document.querySelectorAll('.staged-check:checked').length;
+  const el = document.getElementById('bulkRejectCount'); if (el) el.textContent = n;
+}
+function toggleStagedSelectAll(cb) {
+  document.querySelectorAll('.staged-check').forEach(c => { c.checked = cb.checked; });
+  updateBulkRejectCount();
+}
+async function bulkRejectStaged() {
+  const ids = [...document.querySelectorAll('.staged-check:checked')].map(c => Number(c.value)).filter(Boolean);
+  if (!ids.length) { adminToast('반려할 항목을 선택하세요.'); return; }
+  if (!confirm(`선택한 ${ids.length}건을 반려할까요? (반려 탭으로 이동, 지도엔 안 올라감)`)) return;
+  const btn = document.getElementById('bulkRejectBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/campaigns?action=bulkreview', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, status: 'rejected' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '반려 실패');
+    adminToast(`${data.count}건 반려 완료`);
+    await loadStaged('pending');
+  } catch (e) {
+    adminToast('오류: ' + e.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
 async function saveStaged(id) {
   const g = (k) => document.getElementById(`ed-${k}-${id}`);
   const payload = {
