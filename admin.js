@@ -274,8 +274,9 @@ async function approveStaged(id) {
       const coords = await geocodeAddress(String(r.address));
       if (!coords) { adminToast(`좌표 변환 실패: ${r.address} — 주소 확인 필요`); return; }
       const pres = await fetch('/api/places', {
+        // source:'admin' → places.js가 로그인 세션을 최초 제보자로 붙이지 않음(수집 승인분은 제보자 비움)
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: String(r.name), address: String(r.address), lat: coords.lat, lng: coords.lng, category: r.category || '기타' })
+        body: JSON.stringify({ name: String(r.name), address: String(r.address), lat: coords.lat, lng: coords.lng, category: r.category || '기타', source: 'admin' })
       });
       place = await pres.json();
       places.push(place);
