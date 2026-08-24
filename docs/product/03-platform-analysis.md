@@ -106,11 +106,9 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
 | 이력 | `GET ?action=runs&platform=` | `scrape_runs` 조회 |
 | 상태변경 | `PATCH ?action=review&id=` body `{status, createdCampaignId?}` | pending→approved/rejected/registered, `reviewed_at` 기록 |
 
-### ⚠️ 승인→등록의 geocode 처리
-현재 어드민 엑셀 업로드는 **클라이언트에서 네이버 geocode**(`geocodeAddress` → `naver.maps.Service`) 후 POST. 서버 geocode 자격증명이 없으므로 **승인 버튼도 클라이언트에서 기존 `importExcelData` 코어 재사용**:
-1. 승인 클릭 → (기존 매장 매칭 or geocode) → `POST /api/places`(신규 시) → `POST /api/campaigns`
-2. 성공하면 `PATCH ?action=review&id=` 로 status=registered + createdCampaignId 기록
-즉 서버 API는 staging CRUD만, **실제 매장/캠페인 생성은 클라 기존 경로 그대로**. (서버 함수 추가 최소화)
+### ⚠️ 승인→등록의 geocode 처리 (2종)
+- **수동 승인·엑셀 업로드**: 브라우저에서 네이버 geocode(`geocodeAddress` → `naver.maps.Service`) 후 `POST /api/places`(신규) → `POST /api/campaigns` → `PATCH ?action=review` status=registered. **승인 시 `source:'admin'`을 함께 보내 최초 제보자에 운영자 세션이 안 붙게 함**(2026-08-23 수정 — 이전엔 승인분이 운영자 닉네임으로 등록되던 버그).
+- **오토파일럿(무인 크론)**: 브라우저가 없으므로 **서버 지오코딩**(`api/_geocode.js`, 네이버 로컬 검색 API의 `mapx/mapy` 재사용, 한국 좌표 범위 밖=실패→검수큐). 이후 매장/캠페인을 서버에서 직접 INSERT(제보자 비움, `campaigns.source='ai'`). ※ 과거 "서버 geocode 자격증명 없음" 서술은 이 서버 지오코딩 도입으로 해소됨.
 
 ### 런타임 주의
 - 상세 fetch에 저빈도 delay 유지(예의). 증분이라 평소 소량이지만 **최초 실행은 37건**이라 함수 실행시간 김 → delay를 짧게(~500ms)거나, 최초만 CLI로 시드하고 어드민은 증분만 담당하는 방안 검토.
@@ -151,3 +149,31 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
 
 ## 7. 정책 주의 (매 플랫폼)
 자동수집 정책은 플랫폼마다 다름. 기술적으로 증분이 최선이어도 **약관·데이터정책은 플랫폼별로 확인**. 사업 지속 관점에서 제휴가 안전한 경로.
+
+---
+
+## 8. AI 자동등록(오토파일럿) — 수동 승인 대체 (2026-08)
+위 4~5절의 **수동 승인**을 AI가 대신하도록 확장. 매일 무인으로 수집→검수→등록하고 **애매한 것만 사람 검수큐**에 남긴다. 결정 [[06-decision-log]] 2026-08-21, AI 상세 `13-ai-automation`.
+
+### 흐름 (매일 06:00 KST 크론 1회)
+`vercel.json` 크론 → `POST /api/campaigns?action=autopilot&scrape=dinnerqueen` (인증: `CRON_SECRET` 헤더 or 관리자). 한 실행 안에서:
+1. **오토파일럿 먼저** — 쌓인 `scraped_items`(pending)를 3갈래 라우팅
+   - 🟢 자동등록: 좌표OK·flags없음·마감유효 + (기존매장 추가/갱신 = 규칙만 / 신규매장 = AI 승인) → 매장·캠페인 INSERT(`source='ai'`, 제보자 비움), `status='registered'`
+   - 🟡 검수대기: 좌표실패·파싱경고·중복의심·AI저신뢰 → `auto_seen=1`로 pending 유지 + `auto_note`(사유). 운영자가 기존 승인 UI에서 처리
+   - 🔴 스킵: 마감 지남 등 → `status='rejected'`
+2. **남는 시간에 수집** — 신규 캠페인 긁어 큐에 적재(다음 실행에서 검수)
+
+### 처리량 — Hobby 하루 1회 시간예산 (2026-08-21)
+디너의여왕은 신규가 D-6로 올라오고 **평일 수백 건**(주말 거의 없음). Hobby(크론 1일 1회·함수 300초)에선 상세 1건당 0.6초 예의 딜레이라 한 실행 현실 상한 ~150~200건. → **시간예산 방식**: `TOTAL=240s`(오토파일럿 150s 우선 배정) 초과 시 각 단계 중단, 못한 건은 **증분커서/`auto_seen`이 다음 실행에서 이어받음**(중단돼도 안전). `vercel.json functions.maxDuration=300`. 더 늘리려면 Vercel Pro(하루 여러 번).
+
+### 스키마 추가 컬럼(`scraped_items`)
+- `auto_seen INTEGER DEFAULT 0` — 1이면 오토파일럿 판정 완료(재평가 안 함)
+- `auto_note TEXT` — 라우팅 사유(검수큐 표시용)
+
+### 어드민
+- "데이터 수집" 탭에 **AI 자동등록 카드**: [미리보기(등록 안 함, `?dry=1`)] / [지금 실행] + 결정 표(🟢/🟡/🔴)
+- 승인 대기 검수열에 `auto_note` 사유 노출
+- 조회 > 캠페인 출처 라디오에 **AI** 추가(=자동등록분 보기, 회수는 해당 행 관리)
+
+### 필요 환경변수(운영자가 Vercel에 설정)
+`OPENAI_API_KEY`(AI 판정), `CRON_SECRET`(크론 인증). 선택 `OPENAI_MODEL`(기본 gpt-4o-mini).
