@@ -98,29 +98,29 @@ module.exports = async function handler(req, res) {
       const cronAuth = !!process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
       if (!cronAuth && !isAdmin(req)) return res.status(401).json({ error: '권한이 없습니다.' });
       const dry = req.query.dry === '1';
-      // 시간 예산: Vercel 함수 최대 300초. 240초 안에서 '검수·등록 먼저 → 남는 시간에 수집'.
-      // 각 단계가 예산 초과 시 중단하고 나머지는 다음 실행으로(증분 커서·auto_seen이 이어받음).
+      // 시간 예산: Vercel 함수 최대 300초. 240초 안에서 '수집 먼저 → 그 신규까지 같은 실행에서 검수·등록'.
+      // 수집에 상한(SCRAPE_MS)을 둬서 오토파일럿이 항상 돌 시간을 확보. 각 단계 예산 초과 시 중단,
+      // 나머지는 다음 실행으로(증분 커서·auto_seen이 이어받음).
       const start = Date.now();
       const TOTAL_MS = 240000;
-      const AUTOPILOT_MS = 150000; // 검수·등록에 우선 배정(수집만 하고 등록 못 하는 상황 방지)
+      const SCRAPE_MS = 100000; // 수집 상한 — 나머지(~140초)는 오토파일럿 몫
       const willScrape = !!req.query.scrape && !dry;
-      // 1) 오토파일럿 먼저: 이미 쌓인 승인 대기부터 검수·등록. 수집이 붙는 크론이면 예산 분할, 아니면 전체.
-      // willScrape가 false면(수동 실행·미리보기) 오토파일럿에 전체 예산 배정. 미리보기도 300초 방지 위해 시간상한 둠.
-      let summary;
-      try {
-        summary = await runAutopilot({ db, dry, deadlineTs: start + (willScrape ? AUTOPILOT_MS : TOTAL_MS) });
-      } catch (e) {
-        return res.status(500).json({ error: '오토파일럿 실패: ' + (e.message || e) });
-      }
-      // 2) 남는 시간에 신규 수집(다음 실행에서 검수·등록). limit은 크게 두고 시간 예산으로 상한.
+      // 1) 수집 먼저: 오늘 신규를 큐에 채워 '같은 실행'의 오토파일럿이 바로 검수·등록하게.
       let scrape = null;
       if (willScrape) {
         try {
           scrape = await runScrape({
             db, platform: req.query.scrape, mode: req.query.mode || 'jeonche',
-            limit: 250, region: req.query.region || '서울', deadlineTs: start + TOTAL_MS,
+            limit: 250, region: req.query.region || '서울', deadlineTs: start + SCRAPE_MS,
           });
         } catch (e) { scrape = { error: '수집 실패: ' + (e.message || e) }; }
+      }
+      // 2) 오토파일럿: 방금 수집분 + 남은 백로그를 검수·등록. 전체 예산까지(수집이 앞에서 상한 걸려 시간 남음).
+      let summary;
+      try {
+        summary = await runAutopilot({ db, dry, deadlineTs: start + TOTAL_MS });
+      } catch (e) {
+        return res.status(500).json({ error: '오토파일럿 실패: ' + (e.message || e) });
       }
       return res.status(200).json({ ...summary, scrape });
     }

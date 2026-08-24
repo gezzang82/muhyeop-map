@@ -156,12 +156,12 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
 위 4~5절의 **수동 승인**을 AI가 대신하도록 확장. 매일 무인으로 수집→검수→등록하고 **애매한 것만 사람 검수큐**에 남긴다. 결정 [[06-decision-log]] 2026-08-21, AI 상세 `13-ai-automation`.
 
 ### 흐름 (매일 06:00 KST 크론 1회)
-`vercel.json` 크론 → `POST /api/campaigns?action=autopilot&scrape=dinnerqueen` (인증: `CRON_SECRET` 헤더 or 관리자). 한 실행 안에서:
-1. **오토파일럿 먼저** — 쌓인 `scraped_items`(pending)를 3갈래 라우팅
+`vercel.json` 크론 → `POST /api/campaigns?action=autopilot&scrape=dinnerqueen` (인증: `CRON_SECRET` 헤더 or 관리자). 한 실행 안에서(2026-08-24 순서 변경 — [[06-decision-log]]):
+1. **수집 먼저** — 신규 캠페인을 긁어 큐(`scraped_items` pending)에 적재. 상한 `SCRAPE_MS=100s`(오토파일럿 시간 확보용).
+2. **오토파일럿** — 방금 수집분 + 남은 백로그를 3갈래 라우팅(전체 예산까지)
    - 🟢 자동등록: 좌표OK·flags없음·마감유효 + (기존매장 추가/갱신 = 규칙만 / 신규매장 = AI 승인) → 매장·캠페인 INSERT(`source='ai'`, 제보자 비움), `status='registered'`
    - 🟡 검수대기: 좌표실패·파싱경고·중복의심·AI저신뢰 → `auto_seen=1`로 pending 유지 + `auto_note`(사유). 운영자가 기존 승인 UI에서 처리
    - 🔴 스킵: 마감 지남 등 → `status='rejected'`
-2. **남는 시간에 수집** — 신규 캠페인 긁어 큐에 적재(다음 실행에서 검수)
 
 ### 처리량 — Hobby 하루 1회 시간예산 (2026-08-21)
 디너의여왕은 신규가 D-6로 올라오고 **평일 수백 건**(주말 거의 없음). Hobby(크론 1일 1회·함수 300초)에선 상세 1건당 0.6초 예의 딜레이라 한 실행 현실 상한 ~150~200건. → **시간예산 방식**: `TOTAL=240s`(오토파일럿 150s 우선 배정) 초과 시 각 단계 중단, 못한 건은 **증분커서/`auto_seen`이 다음 실행에서 이어받음**(중단돼도 안전). `vercel.json functions.maxDuration=300`. 더 늘리려면 Vercel Pro(하루 여러 번).
