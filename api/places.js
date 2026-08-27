@@ -334,6 +334,19 @@ module.exports = async function handler(req, res) {
     if (!name || !address || lat == null || lng == null || !category) {
       return res.status(400).json({ error: 'name, address, lat, lng, category는 필수입니다.' });
     }
+    // 수집 승인(source='admin') 중복 매장 방지: 같은 이름 + 같은 좌표 매장이 이미 있으면 새로 안 만들고 그걸 반환.
+    // 디너의여왕은 채널(블로그/클립/인스타)마다 별도 캠페인이라 한 매장이 여러 행으로 승인되는데,
+    // 이걸로 매장은 1개·캠페인만 여러 개 붙게 함(빠른 연속 승인 시 클라 메모리 dedup 경합도 서버에서 차단).
+    if (req.body?.source === 'admin') {
+      const dup = await db.execute({
+        sql: "SELECT id, name, address, lat, lng, category, founder_nickname, founder_email, founder_url FROM places WHERE REPLACE(name,' ','') = REPLACE(?,' ','') AND ABS(lat - ?) < 0.0007 AND ABS(lng - ?) < 0.0007 LIMIT 1",
+        args: [String(name), Number(lat), Number(lng)],
+      });
+      if (dup.rows.length) {
+        const p = dup.rows[0];
+        return res.status(200).json({ id: p.id, name: p.name, address: p.address, lat: p.lat, lng: p.lng, category: p.category, founderNickname: p.founder_nickname || '', founderEmail: p.founder_email || '', founderUrl: p.founder_url || '', deduped: true });
+      }
+    }
     // 어드민 등록(source='admin')은 운영자가 대신 입력하는 것이므로 로그인 세션을 최초 제보자로 기록하지 않음
     const session = (req.body?.source === 'admin') ? null : readSession(req);
     const founderNickname = session ? session.nickname : (req.body?.founderNickname || '');

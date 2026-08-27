@@ -47,6 +47,12 @@ function similarNames(candName, places, topN = 12) {
 }
 
 async function insertPlace(db, { name, address, lat, lng, category }) {
+  // 같은 이름+좌표 매장이 있으면 재사용(중복 매장 방지 — 한 매장에 채널별 캠페인이 붙게).
+  const dup = await db.execute({
+    sql: "SELECT id FROM places WHERE REPLACE(name,' ','') = REPLACE(?,' ','') AND ABS(lat - ?) < 0.0007 AND ABS(lng - ?) < 0.0007 LIMIT 1",
+    args: [String(name), Number(lat), Number(lng)],
+  });
+  if (dup.rows.length) return Number(dup.rows[0].id);
   const r = await db.execute({
     sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id)
           VALUES (?, ?, ?, ?, ?, '', '', '', NULL)`,
