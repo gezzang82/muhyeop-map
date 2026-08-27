@@ -20,6 +20,7 @@
 | 12 | [brand](12-brand.md) | 브랜드 소개/톤 |
 | 13 | [ai-automation](13-ai-automation.md) | AI 활용(정제·분류·검증·중복·자동화 보조) |
 | 14 | [launch-checklist](14-launch-checklist.md) | **8/1 정식 오픈 점검 목록**(베타 없이 오픈, 확인/마무리 항목) |
+| 15 | [operations](15-operations.md) | **데이터 수집·자동등록(오토파일럿) 운영 가이드** — 흐름/실행경로/운영자 할일/안전장치/비용/주의 |
 
 ## 관리 규칙
 
