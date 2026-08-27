@@ -27,8 +27,16 @@ for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
   if (m) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
 }
 
-const { runScrape } = require('../api/_scrape');
+const { runScrape, SEOUL_AREA2, AREA2_BY_REGION } = require('../api/_scrape');
 const { runAutopilot } = require('../api/_autopilot');
+
+// 지역별 수집 단위(하위지역). '전체' 목록은 하위지역을 다 담지 않아 누락되므로 하위지역별로 순회한다.
+//  서울=17개 하위지역, 경기=7개, 인천=경기>인천/부천/부평(collectIds가 매핑, mode=jeonche), 부산=전체(하위지역 미정의).
+function subdistrictsFor(region) {
+  if (region === '서울') return SEOUL_AREA2.map((a2) => ({ region, mode: a2 }));
+  if (region === '경기') return AREA2_BY_REGION['경기'].map((a2) => ({ region, mode: a2 }));
+  return [{ region, mode: 'jeonche' }]; // 인천(매핑됨)·부산 등
+}
 
 const regions = (process.argv[2] || '서울').split(',').map((s) => s.trim()).filter(Boolean);
 const minWaitSec = Math.max(10, parseInt(process.argv[3], 10) || 30);
@@ -45,14 +53,19 @@ async function pass() {
   let collected = 0, more = false, remaining = 0;
   for (const region of regions) {
     if (stopping) break;
-    const s = await runScrape({ db, platform: 'dinnerqueen', mode: 'jeonche', limit: 250, region });
-    collected += s.staged || 0;
-    if ((s.newCandidates || 0) > (s.processed || 0)) more = true; // 아직 못 긁은 신규 남음
-    console.log(`  [${ts()}] 수집(${region}): 신규 ${s.newCandidates} · 처리 ${s.processed} · 적재 ${s.staged} · 중복 ${s.dupActive}`);
-    // ★ 각 지역 수집 직후 바로 AI 검증·등록 (4개 지역 다 끝날 때까지 안 기다림)
+    // 하위지역별로 순회 수집('전체' 목록이 하위지역을 다 안 담아서 누락되던 것 해결)
+    for (const t of subdistrictsFor(region)) {
+      if (stopping) break;
+      const s = await runScrape({ db, platform: 'dinnerqueen', mode: t.mode, limit: 250, region: t.region });
+      collected += s.staged || 0;
+      if ((s.newCandidates || 0) > (s.processed || 0)) more = true; // 아직 못 긁은 신규 남음
+      const label = t.mode === 'jeonche' ? t.region : `${t.region}>${t.mode}`;
+      console.log(`  [${ts()}] 수집(${label}): 신규 ${s.newCandidates} · 처리 ${s.processed} · 적재 ${s.staged} · 중복 ${s.dupActive}`);
+    }
+    // 지역의 하위지역을 다 긁은 뒤 AI 검증·등록 1회
     const a = await runAutopilot({ db });
     remaining = a.remaining;
-    console.log(`  [${ts()}] └ AI검증: 자동등록 ${a.registered} · 검수 ${a.review} · 스킵 ${a.skipped} · 남은대기 ${a.remaining}`);
+    console.log(`  [${ts()}] └ [${region}] AI검증: 자동등록 ${a.registered} · 검수 ${a.review} · 스킵 ${a.skipped} · 남은대기 ${a.remaining}`);
   }
   return { collected, more, remaining };
 }

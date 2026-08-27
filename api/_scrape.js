@@ -14,7 +14,7 @@ const BASE = 'https://dinnerqueen.net';
 const listUrl = (area2, region = '서울') => `${BASE}/taste?ct=${encodeURIComponent('지역')}&area1=${encodeURIComponent(region)}&area2=${encodeURIComponent(area2)}`;
 const SEOUL_AREA2 = ['강남/논현/압구정', '강동/천호', '강서/목동/마곡', '건대/왕십리', '관악/신림', '교대/사당', '노원/강북', '명동/이태원', '삼성/선릉', '서초/반포', '송파/잠실', '수유/동대문/중랑', '시청/남대문', '여의도/영등포/구로', '종로/대학로', '홍대/마포/신촌', '기타'];
 // 경기 하위지역(디너의여왕 area2). '인천/부천/부평'은 인천 지역과 겹쳐 제외.
-const GYEONGGI_AREA2 = ['수원/화성/오산/평택', '의정부/동두천', '성남/판교', '광명/시흥', '과천/안양/안산', '남양주/구리/하남', '일산/파주/고양/김포/포천'];
+const GYEONGGI_AREA2 = ['수원/화성/오산/평택', '의정부/동두천', '성남/판교', '광명/시흥', '과천/안양/안산', '남양주/구리/하남', '일산/파주/고양/김포/포천', '기타'];
 // 지역별 하위지역 맵(하위지역 선택 수집 지원 지역만). 부산/인천은 하위지역 미지원(전체만).
 const AREA2_BY_REGION = { '서울': SEOUL_AREA2, '경기': GYEONGGI_AREA2 };
 
