@@ -31,15 +31,15 @@ async function judgeCandidate(p) {
 
   const sys = [
     '너는 지역 협찬(체험단) 지도 서비스의 데이터 검수원이다.',
-    '스크래핑으로 수집된 "신규 매장 + 협찬 캠페인" 후보 1건을 보고, 사람 검수 없이 지도에 자동 등록해도 되는지 판정한다.',
-    '오등록이 사용자에게 그대로 노출되므로 조금이라도 애매하면 approve=false로 보내 사람이 보게 한다(보수적).',
-    '판정 기준:',
-    '1) 매장명·주소·협찬 내용이 서로 앞뒤가 맞고 실제 존재할 법한 업체인가.',
-    '2) category가 내용과 맞는가. 틀렸으면 올바른 값으로 교정(반드시 아래 목록 중 하나): ' + VALID_CATEGORIES.join(', ') + '.',
-    '3) similarPlaces는 후보와 "가까운 위치(반경 300m)"의 유사 이름 매장 목록이다. 이 중 후보와 사실상 "같은 가게"(같은 상호+같은 위치, 표기만 다름)가 있을 때만 중복이다 → duplicateOf에 그 이름. 그 외엔 null.',
-    '   ⚠️ 같은 브랜드라도 지점이 다르면(예: "헤비스테이크 과천중앙점" vs "헤비스테이크 안산중앙점") 중복 아님. 이름 일부만 겹치는 다른 업체(예: "홍봉선간장게장" vs "봉선화빛")도 중복 아님. 애매하면 중복 아님(null)으로 둔다.',
-    '내용이 광고·배송형·비지역 업체이거나 매장명이 불명확하면 approve=false.',
-    'confidence는 0~1. 0.85 미만이면 approve=false로 둔다. 단, 중복 판정은 위 기준으로 보수적으로(같은 가게 확실할 때만).',
+    '입력은 실제 체험단 플랫폼(디너의여왕)에서 수집돼 이미 1차 필터(서울 소재·주소 있음·배송형 제외)를 통과한 "신규 매장 + 협찬 캠페인" 후보다. 즉 기본적으로 진짜 캠페인이다.',
+    '기본 방침: 특별한 문제가 없으면 approve=true. **협찬 내용이 짧거나("N만원 체험권" 등) 홍보성인 것은 체험단 특성상 정상이며, 그것만으로 반려하지 마라.** 카테고리가 틀린 것도 반려 사유가 아니라 교정 대상이다.',
+    'approve=false로 두는 경우는 아래처럼 명확한 문제일 때만:',
+    ' - 매장명이 의미 없거나 스팸/테스트성이라 실제 업체로 볼 수 없음',
+    ' - 명백한 배송형/무매장(택배 상품 등)이 1차 필터를 빠져나온 경우',
+    ' - similarPlaces에 후보와 사실상 "같은 가게"(같은 상호+같은 위치)가 있어 중복 → duplicateOf에 그 이름',
+    'category는 내용에 맞게 교정(반드시 목록 중 하나): ' + VALID_CATEGORIES.join(', ') + '.',
+    'similarPlaces는 후보와 "가까운 위치(반경 300m)"의 유사 이름 매장이다. 같은 브랜드 다른 지점("헤비스테이크 과천중앙점" vs "안산중앙점")·이름 일부만 겹치는 다른 업체("홍봉선간장게장" vs "봉선화빛")는 중복 아님. 애매하면 null.',
+    'confidence는 "실제 등록 가능한 진짜 매장"이라는 확신도(0~1). 플랫폼 정상 데이터면 대개 0.8 이상이다. 0.6 미만일 때만 approve=false.',
   ].join('\n');
 
   const user = JSON.stringify({
@@ -95,7 +95,7 @@ async function judgeCandidate(p) {
   // 보수적 게이트: 중복이거나 저신뢰면 자동등록 거부(사람 검수큐로)
   const conf = Number(v.confidence) || 0;
   const cat = VALID_CATEGORIES.includes(v.category) ? v.category : (p.category || '기타');
-  const approve = !!v.approve && !v.duplicateOf && conf >= 0.85;
+  const approve = !!v.approve && !v.duplicateOf && conf >= 0.6;
   return {
     approve,
     category: cat,
