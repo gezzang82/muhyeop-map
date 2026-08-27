@@ -73,6 +73,13 @@ async function insertPlace(db, { name, address, lat, lng, category }) {
 }
 
 async function insertCampaign(db, placeId, r, category) {
+  const link = r.source_url || '';
+  // 같은 링크(플랫폼 캠페인 URL은 고유) 캠페인이 이미 있으면 재생성 안 함
+  // — 서버/로컬 오토파일럿이 동시에 같은 항목을 처리해 캠페인이 2개 생기던 중복 방지.
+  if (link) {
+    const dup = await db.execute({ sql: 'SELECT id FROM campaigns WHERE link = ? LIMIT 1', args: [link] });
+    if (dup.rows.length) return Number(dup.rows[0].id);
+  }
   const channels = JSON.stringify(csv(r.channel));
   const operatingDays = JSON.stringify(csv(r.days));
   const res = await db.execute({

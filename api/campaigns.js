@@ -295,6 +295,12 @@ module.exports = async function handler(req, res) {
     if (!placeId || !platform || !content || !channels?.length) {
       return res.status(400).json({ error: 'placeId, platform, content, channels는 필수입니다.' });
     }
+    // 수집 승인(source='admin') 중복 캠페인 방지: 같은 링크(플랫폼 캠페인 URL은 고유) 캠페인이 이미 있으면 새로 안 만들고 그걸 반환.
+    // (동시 승인/처리로 같은 캠페인이 2개 생기던 것 방지)
+    if (source === 'admin' && link) {
+      const dupC = await db.execute({ sql: 'SELECT id FROM campaigns WHERE link = ? LIMIT 1', args: [String(link)] });
+      if (dupC.rows.length) return res.status(200).json({ id: Number(dupC.rows[0].id), deduped: true });
+    }
     // 어드민 등록(source='admin')은 운영자가 대신 입력하는 것이므로 로그인 세션을 제보자로 기록하지 않음
     const session = (source === 'admin') ? null : readSession(req);
     const reporterNickname = session ? session.nickname : (req.body?.reporterNickname || '');
