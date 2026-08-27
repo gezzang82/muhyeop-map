@@ -36,9 +36,10 @@ async function judgeCandidate(p) {
     '판정 기준:',
     '1) 매장명·주소·협찬 내용이 서로 앞뒤가 맞고 실제 존재할 법한 업체인가.',
     '2) category가 내용과 맞는가. 틀렸으면 올바른 값으로 교정(반드시 아래 목록 중 하나): ' + VALID_CATEGORIES.join(', ') + '.',
-    '3) similarPlaces(기존 등록 매장명)에 사실상 같은 매장이 있으면 중복이다. 같다고 판단하면 duplicateOf에 그 이름을, 아니면 null.',
+    '3) similarPlaces는 후보와 "가까운 위치(반경 300m)"의 유사 이름 매장 목록이다. 이 중 후보와 사실상 "같은 가게"(같은 상호+같은 위치, 표기만 다름)가 있을 때만 중복이다 → duplicateOf에 그 이름. 그 외엔 null.',
+    '   ⚠️ 같은 브랜드라도 지점이 다르면(예: "헤비스테이크 과천중앙점" vs "헤비스테이크 안산중앙점") 중복 아님. 이름 일부만 겹치는 다른 업체(예: "홍봉선간장게장" vs "봉선화빛")도 중복 아님. 애매하면 중복 아님(null)으로 둔다.',
     '내용이 광고·배송형·비지역 업체이거나 매장명이 불명확하면 approve=false.',
-    'confidence는 0~1. 0.85 미만이면 approve=false로 둔다.',
+    'confidence는 0~1. 0.85 미만이면 approve=false로 둔다. 단, 중복 판정은 위 기준으로 보수적으로(같은 가게 확실할 때만).',
   ].join('\n');
 
   const user = JSON.stringify({

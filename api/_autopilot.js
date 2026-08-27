@@ -28,19 +28,30 @@ function kstToday() {
   return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
-// 후보명과 기존 매장명들의 bigram 겹침으로 유사한 이름 소수를 추림(AI 중복판정 입력).
+// 대략 거리(m). 서울 위도(~37.5)에서 경도 1도≈88km.
+function distM(lat1, lng1, lat2, lng2) {
+  const dLat = (lat1 - lat2) * 111000;
+  const dLng = (lng1 - lng2) * 88000;
+  return Math.hypot(dLat, dLng);
+}
+// 후보와 '가까운 위치'의 유사 이름 매장만 추림(AI 중복판정 입력).
+// 이름 토큰만 겹치는 먼 매장(프랜차이즈 다른 지점·우연한 겹침)은 제외 → 중복 오탐 제거.
 function bigrams(s) { const a = []; for (let i = 0; i < s.length - 1; i++) a.push(s.slice(i, i + 2)); return a; }
-function similarNames(candName, places, topN = 12) {
+function similarNearby(candName, coords, places, radiusM = 300, topN = 8) {
   const cn = norm(candName); const cbg = new Set(bigrams(cn));
-  if (!cbg.size) return [];
+  if (!cbg.size || !coords) return [];
   return places
     .map((p) => {
+      if (p.lat == null || p.lng == null) return null;
+      const d = distM(coords.lat, coords.lng, Number(p.lat), Number(p.lng));
+      if (d > radiusM) return null; // 반경 밖은 다른 매장으로 간주(같은 브랜드 다른 지점 포함)
       const pn = norm(p.name); let hit = 0;
       for (const b of bigrams(pn)) if (cbg.has(b)) hit++;
       const contain = pn && cn && (pn.includes(cn) || cn.includes(pn)) ? 5 : 0;
-      return { name: p.name, score: hit + contain };
+      const score = hit + contain;
+      return score > 0 ? { name: p.name, score } : null;
     })
-    .filter((x) => x.score > 0)
+    .filter(Boolean)
     .sort((a, b) => b.score - a.score)
     .slice(0, topN)
     .map((x) => x.name);
@@ -106,8 +117,15 @@ async function runAutopilot({ db, dry = false, deadlineTs = 0 }) {
   const remRes = await db.execute("SELECT COUNT(*) AS n FROM scraped_items WHERE status='pending' AND COALESCE(auto_seen,0)=0");
   const totalPending = Number(remRes.rows[0]?.n || 0);
 
-  const placesRes = await db.execute('SELECT id, name FROM places');
+  const placesRes = await db.execute('SELECT id, name, lat, lng FROM places');
   const places = placesRes.rows;
+  // 자동등록을 막는(=검수로 보내는) '차단성' 경고만 남김. 요일·카테고리 불확실은 차단 안 함:
+  //  - 요일 불확실 → 요일 비워서 등록(공개화면 요일 미노출)
+  //  - 카테고리 불확실 → 신규매장은 AI가 카테고리 판단, 기존매장은 기존 값 유지
+  // (채널 없음은 아래 별도 처리, 실제 등록 불가라 검수)
+  const dayFlagRe = /가능요일확인|요일·공휴일 재확인\([^)]*\)|요일·공휴일 재확인/g;
+  const catFlagRe = /카테고리확인(?:\([^)]*\))?/g;
+  const residualFlags = (f) => String(f || '').replace(dayFlagRe, '').replace(catFlagRe, '').replace(/\s+/g, ' ').trim();
 
   let registered = 0, review = 0, skipped = 0, aiCalls = 0, processed = 0, timedOut = false;
   const decisions = [];
@@ -124,15 +142,19 @@ async function runAutopilot({ db, dry = false, deadlineTs = 0 }) {
       if (!dry) await markSkipped(db, r.id, '마감 지남');
       skipped++; record(r, 'skip', '마감 지남'); continue;
     }
-    // 🟡 파싱 경고 / 채널 없음 (결정론적)
-    if (r.flags && String(r.flags).trim()) {
-      if (!dry) await markHuman(db, r.id, '파싱경고: ' + r.flags);
-      review++; record(r, 'review', '파싱경고: ' + r.flags); continue;
-    }
+    // 🟡 채널 없음 = 등록 불가 → 검수
     if (!channels.length) {
       if (!dry) await markHuman(db, r.id, '채널 없음');
       review++; record(r, 'review', '채널 없음'); continue;
     }
+    // 요일·카테고리 외의 파싱 경고가 남아있으면 검수. (요일/카테고리 불확실은 아래에서 자체 처리)
+    const resid = residualFlags(r.flags);
+    if (resid) {
+      if (!dry) await markHuman(db, r.id, '파싱경고: ' + resid);
+      review++; record(r, 'review', '파싱경고: ' + resid); continue;
+    }
+    // 요일이 불확실하면(=요일 관련 플래그 존재) 요일을 비워서 등록(공개화면 요일 미노출).
+    if (/가능요일확인|요일·공휴일 재확인/.test(String(r.flags || ''))) r.days = '';
 
     const status = r.dedupe_status;
     // 🟢 기존매장 추가/갱신: 매장 있으니 좌표·AI 불필요, 규칙만으로 자동등록
@@ -156,7 +178,7 @@ async function runAutopilot({ db, dry = false, deadlineTs = 0 }) {
     aiCalls++;
     const verdict = await judgeCandidate({
       name: r.name, address: r.address, category: r.category, content: r.content, channel: r.channel,
-      similarPlaces: similarNames(r.name, places),
+      similarPlaces: similarNearby(r.name, coords, places),
     });
     if (!verdict.approve) {
       const note = verdict.duplicateOf
@@ -170,7 +192,7 @@ async function runAutopilot({ db, dry = false, deadlineTs = 0 }) {
     const pid = await insertPlace(db, {
       name: r.name, address: r.address, lat: coords.lat, lng: coords.lng, category: verdict.category,
     });
-    places.push({ id: pid, name: r.name });
+    places.push({ id: pid, name: r.name, lat: coords.lat, lng: coords.lng });
     const cid = await insertCampaign(db, pid, r, verdict.category);
     await markRegistered(db, r.id, cid, `신규매장 AI승인(${verdict.confidence.toFixed(2)})`);
     registered++; record(r, 'register', `신규매장 AI승인(${verdict.confidence.toFixed(2)})`);
