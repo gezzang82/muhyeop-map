@@ -102,8 +102,8 @@ module.exports = async function handler(req, res) {
       // 수집에 상한(SCRAPE_MS)을 둬서 오토파일럿이 항상 돌 시간을 확보. 각 단계 예산 초과 시 중단,
       // 나머지는 다음 실행으로(증분 커서·auto_seen이 이어받음).
       const start = Date.now();
-      const TOTAL_MS = 240000;
-      const SCRAPE_MS = 100000; // 수집 상한 — 나머지(~140초)는 오토파일럿 몫
+      const TOTAL_MS = 280000; // Vercel 함수 300초 한계 아래로(버퍼 20초). 중단돼도 커서/auto_seen이 이어받아 안전.
+      const SCRAPE_MS = 190000; // 수집을 최대로(무료 한도). 나머지(~90초)는 오토파일럿 몫
       const willScrape = !!req.query.scrape && !dry;
       // 1) 수집 먼저: 오늘 신규를 큐에 채워 '같은 실행'의 오토파일럿이 바로 검수·등록하게.
       let scrape = null;

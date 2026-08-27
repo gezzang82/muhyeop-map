@@ -400,7 +400,7 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서�
     } catch (e) { failed++; }
     if (ok && !sawFail) cursorAdvance = id; // 실패 전까지의 연속 성공 구간만 커서 전진
     else if (!ok) sawFail = true;
-    if (i < targets.length - 1) await sleep(600);
+    if (i < targets.length - 1) await sleep(300); // 상세 fetch 간 저빈도 딜레이(예의). 600→300ms로 처리량↑
   }
 
   const newCursor = Math.max(lastMaxId, cursorAdvance);
