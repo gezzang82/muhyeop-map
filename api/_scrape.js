@@ -252,6 +252,8 @@ async function collectAreaIds(area1, area2, sinceId = 0, maxPages = 10) {
   return [...idSet];
 }
 async function collectIds(mode, region = '서울', sinceId = 0) {
+  // 디너의여왕은 독립 '인천' 지역(area1)이 없고, 인천을 경기>인천/부천/부평 하위지역에 둔다.
+  if (region === '인천') return collectAreaIds('경기', '인천/부천/부평', sinceId);
   if (mode === 'all-seoul' && region === '서울') {
     // 서울 전역: 하위지역별로 수집(각 지역은 페이지 얕게 3장까지 — 전역은 폭이 넓어 과도한 요청 방지)
     const idSet = new Set();
@@ -294,10 +296,13 @@ function scrapeDetail(html, id) {
 }
 
 // 정규화 + 제외 판정 → 스테이징 후보 or null(제외)
+// 지역 허용 매칭: 인천은 디너의여왕에서 인천/부천/부평 하위지역이라 셋 다 허용.
+const REGION_ACCEPT = { '인천': ['인천', '부천', '부평'] };
 function normalizeItem(d, reqRegion = '서울') {
   const region = d.region || '';
   if (/랜덤픽/.test(region)) return { excluded: '배송형(랜덤픽)' };
-  if (region && !region.startsWith(reqRegion)) return { excluded: `지역불일치(${region}≠${reqRegion})` };
+  const accepts = REGION_ACCEPT[reqRegion] || [reqRegion];
+  if (region && !accepts.some((a) => region.startsWith(a))) return { excluded: `지역불일치(${region}≠${reqRegion})` };
   if (!d.address) return { excluded: '주소없음' };
   const override = CATEGORY_OVERRIDE.find(([re]) => re.test(d.name));
   const mapped = mapCategory(d.platformCategory || '', d.content, d.name);
