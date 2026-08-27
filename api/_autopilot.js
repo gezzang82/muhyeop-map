@@ -20,7 +20,7 @@ const { geocodeServer } = require('./_geocode');
 const { judgeCandidate } = require('./_ai');
 
 const MAX_PER_RUN = 300; // 한 실행 처리 상한(실질 상한은 시간 예산 deadlineTs)
-const MAX_AI_CALLS = 200; // 신규매장 AI 호출 상한(비용 안전판; 초과분은 검수큐로)
+const MAX_AI_CALLS = 800; // 신규매장 AI 호출 상한(비용 안전판; gpt-4o-mini라 매우 저렴해 넉넉히)
 
 const csv = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean);
 const norm = (s) => String(s || '').replace(/\s/g, '').toLowerCase();
@@ -177,6 +177,16 @@ async function runAutopilot({ db, dry = false, deadlineTs = 0 }) {
     if (!coords) {
       if (!dry) await markHuman(db, r.id, '좌표변환 실패');
       review++; record(r, 'review', '좌표변환 실패'); continue;
+    }
+    // 좌표 확보 후: 같은 이름 + 가까운 위치(100m)의 매장이 이미 있으면 그 매장에 캠페인 추가(기존매장 취급)로 자동등록.
+    // 스크래핑 classify 이후 등록된 매장을 AI가 '중복의심'으로 검수 보내던 것 → 자동등록으로 전환(AI 호출도 아낌).
+    const cn = norm(r.name);
+    const existing = places.find((p) => p.lat != null && norm(p.name) === cn && distM(coords.lat, coords.lng, Number(p.lat), Number(p.lng)) < 100);
+    if (existing) {
+      if (dry) { registered++; record(r, 'register', '기존매장(동일명·근접)'); continue; }
+      const cid = await insertCampaign(db, existing.id, r, r.category || '기타');
+      await markRegistered(db, r.id, cid, '기존매장(동일명·근접)');
+      registered++; record(r, 'register', '기존매장(동일명·근접)'); continue;
     }
     if (aiCalls >= MAX_AI_CALLS) {
       if (!dry) await markHuman(db, r.id, '일일 AI 한도 — 다음 검수');
