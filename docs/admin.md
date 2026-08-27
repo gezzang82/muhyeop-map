@@ -36,6 +36,7 @@
 ## 데이터 수집 / AI 자동등록 (매장/캠페인 등록 → 데이터 수집 서브탭)
 - **수집**: 플랫폼(디너의여왕/포블로그)·지역·범위·최대건수 선택 후 `collectScrape()`(`POST ?action=scrape`). 결과가 `scraped_items`(승인 대기)에 쌓임. 승인 대기/등록 완료/반려/수집 이력 서브탭.
 - **승인 대기 검수**: 행별 [승인][수정(인라인)][반려], 일괄 반려. `approveStaged`가 매장 없으면 좌표변환 후 `POST /api/places`(**`source:'admin'` 전송 → 최초 제보자에 운영자 세션 안 붙음**, 2026-08-23 수정)+`POST /api/campaigns`(`source:'admin'`)→`review` status=registered. 검수(`auto_note`)열에 오토파일럿 라우팅 사유 표시.
+- **중복 매장 방지**(2026-08-27): 디너의여왕은 채널(블로그/클립/인스타)마다 별도 캠페인이라 **한 매장이 여러 행으로 승인**됨. `POST /api/places`(`source:'admin'`)와 `_autopilot.insertPlace`는 **같은 이름(공백무시)+같은 좌표(±0.0007≈50m) 매장이 있으면 새로 안 만들고 그 매장 재사용** → 매장 1개·캠페인만 여러 개. (이전엔 빠른 연속 승인 시 클라 메모리 dedup 경합으로 같은 매장 2~3개 생성되던 버그. 기존 57개는 병합 정리함)
 - **AI 자동등록(오토파일럿) 카드**(2026-08): `execAutopilot(dry)` — [미리보기(등록 안 함, `?dry=1`)]/[지금 실행](`POST ?action=autopilot`). 결정 표(🟢자동등록/🟡검수대기/🔴스킵)+요약 노출. **매일 06:00 KST 크론 자동 실행**되며 버튼은 즉시 실행/미리보기용. 자동등록분은 `campaigns.source='ai'` → **조회>캠페인 출처 라디오 'AI'**로 모아보고 해당 행에서 회수. 라우팅/처리량 상세: `docs/product/03-platform-analysis.md` 8절, 엔진 `api/_autopilot.js`.
 
 ## 회원 목록 (`tab-users`)
