@@ -42,16 +42,19 @@ let stopping = false;
 process.on('SIGINT', () => { console.log('\n중단 요청 — 이번 패스 끝나고 종료합니다…'); stopping = true; });
 
 async function pass() {
-  let collected = 0, more = false;
+  let collected = 0, more = false, remaining = 0;
   for (const region of regions) {
+    if (stopping) break;
     const s = await runScrape({ db, platform: 'dinnerqueen', mode: 'jeonche', limit: 250, region });
     collected += s.staged || 0;
     if ((s.newCandidates || 0) > (s.processed || 0)) more = true; // 아직 못 긁은 신규 남음
     console.log(`  [${ts()}] 수집(${region}): 신규 ${s.newCandidates} · 처리 ${s.processed} · 적재 ${s.staged} · 중복 ${s.dupActive}`);
+    // ★ 각 지역 수집 직후 바로 AI 검증·등록 (4개 지역 다 끝날 때까지 안 기다림)
+    const a = await runAutopilot({ db });
+    remaining = a.remaining;
+    console.log(`  [${ts()}] └ AI검증: 자동등록 ${a.registered} · 검수 ${a.review} · 스킵 ${a.skipped} · 남은대기 ${a.remaining}`);
   }
-  const a = await runAutopilot({ db });
-  console.log(`  [${ts()}] 자동등록 ${a.registered} · 검수 ${a.review} · 스킵 ${a.skipped} · 남은대기 ${a.remaining}`);
-  return { collected, more, remaining: a.remaining };
+  return { collected, more, remaining };
 }
 
 (async () => {
