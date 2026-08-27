@@ -262,7 +262,15 @@ async function saveStaged(id) {
   renderStagedRows();
   adminToast('수정 저장됨');
 }
-async function approveStaged(id) {
+// 동시 승인 경합 방지: 승인 클릭을 한 번에 하나씩 순차 실행.
+// (채널 여러 개를 빠르게 승인하면 각 요청이 '매장 없음'을 동시에 보고 같은 매장을 여러 개 만들던 race 제거.
+//  순차 실행하면 첫 승인이 만든 매장을 다음 승인이 메모리에서 찾아 캠페인만 붙임.)
+let _approveChain = Promise.resolve();
+function approveStaged(id) {
+  _approveChain = _approveChain.then(() => approveStagedImpl(id)).catch(() => {});
+  return _approveChain;
+}
+async function approveStagedImpl(id) {
   const r = collectStagedRows.find(x => x.id === id);
   if (!r) return;
   const channels = String(r.channel || '').split(',').map(s => s.trim()).filter(Boolean);
