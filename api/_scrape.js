@@ -123,9 +123,11 @@ function collectClosed(text) {
 }
 // "~할/될/볼 수 있(없)"의 '수'가 수요일로 오인되는 것 방지(한글 뒤 ' 수 있/없' 제거).
 const stripSuAux = (s) => (s || '').replace(/([가-힣])\s*수\s*(있|없)/g, '$1 $2');
+// '요일' 접미 제거: "화요일~일요일"이 범위 파서에서 "일~일"로 깨지는 것 방지("화~일"로 정규화). 공휴일은 먼저 제거.
+const dayNorm = (s) => stripSuAux((s || '').replace(/공휴일?/g, ' ').replace(/요일/g, '')).replace(/\s+/g, ' ');
 function deriveDays(hoursIn, closedIn) {
-  const hours = stripSuAux((hoursIn || '').replace(/공휴일?/g, ' ')).replace(/\s+/g, ' ');
-  const closedRaw = stripSuAux((closedIn || '').replace(/공휴일?/g, ' ')).replace(/\s+/g, ' ');
+  const hours = dayNorm(hoursIn);
+  const closedRaw = dayNorm(closedIn);
   let openSet;
   // 전 요일 가능 신호: 매일/모든 요일/연중무휴 + '모두 가능'·'영업시간 내'·'상시'(요일 제한 없음)
   if (/매일|모든\s*요일|연중무휴|무휴|모두\s*가능|영업\s*시간\s*내|상시/.test(hours)) {
