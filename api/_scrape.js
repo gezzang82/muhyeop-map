@@ -296,13 +296,11 @@ function scrapeDetail(html, id) {
 }
 
 // 정규화 + 제외 판정 → 스테이징 후보 or null(제외)
-// 지역 허용 매칭: 인천은 디너의여왕에서 인천/부천/부평 하위지역이라 셋 다 허용.
-const REGION_ACCEPT = { '인천': ['인천', '부천', '부평'] };
 function normalizeItem(d, reqRegion = '서울') {
   const region = d.region || '';
   if (/랜덤픽/.test(region)) return { excluded: '배송형(랜덤픽)' };
-  const accepts = REGION_ACCEPT[reqRegion] || [reqRegion];
-  if (region && !accepts.some((a) => region.startsWith(a))) return { excluded: `지역불일치(${region}≠${reqRegion})` };
+  // area1(지역)을 명시적으로 지정해 수집하므로 태그 지역명 불일치로는 제외하지 않는다(전국 대응).
+  // 통합 지역이 태그와 다름: 충청=충남/충북·세종, 전라=전북/전남, 경남에 울산 포함, 인천=인천/부천/부평 등.
   if (!d.address) return { excluded: '주소없음' };
   const override = CATEGORY_OVERRIDE.find(([re]) => re.test(d.name));
   const mapped = mapCategory(d.platformCategory || '', d.content, d.name);
