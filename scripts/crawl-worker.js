@@ -69,7 +69,7 @@ async function pass() {
   }
   // 강남맛집 (목록 1회로 전국 방문형 수집 → 지역 순회 불필요)
   if (!stopping) {
-    const g = await runScrape({ db, platform: '강남맛집', limit: 500 });
+    const g = await runScrape({ db, platform: '강남맛집', limit: 8000 }); // all 피드 전량(≈6.5천), 지역순회 불필요
     if ((g.newCandidates || 0) > (g.processed || 0)) more = true;
     console.log(`  [${ts()}] 수집(강남맛집): 방문형 ${g.newCandidates} · 처리 ${g.processed} · 적재 ${g.staged} · 중복 ${g.dupActive}`);
     const ga = await runAutopilot({ db });

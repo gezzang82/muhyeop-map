@@ -663,7 +663,8 @@ function gnDeadline(dday) {
   if (/오늘|마감|임박|D-?\s*0|D-?DAY/i.test(dday)) return new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
   return '';
 }
-async function gnFetchList(listNum = 500) {
+// all 피드는 list_num개를 그대로 반환(전 지역·전 채널 혼합, 서버 상한 ≈6.5천). 지역/카테고리 순회 불필요.
+async function gnFetchList(listNum = 8000) {
   const res = await fetch(GN_LIST_URL, {
     method: 'POST',
     headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -672,10 +673,50 @@ async function gnFetchList(listNum = 500) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return gnParseCards(await res.text());
 }
-async function runGangnam({ db, limit = 500, deadlineTs = 0 }) {
+// 강남맛집 상세: 지도 div 뒤 텍스트에 정확 주소(도로명/지번+매장명)가 있음. 좌표는 페이지가 클라에서 지오코딩해 HTML엔 없음(기본값 제주).
+function gnDetailAddress(html, name) {
+  const m = html.match(/height:\s*300px[^>]*><\/div>\s*<div>\s*([\s\S]*?)<\/div>/);
+  if (!m) return '';
+  let a = m[1].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  if (name) a = a.replace(new RegExp('\\s*' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$'), '').trim();
+  return a;
+}
+// 매장 작성 안내(cmp_guide)에서만 요일제한을 보수적으로 추출. 명시 신호 없으면 ''(상시). 페이지 약관·고객센터 문구는 이 블록 밖이라 오파싱 방지.
+function gnGuideText(html) {
+  const m = html.match(/cmp_guide["'][^>]*>([\s\S]*?)<\/dd>/);
+  return m ? m[1].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : '';
+}
+function gnDaysFromGuide(text) {
+  const ALL = ['월', '화', '수', '목', '금', '토', '일'];
+  const t = (text || '').replace(/\s+/g, ' ');
+  const weekendAllowed = /주말\s*(?:도\s*)?(?:방문|체험|이용)\s*가능|주말\s*가능/.test(t);
+  const weekdayOnly = !weekendAllowed && /평일\s*만|평일\s*에만|평일\s*(?:만\s*)?(?:방문|체험|이용)\s*(?:가능|만)|주말\s*(?:및\s*공휴일\s*)?(?:체험\s*)?불가|주말\s*(?:방문\s*)?불가/.test(t);
+  const excludeHoliday = /공휴일\s*(?:체험\s*|방문\s*)?불가|공휴일\s*제외/.test(t);
+  const closed = new Set();
+  // A) 요일 나열(콤마/슬래시 2개+) + (예약/방문/체험)? 불가/휴무 — "금,토 예약 불가"
+  for (const m of t.matchAll(/([월화수목금토일](?:\s*[,·/]\s*[월화수목금토일])+)\s*(?:요일)?\s*(?:예약|방문|체험|영업)?\s*(?:불가|휴무|제외)/g)) {
+    for (const ch of m[1].match(/[월화수목금토일]/g) || []) closed.add(ch);
+  }
+  // B) 단일 'X요일' + 휴무/예약불가/체험불가 — "일요일 휴무" ('요일' 필수로 당일/평일/매일의 '일' 오검출 방지)
+  for (const m of t.matchAll(/([월화수목금토일])요일\s*(?:정기\s*)?(?:휴무|(?:예약|방문|체험)\s*불가)/g)) closed.add(m[1]);
+  let days = [];
+  const hasSignal = weekdayOnly || closed.size > 0;
+  if (hasSignal) { const base = weekdayOnly ? ['월', '화', '수', '목', '금'] : ALL.slice(); days = base.filter((d) => !closed.has(d)); }
+  else { const rng = t.match(/([월화수목금토일])\s*~\s*([월화수목금토일])/); if (rng) { const i = ALL.indexOf(rng[1]), j = ALL.indexOf(rng[2]); if (i >= 0 && j >= 0) { for (let k = i; ; k = (k + 1) % 7) { days.push(ALL[k]); if (k === j) break; } } } }
+  return { days: days.join(','), excludeHoliday: excludeHoliday ? 1 : 0 };
+}
+// 카드 1건의 상세를 fetch해 정확주소·요일·공휴일 보강(신규 카드에만 호출). 실패 시 목록값으로 폴백.
+async function gnScrapeDetail(id, name) {
+  try {
+    const html = await (await fetch(GN_BASE + '/cp/?id=' + id, { headers: { 'User-Agent': UA } })).text();
+    const { days, excludeHoliday } = gnDaysFromGuide(gnGuideText(html));
+    return { address: gnDetailAddress(html, name), days, excludeHoliday };
+  } catch (e) { return { address: '', days: '', excludeHoliday: 0 }; }
+}
+async function runGangnam({ db, limit = 8000, deadlineTs = 0 }) {
   const platform = '강남맛집';
   const today = new Date().toISOString().slice(0, 10);
-  const cards = await gnFetchList(Math.max(200, Math.min(1000, limit)));
+  const cards = await gnFetchList(Math.max(200, Math.min(12000, limit)));
   const visit = cards.filter((c) => c.type.includes('방문'));
   const dedupe = await loadDedupe(db);
   let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, timedOut = false;
@@ -688,11 +729,13 @@ async function runGangnam({ db, limit = 500, deadlineTs = 0 }) {
       const category = categoryByKeyword(c.benefit + ' ' + c.name, c.name) || '음식점';
       const cls = classify({ name: c.name, channel: c.channel }, dedupe, today);
       if (cls.status === 'dup_active') { dupActive++; continue; }
+      // 신규만 상세 fetch(정확주소/요일/공휴일). 주소 못 얻으면 목록 지역으로 폴백.
+      const d = await gnScrapeDetail(c.id, c.name);
       const ins = await db.execute({
         sql: `INSERT OR IGNORE INTO scraped_items
           (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
-          VALUES (?,?,?,?,?,?,?,?,?,'','',0,'',?,?,'pending')`,
-        args: [platform, c.id, GN_BASE + '/cp/?id=' + c.id, c.name, c.region, category, c.channel, c.benefit, deadline, cls.status, cls.matchedPlaceId],
+          VALUES (?,?,?,?,?,?,?,?,?,'',?,?,'',?,?,'pending')`,
+        args: [platform, c.id, GN_BASE + '/cp/?id=' + c.id, c.name, d.address || c.region, category, c.channel, c.benefit, deadline, d.days || '', d.excludeHoliday || 0, cls.status, cls.matchedPlaceId],
       });
       if (ins.rowsAffected > 0) staged++;
     } catch (e) { failed++; }
@@ -705,4 +748,4 @@ async function runGangnam({ db, limit = 500, deadlineTs = 0 }) {
   return { platform, newCandidates: visit.length, processed, staged, excluded, dupActive, failed, timedOut };
 }
 
-module.exports = { runDinnerqueen, runFoblog, runGangnam, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList };
+module.exports = { runDinnerqueen, runFoblog, runGangnam, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide };
