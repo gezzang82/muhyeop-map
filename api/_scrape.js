@@ -579,6 +579,7 @@ async function runFoblog({ db, limit = 40 }) {
 // 플랫폼 디스패처
 async function runScrape({ db, platform, mode, limit, region, deadlineTs }) {
   if (platform === 'foblog' || platform === '포블로그') return runFoblog({ db, limit });
+  if (platform === 'gangnam' || platform === '강남맛집') return runGangnam({ db, limit, deadlineTs });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs });
 }
 
@@ -627,4 +628,74 @@ async function reparsePending({ db, platform, only }) {
   return { platform: plat, pending: rows.length, updated, failed };
 }
 
-module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail };
+// ===== 강남맛집 (강남맛집.net, xn--939au0g4vj8sq.net) — 그누보드 SSR =====
+// 목록 AJAX(_list_cmp_main.php, list_num=N)이 카드에 매장명·지역·채널·방문형여부·제공내역·D-day를 다 담아
+// 상세 fetch 없이 목록만으로 수집. 좌표는 오토파일럿이 매장명+지역으로 지오코딩. UNIQUE(platform,source_id)로 멱등.
+const GN_BASE = 'https://xn--939au0g4vj8sq.net';
+const GN_LIST_URL = GN_BASE + '/theme/go/_list_cmp_main.php';
+const GN_CH = { blog: '블로그', clip: '클립', insta: '인스타그램', reels: '릴스', youtube: '유튜브' };
+
+function gnParseCards(html) {
+  const items = [];
+  for (const m of html.matchAll(/<li class='list_item[^']*'[^>]*data-product='(\d+)'[\s\S]*?<\/li>/g)) {
+    const card = m[0], id = Number(m[1]);
+    const type = (/class='type'>([^<]+)</.exec(card) || [])[1] || '';               // 방문형/배송형
+    const ch = ((/<em class='(blog|clip|insta|reels|youtube)'>/i.exec(card) || [])[1] || 'blog').toLowerCase();
+    const title = ((/<dt class='tit'><a[^>]*>([^<]+)</.exec(card) || [])[1] || '').trim();  // "[인천 미추홀] 매장명"
+    const benefit = ((/<dd class='sub_tit'>([^<]*)</.exec(card) || [])[1] || '').trim();     // 제공내역
+    const dday = ((/class='day_c'>([^<]+)</.exec(card) || [])[1] || '').trim();
+    const tm = title.match(/^\[([^\]]+)\]\s*(.+)$/);
+    items.push({ id, type, channel: GN_CH[ch] || '블로그', region: tm ? tm[1].trim() : '', name: (tm ? tm[2] : title).trim(), benefit, dday });
+  }
+  return items;
+}
+// "N일 남음" → 오늘+N일(KST). 오늘 마감/임박 → 오늘. 불명 → ''(상시).
+function gnDeadline(dday) {
+  const m = String(dday).match(/(\d+)\s*일\s*남음/);
+  if (m) return new Date(Date.now() + 9 * 3600e3 + Number(m[1]) * 86400e3).toISOString().slice(0, 10);
+  if (/오늘|마감|임박|D-?\s*0|D-?DAY/i.test(dday)) return new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  return '';
+}
+async function gnFetchList(listNum = 500) {
+  const res = await fetch(GN_LIST_URL, {
+    method: 'POST',
+    headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `section=all&channel_v=&list_num=${listNum}`,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return gnParseCards(await res.text());
+}
+async function runGangnam({ db, limit = 500, deadlineTs = 0 }) {
+  const platform = '강남맛집';
+  const today = new Date().toISOString().slice(0, 10);
+  const cards = await gnFetchList(Math.max(200, Math.min(1000, limit)));
+  const visit = cards.filter((c) => c.type.includes('방문'));
+  const dedupe = await loadDedupe(db);
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, timedOut = false;
+  for (const c of visit) {
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    processed++;
+    if (!c.name) { excluded++; continue; }
+    try {
+      const deadline = gnDeadline(c.dday);
+      const category = categoryByKeyword(c.benefit + ' ' + c.name, c.name) || '음식점';
+      const cls = classify({ name: c.name, channel: c.channel }, dedupe, today);
+      if (cls.status === 'dup_active') { dupActive++; continue; }
+      const ins = await db.execute({
+        sql: `INSERT OR IGNORE INTO scraped_items
+          (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+          VALUES (?,?,?,?,?,?,?,?,?,'','',0,'',?,?,'pending')`,
+        args: [platform, c.id, GN_BASE + '/cp/?id=' + c.id, c.name, c.region, category, c.channel, c.benefit, deadline, cls.status, cls.matchedPlaceId],
+      });
+      if (ins.rowsAffected > 0) staged++;
+    } catch (e) { failed++; }
+  }
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('강남맛집', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive, `방문형 ${visit.length} 처리 ${processed} (dup_active ${dupActive}, 실패 ${failed}${timedOut ? ', 시간초과중단' : ''})`],
+  });
+  return { platform, newCandidates: visit.length, processed, staged, excluded, dupActive, failed, timedOut };
+}
+
+module.exports = { runDinnerqueen, runFoblog, runGangnam, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList };

@@ -67,6 +67,15 @@ async function pass() {
     remaining = a.remaining;
     console.log(`  [${ts()}] └ [${region}] AI검증: 자동등록 ${a.registered} · 검수 ${a.review} · 스킵 ${a.skipped} · 남은대기 ${a.remaining}`);
   }
+  // 강남맛집 (목록 1회로 전국 방문형 수집 → 지역 순회 불필요)
+  if (!stopping) {
+    const g = await runScrape({ db, platform: '강남맛집', limit: 500 });
+    if ((g.newCandidates || 0) > (g.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(강남맛집): 방문형 ${g.newCandidates} · 처리 ${g.processed} · 적재 ${g.staged} · 중복 ${g.dupActive}`);
+    const ga = await runAutopilot({ db });
+    remaining = ga.remaining;
+    console.log(`  [${ts()}] └ [강남맛집] AI검증: 자동등록 ${ga.registered} · 검수 ${ga.review} · 스킵 ${ga.skipped} · 남은대기 ${ga.remaining}`);
+  }
   return { collected, more, remaining };
 }
 
