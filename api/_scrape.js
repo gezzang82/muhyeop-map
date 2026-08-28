@@ -165,7 +165,8 @@ function cleanHours(hours) {
     out = tidy(src);
   } else {
     let h = stripDayClosed(src);
-    h = h.replace(/^[\s★•\-]*(?:주말|평일|매일|모든\s*요일|[월화수목금토일])[월화수목금토일요주말평일및,\s~\-–]*\s*[:：]?\s*/, '');
+    // 선행 요일-접두(예: "평일/주말(매일)", "월~금") 제거 — /·(·)·매 포함해 통째로 떼어냄(시간만 남김)
+    h = h.replace(/^[\s★•\-]*(?:주말|평일|매일|모든\s*요일|연중무휴|[월화수목금토일])[월화수목금토일요주말평일매및연중무휴,\s~\-–/()·]*\s*[:：]?\s*/, '');
     out = tidy(h);
   }
   return /\d/.test(out) ? out : '';
@@ -294,9 +295,11 @@ function scrapeDetail(html, id) {
   // 격주/매월 N번째 요일 휴무처럼 단순 요일로 표현 불가한 케이스 → 요일 비우고 검수 플래그.
   // ('매주 X요일 휴무'는 단순(X 매주 휴무)이라 제외 — 격주/매월/N번째/N주차만 복잡)
   const complexClosure = /(격주|매월\s*[첫둘셋넷\d]|첫\s*번?째|두\s*번?째|세\s*번?째|네\s*번?째|둘째|셋째|넷째|\d\s*주\s*차|주말\s*제외\s*격주)/.test(noticeBlob);
+  // 전 요일 신호(연중무휴/매일/모든요일/모두가능): '그외 시간 체험불가' 같은 시간제한을 요일제한으로 오인해 비우지 않게 함.
+  const allDaysSignal = /연중무휴|매일|모든\s*요일|모두\s*가능|상시/.test(noticeBlob);
   let scheduleWarn = false;
   if (complexClosure) { days = ''; scheduleWarn = true; }
-  if (hasDayRestriction && days.split(',').filter(Boolean).length === 7) { days = ''; scheduleWarn = true; }
+  if (hasDayRestriction && !allDaysSignal && days.split(',').filter(Boolean).length === 7) { days = ''; scheduleWarn = true; }
   if (/공휴/.test(noticeBlob) && excludeHoliday !== 'Y') scheduleWarn = true;
   return { id, url: `${BASE}/taste/${id}`, region, name, channel, platformCategory, address, deadline, content, hours, days, excludeHoliday, scheduleWarn };
 }
