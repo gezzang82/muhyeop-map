@@ -641,8 +641,8 @@ function gnParseCards(html) {
     const card = m[0], id = Number(m[1]);
     const type = (/class='type'>([^<]+)</.exec(card) || [])[1] || '';               // 방문형/배송형
     const ch = ((/<em class='(blog|clip|insta|reels|youtube)'>/i.exec(card) || [])[1] || 'blog').toLowerCase();
-    let title = ((/<dt class='tit'><a[^>]*>([^<]+)</.exec(card) || [])[1] || '').trim();  // "[인천 미추홀] 매장명" (클립은 앞에 [클립] 붙기도)
-    title = title.replace(/^\[(블로그|클립|인스타그램|릴스|유튜브|blog|clip|insta|reels|youtube)\]\s*/i, ''); // 선행 채널 대괄호 제거
+    let title = ((/<dt class='tit'><a[^>]*>([^<]+)</.exec(card) || [])[1] || '').trim();  // "[인천 미추홀] 매장명" (클립은 [클립] 대괄호가 앞/중간에 끼기도)
+    title = title.replace(/\[(블로그|클립|인스타그램|릴스|유튜브|blog|clip|insta|reels|youtube)\]/gi, '').replace(/\s+/g, ' ').trim(); // 채널 대괄호 위치 무관 제거
     const benefit = ((/<dd class='sub_tit'>([^<]*)</.exec(card) || [])[1] || '').trim();     // 제공내역
     const dday = ((/class='day_c'>([^<]+)</.exec(card) || [])[1] || '').trim();
     const tm = title.match(/^\[([^\]]+)\]\s*(.+)$/);
