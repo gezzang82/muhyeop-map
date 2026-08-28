@@ -121,11 +121,14 @@ function collectClosed(text) {
   for (const m of text.matchAll(CLOSED_BEFORE)) daysFromText(m[1]).forEach((d) => set.add(d));
   return set;
 }
+// "~할/될/볼 수 있(없)"의 '수'가 수요일로 오인되는 것 방지(한글 뒤 ' 수 있/없' 제거).
+const stripSuAux = (s) => (s || '').replace(/([가-힣])\s*수\s*(있|없)/g, '$1 $2');
 function deriveDays(hoursIn, closedIn) {
-  const hours = (hoursIn || '').replace(/공휴일?/g, ' ').replace(/\s+/g, ' ');
-  const closedRaw = (closedIn || '').replace(/공휴일?/g, ' ').replace(/\s+/g, ' ');
+  const hours = stripSuAux((hoursIn || '').replace(/공휴일?/g, ' ')).replace(/\s+/g, ' ');
+  const closedRaw = stripSuAux((closedIn || '').replace(/공휴일?/g, ' ')).replace(/\s+/g, ' ');
   let openSet;
-  if (/매일|모든\s*요일|연중무휴|무휴/.test(hours)) {
+  // 전 요일 가능 신호: 매일/모든 요일/연중무휴 + '모두 가능'·'영업시간 내'·'상시'(요일 제한 없음)
+  if (/매일|모든\s*요일|연중무휴|무휴|모두\s*가능|영업\s*시간\s*내|상시/.test(hours)) {
     openSet = new Set(ALL_DAYS);
   } else {
     const openText = hours.replace(CLOSED_BEFORE, ' ').replace(WEEKEND_CLOSE, ' ').replace(CLOSED_AFTER, ' ');
@@ -624,4 +627,4 @@ async function reparsePending({ db, platform, only }) {
   return { platform: plat, pending: rows.length, updated, failed };
 }
 
-module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION };
+module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday };
