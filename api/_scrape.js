@@ -627,4 +627,4 @@ async function reparsePending({ db, platform, only }) {
   return { platform: plat, pending: rows.length, updated, failed };
 }
 
-module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday };
+module.exports = { runDinnerqueen, runFoblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail };
