@@ -537,6 +537,16 @@ function getJitteredPositions(activePlaces) {
 }
 
 // ===== 마커 렌더 =====
+// 현재 지도 뷰포트 + 여유 마진 범위. 뷰포트 렌더링용. 초기화 전이면 null(→전체 렌더 폴백).
+function viewBoundsWithMargin(margin) {
+  if (!map || !map.getBounds) return null;
+  const b = map.getBounds();
+  if (!b || !b.getSW || !b.getNE) return null;
+  const sw = b.getSW(), ne = b.getNE();
+  const lm = (ne.lat() - sw.lat()) * margin, gm = (ne.lng() - sw.lng()) * margin;
+  return { minLat: sw.lat() - lm, maxLat: ne.lat() + lm, minLng: sw.lng() - gm, maxLng: ne.lng() + gm };
+}
+
 function renderMarkers() {
   if (markerCluster) { markerCluster.setMap(null); markerCluster = null; }
   markers.forEach(m => m.setMap(null));
@@ -548,15 +558,18 @@ function renderMarkers() {
   // 캠페인 없는(회색) 핀은 많이 확대(네이버 스케일 20m ≈ zoom 19)했을 때만 노출해 저줌 클러터 방지.
   const showGrayPins = map.getZoom() >= GRAY_PIN_MIN_ZOOM;
   _grayPinVisible = showGrayPins;
-  const visiblePlaces = places.filter(place => !place.hidden && (hasActiveCampaign(place.id) || showGrayPins));
+  // 뷰포트 렌더링: 화면(+마진)에 들어오는 매장만 마커 생성. 매장 1만+에서 전체 생성/클러스터링이 느려
+  // 보이는 범위만 그린다(지도 이동/줌 멈추면 idle에서 재렌더). 실사용 줌(시/동)에서 1만→수백으로 급감.
+  const vb = viewBoundsWithMargin(0.4);
+  const inView = (lat, lng) => !vb || (lat >= vb.minLat && lat <= vb.maxLat && lng >= vb.minLng && lng <= vb.maxLng);
+  const visiblePlaces = places.filter(place => !place.hidden && (hasActiveCampaign(place.id) || showGrayPins) && inView(place.lat, place.lng));
   const jitteredPositions = getJitteredPositions(visiblePlaces);
 
-  // 줌이 임계값을 넘나들 때만 다시 렌더 (리스너 1회 등록)
-  if (!renderMarkers._zoomBound) {
-    renderMarkers._zoomBound = true;
-    naver.maps.Event.addListener(map, 'zoom_changed', () => {
-      if ((map.getZoom() >= GRAY_PIN_MIN_ZOOM) !== _grayPinVisible) renderMarkers();
-    });
+  // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
+  if (!renderMarkers._idleBound) {
+    renderMarkers._idleBound = true;
+    let _t;
+    naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_t); _t = setTimeout(renderMarkers, 120); });
   }
 
   visiblePlaces.forEach(place => {
@@ -615,6 +628,9 @@ function renderMarkers() {
   } else {
     markers.forEach(m => m.setMap(map));
   }
+
+  // 재렌더로 마커가 새로 생성되므로, PC 카드가 열려있으면 선택 하이라이트 복원
+  if (openPcCardPlaceId && markerMap[openPcCardPlaceId]) setSelectedMarker(openPcCardPlaceId);
 }
 
 // ===== 인포윈도우 =====
