@@ -547,9 +547,11 @@ async function runFoblog({ db, limit = 40 }) {
       const { name } = fbName(it.CAMPAIGN_NM);
       const channel = FB_CH[String(it.CATEGORY || '').toLowerCase()] || '';
       const content = cleanContent(String(it.REVIEWER_BENEFIT || ''));
-      const html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`);
+      let html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`);
+      // 축약 페이지(campaigninfo 없음)는 만료 or 레이트리밋 축약본 — 백오프 후 1회 재시도해 차단 오탐 방지
+      if (!/campaigninfo-label/.test(html)) { await sleep(2500); html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`); }
       const { address, hours, days, holiday, deadline: dlCal } = fbParseDetail(html);
-      if (!address) { excluded++; ok = true; } // 주소 없으면 제외(전국 대상 — 서울 한정 아님)
+      if (!address) { excluded++; ok = true; } // 재시도 후에도 주소 없으면 만료로 보고 제외(커서 전진)
       else {
         const deadline = dlCal || fbDeadline(it.REQ_CLOSE_DT); // 캘린더 '리뷰어 모집' 종료일 우선
         const excludeHoliday = holiday;
@@ -577,7 +579,7 @@ async function runFoblog({ db, limit = 40 }) {
     } catch (e) { failed++; }
     if (ok && !sawFail) cursorAdvance = cid; // 실패 전까지의 연속 성공 구간만 커서 전진
     else if (!ok) sawFail = true;
-    if (i < targets.length - 1) await sleep(600);
+    if (i < targets.length - 1) await sleep(1000); // 4blog 레이트리밋 회피: 상세 fetch 간 1초
   }
 
   const newCursor = Math.max(lastMaxId, cursorAdvance);
