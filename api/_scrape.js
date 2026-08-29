@@ -780,7 +780,7 @@ function rbContent(txt) {
 // 방문가능시간: 요일은 라벨로 파싱, 시간은 라벨만 떼고 값 그대로 저장(자유텍스트 보존).
 function rbHoursDays(txt) {
   const m = txt.match(/방문가능시간\s*[:：]?\s*([\s\S]*?)\s*[-–]\s*위치\s*[:：]/) || txt.match(/방문가능시간\s*[:：]?\s*(.{0,70})/);
-  if (!m) return { days: '', hours: '' };
+  if (!m) return { days: '', hours: '', excludeHoliday: 0 };
   const val = m[1].replace(/\s+/g, ' ').trim();
   // 요일 판정: '가용(avail)'과 '제외(closed)'를 분리해 "주말 방문 불가" 같은 부정문 오검출 방지
   const banWeekend = /주말[\s\S]{0,14}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val);
@@ -801,9 +801,14 @@ function rbHoursDays(txt) {
   // 기준: 가용 있으면 그걸, 없고 제외만 있으면 전체(=제외만 뺌), 둘 다 없으면 미상(빈값)
   const base = avail.size ? avail : (closed.size ? new Set(ALL_DAYS) : new Set());
   const days = ALL_DAYS.filter((d) => base.has(d) && !closed.has(d));
-  // 시간: 앞쪽 요일라벨(평일/주말/평일,주말/매일/콤마요일/범위)만 제거하고 나머지 그대로
-  let hours = val.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/,'').trim();
-  return { days: days.join(','), hours };
+  // 시간: 깔끔한 HH:MM~HH:MM 범위가 있으면 그것만(요일/공휴일 제한 문구 제거), 없으면(시/분 자유텍스트) 라벨만 떼고 보존
+  const times = [...val.matchAll(/(\d{1,2}:\d{2})\s*[~\-–]\s*(\d{1,2}:\d{2})/g)].map((mm) => `${mm[1]}~${mm[2]}`);
+  const hours = times.length
+    ? [...new Set(times)].join(' / ')
+    : val.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/, '').trim();
+  // 공휴일 방문/예약 불가 → 공휴일 제외 플래그
+  const excludeHoliday = /공휴일[\s\S]{0,14}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val) ? 1 : 0;
+  return { days: days.join(','), hours, excludeHoliday };
 }
 function rbAddress(txt) {
   const m = txt.match(/위치\s*[:：]\s*([\s\S]*?)(?:\s*★|\s*예약\s*문의|\s*당첨일|\s*※|\s*알림톡|\s*[-–]\s*예약|$)/);
@@ -820,7 +825,7 @@ async function rbScrapeDetail(number) {
   const hd = rbHoursDays(txt);
   return {
     name: rbStoreName(html), content: rbContent(txt), address: rbAddress(txt),
-    days: hd.days, hours: hd.hours, deadline: rbDeadline(txt),
+    days: hd.days, hours: hd.hours, excludeHoliday: hd.excludeHoliday, deadline: rbDeadline(txt),
     placeUrl: (html.match(/https?:\/\/naver\.me\/[A-Za-z0-9]+/) || [])[0] || '',
   };
 }
@@ -866,8 +871,8 @@ async function runRingble({ db, limit = 300, deadlineTs = 0 }) {
         const ins = await db.execute({
           sql: `INSERT OR IGNORE INTO scraped_items
             (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,0,'',?,?,'pending')`,
-          args: [platform, c.number, `${RB_BASE}/detail.php?number=${c.number}`, d.name, d.address || '', category, c.channel, d.content, d.deadline || '', d.hours || '', d.days || '', cls.status, cls.matchedPlaceId],
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'',?,?,'pending')`,
+          args: [platform, c.number, `${RB_BASE}/detail.php?number=${c.number}`, d.name, d.address || '', category, c.channel, d.content, d.deadline || '', d.hours || '', d.days || '', d.excludeHoliday || 0, cls.status, cls.matchedPlaceId],
         });
         if (ins.rowsAffected > 0) staged++;
       } catch (e) { failed++; }
