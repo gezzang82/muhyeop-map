@@ -76,6 +76,15 @@ async function pass() {
     remaining = ga.remaining;
     console.log(`  [${ts()}] └ [강남맛집] AI검증: 자동등록 ${ga.registered} · 검수 ${ga.review} · 스킵 ${ga.skipped} · 남은대기 ${ga.remaining}`);
   }
+  // 링블 (방문형 카테고리 832 목록 순회 → 상세 파싱, 전국 1회)
+  if (!stopping) {
+    const rb = await runScrape({ db, platform: '링블', limit: 400 });
+    if ((rb.newCandidates || 0) > (rb.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(링블): 방문형 처리 ${rb.processed} · 적재 ${rb.staged} · 중복 ${rb.dupActive}`);
+    const ra = await runAutopilot({ db });
+    remaining = ra.remaining;
+    console.log(`  [${ts()}] └ [링블] AI검증: 자동등록 ${ra.registered} · 검수 ${ra.review} · 스킵 ${ra.skipped} · 남은대기 ${ra.remaining}`);
+  }
   return { collected, more, remaining };
 }
 

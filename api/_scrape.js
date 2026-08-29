@@ -586,6 +586,7 @@ async function runFoblog({ db, limit = 40 }) {
 async function runScrape({ db, platform, mode, limit, region, deadlineTs }) {
   if (platform === 'foblog' || platform === '포블로그') return runFoblog({ db, limit });
   if (platform === 'gangnam' || platform === '강남맛집') return runGangnam({ db, limit, deadlineTs });
+  if (platform === 'ringble' || platform === '링블') return runRingble({ db, limit, deadlineTs });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs });
 }
 
@@ -748,4 +749,137 @@ async function runGangnam({ db, limit = 8000, deadlineTs = 0 }) {
   return { platform, newCandidates: visit.length, processed, staged, excluded, dupActive, failed, timedOut };
 }
 
-module.exports = { runDinnerqueen, runFoblog, runGangnam, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide };
+// ===== 링블(ringble.co.kr) — PHP SSR, 방문형 카테고리(832) =====
+// 목록 category.php?category=832&start=N(페이지) → 카드에 number·채널. 상세 detail.php?number=N에서
+// 매장명·제공내역·방문가능시간(요일/시간)·위치(주소)·모집기간(마감)·네이버 플레이스. 배송형(제품)은 이 카테고리로 이미 제외됨.
+const RB_BASE = 'https://www.ringble.co.kr';
+const RB_VISIT_CAT = 832;
+// 링블 지역 라벨 오염 정리("전남광주통합특별시"=광주광역시)
+function rbCleanAddr(a) {
+  // "전남광주통합특별시"는 전남+광주 통합 라벨. 뒤가 시/군이면 전남, 구면 광주로 분기(순천시→전남, 서구→광주)
+  return (a || '')
+    .replace(/전남광주통합특별시\s*(?=[가-힣]+[시군])/g, '전라남도 ')
+    .replace(/전남광주통합특별시/g, '광주광역시')
+    .replace(/\s+/g, ' ').trim();
+}
+// 매장명: "[지역/구] 매장명 (포장)…" → 앞 [지역] 제거 + 뒤 서비스/유형 괄호 제거 → 매장명만
+function rbStoreName(html) {
+  const t = html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+  const m = t.match(/\[[^\]]+\]\s*([^\[]+?)\s*리뷰어\s*모집인원/);
+  if (!m) return '';
+  let name = m[1].trim();
+  for (let k = 0; k < 3; k++) name = name.replace(/\s*[([][^)\]]*[)\]]\s*$/, '').trim(); // 뒤쪽 (…)·[…] 반복 제거
+  return name;
+}
+// 제공내역: "제공내역 … 유의사항" 사이, "+ 링블포인트 N점" 제거
+function rbContent(txt) {
+  const m = txt.match(/제공내역\s*([\s\S]*?)\s*유의사항/);
+  if (!m) return '';
+  return m[1].replace(/\s*\+?\s*링블포인트\s*[\d,]+\s*점?/g, ' ').replace(/\s*\+\s*$/, '').replace(/\s+/g, ' ').trim();
+}
+// 방문가능시간: 요일은 라벨로 파싱, 시간은 라벨만 떼고 값 그대로 저장(자유텍스트 보존).
+function rbHoursDays(txt) {
+  const m = txt.match(/방문가능시간\s*[:：]?\s*([\s\S]*?)\s*[-–]\s*위치\s*[:：]/) || txt.match(/방문가능시간\s*[:：]?\s*(.{0,70})/);
+  if (!m) return { days: '', hours: '' };
+  const val = m[1].replace(/\s+/g, ' ').trim();
+  // 요일 판정: '가용(avail)'과 '제외(closed)'를 분리해 "주말 방문 불가" 같은 부정문 오검출 방지
+  const banWeekend = /주말[\s\S]{0,14}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val);
+  const avail = new Set();
+  if (/평일\s*[\/,]\s*주말|매일|연중무휴/.test(val)) ALL_DAYS.forEach((d) => avail.add(d));
+  if (/평일/.test(val)) ['월', '화', '수', '목', '금'].forEach((d) => avail.add(d));
+  if (/주말/.test(val) && !banWeekend) { avail.add('토'); avail.add('일'); }
+  if (/토요일/.test(val)) avail.add('토');
+  if (/일요일/.test(val)) avail.add('일');
+  const list = (val.match(/([월화수목금토일])(?:\s*[,·/]\s*[월화수목금토일])+/) || [])[0];
+  if (list) (list.match(/[월화수목금토일]/g) || []).forEach((d) => avail.add(d));
+  const rng = val.match(/(?<!\d)([월화수목금토일])\s*~\s*([월화수목금토일])(?!\d)/);
+  if (rng) { const i = ALL_DAYS.indexOf(rng[1]), j = ALL_DAYS.indexOf(rng[2]); if (i >= 0 && j >= 0) for (let k = i; ; k = (k + 1) % 7) { avail.add(ALL_DAYS[k]); if (k === j) break; } }
+  // 제외: "X요일 휴무/방문 불가", 주말 금지
+  const closed = new Set();
+  for (const mm of val.matchAll(/([월화수목금토일])요일[^가-힣]{0,10}(?:방문\s*불가|예약\s*및\s*방문\s*불가|휴무|불가|제외)/g)) closed.add(mm[1]);
+  if (banWeekend) { closed.add('토'); closed.add('일'); }
+  // 기준: 가용 있으면 그걸, 없고 제외만 있으면 전체(=제외만 뺌), 둘 다 없으면 미상(빈값)
+  const base = avail.size ? avail : (closed.size ? new Set(ALL_DAYS) : new Set());
+  const days = ALL_DAYS.filter((d) => base.has(d) && !closed.has(d));
+  // 시간: 앞쪽 요일라벨(평일/주말/평일,주말/매일/콤마요일/범위)만 제거하고 나머지 그대로
+  let hours = val.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/,'').trim();
+  return { days: days.join(','), hours };
+}
+function rbAddress(txt) {
+  const m = txt.match(/위치\s*[:：]\s*([\s\S]*?)(?:\s*★|\s*예약\s*문의|\s*당첨일|\s*※|\s*알림톡|\s*[-–]\s*예약|$)/);
+  if (!m) return '';
+  return rbCleanAddr(m[1]).replace(/[\s\-–.]+$/, '').trim(); // 꼬리 대시/마침표 정리
+}
+function rbDeadline(txt) {
+  const m = txt.match(/모집\s*기간[\s\S]*?~\s*(\d{2})년\s*(\d{2})월\s*(\d{2})일/);
+  return m ? `20${m[1]}-${m[2]}-${m[3]}` : '';
+}
+async function rbScrapeDetail(number) {
+  const html = await (await fetch(`${RB_BASE}/detail.php?number=${number}&category=${RB_VISIT_CAT}`, { headers: { 'User-Agent': UA } })).text();
+  const txt = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+  const hd = rbHoursDays(txt);
+  return {
+    name: rbStoreName(html), content: rbContent(txt), address: rbAddress(txt),
+    days: hd.days, hours: hd.hours, deadline: rbDeadline(txt),
+    placeUrl: (html.match(/https?:\/\/naver\.me\/[A-Za-z0-9]+/) || [])[0] || '',
+  };
+}
+// 목록 카드: number + 채널(블로그/인스타/릴스/인스타+릴스). 카드 앞머리 텍스트에 채널명이 노출됨.
+function rbParseList(html) {
+  const out = [];
+  const idxs = [...html.matchAll(/detail\.php\?number=(\d+)/g)];
+  const seen = new Set();
+  for (let k = 0; k < idxs.length; k++) {
+    const n = idxs[k][1]; if (seen.has(n)) continue; seen.add(n);
+    const seg = html.slice(idxs[k].index, idxs[k].index + 120).replace(/<[^>]+>/g, ' ');
+    const ch = (seg.match(/인스타\s*\+\s*릴스|블로그|인스타|릴스|유튜브|기자단/) || [])[0] || '블로그';
+    out.push({ number: Number(n), channel: ch.replace(/\s+/g, '') });
+  }
+  return out;
+}
+async function rbFetchList(start) {
+  const res = await fetch(`${RB_BASE}/category.php?category=${RB_VISIT_CAT}&start=${start}`, { headers: { 'User-Agent': UA } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return rbParseList(await res.text());
+}
+async function runRingble({ db, limit = 300, deadlineTs = 0 }) {
+  const platform = '링블';
+  const today = new Date().toISOString().slice(0, 10);
+  const dedupe = await loadDedupe(db);
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, timedOut = false;
+  const seen = new Set();
+  for (let start = 1; start <= 20; start++) {
+    let cards = [];
+    try { cards = await rbFetchList(start); } catch (e) { break; }
+    if (!cards.length) break;
+    for (const c of cards) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      if (seen.has(c.number)) continue; seen.add(c.number);
+      if (processed >= limit) { timedOut = true; break; }
+      processed++;
+      try {
+        const d = await rbScrapeDetail(c.number);
+        if (!d.name) { excluded++; continue; }
+        const category = categoryByKeyword(d.content + ' ' + d.name, d.name) || '음식점';
+        const cls = classify({ name: d.name, channel: c.channel }, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; continue; }
+        const ins = await db.execute({
+          sql: `INSERT OR IGNORE INTO scraped_items
+            (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,0,'',?,?,'pending')`,
+          args: [platform, c.number, `${RB_BASE}/detail.php?number=${c.number}`, d.name, d.address || '', category, c.channel, d.content, d.deadline || '', d.hours || '', d.days || '', cls.status, cls.matchedPlaceId],
+        });
+        if (ins.rowsAffected > 0) staged++;
+      } catch (e) { failed++; }
+    }
+    if (timedOut) break;
+  }
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('링블', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive, `방문형 처리 ${processed} (dup_active ${dupActive}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, failed, timedOut };
+}
+
+module.exports = { runDinnerqueen, runFoblog, runGangnam, runRingble, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays };
