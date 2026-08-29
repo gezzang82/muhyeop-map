@@ -783,7 +783,7 @@ function rbHoursDays(txt) {
   if (!m) return { days: '', hours: '', excludeHoliday: 0 };
   const val = m[1].replace(/\s+/g, ' ').trim();
   // 요일 판정: '가용(avail)'과 '제외(closed)'를 분리해 "주말 방문 불가" 같은 부정문 오검출 방지
-  const banWeekend = /주말[\s\S]{0,14}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val);
+  const banWeekend = /주말(?![\s\S]{0,20}?가능)[\s\S]{0,30}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val);
   const avail = new Set();
   if (/평일\s*[\/,]\s*주말|매일|연중무휴/.test(val)) ALL_DAYS.forEach((d) => avail.add(d));
   if (/평일/.test(val)) ['월', '화', '수', '목', '금'].forEach((d) => avail.add(d));
@@ -807,7 +807,7 @@ function rbHoursDays(txt) {
     ? [...new Set(times)].join(' / ')
     : val.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/, '').trim();
   // 공휴일 방문/예약 불가 → 공휴일 제외 플래그
-  const excludeHoliday = /공휴일[\s\S]{0,14}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val) ? 1 : 0;
+  const excludeHoliday = /공휴일(?![\s\S]{0,20}?가능)[\s\S]{0,30}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val) ? 1 : 0;
   return { days: days.join(','), hours, excludeHoliday };
 }
 function rbAddress(txt) {
