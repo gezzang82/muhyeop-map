@@ -85,6 +85,15 @@ async function pass() {
     remaining = ra.remaining;
     console.log(`  [${ts()}] └ [링블] AI검증: 자동등록 ${ra.registered} · 검수 ${ra.review} · 스킵 ${ra.skipped} · 남은대기 ${ra.remaining}`);
   }
+  // 포블로그 (V2 목록 전량 커서 수집 → 상세 파싱, 전국)
+  if (!stopping) {
+    const fb = await runScrape({ db, platform: '포블로그', limit: 120 });
+    if ((fb.newCandidates || 0) > (fb.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(포블로그): 신규 ${fb.newCandidates} · 처리 ${fb.processed} · 적재 ${fb.staged} · 중복 ${fb.dupActive} · 제외 ${fb.excluded}`);
+    const fa = await runAutopilot({ db });
+    remaining = fa.remaining;
+    console.log(`  [${ts()}] └ [포블로그] AI검증: 자동등록 ${fa.registered} · 검수 ${fa.review} · 스킵 ${fa.skipped} · 남은대기 ${fa.remaining}`);
+  }
   return { collected, more, remaining };
 }
 

@@ -435,17 +435,20 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서�
 const FB_BASE = 'https://4blog.net';
 // 포블로그 채널값 → 무협맵 채널(블로그/클립/인스타그램/릴스/유튜브). tiktok·threads·etc는 대응값 없어 '' (검수)
 const FB_CH = { blog: '블로그', reels: '릴스', clip: '클립', insta: '인스타그램', instar21: '인스타그램', instagram: '인스타그램', youtube: '유튜브', youtube21: '유튜브', shorts: '유튜브' };
-// 오늘오픈(오늘 신규) 지역 캠페인. location 필터는 부정확해서 전지역 받고 상세 주소로 서울만 거른다.
-const fbListUrl = (offset, limit) => `${FB_BASE}/loadMoreDataCategory?offset=${offset}&limit=${limit}&category=today&category1=local&location=&location1=&search=&bid=`;
+// 전체 지역(local) 캠페인 목록. V2 엔드포인트(무한스크롤)로 전량 페이지네이션. 상세 주소로 지역 판정(전국).
+const fbListUrl = (offset, limit) => `${FB_BASE}/loadMoreDataCategoryV2?offset=${offset}&limit=${limit}&category=&category1=local&location=&location1=&search=&search2=&bid=`;
 async function fbFetchList(offset, limit) {
-  const res = await fetch(fbListUrl(offset, limit), { headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest', Referer: `${FB_BASE}/list/today` } });
+  const res = await fetch(fbListUrl(offset, limit), { headers: { 'User-Agent': UA, 'X-Requested-With': 'XMLHttpRequest', Referer: `${FB_BASE}/list` } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 const NAME_CH_SUFFIX = /\s*[(（](?:인스타그램|인스타|블로그|릴스|클립|유튜브|쇼츠|틱톡|스레드|reels|clip)[)）]\s*$/i;
+// 캠페인 유형/모집 텍스트 접미사(매장명 아님): "릴스체험단", "(무제한모집)", "- 릴스 프리미엄", "(피드 또는 릴스)" 등
+const FB_NAME_JUNK = /\s*[-–·]?\s*[(（\[]?\s*(?:무제한\s*모집|피드\s*(?:또는|or|\/)\s*릴스|릴스\s*프리미엄|프리미엄|(?:릴스|클립|인스타그램|인스타|블로그|유튜브|피드)?\s*체험단?|기자단|재모집|추가\s*모집)\s*[)）\]]?\s*$/i;
 function fbName(nm) {
   const m = String(nm || '').match(/^\[([^\]]*)\]\s*(.+)$/);
   let name = (m ? m[2] : String(nm || '')).replace(/\s*\d+\s*차\s*$/, '').replace(NAME_CH_SUFFIX, '').trim();
+  for (let k = 0; k < 3 && FB_NAME_JUNK.test(name); k++) name = name.replace(FB_NAME_JUNK, '').trim(); // 접미사 반복 제거
   return { region: m ? m[1] : '', name };
 }
 function fbDeadline(mmdd) {
@@ -466,26 +469,35 @@ function fbParseDetail(html) {
   }
   // 영업/이용시간·휴무·요일제약: 본문 free-text
   const txt = stripTags(html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' '));
-  // 시간: 체험가능시간 > 블로거이용시간 > 이용시간 > 영업시간 (리뷰어 기준 우선)
+  // 시간: 체험가능시간 > 블로거이용시간 > 이용시간 > 영업시간(리뷰어 기준 우선). HH:MM~HH:MM 또는 N시~N시만 채택(깨진 값 방지).
   let hours = '';
-  let m = txt.match(/체험\s*가능\s*시간\s*[:：]?\s*([0-9시분:~\-\s오전후]{3,40})/)
-    || txt.match(/블로거\s*이용\s*시간\s*([0-9:~\-\s]+)/) || txt.match(/이용\s*시간\s*([0-9:~\-\s]+)/) || txt.match(/영업\s*시간\s*([0-9:~\-\s]+)/);
-  if (m) hours = m[1].replace(/\s+/g, ' ').trim().slice(0, 60);
-  // 포블로그 명시 필드: '체험 가능 요일' / '체험 불가능 요일(+공휴일)'
-  let daysExplicit = '', holidayExplicit = '';
+  const hSrc = txt.match(/체험\s*가능\s*시간\s*[:：]?\s*([^\n]{0,40})/)
+    || txt.match(/블로거\s*이용\s*시간\s*[:：]?\s*([^\n]{0,40})/)
+    || txt.match(/이용\s*시간\s*[:：]?\s*([^\n]{0,40})/)
+    || txt.match(/영업\s*시간\s*[:：]?\s*([^\n]{0,40})/);
+  if (hSrc) {
+    const r = hSrc[1].match(/\d{1,2}:\d{2}\s*[~\-–]\s*\d{1,2}:\d{2}/) || hSrc[1].match(/\d{1,2}\s*시\s*(?:\d{2}\s*분)?\s*[~\-–]\s*\d{1,2}\s*시\s*(?:\d{2}\s*분)?/);
+    if (r) hours = r[0].replace(/\s+/g, '').replace(/[-–]/, '~');
+  }
+  // 요일: ① 명시 '체험 가능/불가 요일' 우선 ② 휴무일(연중무휴=전체, 'X요일 휴무/방문·예약·체험 불가'만 제외) ③ 없으면 빈값.
+  //   발렛불가/화기 사용 불가/포장 불가 등 비휴무 문맥은 요일 제외에 반영하지 않음.
+  let days = '', holiday = '';
   const av = txt.match(/체험\s*가능\s*요일\s*[:：]?\s*([월화수목금토일\s\/,·]+)/);
   const un = txt.match(/체험\s*불가능?\s*요일\s*[:：]?\s*([월화수목금토일\s\/,·.]*(?:공휴일)?)/);
   if (av || un) {
     const avSet = new Set(av ? (av[1].match(/[월화수목금토일]/g) || []) : ALL_DAYS);
     const unSet = new Set(un ? (un[1].match(/[월화수목금토일]/g) || []) : []);
-    daysExplicit = ALL_DAYS.filter((d) => avSet.has(d) && !unSet.has(d)).join(',');
-    if (un && /공휴일/.test(un[1])) holidayExplicit = 'Y';
+    days = ALL_DAYS.filter((d) => avSet.has(d) && !unSet.has(d)).join(',');
+    if (un && /공휴일/.test(un[1])) holiday = 'Y';
+  } else {
+    const hm = txt.match(/휴무일?\s*[:：]\s*([^\n*]{0,30})/);
+    const closed = new Set();
+    for (const mm of txt.matchAll(/([월화수목금토일])요일\s*(?:정기\s*)?(?:휴무|(?:방문|예약|체험)\s*불가)/g)) closed.add(mm[1]);
+    for (const mm of txt.matchAll(/(?:매주\s*)?([월화수목금토일])\s*휴무/g)) closed.add(mm[1]);
+    const yearRound = hm && /연중\s*무휴|무휴|없음/.test(hm[1]);
+    if (yearRound || closed.size) days = ALL_DAYS.filter((d) => !closed.has(d)).join(',');
+    if (/공휴일\s*(?:휴무|방문\s*불가|예약\s*불가|불가|제외)/.test(txt)) holiday = 'Y';
   }
-  // 휴무 + 요일불가(중간어 허용)
-  let closedRaw = '';
-  m = txt.match(/휴무일\s*[:：]?\s*([가-힣0-9,·\s]{0,25})/); if (m) closedRaw = m[1].replace(/\s+/g, ' ').trim();
-  const bans = (txt.match(/(?<![가-힣])[월화수목금토일][월화수목금토일요,\s및]*\s*(?:[가-힣]{1,4}\s*){0,2}(?:불가|휴무|제외)/g) || []).join(' ');
-  if (bans) closedRaw += ' ' + bans;
   // 모집 마감일: 캘린더 '리뷰어 모집' end. FullCalendar end는 exclusive(마지막날 다음날)이라 −1일 = 실제 모집 마감.
   // (end 그대로면 선정일이 됨 — 모집 13일까지 / 선정 14일)
   let deadline = '';
@@ -495,7 +507,7 @@ function fbParseDetail(html) {
     dt.setDate(dt.getDate() - 1);
     deadline = dt.toISOString().slice(0, 10);
   }
-  return { address, hours, closedRaw, daysExplicit, holidayExplicit, deadline };
+  return { address, hours, days, holiday, deadline };
 }
 
 async function runFoblog({ db, limit = 40 }) {
@@ -504,19 +516,21 @@ async function runFoblog({ db, limit = 40 }) {
   const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [platform] });
   const lastMaxId = Number(stRes.rows[0]?.last_max_id || 0);
 
-  // 오늘오픈 목록(전지역 소량)을 받아 커서 이후 신규만. 서울 여부는 상세 주소로 판정.
+  // 전체 목록을 커서 이후 신규만. 지역은 상세 주소로 판정(전국). 최초 실행은 전량, 이후는 신규 소진 시 조기중단.
   const newItems = []; let offset = 0;
-  while (offset < 90) {
+  while (offset < 900) {
     let batch;
     try { batch = await fbFetchList(offset, 30); } catch (e) { break; }
-    if (!batch || !batch.length) break;
+    if (!Array.isArray(batch) || !batch.length) break;
+    let anyNew = false;
     for (const it of batch) {
       const cid = Number(it.CID);
-      if (cid > lastMaxId && (it.CATEGORY1 || 'local') === 'local') newItems.push(it);
+      if (cid > lastMaxId && (it.CATEGORY1 || 'local') === 'local') { newItems.push(it); anyNew = true; }
     }
+    if (lastMaxId > 0 && !anyNew) break; // 증분: 이 배치가 전부 기처리면 이후(더 오래된)도 다 봄 → 중단
     if (batch.length < 30) break; // 마지막 페이지
     offset += 30;
-    await sleep(600);
+    await sleep(400);
   }
   const targets = newItems.sort((a, b) => Number(a.CID) - Number(b.CID)).slice(0, limit); // 오름차순: limit 초과분은 다음 실행에서 이어받음(스킵 방지)
 
@@ -534,13 +548,11 @@ async function runFoblog({ db, limit = 40 }) {
       const channel = FB_CH[String(it.CATEGORY || '').toLowerCase()] || '';
       const content = cleanContent(String(it.REVIEWER_BENEFIT || ''));
       const html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`);
-      const { address, hours: rawHours, closedRaw, daysExplicit, holidayExplicit, deadline: dlCal } = fbParseDetail(html);
-      if (!address || !/^서울/.test(address)) { excluded++; ok = true; } // 주소 없거나 서울 아님
+      const { address, hours, days, holiday, deadline: dlCal } = fbParseDetail(html);
+      if (!address) { excluded++; ok = true; } // 주소 없으면 제외(전국 대상 — 서울 한정 아님)
       else {
         const deadline = dlCal || fbDeadline(it.REQ_CLOSE_DT); // 캘린더 '리뷰어 모집' 종료일 우선
-        const days = daysExplicit || deriveDays(rawHours, closedRaw);       // 포블로그 명시 요일 우선
-        const hours = cleanHours(rawHours);
-        const excludeHoliday = holidayExplicit || parseExcludeHoliday(rawHours, closedRaw);
+        const excludeHoliday = holiday;
         const auto = categoryByKeyword(String(it.KEYWORD || '') + ' ' + content, name);
         const category = auto || '음식점';
         const flags = [];
