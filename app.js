@@ -412,8 +412,8 @@ function initMap() {
   initSidebarScrollExpand();
   initSidebarSwipeToDismiss();
   initSheetSwipeToDismiss();
-  // 실행 시 자동 위치이동은 하지 않음(현재 서울만 등록 → 서울 전역 기본). '내 위치' 버튼으로만 현재위치 적용.
-  // tryInitialLocation();
+  // 첫 화면을 현재 위치 기준으로(전국 데이터 확보로 재활성화). 거부/실패/해외면 서울 기본 유지.
+  tryInitialLocation();
   showBannerPopup();
 }
 
@@ -455,18 +455,18 @@ function clearSearchPin() {
 }
 
 // 최초 진입 시 내 위치로 지도 중심 이동 (권한 거부/실패 시 기본 위치 유지)
+// 첫 화면을 현재 위치 기준으로. 앱/웹 통합(getGeoPosition), 국내 밖이면 서울 기본 유지.
+// 거부/실패해도 조용히 서울 유지. 전국 데이터가 쌓여 서울 고정이던 이유는 해소됨.
 function tryInitialLocation() {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      map.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
-      map.setZoom(15);
-      showMyLocationMarker(pos.coords.latitude, pos.coords.longitude);
-      renderSidebar();
-    },
-    () => {},
-    { timeout: 5000 }
-  );
+  getGeoPosition().then(({ lat, lng }) => {
+    const inKorea = lat >= 33 && lat <= 39 && lng >= 124 && lng <= 132;
+    if (!inKorea) return; // 해외 등 국내 밖이면 서울 기본 유지
+    map.setCenter(new naver.maps.LatLng(lat, lng));
+    map.setZoom(15);
+    showMyLocationMarker(lat, lng);
+    renderMarkers();
+    renderSidebar();
+  }).catch(() => {});
 }
 
 // ===== 공지/이벤트 배너 팝업 =====
