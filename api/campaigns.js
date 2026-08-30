@@ -272,6 +272,9 @@ module.exports = async function handler(req, res) {
     }
     // 공개 지도 조회: 숨김 캠페인 + 숨김 매장 소속 캠페인 제외, 이메일(PII) 제외하고 반환
     // ?active=1: 만료(마감 지난) 캠페인 제외 → 공개 페이로드 대폭 축소(만료분은 화면에 안 쓰임). 공개 앱만 사용.
+    // 엣지 캐싱: 활성 협찬은 크롤로 하루 단위 갱신 → 5분 CDN 캐시 + 10분 stale-while-revalidate.
+    //   방문자마다 12k행 조회(≈6초)하던 것을 대부분 CDN 히트(≈50ms)로. 제보 등 쓰기 후 최대 5분 지연(SWR로 자동 갱신).
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     const activeOnly = q.active === '1';
     const kstToday = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const extra = activeOnly ? " AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)" : '';

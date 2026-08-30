@@ -323,6 +323,8 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ rows, total, page, size });
     }
     // 공개 지도 조회: 숨김 매장 제외 + 이메일(PII) 제외하고 반환
+    // 엣지 캐싱: 매장은 거의 안 바뀜 → 5분 CDN 캐시 + 10분 SWR. 방문자마다 전체 조회(≈4초)를 CDN 히트로.
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     const result = await db.execute('SELECT * FROM places WHERE COALESCE(hidden,0)=0');
     return res.status(200).json(result.rows.map(r => { const p = toPlace(r); delete p.founderEmail; return p; }));
   }
