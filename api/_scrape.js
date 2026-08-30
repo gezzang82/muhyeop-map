@@ -1309,7 +1309,7 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0, region = '' }) {
 // 목록 `GET /api/web/campaign/active?page=N&limit=M` → {data:{campaigns[], total, page, totalPages}}(무인증, total~400).
 //   app_type: A=방문체험 / C=방문기자단(둘 다 방문형·대상), B=제품체험(배송→제외).
 // 상세 `GET /api/web/campaign/detail?app_seq=` → com_address1(전체주소)·appDe_visitInstruction(방문시간/공휴일)·sns_platforms(채널).
-// 공개 링크백은 SPA 해시 라우트 `/#/campaign/{app_seq}`. 좌표는 없어 오토파일럿이 주소로 NCP 지오코딩.
+// 공개 링크백(원문 상세)은 `productDetail.apsl?app_seq={app_seq}`. 좌표는 없어 오토파일럿이 주소로 NCP 지오코딩.
 const OMB_BASE = 'https://ohmyblog.co.kr';
 const OMB_SNS = { NAVER_BLOG_POST: '블로그', NAVER_BLOG: '블로그', NAVER_CLIP: '클립', INSTAGRAM: '인스타그램', INSTAGRAM_POST: '인스타그램', INSTAGRAM_REELS: '릴스', YOUTUBE: '유튜브' }; // 쇼츠·틱톡은 매핑 없음(제외)
 const ombMapCh = (s) => [...new Set(String(s || '').split(',').map((x) => OMB_SNS[x.trim().toUpperCase()]).filter(Boolean))].join(',');
@@ -1363,7 +1363,7 @@ async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
           sql: `INSERT OR IGNORE INTO scraped_items
             (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
             VALUES (?,?,?,?,?,?,?,?,?,'','',?,?,?,?,'pending')`,
-          args: [platform, id, `${OMB_BASE}/#/campaign/${id}`, name, address, category, channel, content, deadline, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
+          args: [platform, id, `${OMB_BASE}/productDetail.apsl?app_seq=${id}`, name, address, category, channel, content, deadline, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
         });
         if (ins.rowsAffected > 0) staged++;
       } catch (e) { failed++; }

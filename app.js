@@ -1393,6 +1393,30 @@ function searchRegion() {
     return;
   }
 
+  // 1-2. 부분 일치 — 이름 일부만 입력해도 후보 매장을 보여줌(2글자 이상). 관련도순 정렬 + 상한 40.
+  //   정렬: 이름이 검색어로 '시작' 우선 → 활성 캠페인 우선 → 이름순. (지역/역명은 아래 geocode가 담당)
+  if (nq.length >= 2) {
+    let partial = places.filter(p => normalize(p.name).includes(nq));
+    if (partial.length) {
+      partial = partial.sort((a, b) => {
+        const sa = normalize(a.name).startsWith(nq) ? 0 : 1, sb = normalize(b.name).startsWith(nq) ? 0 : 1;
+        if (sa !== sb) return sa - sb;
+        const aa = hasActiveCampaign(a.id) ? 0 : 1, ab = hasActiveCampaign(b.id) ? 0 : 1;
+        if (aa !== ab) return aa - ab;
+        return a.name.localeCompare(b.name);
+      }).slice(0, 40);
+      if (partial.length === 1) {
+        clearSearchPin();
+        const p = partial[0];
+        const ended = getActiveCampaigns(p.id).length === 0;
+        focusPlace(p.id, ended ? GRAY_PIN_MIN_ZOOM : 16);
+        return;
+      }
+      showPlacePicker(partial, query);
+      return;
+    }
+  }
+
   // 2. 주소/지역명 검색 (geocode)
   function trySearch(q, fallback) {
     naver.maps.Service.geocode({ query: q }, function(status, response) {
