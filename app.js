@@ -645,8 +645,10 @@ function renderMarkers() {
     }
   });
 
-  // 재렌더로 마커가 새로 생성되므로, PC 카드가 열려있으면 선택 하이라이트 복원
+  // 재렌더로 마커가 새로 생성되므로 선택 하이라이트 복원. PC=카드 / 모바일=바텀시트(열려있을 때).
+  // (모바일은 시트 열 때 핀을 중앙으로 pan → idle 재렌더가 발생하는데, 복원이 없어 1~2초 뒤 선택이 풀리던 버그)
   if (openPcCardPlaceId && markerMap[openPcCardPlaceId]) setSelectedMarker(openPcCardPlaceId);
+  else if (_detailPlaceId != null && markerMap[_detailPlaceId] && document.getElementById('mobileSheet') && document.getElementById('mobileSheet').classList.contains('show')) setSelectedMarker(_detailPlaceId);
 }
 
 // ===== 인포윈도우 =====
