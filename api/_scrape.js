@@ -924,12 +924,13 @@ const SO_VISIT_CAT = 377;
 // 매장명+채널: 카카오 공유 title "[블로그+클립][판교] 쉐누하누" → 앞 [채널][지역] 제거, 채널은 첫 대괄호
 // 서울오빠 채널 표기("인스타릴스","블로그+클립" 등)를 무협맵 표준으로. 조합은 콤마.
 function soChannelNorm(raw) {
-  const s = (raw || '').replace(/[[\]]/g, '');
+  // "인스타릴스"(인스타 릴스 = 릴스 콘텐츠)는 릴스 하나로. 그래야 남은 '인스타'는 피드용만 잡힘.
+  const s = (raw || '').replace(/[[\]]/g, '').replace(/인스타그?램?\s*릴스/g, '릴스');
   const out = [];
   if (/블로그/.test(s)) out.push('블로그');
   if (/클립/.test(s)) out.push('클립');
-  if (/인스타/.test(s)) out.push('인스타그램');
   if (/릴스/.test(s)) out.push('릴스');
+  if (/인스타/.test(s)) out.push('인스타그램');
   if (/유튜브|쇼츠/.test(s)) out.push('유튜브');
   if (/구매평/.test(s)) out.push('구매평');
   if (/기자단/.test(s)) out.push('기자단');
@@ -950,7 +951,7 @@ function soAddress(html) {
   return m ? m[1].replace(/\s+/g, ' ').trim() : '';
 }
 function soContent(txt, html) {
-  const m = txt.match(/제공내역\s*([\s\S]*?)\s*(?:\*|방문가능시간|크리에이터\s*모집|위치|리뷰어|유의사항)/);
+  const m = txt.match(/제공내역\s*([\s\S]*?)\s*(?:\*|상세\s*제공내역|방문가능시간|크리에이터\s*모집|위치|리뷰어|유의사항)/);
   let c = m ? m[1].replace(/\/\/-->|<!--|-->/g, ' ').replace(/[/|]+/g, ' ').replace(/\s+/g, ' ').trim() : '';
   // 제공내역이 이미지/주석이라 비었으면 카카오 공유 설명(캠페인 소개)으로 폴백
   if (c.replace(/[^가-힣0-9A-Za-z]/g, '').length < 2 && html) {
