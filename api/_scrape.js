@@ -161,8 +161,10 @@ function cleanHours(hours) {
   const src = stripExclusionNotes(hours);
   const times = src.match(TIME_RE) || [];
   let out;
-  if (times.length !== 1) {
-    out = tidy(src);
+  if (times.length === 0) {
+    return ''; // 유효 시간대(HH:MM 범위) 없으면 비움 — "이내 : 연중무휴 예약필수…" 같은 안내문이 통째로 들어가던 버그 방지
+  } else if (times.length > 1) {
+    out = tidy(src); // 다중 시간대는 전체 유지
   } else {
     let h = stripDayClosed(src);
     // 선행 요일-접두(예: "평일/주말(매일)", "월~금") 제거 — /·(·)·매 포함해 통째로 떼어냄(시간만 남김)
