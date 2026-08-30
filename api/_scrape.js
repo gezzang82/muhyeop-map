@@ -805,15 +805,20 @@ function rbHoursDays(txt) {
   if (/평일\s*[\/,]\s*주말|매일|연중무휴/.test(val)) ALL_DAYS.forEach((d) => avail.add(d));
   if (/평일/.test(val)) ['월', '화', '수', '목', '금'].forEach((d) => avail.add(d));
   if (/주말/.test(val) && !banWeekend) { avail.add('토'); avail.add('일'); }
-  if (/토요일/.test(val)) avail.add('토');
-  if (/일요일/.test(val)) avail.add('일');
+  if (/토요일/.test(val) && !/토요일[\s\S]{0,8}?(?:불가|휴무|제외)/.test(val)) avail.add('토');
+  if (/일요일/.test(val) && !/일요일[\s\S]{0,10}?(?:불가|휴무|제외)/.test(val)) avail.add('일');
   const list = (val.match(/([월화수목금토일])(?:\s*[,·/]\s*[월화수목금토일])+/) || [])[0];
   if (list) (list.match(/[월화수목금토일]/g) || []).forEach((d) => avail.add(d));
-  const rng = val.match(/(?<!\d)([월화수목금토일])\s*~\s*([월화수목금토일])(?!\d)/);
-  if (rng) { const i = ALL_DAYS.indexOf(rng[1]), j = ALL_DAYS.indexOf(rng[2]); if (i >= 0 && j >= 0) for (let k = i; ; k = (k + 1) % 7) { avail.add(ALL_DAYS[k]); if (k === j) break; } }
-  // 제외: "X요일 휴무/방문 불가", 주말 금지
+  // 요일 범위(월~금, 월-목 하이픈 포함) — 날짜(숫자) 아닌 것만. 여러 범위 모두.
+  for (const mm of val.matchAll(/(?<!\d)([월화수목금토일])\s*[~\-–]\s*([월화수목금토일])(?!\d)/g)) {
+    const i = ALL_DAYS.indexOf(mm[1]), j = ALL_DAYS.indexOf(mm[2]); if (i >= 0 && j >= 0) for (let k = i; ; k = (k + 1) % 7) { avail.add(ALL_DAYS[k]); if (k === j) break; }
+  }
+  // 제외: "X요일 휴무/불가"(중간 한글 허용), "요일범위 + 체험불가"(금-토 체험불가), 주말 금지
   const closed = new Set();
-  for (const mm of val.matchAll(/([월화수목금토일])요일[^가-힣]{0,10}(?:방문\s*불가|예약\s*및\s*방문\s*불가|휴무|불가|제외)/g)) closed.add(mm[1]);
+  for (const mm of val.matchAll(/([월화수목금토일])요일[\s\S]{0,10}?(?:방문\s*불가|예약\s*및\s*방문\s*불가|체험\s*불가|휴무|불가|제외)/g)) closed.add(mm[1]);
+  for (const mm of val.matchAll(/(?<!\d)([월화수목금토일])\s*[~\-–]\s*([월화수목금토일])(?!\d)[\s\S]{0,8}?(?:체험\s*불가|방문\s*불가|예약\s*불가|불가|휴무)/g)) {
+    const i = ALL_DAYS.indexOf(mm[1]), j = ALL_DAYS.indexOf(mm[2]); if (i >= 0 && j >= 0) for (let k = i; ; k = (k + 1) % 7) { closed.add(ALL_DAYS[k]); if (k === j) break; }
+  }
   if (banWeekend) { closed.add('토'); closed.add('일'); }
   // 기준: 가용 있으면 그걸, 없고 제외만 있으면 전체(=제외만 뺌), 둘 다 없으면 미상(빈값)
   const base = avail.size ? avail : (closed.size ? new Set(ALL_DAYS) : new Set());
@@ -911,13 +916,26 @@ async function runRingble({ db, limit = 300, deadlineTs = 0 }) {
 const SO_BASE = 'https://seoulouba.co.kr';
 const SO_VISIT_CAT = 377;
 // 매장명+채널: 카카오 공유 title "[블로그+클립][판교] 쉐누하누" → 앞 [채널][지역] 제거, 채널은 첫 대괄호
+// 서울오빠 채널 표기("인스타릴스","블로그+클립" 등)를 무협맵 표준으로. 조합은 콤마.
+function soChannelNorm(raw) {
+  const s = (raw || '').replace(/[[\]]/g, '');
+  const out = [];
+  if (/블로그/.test(s)) out.push('블로그');
+  if (/클립/.test(s)) out.push('클립');
+  if (/인스타/.test(s)) out.push('인스타그램');
+  if (/릴스/.test(s)) out.push('릴스');
+  if (/유튜브|쇼츠/.test(s)) out.push('유튜브');
+  if (/구매평/.test(s)) out.push('구매평');
+  if (/기자단/.test(s)) out.push('기자단');
+  return [...new Set(out)].join(',');
+}
 function soName(html) {
   const m = html.match(/content:\s*\{\s*title:\s*"([^"]+)"/) || html.match(/title:\s*"(\[[^"]+)"/);
   if (!m) return { name: '', channel: '' };
   const raw = m[1].replace(/&amp;/g, '&').trim();
   // 채널은 채널키워드 든 대괄호만(지역 대괄호 [판교] 등과 구분). 없으면 빈값.
   const chBracket = (raw.match(/\[[^\]]*\]/g) || []).find((b) => /블로그|클립|인스타|릴스|유튜브|구매평|기자단/.test(b));
-  const channel = chBracket ? chBracket.replace(/[[\]]/g, '').replace(/\s*\+\s*/g, ',').replace(/\s+/g, '') : '';
+  const channel = soChannelNorm(chBracket);
   const name = raw.replace(/^(?:\s*\[[^\]]*\])+\s*/, '').trim(); // 앞 [채널][지역] 다 제거
   return { name, channel };
 }
