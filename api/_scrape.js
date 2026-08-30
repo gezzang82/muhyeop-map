@@ -1184,6 +1184,23 @@ const RN_CH = { BLOG: '블로그', BLOG_CLIP: '블로그,클립', BLOGCLIP: '블
 const rnMapCh = (c) => RN_CH[String(c || '').toUpperCase()] || '';
 const rnCleanName = (t) => String(t || '').replace(/^\s*(?:\[[^\]]*\]\s*)+/, '').replace(/\s*[/·]\s*$/, '').trim();
 function rnDeadline(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; return new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10); }
+// 매장이 아닌 캠페인(이벤트·전문서비스·온라인/재택)은 지오코딩 대상이 아니라 제외(geoFail로 세지 않음)
+const RN_NONSTORE = /소개팅|세미나|법무법인|변호사|노무사|세무사|보험|대출|투자|코인|주식|온라인클래스|재택|택배|무료나눔|설문|앱테크|구독서비스/;
+// 매장명 검색 변형: 전체명 → '/'분리 → 괄호제거 → 마지막토큰(디자이너/스텝명 등) 제거 → 브랜드+지점 → 브랜드.
+// 첫 히트에서 멈추므로 정확한 전체명이 먼저, 노이즈 있는 이름만 점진 완화(리뷰노트 이름은 지점·스텝명이 붙어 검색 0건 나던 것 보완).
+function rnNameVariants(name) {
+  const base = String(name || '').trim(); const V = [];
+  const push = (s) => { s = String(s || '').trim(); if (s && s.length >= 2 && !V.includes(s)) V.push(s); };
+  push(base);
+  if (base.includes('/')) base.split('/').forEach(push);
+  const noBr = base.replace(/\([^)]*\)/g, ' ').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
+  push(noBr);
+  const toks = noBr.split(/\s+/);
+  if (toks.length >= 3) push(toks.slice(0, -1).join(' '));
+  if (toks.length >= 2) push(toks.slice(0, 2).join(' '));
+  push(toks[0]);
+  return V;
+}
 async function rnFetchPage(page) {
   const t = await fetchText(`${RN_BASE}/campaigns?page=${page}`);
   const m = t.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
@@ -1191,21 +1208,33 @@ async function rnFetchPage(page) {
   try { return JSON.parse(m[1]).props.pageProps.data; } catch (e) { return null; }
 }
 async function rnNaverLocal(q) {
-  const res = await fetch(`https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(q)}&display=5`, { headers: { 'X-Naver-Client-Id': process.env.NAVER_SEARCH_CLIENT_ID, 'X-Naver-Client-Secret': process.env.NAVER_SEARCH_CLIENT_SECRET } });
-  if (!res.ok) return []; try { return (await res.json()).items || []; } catch (e) { return []; }
+  // 429(레이트리밋)·5xx는 일시장애 → 백오프 재시도(무거운 패스 끝에서 몰려 실패하던 것 방지).
+  // 진짜 '결과 없음'(200 빈 items)과 throttle을 구분해, 후자를 geoFail로 버리지 않도록 함.
+  const url = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(q)}&display=5`;
+  const headers = { 'X-Naver-Client-Id': process.env.NAVER_SEARCH_CLIENT_ID, 'X-Naver-Client-Secret': process.env.NAVER_SEARCH_CLIENT_SECRET };
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    let res;
+    try { res = await fetch(url, { headers }); } catch (e) { if (attempt < 2) { await sleep(800 * (attempt + 1)); continue; } return []; }
+    if (res.status === 429 || res.status >= 500) { if (attempt < 2) { await sleep(1200 * (attempt + 1)); continue; } return []; }
+    if (!res.ok) return [];
+    try { return (await res.json()).items || []; } catch (e) { return []; }
+  }
+  return [];
 }
-// 매장명+지역으로 로컬검색 → 시군구 일치하는 결과의 도로명 주소 반환(못 찾으면 null=스킵)
+// 매장명 변형×지역으로 로컬검색 → 시군구 일치·한국좌표 결과의 도로명 반환(못 찾으면 null=스킵). 첫 히트 즉시 반환.
 async function rnResolveAddress(name, city, sigungu) {
-  for (const q of [`${name} ${city} ${sigungu}`, `${name} ${sigungu}`, `${name} ${city}`]) {
-    let items = []; try { items = await rnNaverLocal(q); } catch (e) {}
-    for (const it of items) {
-      const a = (it.roadAddress || it.address || '').trim();
-      const lat = Number(it.mapy) / 1e7, lng = Number(it.mapx) / 1e7;
-      if (!(lat >= 33 && lat <= 39.6 && lng >= 124.5 && lng <= 132)) continue;
-      if (sigungu && !a.includes(sigungu)) continue; // 시군구 일치 검증(오지역 방지)
-      return a;
+  for (const v of rnNameVariants(name)) {
+    for (const q of [`${v} ${sigungu}`, `${v} ${city}`]) {
+      let items = []; try { items = await rnNaverLocal(q); } catch (e) {}
+      for (const it of items) {
+        const a = (it.roadAddress || it.address || '').replace(/<[^>]+>/g, '').trim();
+        const lat = Number(it.mapy) / 1e7, lng = Number(it.mapx) / 1e7;
+        if (!(lat >= 33 && lat <= 39.6 && lng >= 124.5 && lng <= 132)) continue;
+        if (sigungu && !a.includes(sigungu)) continue; // 시군구 일치 검증(오지역 방지)
+        return a;
+      }
+      await sleep(90);
     }
-    await sleep(150);
   }
   return null;
 }
@@ -1227,11 +1256,12 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0 }) {
       const channel = rnMapCh(o.channel);
       const city = (o.city || '').trim(), sigungu = ((o.sido || {}).name || '').trim();
       if (o.sort !== 'VISIT' || !RN_REAL_SIDO.has(city) || !channel) { excluded++; continue; }
+      const rnName = rnCleanName(o.title);
+      if (!rnName || RN_NONSTORE.test(rnName)) { excluded++; continue; } // 빈 이름·비매장(이벤트/서비스) 사전제외
       if (processed >= limit) { timedOut = true; break; }
       processed++;
       try {
-        const name = rnCleanName(o.title);
-        if (!name) { excluded++; continue; }
+        const name = rnName;
         const address = await rnResolveAddress(name, city, sigungu);
         await sleep(120);
         if (!address) { geoFail++; continue; } // 도로명 못 찾으면 스킵(이벤트·팝업 등)
