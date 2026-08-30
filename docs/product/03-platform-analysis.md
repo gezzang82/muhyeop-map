@@ -155,16 +155,16 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
 ## 8. AI 자동등록(오토파일럿) — 수동 승인 대체 (2026-08)
 위 4~5절의 **수동 승인**을 AI가 대신하도록 확장. 매일 무인으로 수집→검수→등록하고 **애매한 것만 사람 검수큐**에 남긴다. 결정 [[06-decision-log]] 2026-08-21, AI 상세 `13-ai-automation`.
 
-### 흐름 (매일 06:00 KST 크론 1회)
-`vercel.json` 크론 → `POST /api/campaigns?action=autopilot&scrape=dinnerqueen` (인증: `CRON_SECRET` 헤더 or 관리자). 한 실행 안에서(2026-08-24 순서 변경 — [[06-decision-log]]):
+### 흐름 (로컬 크롤러 상시 — Vercel 크론 폐지 2026-08-30)
+**로컬 크롤러(`scripts/crawl-worker.js`)로 단일화**. 컴퓨터가 켜진 동안 전 플랫폼(디너/강남/링블/포블로그/서울오빠/리뷰노트)을 순회 수집→오토파일럿. 과거 매일 06:00 KST Vercel 크론(`POST ?action=autopilot&scrape=dinnerqueen`)은 **①디너의여왕만 커버 ②컴퓨터가 켜진 06:00엔 로컬 크롤러와 겹쳐 오토파일럿 중복(같은 매장 2중 INSERT) 위험**이라 **폐지**([[06-decision-log]] 2026-08-30). 수동 트리거(`POST /api/campaigns?action=autopilot`, 어드민 [지금 실행]/[미리보기] 버튼, 인증=관리자)는 유지. 한 패스 안에서:
 1. **수집 먼저** — 신규 캠페인을 긁어 큐(`scraped_items` pending)에 적재. 상한 `SCRAPE_MS=100s`(오토파일럿 시간 확보용).
 2. **오토파일럿** — 방금 수집분 + 남은 백로그를 3갈래 라우팅(전체 예산까지)
    - 🟢 자동등록: 좌표OK·flags없음·마감유효 + (기존매장 추가/갱신 = 규칙만 / 신규매장 = AI 승인) → 매장·캠페인 INSERT(`source='ai'`, 제보자 비움), `status='registered'`
    - 🟡 검수대기: 좌표실패·파싱경고·중복의심·AI저신뢰 → `auto_seen=1`로 pending 유지 + `auto_note`(사유). 운영자가 기존 승인 UI에서 처리
    - 🔴 스킵: 마감 지남 등 → `status='rejected'`
 
-### 처리량 — Hobby 하루 1회 시간예산 (2026-08-21)
-디너의여왕은 신규가 D-6로 올라오고 **평일 수백 건**(주말 거의 없음). Hobby(크론 1일 1회·함수 300초)에선 상세 1건당 0.6초 예의 딜레이라 한 실행 현실 상한 ~150~200건. → **시간예산 방식**: `TOTAL=240s`(오토파일럿 150s 우선 배정) 초과 시 각 단계 중단, 못한 건은 **증분커서/`auto_seen`이 다음 실행에서 이어받음**(중단돼도 안전). `vercel.json functions.maxDuration=300`. 더 늘리려면 Vercel Pro(하루 여러 번).
+### 처리량 — 로컬 크롤러 상시(무제한) (2026-08-30 갱신)
+로컬 크롤러는 시간제한이 없어 컴퓨터가 켜진 동안 전 플랫폼을 **패스 반복**으로 소진한다(따라잡으면 10분 유휴 대기). 증분커서/`auto_seen`이 패스 간 이어받아 대량 백필도 여러 패스에 걸쳐 안전하게 처리(예: 포블로그 652건 백필, 4blog 레이트리밋 서킷브레이커로 패스당 ~120건). 서버(수동 autopilot 엔드포인트) 호출 시엔 여전히 **시간예산 방식**: `TOTAL=240s`(오토파일럿 150s 우선) 초과 시 중단, 다음 호출이 이어받음(`vercel.json functions.maxDuration=300`). 과거 Hobby 크론 1일 1회 상한(~150~200건)은 크론 폐지로 무의미.
 
 ### 스키마 추가 컬럼(`scraped_items`)
 - `auto_seen INTEGER DEFAULT 0` — 1이면 오토파일럿 판정 완료(재평가 안 함)
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
 - 조회 > 캠페인 출처 라디오에 **AI** 추가(=자동등록분 보기, 회수는 해당 행 관리)
 
 ### 필요 환경변수(운영자가 Vercel에 설정)
-`OPENAI_API_KEY`(AI 판정), `CRON_SECRET`(크론 인증). 선택 `OPENAI_MODEL`(기본 gpt-4o-mini).
+`OPENAI_API_KEY`(AI 판정). 선택 `OPENAI_MODEL`(기본 gpt-4o-mini). 로컬 크롤러는 `.env.local`의 Turso·`NAVER_SEARCH_*`(지오코딩)·`OPENAI_API_KEY` 사용. `CRON_SECRET`은 크론 폐지로 불필요(수동 autopilot 엔드포인트는 관리자 인증만으로 접근).
 
 ---
 
