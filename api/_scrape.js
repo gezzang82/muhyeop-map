@@ -1350,9 +1350,12 @@ function ombHoursDays(raw) {
   const brackets = [...t.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim());
   const timed = brackets.filter((b) => /\d{1,2}:\d{2}/.test(b));
   let hours = timed.map((b) => b.replace(/요일/g, '').replace(/\s*-\s*/g, '~').replace(/\s+/g, ' ').trim()).join(' / ');
-  // 시간대가 하나뿐이면 요일 라벨(평일/매일/월~금 등)은 '요일' 필드와 중복 → 제거하고 시간만. 여러 시간대면 라벨 유지(구분 필요).
-  const ranges = hours.match(/\d{1,2}:\d{2}\s*~\s*\d{1,2}:\d{2}/g) || [];
-  if (ranges.length === 1) hours = ranges[0].replace(/\s+/g, '');
+  // 유효 시간대만: 00:00~00:00(협의용 placeholder)은 제외. 하나뿐이면 요일 라벨(평일/매일/월~금)은 '요일' 필드와
+  // 중복이라 제거하고 시간만. 유효 시간대가 없으면 시간 비움. 여러 시간대면 라벨 유지(구분 필요).
+  const ranges = (hours.match(/\d{1,2}:\d{2}\s*~\s*\d{1,2}:\d{2}/g) || []).map((r) => r.replace(/\s+/g, '')).filter((r) => r !== '00:00~00:00');
+  if (ranges.length === 0) hours = '';
+  else if (ranges.length === 1) hours = ranges[0];
+  const hasHours = ranges.length > 0;
   const set = new Set();
   timed.forEach((b) => { b.split(/\s*\/\s*/).forEach((seg) => ombDaysFromLabel(seg.split(/\d{1,2}:\d{2}/)[0]).forEach((d) => set.add(d))); });
   brackets.filter((b) => !/\d/.test(b) && !/휴무|불가/.test(b)).forEach((b) => ombDaysFromLabel(b).forEach((d) => set.add(d)));
@@ -1360,10 +1363,9 @@ function ombHoursDays(raw) {
   if (/일요일[^.]{0,12}(휴무|불가)|매주\s*일요일/.test(t)) set.delete('일');
   if (/토(요일)?[^.]{0,12}(휴무|불가)/.test(t)) set.delete('토');
   const excludeHoliday = /공휴일[^.]{0,12}(불가|휴무|안됨)/.test(t) ? 1 : 0;
-  const hasHours = /\d{1,2}:\d{2}/.test(hours);
   let days = OMB_ALLDAYS.filter((d) => set.has(d)).join(',');
   if (!hasHours && !brackets.some((b) => /[월화수목금토일]/.test(b) && !/휴무|불가/.test(b))) days = '';
-  return { hours: hasHours ? hours : '', days, excludeHoliday };
+  return { hours, days, excludeHoliday };
 }
 async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
   const platform = '오마이블로그';
