@@ -120,6 +120,15 @@ async function pass() {
     remaining = rna.remaining;
     console.log(`  [${ts()}] └ [리뷰노트] AI검증: 자동등록 ${rna.registered} · 검수 ${rna.review} · 스킵 ${rna.skipped} · 남은대기 ${rna.remaining}`);
   }
+  // 오마이블로그 (공개 REST API, active 목록 전량 → 방문형 A/C만, 상세에서 전체주소, 전국 1회)
+  if (!stopping) {
+    const omb = await runScrape({ db, platform: '오마이블로그', limit: 400 });
+    if ((omb.newCandidates || 0) > (omb.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(오마이블로그): 처리 ${omb.processed} · 적재 ${omb.staged} · 주소실패 ${omb.geoFail} · 중복 ${omb.dupActive} · 제외 ${omb.excluded}`);
+    const oa = await runAutopilot({ db });
+    remaining = oa.remaining;
+    console.log(`  [${ts()}] └ [오마이블로그] AI검증: 자동등록 ${oa.registered} · 검수 ${oa.review} · 스킵 ${oa.skipped} · 남은대기 ${oa.remaining}`);
+  }
   return { collected, more, remaining };
 }
 

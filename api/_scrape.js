@@ -636,6 +636,7 @@ async function runScrape({ db, platform, mode, limit, region, deadlineTs }) {
   if (platform === 'ringble' || platform === '링블') return runRingble({ db, limit, deadlineTs });
   if (platform === 'seoulouba' || platform === '서울오빠') return runSeouloba({ db, limit, deadlineTs });
   if (platform === 'reviewnote' || platform === '리뷰노트') return runReviewnote({ db, limit, deadlineTs, region });
+  if (platform === 'ohmyblog' || platform === '오마이블로그') return runOhmyblog({ db, limit, deadlineTs });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs });
 }
 
@@ -1304,4 +1305,77 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0, region = '' }) {
   return { platform, region, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut, fromPage: startPage, toPage: page, reachedEnd };
 }
 
-module.exports = { categoryByKeyword, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+// ===== 오마이블로그 (ohmyblog.co.kr) — 공개 REST JSON API =====
+// 목록 `GET /api/web/campaign/active?page=N&limit=M` → {data:{campaigns[], total, page, totalPages}}(무인증, total~400).
+//   app_type: A=방문체험 / C=방문기자단(둘 다 방문형·대상), B=제품체험(배송→제외).
+// 상세 `GET /api/web/campaign/detail?app_seq=` → com_address1(전체주소)·appDe_visitInstruction(방문시간/공휴일)·sns_platforms(채널).
+// 공개 링크백은 SPA 해시 라우트 `/#/campaign/{app_seq}`. 좌표는 없어 오토파일럿이 주소로 NCP 지오코딩.
+const OMB_BASE = 'https://ohmyblog.co.kr';
+const OMB_SNS = { NAVER_BLOG_POST: '블로그', NAVER_BLOG: '블로그', NAVER_CLIP: '클립', INSTAGRAM: '인스타그램', INSTAGRAM_POST: '인스타그램', INSTAGRAM_REELS: '릴스', YOUTUBE: '유튜브' }; // 쇼츠·틱톡은 매핑 없음(제외)
+const ombMapCh = (s) => [...new Set(String(s || '').split(',').map((x) => OMB_SNS[x.trim().toUpperCase()]).filter(Boolean))].join(',');
+const ombName = (n) => String(n || '').replace(/^\s*\[[^\]]*\]\s*/, '').trim(); // "[용인] 매장명" → "매장명"
+async function ombFetch(path) {
+  const res = await fetch(`${OMB_BASE}${path}`, { headers: { 'User-Agent': UA, Accept: 'application/json', Referer: `${OMB_BASE}/` } });
+  if (!res.ok) return null;
+  try { return await res.json(); } catch (e) { return null; }
+}
+async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
+  const platform = '오마이블로그';
+  const today = new Date().toISOString().slice(0, 10);
+  const dedupe = await loadDedupe(db);
+  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='오마이블로그'")).rows.map((r) => Number(r.source_id)));
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, geoFail = 0, timedOut = false;
+  let page = 1, totalPages = 1;
+  do {
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    const lj = await ombFetch(`/api/web/campaign/active?page=${page}&limit=60`);
+    const d = lj && lj.data;
+    if (!d || !Array.isArray(d.campaigns) || !d.campaigns.length) break;
+    totalPages = Number(d.totalPages) || 1;
+    for (const c of d.campaigns) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      const id = Number(c.app_seq);
+      if (doneIds.has(id)) continue;
+      if (c.app_type !== 'A' && c.app_type !== 'C') { excluded++; continue; } // 제품체험(B) 등 배송형 제외
+      const channel = ombMapCh(c.sns_platforms);
+      if (!channel) { excluded++; continue; } // 쇼츠/틱톡 전용 등 지원 채널 없음
+      const name = ombName(c.app_companyName || c.com_companyName);
+      if (!name) { excluded++; continue; }
+      if (processed >= limit) { timedOut = true; break; }
+      processed++;
+      try {
+        const dj = await ombFetch(`/api/web/campaign/detail?app_seq=${id}`);
+        await sleep(150);
+        const dd = dj && dj.data;
+        const address = (dd && (dd.com_address1 || dd.appDe_address1)) || '';
+        if (!address) { geoFail++; continue; } // 주소 없으면 지오코딩 불가 → 스킵
+        const vi = stripTags(String((dd && dd.appDe_visitInstruction) || ''));
+        const excludeHoliday = /공휴일[\s\S]{0,6}불가|주말[\s\S]{0,10}불가/.test(vi) ? 1 : 0;
+        const content = c.supplyItem || (dd && dd.appDe_supplyItem) || '';
+        const deadline = c.app_recruitEndDate || '';
+        const auto = categoryByKeyword(content + ' ' + name, name);
+        const category = auto || '음식점';
+        const cls = classify({ name, channel, address }, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; continue; }
+        const flags = [];
+        if (!auto) flags.push('카테고리확인(기본값 음식점)');
+        const ins = await db.execute({
+          sql: `INSERT OR IGNORE INTO scraped_items
+            (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+            VALUES (?,?,?,?,?,?,?,?,?,'','',?,?,?,?,'pending')`,
+          args: [platform, id, `${OMB_BASE}/#/campaign/${id}`, name, address, category, channel, content, deadline, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
+        });
+        if (ins.rowsAffected > 0) staged++;
+      } catch (e) { failed++; }
+    }
+    page++;
+  } while (page <= totalPages && !timedOut && processed < limit);
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('오마이블로그', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive, `active 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 주소실패 ${geoFail}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut };
+}
+
+module.exports = { categoryByKeyword, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
