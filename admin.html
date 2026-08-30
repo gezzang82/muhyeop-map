@@ -638,40 +638,7 @@
         </div><!-- /#sub-reg-excel -->
 
         <div id="sub-reg-collect" style="display:none;">
-        <div class="reg-notice">플랫폼에서 최신 캠페인을 수집해 승인 대기에 쌓습니다. 검토 후 승인하면 지도에 반영돼요.</div>
-        <div class="form-card">
-          <div class="filter-grid collect-filter">
-            <div class="filter-field"><label>플랫폼</label>
-              <select id="collectPlatform"><option value="dinnerqueen">디너의여왕</option><option value="foblog">포블로그</option></select>
-            </div>
-            <div class="filter-field"><label>지역</label>
-              <select id="collectRegion" onchange="onCollectRegionChange()"><option value="서울">서울</option><option value="부산">부산</option><option value="경기">경기</option><option value="인천">인천</option></select>
-            </div>
-            <div class="filter-field"><label>범위</label>
-              <select id="collectMode"><option value="jeonche">전체(최신)</option><option value="all-seoul">서울 전역(하위지역)</option></select>
-            </div>
-            <div class="filter-field"><label>최대 건수</label>
-              <input type="number" id="collectLimit" value="20" min="1" max="60">
-            </div>
-            <div class="filter-field"><label>재수집</label>
-              <label style="display:flex;align-items:center;gap:6px;height:38px;cursor:pointer;font-size:13px;"><input type="checkbox" id="collectReset"> 커서 리셋(처음부터)</label>
-            </div>
-            <button class="btn-search-red" id="collectBtn" onclick="collectScrape()"><svg class="icon"><use href="#icon-search"></use></svg> 최신 캠페인 수집</button>
-            <button class="btn-ghost" id="collectReparseBtn" onclick="collectReparse()">검수 재파싱</button>
-          </div>
-          <div class="collect-status" id="collectStatus"></div>
-        </div>
-
-        <div class="form-card" style="margin-top:16px;">
-          <div class="form-section-title">AI 자동등록 (오토파일럿)</div>
-          <div class="reg-notice">승인 대기 항목을 규칙+AI로 자동 검수합니다. 확실한 건 자동등록(지도 반영), 애매한 건 아래 ‘승인 대기’에 사유와 함께 남겨 운영자가 검수해요. <b>매일 새벽 6시 자동 실행</b>되며, 아래 버튼으로 지금 즉시 돌리거나 미리 볼 수 있어요.</div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button class="btn-ghost" id="autopilotDryBtn" onclick="execAutopilot(true)">미리보기 (등록 안 함)</button>
-            <button class="btn-search-red" id="autopilotRunBtn" onclick="execAutopilot(false)"><svg class="icon"><use href="#icon-search"></use></svg> 지금 자동등록 실행</button>
-          </div>
-          <div class="collect-status" id="autopilotStatus"></div>
-          <div id="autopilotDecisions"></div>
-        </div>
+        <div class="reg-notice">🤖 <b>로컬 크롤러가 상시 자동으로</b> 6개 플랫폼(디너의여왕·강남맛집·링블·서울오빠·포블로그·리뷰노트)을 수집하고, 규칙+AI로 확실한 건 <b>지도에 바로 자동등록</b>합니다. 애매한 것만 아래 <b>‘승인 대기’</b>에 사유와 함께 쌓이니 <b>여기만 검토</b>하면 돼요. (즉시 수집·재파싱·오토파일럿은 맨 아래 <b>‘수동 도구’</b>)</div>
 
           <div class="subtab-bar collect-subtab-bar">
             <button class="subtab active" id="collectSub-pending" onclick="collectShowSub('pending')">승인 대기</button>
@@ -710,6 +677,50 @@
               </table>
             </div>
           </div>
+
+          <details class="collect-manual">
+            <summary>🛠️ 수동 도구 — 즉시 수집 · 검수 재파싱 · 오토파일럿 (평소엔 크롤러가 자동 처리)</summary>
+            <div class="form-card" style="margin-top:12px;">
+              <div class="filter-grid collect-filter">
+                <div class="filter-field"><label>플랫폼</label>
+                  <select id="collectPlatform">
+                    <option value="dinnerqueen">디너의여왕</option>
+                    <option value="gangnam">강남맛집</option>
+                    <option value="ringble">링블</option>
+                    <option value="seoulouba">서울오빠</option>
+                    <option value="foblog">포블로그</option>
+                    <option value="reviewnote">리뷰노트</option>
+                  </select>
+                </div>
+                <div class="filter-field"><label>지역 <span style="color:#999;font-weight:400;">(디너의여왕만)</span></label>
+                  <select id="collectRegion" onchange="onCollectRegionChange()"><option value="서울">서울</option><option value="부산">부산</option><option value="경기">경기</option><option value="인천">인천</option></select>
+                </div>
+                <div class="filter-field"><label>범위</label>
+                  <select id="collectMode"><option value="jeonche">전체(최신)</option><option value="all-seoul">서울 전역(하위지역)</option></select>
+                </div>
+                <div class="filter-field"><label>최대 건수</label>
+                  <input type="number" id="collectLimit" value="20" min="1" max="60">
+                </div>
+                <div class="filter-field"><label>재수집</label>
+                  <label style="display:flex;align-items:center;gap:6px;height:38px;cursor:pointer;font-size:13px;"><input type="checkbox" id="collectReset"> 커서 리셋(처음부터)</label>
+                </div>
+                <button class="btn-search-red" id="collectBtn" onclick="collectScrape()"><svg class="icon"><use href="#icon-search"></use></svg> 최신 캠페인 수집</button>
+                <button class="btn-ghost" id="collectReparseBtn" onclick="collectReparse()">검수 재파싱</button>
+              </div>
+              <div class="collect-status" id="collectStatus"></div>
+            </div>
+
+            <div class="form-card" style="margin-top:12px;">
+              <div class="form-section-title">AI 자동등록 (오토파일럿)</div>
+              <div class="reg-notice">승인 대기 항목을 규칙+AI로 검수해 확실한 건 자동등록(지도 반영), 애매한 건 ‘승인 대기’에 사유와 함께 남깁니다. <b>평소엔 로컬 크롤러가 수집 직후 자동 실행</b>하며, 아래 버튼은 지금 즉시 돌리거나 미리 볼 때만 사용해요.</div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <button class="btn-ghost" id="autopilotDryBtn" onclick="execAutopilot(true)">미리보기 (등록 안 함)</button>
+                <button class="btn-search-red" id="autopilotRunBtn" onclick="execAutopilot(false)"><svg class="icon"><use href="#icon-search"></use></svg> 지금 자동등록 실행</button>
+              </div>
+              <div class="collect-status" id="autopilotStatus"></div>
+              <div id="autopilotDecisions"></div>
+            </div>
+          </details>
         </div><!-- /#sub-reg-collect -->
       </div><!-- /#page-register -->
 

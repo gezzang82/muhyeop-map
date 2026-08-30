@@ -681,3 +681,12 @@ body {
 .collect-status { font-size: 13px; color: #555; margin-top: 10px; }
 .collect-status:empty { display: none; }
 .collect-subtab-bar { margin: 16px 0; }
+
+/* 데이터 수집: 수동 도구 접기 (자동화 후 보조 도구화) */
+.collect-manual { margin-top: 18px; border: 1px solid var(--border); border-radius: 10px; background: #fafafb; }
+.collect-manual > summary { cursor: pointer; padding: 12px 16px; font-size: 13.5px; font-weight: 600; color: #666; list-style: none; user-select: none; }
+.collect-manual > summary::-webkit-details-marker { display: none; }
+.collect-manual > summary::before { content: '▸ '; color: #aaa; }
+.collect-manual[open] > summary::before { content: '▾ '; }
+.collect-manual[open] > summary { border-bottom: 1px solid var(--border); }
+.collect-manual > .form-card { margin: 12px 16px; }
