@@ -955,11 +955,15 @@ function soAddress(html) {
   return m ? m[1].replace(/\s+/g, ' ').trim() : '';
 }
 function soContent(txt, html) {
-  const m = txt.match(/제공내역\s*([\s\S]*?)\s*(?:\*|상세\s*제공내역|방문가능시간|크리에이터\s*모집|위치|리뷰어|유의사항)/);
-  let c = m ? m[1].replace(/\/\/-->|<!--|-->/g, ' ').replace(/[/|]+/g, ' ').replace(/\s+/g, ' ').trim() : '';
-  const dm = c.match(/^(.{4,}?)\s+\1$/); if (dm) c = dm[1]; // "X X" 연속 중복 제거
-  // 제공내역이 이미지/주석이라 비었으면 카카오 공유 설명(캠페인 소개)으로 폴백
-  if (c.replace(/[^가-힣0-9A-Za-z]/g, '').length < 2 && html) {
+  // 협찬내용 = 크리에이터모집 위의 tit_v3 (예: "70,000원 상당의 자유이용권")
+  let c = ((html && html.match(/tit_v3[^>]*>([\s\S]*?)<\/strong>/)) || [])[1] || '';
+  c = c.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!c) { // 폴백1: '제공내역' 자유텍스트
+    const m = txt.match(/제공내역\s*([\s\S]*?)\s*(?:\*|상세\s*제공내역|방문가능시간|크리에이터\s*모집|위치|리뷰어|유의사항)/);
+    c = m ? m[1].replace(/\/\/-->|<!--|-->/g, ' ').replace(/[/|]+/g, ' ').replace(/\s+/g, ' ').trim() : '';
+    const dm = c.match(/^(.{4,}?)\s+\1$/); if (dm) c = dm[1]; // "X X" 연속 중복 제거
+  }
+  if (c.replace(/[^가-힣0-9A-Za-z]/g, '').length < 2 && html) { // 폴백2: 카카오 공유 설명
     c = ((html.match(/content:\s*\{[\s\S]*?description:\s*"([^"]+)"/) || [])[1] || '').replace(/&amp;/g, '&').replace(/\\n/g, ' ').trim();
   }
   return c;
