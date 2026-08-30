@@ -594,10 +594,13 @@ function renderMarkers() {
   // 점마다 DOM을 만들지 않으므로 저줌에서 매장이 수천이어도 생성되는 마커 DOM은 '보이는 셀 수'(수백)로 상한.
   // → 줌아웃 시 수천 DOM을 destroy/재생성하던 폭증이 사라짐. 개수는 셀 내 합산이라 정확.
   const z = map.getZoom();
+  // 이 줌을 초과하면 클러스터 없이 매장별 개별핀(셀 키를 매장ID로) → 검색 focus/상세오픈이 항상 개별핀을 잡음.
+  // (구 네이버 MarkerClustering의 maxZoom:14 동작 복원. 저줌에서만 격자로 뭉쳐 성능 확보, 고줌은 개별핀.)
+  const CLUSTER_MAX_ZOOM = 14;
   const cellDeg = 72 * 360 / (256 * Math.pow(2, z)); // 화면 ~72px를 도(°)로(경도 기준, 국내 위·경도 공용 근사)
   const cells = new Map();
   for (const place of visiblePlaces) {
-    const key = Math.floor(place.lng / cellDeg) + ':' + Math.floor(place.lat / cellDeg);
+    const key = (z > CLUSTER_MAX_ZOOM) ? ('p' + place.id) : (Math.floor(place.lng / cellDeg) + ':' + Math.floor(place.lat / cellDeg));
     let c = cells.get(key);
     if (!c) { c = { list: [], sumLat: 0, sumLng: 0 }; cells.set(key, c); }
     c.list.push(place); c.sumLat += place.lat; c.sumLng += place.lng;
