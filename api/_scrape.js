@@ -1313,7 +1313,18 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0, region = '' }) {
 const OMB_BASE = 'https://ohmyblog.co.kr';
 const OMB_SNS = { NAVER_BLOG_POST: '블로그', NAVER_BLOG: '블로그', NAVER_CLIP: '클립', INSTAGRAM: '인스타그램', INSTAGRAM_POST: '인스타그램', INSTAGRAM_REELS: '릴스', YOUTUBE: '유튜브' }; // 쇼츠·틱톡은 매핑 없음(제외)
 const ombMapCh = (s) => [...new Set(String(s || '').split(',').map((x) => OMB_SNS[x.trim().toUpperCase()]).filter(Boolean))].join(',');
-const ombName = (n) => String(n || '').replace(/^\s*\[[^\]]*\]\s*/, '').trim(); // "[용인] 매장명" → "매장명"
+// 매장명 정제: "[용인]" 접두 제거 + 언더바→공백 + 괄호 정리.
+// 괄호가 '…점'으로 끝나면 지점명 → 괄호만 벗겨 공백 연결("리핸즈헤어(익산영등점)"→"리핸즈헤어 익산영등점").
+// 그 외 괄호("(키오)"·"(블로그+클립)"·"(릴스)"·"(야외프로필)" 등 채널/태그/설명) → 통째로 제거.
+const ombName = (n) => String(n || '')
+  .replace(/^\s*\[[^\]]*\]\s*/, '')
+  .replace(/^[가-힣]{1,6}\)\s*/, '') // 잘못된 "양산)" 류(닫힘괄호만 있는) 지역접두 제거
+  .replace(/_/g, ' ')
+  .replace(/\s*\(([^)]*)\)/g, (m, g) => { const t = g.trim(); return /점$/.test(t) ? ' ' + t : ''; })
+  .replace(/\s*\d+\s*개\s*지점/g, '') // "울산 4개지점" 다지점 표기 → 수량표기 제거("메디앤컬필라테스 울산")
+  .replace(/[()]/g, '') // 남은 홀짝 안 맞는 스트레이 괄호 제거
+  .replace(/\s+/g, ' ')
+  .trim();
 async function ombFetch(path) {
   const res = await fetch(`${OMB_BASE}${path}`, { headers: { 'User-Agent': UA, Accept: 'application/json', Referer: `${OMB_BASE}/` } });
   if (!res.ok) return null;
@@ -1339,7 +1350,9 @@ async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
       if (c.app_type !== 'A' && c.app_type !== 'C') { excluded++; continue; } // 제품체험(B) 등 배송형 제외
       const channel = ombMapCh(c.sns_platforms);
       if (!channel) { excluded++; continue; } // 쇼츠/틱톡 전용 등 지원 채널 없음
-      const name = ombName(c.app_companyName || c.com_companyName);
+      const rawName = c.app_companyName || c.com_companyName || '';
+      if (/\d+\s*개\s*지점/.test(rawName)) { excluded++; continue; } // 다지점(N개지점) 캠페인은 지점 1곳만 주소가 와 핀 1개 모델과 안 맞음 → 제외
+      const name = ombName(rawName);
       if (!name) { excluded++; continue; }
       if (processed >= limit) { timedOut = true; break; }
       processed++;
