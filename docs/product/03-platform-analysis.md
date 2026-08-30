@@ -143,9 +143,21 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
 
 ## 6. 플랫폼 확장 가이드
 `_scrape.js`에 플랫폼별 `{ listUrl, extractIds, cursorOf, parseDetail }` 모듈로 분리. 새 플랫폼 추가 시:
-1. **robots.txt 확인**(서울오빠=`Disallow: /` 전면차단 → 제외한 실제 사례). 허용 SSR: 디너의여왕·강남맛집·서울오빠(robots막힘)·포블로그·링블·리뷰플레이스. 막힘/SPA: 리뷰노트·미블·레뷰·체험뷰.
+1. **robots.txt 확인**(서울오빠=`Disallow: /` 전면차단 → 제외한 실제 사례). 허용 SSR: 디너의여왕·강남맛집·서울오빠(robots막힘)·포블로그·링블·리뷰플레이스. 막힘/SPA: 리뷰노트(→v2 공개API로 우회)·미블·레뷰·체험뷰.
 2. ToS 확인(디너의여왕 9조 g=영리목적 이용 동의). 저빈도·사실필드·사람승인·출처링크백 유지. 장기=제휴.
 3. 파서 작성 후 CLI로 소량 검증 → 어드민 연결.
+
+**플랫폼 등록 touchpoint (새 플랫폼 하나 추가 시 손봐야 할 곳)**:
+1. `api/_scrape.js` — `runXxx()` 파서 함수 + `runScrape()` 디스패치 분기(영문키·한글명 둘 다 인식) + `module.exports`
+2. `scripts/crawl-worker.js` — pass에 `runScrape({platform})` 호출 + 이어서 `runAutopilot` (자동 수집 스케줄)
+3. **UI 플랫폼 select 4곳** — 옵션 추가:
+   - `index.html` `#inputPlatform` — **유저 제보 폼**(한글명)
+   - `admin.html` `#addPlatform` — **어드민 캠페인 등록 폼**
+   - `admin.html` `#cvPlatform` — **어드민 조회(캠페인) 필터**
+   - `admin.html` `#collectPlatform` — **어드민 수동수집**(runScrape 키와 일치, 영문키)
+4. `app.js` `PLATFORM_COLORS` — 핀/뱃지 브랜드 색상(없으면 `getPlatformColor` 회색 `#666` fallback). 무협맵은 로고 이미지가 아니라 **색상 뱃지** 방식
+- ⚠️ 표기 불일치: 제보폼·`#addPlatform`·`#cvPlatform`·`PLATFORM_COLORS`는 **한글명**, `#collectPlatform`은 **영문키**(`reviewnote`·`gangnam`…). `runScrape`가 둘 다 받으니 규칙만 맞추면 됨.
+- ⚠️ 현재 제보폼·조회필터·색상엔 아직 자동수집 안 하는 레뷰·미블·리뷰플레이스·체험뷰가 미리 들어있음(유저 수동제보용). 자동수집 신규 플랫폼은 위 전 지점에 추가해야 함.
 
 ## 7. 정책 주의 (매 플랫폼)
 자동수집 정책은 플랫폼마다 다름. 기술적으로 증분이 최선이어도 **약관·데이터정책은 플랫폼별로 확인**. 사업 지속 관점에서 제휴가 안전한 경로.
