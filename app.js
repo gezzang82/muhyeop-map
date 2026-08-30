@@ -302,10 +302,25 @@ function hasPlatformAlready(placeId, platform) {
 }
 
 // ===== 지도 초기화 =====
+// 마지막(직전 방문에서 확인된) 내 위치 캐시. 재방문 시 서울 기본값 대신 이 좌표로 바로 시작해
+// "서울 → 내 위치 점프" 플래시를 없앰(첫 방문만 서울). localStorage 접근은 실패할 수 있어 try/catch.
+const MAP_CENTER_KEY = 'mh_last_center';
+function getSavedMapCenter() {
+  try {
+    const s = JSON.parse(localStorage.getItem(MAP_CENTER_KEY) || 'null');
+    if (s && typeof s.lat === 'number' && typeof s.lng === 'number'
+        && s.lat >= 33 && s.lat <= 39 && s.lng >= 124 && s.lng <= 132) return s;
+  } catch (e) {}
+  return null;
+}
+function saveMapCenter(lat, lng) {
+  try { localStorage.setItem(MAP_CENTER_KEY, JSON.stringify({ lat, lng })); } catch (e) {}
+}
 function initMap() {
+  const saved = getSavedMapCenter(); // 재방문이면 마지막 내 위치, 첫 방문이면 null(→서울)
   map = new naver.maps.Map('map', {
-    center: new naver.maps.LatLng(37.5563, 126.9980),
-    zoom: 11,
+    center: new naver.maps.LatLng(saved ? saved.lat : 37.5563, saved ? saved.lng : 126.9980),
+    zoom: saved ? 15 : 11,
     mapTypeControl: false,
     scaleControl: false,
     logoControl: true,
@@ -461,6 +476,7 @@ function tryInitialLocation() {
   getGeoPosition().then(({ lat, lng }) => {
     const inKorea = lat >= 33 && lat <= 39 && lng >= 124 && lng <= 132;
     if (!inKorea) return; // 해외 등 국내 밖이면 서울 기본 유지
+    saveMapCenter(lat, lng); // 다음 방문 때 이 좌표로 바로 시작(서울 플래시 제거)
     map.setCenter(new naver.maps.LatLng(lat, lng));
     map.setZoom(15);
     showMyLocationMarker(lat, lng);
