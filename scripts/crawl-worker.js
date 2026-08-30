@@ -103,6 +103,15 @@ async function pass() {
     remaining = soa.remaining;
     console.log(`  [${ts()}] └ [서울오빠] AI검증: 자동등록 ${soa.registered} · 검수 ${soa.review} · 스킵 ${soa.skipped} · 남은대기 ${soa.remaining}`);
   }
+  // 리뷰노트 (목록 SSR 무인증 → 방문형·실지역만, 매장명+지역으로 도로명 해석, 전국 1회)
+  if (!stopping) {
+    const rn = await runScrape({ db, platform: '리뷰노트', limit: 400 });
+    if ((rn.newCandidates || 0) > (rn.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(리뷰노트): 처리 ${rn.processed} · 적재 ${rn.staged} · 좌표실패 ${rn.geoFail} · 중복 ${rn.dupActive} · 제외 ${rn.excluded}`);
+    const rna = await runAutopilot({ db });
+    remaining = rna.remaining;
+    console.log(`  [${ts()}] └ [리뷰노트] AI검증: 자동등록 ${rna.registered} · 검수 ${rna.review} · 스킵 ${rna.skipped} · 남은대기 ${rna.remaining}`);
+  }
   return { collected, more, remaining };
 }
 

@@ -623,6 +623,7 @@ async function runScrape({ db, platform, mode, limit, region, deadlineTs }) {
   if (platform === 'gangnam' || platform === '강남맛집') return runGangnam({ db, limit, deadlineTs });
   if (platform === 'ringble' || platform === '링블') return runRingble({ db, limit, deadlineTs });
   if (platform === 'seoulouba' || platform === '서울오빠') return runSeouloba({ db, limit, deadlineTs });
+  if (platform === 'reviewnote' || platform === '리뷰노트') return runReviewnote({ db, limit, deadlineTs });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs });
 }
 
@@ -1159,4 +1160,91 @@ async function runSeouloba({ db, limit = 300, deadlineTs = 0 }) {
   return { platform, newCandidates: processed, processed, staged, excluded, dupActive, failed, timedOut };
 }
 
-module.exports = { categoryByKeyword, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+// ===== 리뷰노트 (reviewnote.co.kr) =====
+// 목록이 Next.js SSR(__NEXT_DATA__)이라 로그인 없이 캠페인 리스트를 뽑는다(상세는 Firebase 인증 필요).
+// 방문형(sort=VISIT)·실제 시/도만. 도로명 주소는 상세에만 있어 매장명+지역으로 로컬검색해 road 주소를 해석·저장
+// → 이후 오토파일럿이 그 도로명으로 NCP 정밀 지오코딩(타 플랫폼과 동일 정확도).
+const RN_BASE = 'https://www.reviewnote.co.kr';
+const RN_REAL_SIDO = new Set(['서울', '경기', '인천', '강원', '대전', '세종', '충남', '충북', '부산', '울산', '경남', '경북', '대구', '광주', '전남', '전북', '제주']);
+const RN_CAT = { 맛집: '음식점', 식품: '음식점', 뷰티: '뷰티', 여행: '숙박/여가', 디지털: '기타', 반려동물: '기타', 기타: '기타' };
+// 쇼츠/틱톡은 앱에 없어 제외(매핑 없음 → '' → 스킵). BLOG_CLIP은 블로그+클립.
+const RN_CH = { BLOG: '블로그', BLOG_CLIP: '블로그,클립', BLOGCLIP: '블로그,클립', INSTAGRAM: '인스타그램', INSTA: '인스타그램', REELS: '릴스', CLIP: '클립', YOUTUBE: '유튜브' };
+const rnMapCh = (c) => RN_CH[String(c || '').toUpperCase()] || '';
+const rnCleanName = (t) => String(t || '').replace(/^\s*(?:\[[^\]]*\]\s*)+/, '').replace(/\s*[/·]\s*$/, '').trim();
+function rnDeadline(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; return new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10); }
+async function rnFetchPage(page) {
+  const t = await fetchText(`${RN_BASE}/campaigns?page=${page}`);
+  const m = t.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) return null;
+  try { return JSON.parse(m[1]).props.pageProps.data; } catch (e) { return null; }
+}
+async function rnNaverLocal(q) {
+  const res = await fetch(`https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(q)}&display=5`, { headers: { 'X-Naver-Client-Id': process.env.NAVER_SEARCH_CLIENT_ID, 'X-Naver-Client-Secret': process.env.NAVER_SEARCH_CLIENT_SECRET } });
+  if (!res.ok) return []; try { return (await res.json()).items || []; } catch (e) { return []; }
+}
+// 매장명+지역으로 로컬검색 → 시군구 일치하는 결과의 도로명 주소 반환(못 찾으면 null=스킵)
+async function rnResolveAddress(name, city, sigungu) {
+  for (const q of [`${name} ${city} ${sigungu}`, `${name} ${sigungu}`, `${name} ${city}`]) {
+    let items = []; try { items = await rnNaverLocal(q); } catch (e) {}
+    for (const it of items) {
+      const a = (it.roadAddress || it.address || '').trim();
+      const lat = Number(it.mapy) / 1e7, lng = Number(it.mapx) / 1e7;
+      if (!(lat >= 33 && lat <= 39.6 && lng >= 124.5 && lng <= 132)) continue;
+      if (sigungu && !a.includes(sigungu)) continue; // 시군구 일치 검증(오지역 방지)
+      return a;
+    }
+    await sleep(150);
+  }
+  return null;
+}
+async function runReviewnote({ db, limit = 300, deadlineTs = 0 }) {
+  const platform = '리뷰노트';
+  const today = new Date().toISOString().slice(0, 10);
+  const dedupe = await loadDedupe(db);
+  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='리뷰노트'")).rows.map((r) => Number(r.source_id)));
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, geoFail = 0, timedOut = false;
+  for (let page = 1; page <= 30; page++) {
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    let data; try { data = await rnFetchPage(page); } catch (e) { break; }
+    if (!data || !Array.isArray(data.objects) || !data.objects.length) break;
+    for (const o of data.objects) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      const id = Number(o.id);
+      if (doneIds.has(id)) continue;
+      // 방문형 + 실제 시/도 + 지원 채널만
+      const channel = rnMapCh(o.channel);
+      const city = (o.city || '').trim(), sigungu = ((o.sido || {}).name || '').trim();
+      if (o.sort !== 'VISIT' || !RN_REAL_SIDO.has(city) || !channel) { excluded++; continue; }
+      if (processed >= limit) { timedOut = true; break; }
+      processed++;
+      try {
+        const name = rnCleanName(o.title);
+        if (!name) { excluded++; continue; }
+        const address = await rnResolveAddress(name, city, sigungu);
+        await sleep(120);
+        if (!address) { geoFail++; continue; } // 도로명 못 찾으면 스킵(이벤트·팝업 등)
+        const category = categoryByKeyword(o.offer || '', name) || RN_CAT[(o.category || {}).title] || '기타';
+        const cls = classify({ name, channel, address }, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; continue; }
+        const ins = await db.execute({
+          sql: `INSERT OR IGNORE INTO scraped_items
+            (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+            VALUES (?,?,?,?,?,?,?,?,?,'','',0,'',?,?,'pending')`,
+          args: [platform, id, `${RN_BASE}/campaigns/${id}`, name, address, category, channel, o.offer || '', rnDeadline(o.applyEndAt), cls.status, cls.matchedPlaceId],
+        });
+        if (ins.rowsAffected > 0) staged++;
+      } catch (e) { failed++; }
+    }
+    if (timedOut || processed >= limit) break;
+    if (!data.has_more) break;
+    await sleep(400);
+  }
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('리뷰노트', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive, `방문형 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 좌표실패 ${geoFail}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut };
+}
+
+module.exports = { categoryByKeyword, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
