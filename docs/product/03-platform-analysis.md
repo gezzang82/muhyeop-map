@@ -211,3 +211,51 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
 
 **v1 한계(개선 여지)**: ①주소가 지역태그(예: "인천 미추홀") 수준이라 일반적 매장명은 지오코딩 실패→검수 가능(온앤오프류). 정밀화하려면 상세의 [방문 및 예약] 주소나 **[플레이스 URL] naver.me→m.place.naver.com/restaurant/{id}로 매장명·정확좌표** 확보(상세 fetch 1회 추가). ②마감 근사(N일남음). ③상세에 있는 정확 주소·플레이스URL은 미사용.
 - 참고: 상세 `/cp/?id=N`은 `<dt>라벨</dt><dd>값</dd>` 구조(주석 제거 후). naver.me는 리다이렉트 추적 시 `m.place.naver.com/restaurant/{placeId}`로 og:title(매장명)+좌표(x/y) 확보 가능(정밀화 시 사용).
+
+## 10. 확장 후보 — 리뷰노마드 커버리지 전수 조사 (2026-08-30)
+
+경쟁사 리뷰노마드([11-competition](11-competition.md))가 **~27개 플랫폼**을 집계 → 무협맵(현재 6개: 디너의여왕·강남맛집·리뷰노트·서울오빠·포블로그·링블)이 안 다루는 **21개의 무인증 파싱 가능성을 전수 조사**. 기준: ①로그인 없이 목록 접근 가능한가(**A**=SSR/`__NEXT_DATA__`, **B**=공개 JSON API, **C**=인증필요·불가) ②방문형+위치(매장 지도라 필수) ③파싱 난이도.
+
+### 즉시 착수 (🟢 상 — 무인증·방문형·위치 확보) 12곳
+
+| 플랫폼 | 도메인 | 접근 | 위치 정밀도 | 근거(엔드포인트) |
+|---|---|---|---|---|
+| **오마이블로그** | ohmyblog.co.kr | B 공개API | **전체주소** | `GET /api/web/campaign/active?page=&limit=`(무인증, total 397) + `/api/web/campaign/detail?app_seq=`(`com_address1`·방문시간·공휴일). 방문형 92%, 스키마 1:1 |
+| **구구다스** | 99das.com | B 공개API | **주소+좌표** | `POST /amz/list/cmpnList.do`(`cmpnDcd=AMZ027.001`=방문형) + `/amz/cmpn/amzCmpnDtl.do?cmpnId=`(상세에 카카오맵 좌표 SSR → 지오코딩 불필요). 부산/경남 |
+| **스토리앤미디** | storyn.kr(cafe24) | A SSR | **전체주소+네이버플레이스** | `review_campaign_list.php` + `review_campaign.php?cp_id=`. place id로 좌표 정확 |
+| **리뷰플레이스** | reviewplace.co.kr | A SSR | **전체주소** | `/pr/?ct1=지역&ct2=방문형` + `/pr/?id=`(매장명·주소·네이버플레이스·마감). ~1,600건 |
+| **아싸뷰** | assaview.co.kr | A SSR | 도로명주소 | `campaign_list.php?type=area`(방문형 탭) + `campaign.php?cp_id=` |
+| **체험뷰** | chvu.co.kr | B 공개API | 지번주소 | `GET /v2/campaigns?category=search&page=N` + `/v2/campaigns/{id}`(`address1`). `activities=visit` 필터 |
+| **포포몬** | popomon.com | B 공개API | 도로명주소 | `POST /api_p/campaign/fetch_getcampaignlist?recruitType=visiting` + detail. 부산 소재 |
+| **놀러와체험단** | cometoplay.kr | A SSR(gnuboard) | 전체주소(좌표X) | `item_list.php?category_id=001` + `item.php?it_id=`. 지오코딩 필요 |
+| **데일리뷰** | dailyview.kr | A SSR(PHP) | 시/구(지오코딩) | `review_campaign_list.php?category_id=001A`(방문형: 맛집/뷰티/숙박) + `review_campaign.php?cp_id=` |
+| **클립뷰** | 클립뷰.kr(`xn--5y2bw0fi0u.kr`) | A SSR(PHP) | 시/구(상세 도로명) | `cv_campaign_list.php?category_id=001A`(방문형) + `cv_campaign.php?cp_id=` |
+| **티블** | tble.kr | A SSR(PHP) | 시/구(지오코딩) | `category.php?type=l&ca=맛집` + `view.php?cp_id=`. 방문형 물량 많음, 프랜차이즈 오매칭 주의 |
+| **리뷰진** | reviewjin.com | B 공개API | 도로명주소 | **`POST /`(호스트 루트 RPC)** body `{cat:'campaign',cmd:'campaign_list',page,amount}`→JSON(`upjang_name`·`road_addr`). ⚠️`/api/campaigns`는 SPA HTML 폴백이라 함정. 활성 ~39건 소규모 |
+
+### 조건부 (🟡 중) 4곳
+
+| 플랫폼 | 접근 | 제약 |
+|---|---|---|
+| **클라우드리뷰**(cloudreview.co.kr) | A SSR·지역필터 | 정확 매장명·주소가 **로그인 게이트**(시/군/구 근사만) |
+| **가보자체험단**(`xn--o39a04kpnjo4k9hgflp.com`) | 상세=A SSR(전체주소+좌표링크) | **목록이 JS렌더** → 목록 API 발굴/ID 순회 필요 |
+| **체험단닷컴**(chehumdan.com) | A SSR | 방문형/재택 혼재, 상세 주소 정밀도 미검증 |
+| **후기업**(whogiup.com) | B(대표 캠페인만) | `POST /api/mainPageBest` 무인증(주소·전화 완비)이나 **전체목록 `/api/campList`는 401** |
+
+### 제휴/제외 (🔴 하) 5곳
+
+| 플랫폼 | 사유 |
+|---|---|
+| **레뷰(REVU)**(revu.net) | 최대어(월 ~1.5만건)지만 **OAuth 인증벽**(`api.weble.net`→401), SSR/임베드JSON 없음 → **제휴만** |
+| **미블(MRBLE)**(mrblog.net) | 전 라우트 Laravel **로그인 게이트**(302→/login) → 제휴/보류 |
+| **파인앳플**(fineadple.com) | **2026-06-30 서비스 종료** |
+| **블로그원정대** | 도메인 폐쇄(NXDOMAIN), 후속 리뷰원정대.com도 방문형 재고 0 |
+| **리뷰조아** | 체험단 웹 소스 없음(검색 도메인은 판촉물 쇼핑몰), 앱 전용 추정 |
+
+### 착수 우선순위 & 시사점
+1. **최우선 4곳(공개API·주소/좌표 완비, 유지보수 최소)**: 오마이블로그 → 구구다스 → 스토리앤미디 → 리뷰플레이스. 좌표/전체주소가 있어 지오코딩 부담 적음.
+2. 그다음 **SSR+지오코딩군**: 아싸뷰·체험뷰·포포몬·놀러와·데일리뷰·클립뷰·티블 (기존 링블/서울오빠와 동일 패턴, `api/_geocode.js` NCP 경유).
+3. **레뷰·미블(최대형)은 인증벽** → 스크래핑 불가, 장기 **제휴 트랙**. 경쟁사도 이 둘은 정식 수집이 아닐 가능성.
+4. **효과**: 상 12곳 추가 시 무협맵 6→**~18개** → 리뷰노마드(27)와 커버리지 격차 대부분 해소.
+5. 각 소스마다 **robots/약관 확인 + `07-legal-review` 기조**(사실필드·원문 미복제·자체 지오코딩·링크백) 동일 적용. 구현은 `api/_scrape.js`에 `runXxx` 러너 추가 + `runScrape` 분기(기존 6개와 동일 구조), 오토파일럿·중복방지·검수큐 인프라 재사용.
+6. 비공식 내부 API(`/api_p/`·`/v2/`·`cmpnList.do`·`POST /`)는 스키마 변경·차단 가능 → 보수적 파싱 + fail-safe.
