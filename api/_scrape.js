@@ -825,12 +825,16 @@ function rbHoursDays(txt) {
   // 기준: 가용 있으면 그걸, 없고 제외만 있으면 전체(=제외만 뺌), 둘 다 없으면 미상(빈값)
   const base = avail.size ? avail : (closed.size ? new Set(ALL_DAYS) : new Set());
   const days = ALL_DAYS.filter((d) => base.has(d) && !closed.has(d));
+  // 브레이크타임 범위는 영업시간이 아니라 쉬는 시간 → 시간에서 분리해 "(브레이크 …)"로 표시
+  const brk = val.match(/브레이크\s*타?임?[^0-9]{0,4}(\d{1,2}):(\d{2})\s*[~\-–]\s*(\d{1,2}):(\d{2})/);
+  const valH = brk ? val.replace(/브레이크\s*타?임?[^0-9]{0,4}\d{1,2}:\d{2}\s*[~\-–]\s*\d{1,2}:\d{2}/g, ' ') : val;
   // 시간: 깔끔한 HH:MM~HH:MM 범위가 있으면 그것만(요일/공휴일 제한 문구 제거), 없으면(시/분 자유텍스트) 라벨만 떼고 보존
-  const times = [...val.matchAll(/(\d{1,2}):(\d{2})\s*(?:부터)?\s*[~\-–]\s*(?:오전|오후)?\s*(\d{1,2}):(\d{2})/g)].map((mm) => `${mm[1]}:${mm[2]}~${mm[3]}:${mm[4]}`);
-  const hours = times.length
+  const times = [...valH.matchAll(/(\d{1,2}):(\d{2})\s*(?:부터)?\s*[~\-–]\s*(?:오전|오후)?\s*(\d{1,2}):(\d{2})/g)].map((mm) => `${mm[1]}:${mm[2]}~${mm[3]}:${mm[4]}`);
+  let hours = times.length
     ? [...new Set(times)].join(' / ')
-    : val.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/, '')
+    : valH.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/, '')
         .replace(/\s*(?:제한인원|최소\s*\d|사전\s*예약|예약\s*연락|예약\s*필수|본\s*캠페인|리뷰\s*작성|★|※)[\s\S]*$/, '').trim(); // 뒤 안내문 컷
+  if (brk && hours) hours += ` (브레이크 ${brk[1]}:${brk[2]}~${brk[3]}:${brk[4]})`;
   // 공휴일 방문/예약 불가 → 공휴일 제외 플래그
   const excludeHoliday = /공휴일(?![\s\S]{0,20}?가능)[\s\S]{0,30}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val) ? 1 : 0;
   return { days: days.join(','), hours, excludeHoliday };
@@ -945,9 +949,14 @@ function soAddress(html) {
   const m = html.match(/map_adress[\s\S]*?txt_short[^>]*>\s*([^<]+?)\s*</);
   return m ? m[1].replace(/\s+/g, ' ').trim() : '';
 }
-function soContent(txt) {
+function soContent(txt, html) {
   const m = txt.match(/제공내역\s*([\s\S]*?)\s*(?:\*|방문가능시간|크리에이터\s*모집|위치|리뷰어|유의사항)/);
-  return m ? m[1].replace(/\s+/g, ' ').trim() : '';
+  let c = m ? m[1].replace(/\/\/-->|<!--|-->/g, ' ').replace(/[/|]+/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  // 제공내역이 이미지/주석이라 비었으면 카카오 공유 설명(캠페인 소개)으로 폴백
+  if (c.replace(/[^가-힣0-9A-Za-z]/g, '').length < 2 && html) {
+    c = ((html.match(/content:\s*\{[\s\S]*?description:\s*"([^"]+)"/) || [])[1] || '').replace(/&amp;/g, '&').replace(/\\n/g, ' ').trim();
+  }
+  return c;
 }
 function soDeadline(txt) {
   const m = txt.match(/크리에이터\s*모집[\s\S]{0,20}?~\s*(\d{2})-(\d{2})-(\d{2})/);
@@ -958,7 +967,7 @@ async function soScrapeDetail(c) {
   const txt = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
   const { name, channel } = soName(html);
   const hd = rbHoursDays(txt); // "방문가능시간 : 월~일 17:30~19:30" — 링블과 동일 형식
-  return { name, channel, content: soContent(txt), address: soAddress(html), days: hd.days, hours: hd.hours, excludeHoliday: hd.excludeHoliday, deadline: soDeadline(txt), placeUrl: (html.match(/https?:\/\/naver\.me\/[A-Za-z0-9]+/) || [])[0] || '' };
+  return { name, channel, content: soContent(txt, html), address: soAddress(html), days: hd.days, hours: hd.hours, excludeHoliday: hd.excludeHoliday, deadline: soDeadline(txt), placeUrl: (html.match(/https?:\/\/naver\.me\/[A-Za-z0-9]+/) || [])[0] || '' };
 }
 const soParseList = (html) => [...new Set([...html.matchAll(/campaign\/\?c=(\d+)/g)].map((m) => Number(m[1])))];
 async function runSeouloba({ db, limit = 300, deadlineTs = 0 }) {
