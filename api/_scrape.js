@@ -1330,6 +1330,38 @@ async function ombFetch(path) {
   if (!res.ok) return null;
   try { return await res.json(); } catch (e) { return null; }
 }
+// 방문시간/요일 파서 — appDe_visitInstruction의 "[요일 시간]" 대괄호에서 추출(visitInfo 구조화필드는 비어있음).
+// 예: "[평일 10:00~20:00] ❌주말·공휴일 불가", "[월-금 10:00~20:00] [토 10:00~18:00]", "[화,수,목,금 …]".
+const OMB_ALLDAYS = ['월', '화', '수', '목', '금', '토', '일'], OMB_WD = ['월', '화', '수', '목', '금'];
+const ombNormTime = (x) => String(x).replace(/(\d{1,2})\s*시\s*(\d{2})\s*분?/g, (m, h, mm) => h.padStart(2, '0') + ':' + mm).replace(/(\d{1,2})\s*시/g, (m, h) => h.padStart(2, '0') + ':00');
+function ombDaysFromLabel(label) {
+  const s = new Set(); let L = String(label).replace(/요일/g, '');
+  if (/매일/.test(L)) { OMB_ALLDAYS.forEach((d) => s.add(d)); return s; }
+  if (/평일/.test(L)) OMB_WD.forEach((d) => s.add(d));
+  if (/주말/.test(L)) { s.add('토'); s.add('일'); }
+  L = L.replace(/평일|매일|주말/g, '');
+  const rng = L.match(/([월화수목금토일])\s*[~\-]\s*([월화수목금토일])/);
+  if (rng) { const a = OMB_ALLDAYS.indexOf(rng[1]), b = OMB_ALLDAYS.indexOf(rng[2]); if (a >= 0 && b >= 0 && a <= b) for (let i = a; i <= b; i++) s.add(OMB_ALLDAYS[i]); }
+  (L.match(/[월화수목금토일]/g) || []).forEach((d) => s.add(d));
+  return s;
+}
+function ombHoursDays(raw) {
+  const t = ombNormTime(stripTags(String(raw || '')));
+  const brackets = [...t.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim());
+  const timed = brackets.filter((b) => /\d{1,2}:\d{2}/.test(b));
+  const hours = timed.map((b) => b.replace(/요일/g, '').replace(/\s*-\s*/g, '~').replace(/\s+/g, ' ').trim()).join(' / ');
+  const set = new Set();
+  timed.forEach((b) => { b.split(/\s*\/\s*/).forEach((seg) => ombDaysFromLabel(seg.split(/\d{1,2}:\d{2}/)[0]).forEach((d) => set.add(d))); });
+  brackets.filter((b) => !/\d/.test(b) && !/휴무|불가/.test(b)).forEach((b) => ombDaysFromLabel(b).forEach((d) => set.add(d)));
+  if (/주말[^.]{0,12}(불가|휴무|안됨|안돼)/.test(t)) { set.delete('토'); set.delete('일'); }
+  if (/일요일[^.]{0,12}(휴무|불가)|매주\s*일요일/.test(t)) set.delete('일');
+  if (/토(요일)?[^.]{0,12}(휴무|불가)/.test(t)) set.delete('토');
+  const excludeHoliday = /공휴일[^.]{0,12}(불가|휴무|안됨)/.test(t) ? 1 : 0;
+  const hasHours = /\d{1,2}:\d{2}/.test(hours);
+  let days = OMB_ALLDAYS.filter((d) => set.has(d)).join(',');
+  if (!hasHours && !brackets.some((b) => /[월화수목금토일]/.test(b) && !/휴무|불가/.test(b))) days = '';
+  return { hours: hasHours ? hours : '', days, excludeHoliday };
+}
 async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
   const platform = '오마이블로그';
   const today = new Date().toISOString().slice(0, 10);
@@ -1362,8 +1394,7 @@ async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
         const dd = dj && dj.data;
         const address = (dd && (dd.com_address1 || dd.appDe_address1)) || '';
         if (!address) { geoFail++; continue; } // 주소 없으면 지오코딩 불가 → 스킵
-        const vi = stripTags(String((dd && dd.appDe_visitInstruction) || ''));
-        const excludeHoliday = /공휴일[\s\S]{0,6}불가|주말[\s\S]{0,10}불가/.test(vi) ? 1 : 0;
+        const { hours, days, excludeHoliday } = ombHoursDays(dd && dd.appDe_visitInstruction);
         const content = c.supplyItem || (dd && dd.appDe_supplyItem) || '';
         const deadline = c.app_recruitEndDate || '';
         const auto = categoryByKeyword(content + ' ' + name, name);
@@ -1375,8 +1406,8 @@ async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
         const ins = await db.execute({
           sql: `INSERT OR IGNORE INTO scraped_items
             (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
-            VALUES (?,?,?,?,?,?,?,?,?,'','',?,?,?,?,'pending')`,
-          args: [platform, id, `${OMB_BASE}/productDetail.apsl?app_seq=${id}`, name, address, category, channel, content, deadline, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+          args: [platform, id, `${OMB_BASE}/productDetail.apsl?app_seq=${id}`, name, address, category, channel, content, deadline, hours, days, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
         });
         if (ins.rowsAffected > 0) staged++;
       } catch (e) { failed++; }
@@ -1391,4 +1422,4 @@ async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
   return { platform, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut };
 }
 
-module.exports = { categoryByKeyword, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
