@@ -819,7 +819,7 @@ function rbHoursDays(txt) {
   const base = avail.size ? avail : (closed.size ? new Set(ALL_DAYS) : new Set());
   const days = ALL_DAYS.filter((d) => base.has(d) && !closed.has(d));
   // 시간: 깔끔한 HH:MM~HH:MM 범위가 있으면 그것만(요일/공휴일 제한 문구 제거), 없으면(시/분 자유텍스트) 라벨만 떼고 보존
-  const times = [...val.matchAll(/(\d{1,2}:\d{2})\s*[~\-–]\s*(\d{1,2}:\d{2})/g)].map((mm) => `${mm[1]}~${mm[2]}`);
+  const times = [...val.matchAll(/(\d{1,2}):(\d{2})\s*(?:부터)?\s*[~\-–]\s*(?:오전|오후)?\s*(\d{1,2}):(\d{2})/g)].map((mm) => `${mm[1]}:${mm[2]}~${mm[3]}:${mm[4]}`);
   const hours = times.length
     ? [...new Set(times)].join(' / ')
     : val.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/, '')
