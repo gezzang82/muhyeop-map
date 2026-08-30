@@ -12,6 +12,11 @@
 - 지도에 마커를 찍고, 마커 클릭 시 정보창(인포윈도우)에 협찬 내용을 보여줌
 - **활성 캠페인 캐시**: `getActiveCampaigns(placeId)`/`hasActiveCampaign`는 매 호출 `campaigns` 전체를 필터링하지 않고, `getActiveByPlaceMap()`가 만든 `placeId→활성캠페인[]` 맵을 재사용(지도 이동마다 O(매장×캠페인) 반복 스캔 제거). 캐시는 **명시적으로만 무효화**(`invalidateActiveCache()`): 데이터 로드 후, 제보 등록(`campaigns.push`) 후, 채널필터 변경(`filterChannel`) 시. `campaigns`를 직접 건드리면 이 무효화를 같이 호출해야 함. PC "총 협찬수"(`updateStatCount`)도 마감/숨김 제외한 활성만 집계.
 
+## 지도 마커 렌더링 / 격자 클러스터링 (`renderMarkers`)
+- **뷰포트 컬링**: 화면(+40% 마진, `viewBoundsWithMargin(0.4)`)에 들어오는 매장만 대상. 지도 idle(줌/이동 멈춤)마다 120ms 디바운스로 재렌더. 회색핀(활성 캠페인 없음)은 `GRAY_PIN_MIN_ZOOM` 이상에서만.
+- **자체 격자(grid) 클러스터링(2026-08-30)**: 네이버 `MarkerClustering`(js/MarkerClustering.js, **점마다 DOM 마커를 만든 뒤 뭉침**)이 매장 1.4만+에서 줌아웃 시 병목 → **supercluster류 격자 방식으로 대체**. 화면 **~72px 셀**(`cellDeg = 72*360/(256*2^zoom)`)로 매장을 버킷팅해 **셀 단위로만** 마커 생성: 셀 2개↑ → 클러스터 1개(`.cluster-marker`, **정확한 합계 개수**, 클릭 시 `setZoom(z+3)` 확대) / 1개 → 개별 핀(`.map-pin`). **점마다 DOM을 안 만들어** 저줌 수천 점도 마커 DOM이 "보이는 셀 수(수백)"로 상한(실측: 줌7 전국 1.4만 매장 → 클러스터 DOM 30개). 개별 핀 지터(`getJitteredPositions`)는 단독 셀에만 적용. `markerMap[placeId]`는 개별 핀에만 존재(클러스터 안 매장은 없음 → `setSelectedMarker`/카드 하이라이트는 존재 가드).
+- 네이버 `MarkerClustering`은 미사용(index.html 스크립트는 아직 로드되나 호출 안 함). `markerCluster` 전역은 잔여 정리용.
+
 ## 사이드바 "모집 중인 협찬" 정렬
 - **마감임박순**으로 정렬(2026-07-27). 장소별 `getActiveCampaigns(p.id)`의 마감일 중 **가장 이른 것**(`deadlineToUTC`)을 오름차순. 마감일 빈 값(상시)은 `Infinity`라 **맨 아래**로 감.
 - 마감일 **동률이면 세션마다 무작위로 셔플**(`placeShuffleKey`, 2026-07-28). 배치 등록(강남맛집 N건→디너의여왕 N건)으로 같은 마감일·같은 플랫폼이 뭉텅이로 붙는 걸 방지. 난수는 **페이지 로드마다 새로 생성**(방문할 때마다 순서 변화) + **세션 중엔 장소ID별로 고정**(지도 이동·리렌더에도 안 튐). 과거 tie-break였던 "최근 등록 먼저"는 이 셔플로 대체됨.
