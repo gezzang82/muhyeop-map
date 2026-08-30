@@ -799,6 +799,10 @@ function rbHoursDays(txt) {
   const m = txt.match(/방문가능시간\s*[:：]?\s*([\s\S]*?)\s*[-–]\s*위치\s*[:：]/) || txt.match(/방문가능시간\s*[:：]?\s*(.{0,70})/);
   if (!m) return { days: '', hours: '', excludeHoliday: 0 };
   const val = m[1].replace(/\s+/g, ' ').trim();
+  // "X요일 HH:MM~HH:MM를 제외한 모든 영업시간내 방문 가능" — 언급 요일/시간은 '가용'이 아니라 예외창 → 상시(전체), 시간 미상
+  if (/제외(?:한|하고)[\s\S]{0,20}?(?:모든|전체|상시|영업\s*시간|방문\s*가능)/.test(val)) {
+    return { days: ALL_DAYS.join(','), hours: '', excludeHoliday: /공휴일(?![\s\S]{0,20}?가능)[\s\S]{0,30}?(?:불가|휴무|제외)/.test(val) ? 1 : 0 };
+  }
   // 요일 판정: '가용(avail)'과 '제외(closed)'를 분리해 "주말 방문 불가" 같은 부정문 오검출 방지
   const banWeekend = /주말(?![\s\S]{0,20}?가능)[\s\S]{0,30}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val);
   const avail = new Set();
@@ -953,6 +957,7 @@ function soAddress(html) {
 function soContent(txt, html) {
   const m = txt.match(/제공내역\s*([\s\S]*?)\s*(?:\*|상세\s*제공내역|방문가능시간|크리에이터\s*모집|위치|리뷰어|유의사항)/);
   let c = m ? m[1].replace(/\/\/-->|<!--|-->/g, ' ').replace(/[/|]+/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  const dm = c.match(/^(.{4,}?)\s+\1$/); if (dm) c = dm[1]; // "X X" 연속 중복 제거
   // 제공내역이 이미지/주석이라 비었으면 카카오 공유 설명(캠페인 소개)으로 폴백
   if (c.replace(/[^가-힣0-9A-Za-z]/g, '').length < 2 && html) {
     c = ((html.match(/content:\s*\{[\s\S]*?description:\s*"([^"]+)"/) || [])[1] || '').replace(/&amp;/g, '&').replace(/\\n/g, ' ').trim();
@@ -968,7 +973,9 @@ async function soScrapeDetail(c) {
   const txt = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
   const { name, channel } = soName(html);
   const hd = rbHoursDays(txt); // "방문가능시간 : 월~일 17:30~19:30" — 링블과 동일 형식
-  return { name, channel, content: soContent(txt, html), address: soAddress(html), days: hd.days, hours: hd.hours, excludeHoliday: hd.excludeHoliday, deadline: soDeadline(txt), placeUrl: (html.match(/https?:\/\/naver\.me\/[A-Za-z0-9]+/) || [])[0] || '' };
+  let address = soAddress(html);
+  if (name) address = address.replace(new RegExp('\\s*' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$'), '').trim(); // 주소 뒤 매장명 제거
+  return { name, channel, content: soContent(txt, html), address, days: hd.days, hours: hd.hours, excludeHoliday: hd.excludeHoliday, deadline: soDeadline(txt), placeUrl: (html.match(/https?:\/\/naver\.me\/[A-Za-z0-9]+/) || [])[0] || '' };
 }
 const soParseList = (html) => [...new Set([...html.matchAll(/campaign\/\?c=(\d+)/g)].map((m) => Number(m[1])))];
 async function runSeouloba({ db, limit = 300, deadlineTs = 0 }) {
