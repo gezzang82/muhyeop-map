@@ -580,7 +580,6 @@ function renderMarkers() {
   const vb = viewBoundsWithMargin(0.4);
   const inView = (lat, lng) => !vb || (lat >= vb.minLat && lat <= vb.maxLat && lng >= vb.minLng && lng <= vb.maxLng);
   const visiblePlaces = places.filter(place => !place.hidden && (hasActiveCampaign(place.id) || showGrayPins) && inView(place.lat, place.lng));
-  const jitteredPositions = getJitteredPositions(visiblePlaces);
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
   if (!renderMarkers._idleBound) {
@@ -589,62 +588,59 @@ function renderMarkers() {
     naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_t); _t = setTimeout(renderMarkers, 120); });
   }
 
-  visiblePlaces.forEach(place => {
-    const icon = getPlacePin(place, false);
-    const pos = jitteredPositions[place.id];
-    place.displayLat = pos.lat;
-    place.displayLng = pos.lng;
-
-    const marker = new naver.maps.Marker({
-      position: new naver.maps.LatLng(pos.lat, pos.lng),
-      icon: {
-        content: `<div class="map-pin">${icon}</div>`,
-        anchor: new naver.maps.Point(17, 17)
-      }
-    });
-
-    naver.maps.Event.addListener(marker, 'click', () => {
-      if (window.innerWidth <= 640) {
-        // 모바일: 바텀시트
-        openMobileSheet(place);
-      } else {
-        // PC: 팝업 카드
-        openPcCard(place);
-      }
-    });
-
-    markers.push(marker);
-    markerMap[place.id] = { marker };
-  });
-
-  // 클러스터링
-  if (typeof MarkerClustering !== 'undefined') {
-    const clusterIcon = [{
-      content: '<div class="cluster-marker"><span class="cluster-count">0</span></div>',
-      size: new naver.maps.Size(44, 44),
-      anchor: new naver.maps.Point(22, 22)
-    }];
-
-    markerCluster = new MarkerClustering({
-      minClusterSize: 2,
-      maxZoom: 14,
-      map: map,
-      markers: markers,
-      disableClickZoom: false,
-      gridSize: 80,
-      icons: clusterIcon,
-      indexGenerator: [1],
-      stylingFunction: function(clusterMarker, count) {
-        const el = clusterMarker.getElement();
-        if (el) {
-          const c = el.querySelector('.cluster-count');
-          if (c) c.textContent = count;
-        }
-      }
-    });
-  } else {
-    markers.forEach(m => m.setMap(map));
+  // ===== 자체 격자(grid) 클러스터링 — supercluster류 방식 =====
+  // 병목이던 네이버 MarkerClustering(점마다 DOM 마커를 만든 뒤 뭉침)을 대체. 화면 픽셀 기준 ~72px 셀로
+  // 매장을 묶어 셀 단위로만 마커를 만든다: 셀에 2개↑ → 클러스터 1개(정확한 개수)·클릭 시 확대 / 1개 → 개별 핀.
+  // 점마다 DOM을 만들지 않으므로 저줌에서 매장이 수천이어도 생성되는 마커 DOM은 '보이는 셀 수'(수백)로 상한.
+  // → 줌아웃 시 수천 DOM을 destroy/재생성하던 폭증이 사라짐. 개수는 셀 내 합산이라 정확.
+  const z = map.getZoom();
+  const cellDeg = 72 * 360 / (256 * Math.pow(2, z)); // 화면 ~72px를 도(°)로(경도 기준, 국내 위·경도 공용 근사)
+  const cells = new Map();
+  for (const place of visiblePlaces) {
+    const key = Math.floor(place.lng / cellDeg) + ':' + Math.floor(place.lat / cellDeg);
+    let c = cells.get(key);
+    if (!c) { c = { list: [], sumLat: 0, sumLng: 0 }; cells.set(key, c); }
+    c.list.push(place); c.sumLat += place.lat; c.sumLng += place.lng;
   }
+
+  // 단독(셀 1개) 매장만 지터 계산(겹침 분산은 개별 핀에서만 필요)
+  const singletons = [];
+  cells.forEach(c => { if (c.list.length === 1) singletons.push(c.list[0]); });
+  const jitteredPositions = getJitteredPositions(singletons);
+
+  cells.forEach(c => {
+    if (c.list.length === 1) {
+      const place = c.list[0];
+      const icon = getPlacePin(place, false);
+      const pos = jitteredPositions[place.id];
+      place.displayLat = pos.lat;
+      place.displayLng = pos.lng;
+      const marker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(pos.lat, pos.lng),
+        map,
+        icon: { content: `<div class="map-pin">${icon}</div>`, anchor: new naver.maps.Point(17, 17) }
+      });
+      naver.maps.Event.addListener(marker, 'click', () => {
+        if (window.innerWidth <= 640) openMobileSheet(place); else openPcCard(place);
+      });
+      markers.push(marker);
+      markerMap[place.id] = { marker };
+    } else {
+      const lat = c.sumLat / c.list.length, lng = c.sumLng / c.list.length;
+      const cm = new naver.maps.Marker({
+        position: new naver.maps.LatLng(lat, lng),
+        map,
+        icon: {
+          content: `<div class="cluster-marker"><span class="cluster-count">${c.list.length}</span></div>`,
+          size: new naver.maps.Size(44, 44),
+          anchor: new naver.maps.Point(22, 22)
+        }
+      });
+      const targetZoom = Math.min(z + 3, 21);
+      naver.maps.Event.addListener(cm, 'click', () => { map.setCenter(new naver.maps.LatLng(lat, lng)); map.setZoom(targetZoom, true); });
+      markers.push(cm);
+    }
+  });
 
   // 재렌더로 마커가 새로 생성되므로, PC 카드가 열려있으면 선택 하이라이트 복원
   if (openPcCardPlaceId && markerMap[openPcCardPlaceId]) setSelectedMarker(openPcCardPlaceId);
