@@ -14,6 +14,8 @@ for (const l of fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf8'
 const { soScrapeDetail } = require('../api/_scrape');
 const db = createClient({ url: process.env.TURSO_DATABASE_URL, authToken: process.env.TURSO_AUTH_TOKEN });
 const APPLY = process.argv.includes('--apply');
+const ACTIVE_ONLY = process.argv.includes('--active-only'); // A(승인대기) 건너뛰고 B(활성 캠페인)만
+const STAGED_ONLY = process.argv.includes('--staged-only'); // B(활성 캠페인) 건너뛰고 A(승인대기)만
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const arr = (s) => JSON.stringify(String(s || '').split(',').map((x) => x.trim()).filter(Boolean));
 const cidOf = (link) => (String(link).match(/c=(\d+)/) || [])[1];
@@ -22,8 +24,8 @@ const cidOf = (link) => (String(link).match(/c=(\d+)/) || [])[1];
   const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
   let chg = 0, same = 0, fail = 0, skip = 0, printed = 0;
   // A) 승인대기 (최근 수집 — 페이지 유효)
-  const staged = (await db.execute("SELECT id, source_id, channel, days, hours, content, address, exclude_holiday FROM scraped_items WHERE platform='서울오빠' AND status='pending'")).rows;
-  console.log(`A) 승인대기 서울오빠: ${staged.length}건`);
+  const staged = ACTIVE_ONLY ? [] : (await db.execute("SELECT id, source_id, channel, days, hours, content, address, exclude_holiday FROM scraped_items WHERE platform='서울오빠' AND status='pending'")).rows;
+  console.log(ACTIVE_ONLY ? 'A) 승인대기 서울오빠: 건너뜀(--active-only)' : `A) 승인대기 서울오빠: ${staged.length}건`);
   for (const r of staged) {
     try {
       const d = await soScrapeDetail(r.source_id); await sleep(120);
@@ -35,7 +37,7 @@ const cidOf = (link) => (String(link).match(/c=(\d+)/) || [])[1];
     } catch (e) { fail++; }
   }
   // B) 등록 캠페인 — 활성(마감 미래/상시)만. 만료는 지도에 안 나오고 페이지도 바뀌어 위험.
-  const camps = (await db.execute({ sql: "SELECT c.id, c.link, c.channels, c.operating_days, c.operating_hours, c.content, c.exclude_holiday, c.place_id, p.address paddr FROM campaigns c JOIN places p ON p.id=c.place_id WHERE c.link LIKE '%seoulouba%' AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)", args: [today] })).rows;
+  const camps = STAGED_ONLY ? [] : (await db.execute({ sql: "SELECT c.id, c.link, c.channels, c.operating_days, c.operating_hours, c.content, c.exclude_holiday, c.place_id, p.address paddr FROM campaigns c JOIN places p ON p.id=c.place_id WHERE c.link LIKE '%seoulouba%' AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)", args: [today] })).rows;
   console.log(`\nB) 등록 서울오빠 활성 캠페인: ${camps.length}건`);
   printed = 0;
   for (const r of camps) {
@@ -46,7 +48,7 @@ const cidOf = (link) => (String(link).match(/c=(\d+)/) || [])[1];
       const eh = d.excludeHoliday || 0;
       const newDays = d.days ? arr(d.days) : (r.operating_days || '[]');   // 빈값이면 기존 유지
       const newCh = d.channel ? arr(d.channel) : (r.channels || '[]');
-      const newHours = d.hours || r.operating_hours || '';
+      const newHours = d.hours; // 페이지 유효(!d.name 스킵)면 새 파서값 신뢰 — 시간없는 안내문은 빈값으로 정정
       const newContent = d.content || r.content || '';
       const addrChg = d.address && d.address !== r.paddr; // 주소 매장명 제거 반영(매장 단위)
       if (newHours === (r.operating_hours || '') && newDays === (r.operating_days || '[]') && newCh === (r.channels || '[]') && newContent === (r.content || '') && eh === (r.exclude_holiday || 0) && !addrChg) { same++; continue; }

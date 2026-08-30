@@ -26,21 +26,26 @@ const WHERE = {
   spam: "(auto_note LIKE '%스팸%' OR auto_note LIKE '%의미 없%')",
 };
 // 카테고리 판정: ① AI note 명시 추출 → ② 키워드 분류 → ③ 기존값.
+// ⚠️ 반드시 앱 정식 카테고리(VALID_CAT)만 출력 — 앱에 없는 값(반려동물/세차/세탁/운세 등)은 아이콘 없는 '미아 핀'이 됨.
+//    앱에 대응 카테고리가 없는 업종(반려동물·세차·세탁·운세·전문서비스 등)은 '기타'로 흡수, 안경→안경/잡화·숙박→숙박/여가로 정규화.
+const VALID_CAT = new Set(['음식점', '카페', '뷰티', '숙박/여가', '문화', '의류', '안경/잡화', '기타']);
+const CAT_NORM = { 안경: '안경/잡화', 잡화: '안경/잡화', 숙박: '숙박/여가', 여가: '숙박/여가', 세차: '기타', 세탁: '기타', 운세: '기타', 전문서비스: '기타', 반려동물: '기타', 펫: '기타' };
+const normCat = (c) => { c = String(c || '').trim(); return VALID_CAT.has(c) ? c : (CAT_NORM[c] || '기타'); };
 function catFrom(note, cur, content, name) {
   const m = (note || '').match(/올바른 카테고리는\s*([가-힣A-Za-z\/]+)/) || (note || '').match(/실제로는\s*([가-힣]{2,})\s*(?:시설|업|점)/);
-  if (m) { const c = m[1].replace(/(시설|입니다|이고|이며|이므로|매장|으로|로)$/, '').trim(); if (c && c !== '음식점') return c; }
+  if (m) { const c = m[1].replace(/(시설|입니다|이고|이며|이므로|매장|으로|로)$/, '').trim(); if (c && c !== '음식점') return normCat(c); }
   const s = (name || '') + ' ' + (content || '') + ' ' + (note || '');
-  if (/세차/.test(s)) return '세차';
-  if (/펜션|풀빌라|숙박|호텔|모텔|글램핑|캠핑|촌집|한옥/.test(s)) return '숙박';
-  if (/안경|선글라스|렌즈/.test(s)) return '안경';
-  if (/세탁|빨래|드라이클리닝/.test(s)) return '세탁';
+  if (/세차/.test(s)) return '기타';
+  if (/펜션|풀빌라|숙박|호텔|모텔|글램핑|캠핑|촌집|한옥/.test(s)) return '숙박/여가';
+  if (/안경|선글라스|렌즈/.test(s)) return '안경/잡화';
+  if (/세탁|빨래|드라이클리닝/.test(s)) return '기타';
   if (/네일|왁싱|피부|헤어|미용|에스테틱|마사지|태닝|속눈썹|반영구|필러|보톡스|타투|두피|체형|다이어트|스킨케어/.test(s)) return '뷰티';
-  if (/타로|사주|철학|운세|점집/.test(s)) return '운세';
-  if (/변호사|법률|세무|회계|노무|법무/.test(s)) return '전문서비스';
-  if (/애견|반려|펫|파충류|동물|강아지|고양이/.test(s)) return '반려동물';
+  if (/타로|사주|철학|운세|점집/.test(s)) return '기타';
+  if (/변호사|법률|세무|회계|노무|법무/.test(s)) return '기타';
+  if (/애견|반려|펫|파충류|동물|강아지|고양이/.test(s)) return '기타';
   if (/케이크|디저트|베이커리|커피|브런치|룸카페|스터디카페|카페|빙수/.test(s)) return '카페';
   if (/식사|맛집|고기|초밥|스시|국밥|치킨|피자|족발|막국수|국수|뷔페|식당|한우|횟집|삼겹|곱창|보쌈|덮밥|찌개|분식|포차|이자카야|한식|중식|일식|양식/.test(s)) return '음식점';
-  return cur || '기타';
+  return normCat(cur);
 }
 async function insertPlace(r, lat, lng, category) {
   const dup = await db.execute({ sql: "SELECT id FROM places WHERE REPLACE(name,' ','')=REPLACE(?,' ','') AND ABS(lat-?)<0.0007 AND ABS(lng-?)<0.0007 LIMIT 1", args: [r.name, lat, lng] });

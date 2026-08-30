@@ -327,13 +327,20 @@ const norm = (s) => (s || '').replace(/\s/g, '');
 const chans = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean);
 
 // 운영 매장/캠페인 맵 로드
+// 주소에서 시/도·시군구 추출 — 같은 이름 다른 지점 구분용
+const _SIDO = [['서울', /^서울/], ['부산', /^부산/], ['대구', /^대구/], ['인천', /^인천/], ['광주', /^광주/], ['대전', /^대전/], ['울산', /^울산/], ['세종', /^세종/], ['경기', /^경기/], ['강원', /^강원/], ['충북', /^(충청북|충북)/], ['충남', /^(충청남|충남)/], ['전북', /^(전라북|전북)/], ['전남', /^(전라남|전남)/], ['경북', /^(경상북|경북)/], ['경남', /^(경상남|경남)/], ['제주', /제주/]];
+function canonSido(a) { a = String(a || '').replace(/\s/g, ''); for (const [k, re] of _SIDO) if (re.test(a)) return k; return ''; }
+function cityGu(a) { const toks = String(a || '').split(/\s+/).filter((t) => !canonSido(t)); const gu = toks.find((t) => /^[가-힣]{1,5}(?:구|군)$/.test(t)); if (gu) return gu; const si = toks.find((t) => /^[가-힣]{1,5}시$/.test(t)); return si || ''; }
+// 같은 지역인가: 시/도 다르면 false, 시/군/구 둘 다 있는데 다르면 false, 그 외 true(정보 부족 시 하위호환)
+function sameRegion(a, b) { const sa = canonSido(a), sb = canonSido(b); if (sa && sb && sa !== sb) return false; const ca = cityGu(a), cb = cityGu(b); if (ca && cb) return ca === cb; return true; }
+
 async function loadDedupe(db) {
   const [pRes, cRes] = await Promise.all([
-    db.execute('SELECT id, name FROM places'),
+    db.execute('SELECT id, name, address FROM places'),
     db.execute('SELECT place_id, channels, deadline, hidden FROM campaigns'),
   ]);
-  const placeByNorm = new Map();
-  for (const p of pRes.rows) placeByNorm.set(norm(p.name), p);
+  const placeByNorm = new Map(); // 이름 → 같은 이름 매장 배열(지점별 주소가 다를 수 있음)
+  for (const p of pRes.rows) { const k = norm(p.name); if (!placeByNorm.has(k)) placeByNorm.set(k, []); placeByNorm.get(k).push(p); }
   const campByPlace = new Map();
   for (const c of cRes.rows) {
     if (!campByPlace.has(c.place_id)) campByPlace.set(c.place_id, []);
@@ -342,11 +349,19 @@ async function loadDedupe(db) {
   }
   return { placeByNorm, campByPlace };
 }
-// 활성 채널중복이면 dup_active(스킵), 만료만 겹치면 renew, 채널 안겹치면 add_channel, 매장없으면 new_place
+// 활성 채널중복이면 dup_active(스킵), 만료만 겹치면 renew, 채널 안겹치면 add_channel, 매장없으면 new_place.
+// ⚠️ 같은 이름이라도 **주소 지역(시/군/구)이 다르면 다른 지점 → new_place**(같은 이름 다른 지점 병합 방지).
 function classify(item, dedupe, today) {
-  const p = dedupe.placeByNorm.get(norm(item.name));
+  const cands = dedupe.placeByNorm.get(norm(item.name)) || [];
   const csvCh = chans(item.channel);
-  if (!p) return { status: 'new_place', matchedPlaceId: null };
+  if (!cands.length) return { status: 'new_place', matchedPlaceId: null };
+  let p;
+  if (item.address && cands.some((c) => c.address)) {
+    p = cands.find((c) => c.address && sameRegion(item.address, c.address));
+    if (!p) return { status: 'new_place', matchedPlaceId: null }; // 같은 이름·다른 지역 = 다른 지점
+  } else {
+    p = cands[0]; // 주소 정보 없으면 기존처럼 이름만 매칭
+  }
   const existing = dedupe.campByPlace.get(p.id) || [];
   const active = existing.filter((c) => !c.hidden && (!c.deadline || c.deadline >= today));
   const activeCh = new Set(active.flatMap((c) => c.channels));
@@ -745,7 +760,7 @@ async function runGangnam({ db, limit = 8000, deadlineTs = 0 }) {
     try {
       const deadline = gnDeadline(c.dday);
       const category = categoryByKeyword(c.benefit + ' ' + c.name, c.name) || '음식점';
-      const cls = classify({ name: c.name, channel: c.channel }, dedupe, today);
+      const cls = classify({ name: c.name, channel: c.channel, address: c.region }, dedupe, today);
       if (cls.status === 'dup_active') { dupActive++; continue; }
       // 신규만 상세 fetch(정확주소/요일/공휴일). 주소 못 얻으면 목록 지역으로 폴백.
       const d = await gnScrapeDetail(c.id, c.name);
@@ -795,56 +810,154 @@ function rbContent(txt) {
   return m[1].replace(/\s*\+?\s*링블포인트\s*[\d,]+\s*점?/g, ' ').replace(/\s*\+\s*$/, '').replace(/\s+/g, ' ').trim();
 }
 // 방문가능시간: 요일은 라벨로 파싱, 시간은 라벨만 떼고 값 그대로 저장(자유텍스트 보존).
+// 개선된 방문가능시간 파서 v2
+const DAYCH = '월화수목금토일';
+
+// 라벨 문자열 → 커버 요일 Set. 평일/주말/매일 키워드를 먼저 처리·제거 후 개별/범위 스캔(평일의 '일' 오인 방지).
+function expandDayLabel(lbl) {
+  let s = lbl.replace(/\s|요일/g, '');
+  const set = new Set();
+  if (/평일/.test(s)) ['월', '화', '수', '목', '금'].forEach((d) => set.add(d));
+  if (/주말/.test(s)) { set.add('토'); set.add('일'); }
+  if (/매일|연중무휴/.test(s)) ALL_DAYS.forEach((d) => set.add(d));
+  s = s.replace(/평일|주말|매일|연중무휴/g, ''); // 키워드 제거 후 남은 개별 요일만
+  for (const m of s.matchAll(/([월화수목금토일])[~\-–]([월화수목금토일])/g)) {
+    const i = ALL_DAYS.indexOf(m[1]), j = ALL_DAYS.indexOf(m[2]);
+    if (i >= 0 && j >= 0) for (let k = i; ; k = (k + 1) % 7) { set.add(ALL_DAYS[k]); if (k === j) break; }
+  }
+  for (const ch of s.match(/[월화수목금토일]/g) || []) set.add(ch);
+  return set;
+}
+function tidyLabel(lbl) {
+  return lbl.replace(/\s*요일/g, '').replace(/\s*[~\-–]\s*/g, '~').replace(/\s*[,·]\s*/g, ',').replace(/\s+/g, '').trim();
+}
+function toHHMM(h, m, ctx) {
+  h = parseInt(h, 10); m = m ? parseInt(m, 10) : 0;
+  if (ctx === 'pm' && h < 12) h += 12;
+  if (ctx === 'am' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+function ctxOf(s) { return /오후|저녁|정오/.test(s) ? 'pm' : (/오전|새벽|아침/.test(s) ? 'am' : ''); }
+function parseOneTime(s, inheritCtx) {
+  s = s.trim();
+  const ctx = ctxOf(s) || inheritCtx || '';
+  if (/정오/.test(s)) { const mm = (s.match(/12\s*시\s*(\d{1,2})?/) || [])[1]; return toHHMM('12', mm || '0', ''); }
+  let m = s.match(/(\d{1,2})\s*:\s*(\d{2})/);
+  if (m) return toHHMM(m[1], m[2], parseInt(m[1], 10) >= 13 ? '' : ctx);
+  m = s.match(/(\d{1,2})\s*시\s*(?:(\d{1,2})\s*분|(반))?/);
+  if (m) return toHHMM(m[1], m[3] ? '30' : (m[2] || '0'), ctx);
+  m = s.match(/(\d{1,2})/);
+  if (m) return toHHMM(m[1], '0', ctx);
+  return '';
+}
+const TIMEEXP = '(?:오전|오후|저녁|새벽|아침|정오)?\\s*\\d{1,2}\\s*(?::\\s*\\d{2}|시\\s*(?:\\d{1,2}\\s*분|반)?)?';
+function extractRanges(seg) {
+  const out = [];
+  const re = new RegExp(`(${TIMEEXP})\\s*(?:부터)?\\s*[~\\-–]\\s*(?:까지)?\\s*(${TIMEEXP})`, 'g');
+  let m;
+  while ((m = re.exec(seg))) {
+    const aCtx = ctxOf(m[1]);
+    let a = parseOneTime(m[1]);
+    let bInherit = ctxOf(m[2]) ? '' : (aCtx === 'pm' ? 'pm' : '');
+    let b = parseOneTime(m[2], bInherit);
+    if (!a || !b) continue;
+    // 명시적 24h HH:MM은 그대로 신뢰(PM 휴리스틱 미적용). '시' 한글표기만 보정 대상.
+    const aExplicit = /\d\s*:\s*\d{2}/.test(m[1]); const bExplicit = /\d\s*:\s*\d{2}/.test(m[2]);
+    let [ah, am] = a.split(':').map(Number); let [bh, bm] = b.split(':').map(Number);
+    // 바레 시작(오전/새벽·명시HH:MM 아님) 1~7시인데 끝이 확실한 오후/저녁(>=13)이면 시작을 PM으로 (주말 3시~19:30 등)
+    if (!ctxOf(m[1]) && !aExplicit && ah >= 1 && ah <= 7 && bh >= 13) { ah += 12; a = `${String(ah).padStart(2, '0')}:${String(am).padStart(2, '0')}`; }
+    // overnight vs PM: 끝<=시작이면 — 명시HH:MM/저녁시작/새벽이면 익일(그대로), 아니면 한글 끝을 PM으로
+    if (bh * 60 + bm <= ah * 60 + am) {
+      const startEvening = ah >= 15 || /새벽|익일|다음날/.test(seg);
+      if (!startEvening && !ctxOf(m[2]) && !bExplicit && bh < 12) { bh += 12; b = `${String(bh).padStart(2, '0')}:${String(bm).padStart(2, '0')}`; }
+    }
+    out.push(`${a}~${b}`);
+  }
+  return out;
+}
+
 function rbHoursDays(txt) {
-  const m = txt.match(/방문가능시간\s*[:：]?\s*([\s\S]*?)\s*[-–]\s*위치\s*[:：]/) || txt.match(/방문가능시간\s*[:：]?\s*(.{0,70})/);
-  if (!m) return { days: '', hours: '', excludeHoliday: 0 };
-  const val = m[1].replace(/\s+/g, ' ').trim();
-  // "X요일 HH:MM~HH:MM를 제외한 모든 영업시간내 방문 가능" — 언급 요일/시간은 '가용'이 아니라 예외창 → 상시(전체), 시간 미상
+  const cap = txt.match(/방문가능시간\s*[:：]?\s*([\s\S]*?)(?=\s*(?:제한인원|[-–]\s*위치|위치\s*[:：]|★|※|ㄴ|\d+\s*[.]\s|사전\s*예약|예약\s*문의|$))/);
+  let val = (cap ? cap[1] : '').replace(/\s+/g, ' ').replace(/^[:：\s]+/, '').trim();
+  if (!val) return { days: '', hours: '', excludeHoliday: 0 };
+  // "A부터 [~] B까지" → "A~B" (대시 없는 범위 대응). 요일 라벨 뒤 콜론 제거("월~일 :").
+  // 요일 사이의 '/'(시간 공유 나열, 예: "월~금/ 토/ 일 : 10:00~22:00")를 ','로 → 하나의 요일리스트로 인식.
+  //   앞뒤가 모두 요일 문자일 때만(시간그룹 구분자 "…20:30 / 일 13:00"은 앞이 숫자라 미변환).
+  val = val.replace(/([월화수목금토일])(\s*)\/(\s*)(?=[월화수목금토일])/g, '$1,$3');
+  val = val.replace(/\s*부터\s*[~\-–]?\s*/g, '~').replace(/\s*까지/g, '').replace(/(:\d{2})\s*분/g, '$1').replace(/([월화수목금토일])\s*[:：]\s*(?=오전|오후|저녁|새벽|정오|\d|~)/g, '$1 ');
+
+  // "X요일 HH:MM를 제외한 모든 영업시간내 방문 가능" → 상시(전체 요일), 시간 미상 (구 파서 동작 보존)
   if (/제외(?:한|하고)[\s\S]{0,20}?(?:모든|전체|상시|영업\s*시간|방문\s*가능)/.test(val)) {
-    return { days: ALL_DAYS.join(','), hours: '', excludeHoliday: /공휴일(?![\s\S]{0,20}?가능)[\s\S]{0,30}?(?:불가|휴무|제외)/.test(val) ? 1 : 0 };
+    return { days: ALL_DAYS.join(','), hours: '', excludeHoliday: /공휴일[\s\S]{0,15}?(?:불가|제외|휴무)/.test(val) ? 1 : 0 };
   }
-  // 요일 판정: '가용(avail)'과 '제외(closed)'를 분리해 "주말 방문 불가" 같은 부정문 오검출 방지
-  const banWeekend = /주말(?![\s\S]{0,20}?가능)[\s\S]{0,30}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val);
-  const avail = new Set();
-  if (/평일\s*[\/,]\s*주말|매일|연중무휴/.test(val)) ALL_DAYS.forEach((d) => avail.add(d));
-  if (/평일/.test(val)) ['월', '화', '수', '목', '금'].forEach((d) => avail.add(d));
-  if (/주말/.test(val) && !banWeekend) { avail.add('토'); avail.add('일'); }
-  if (/토요일/.test(val) && !/토요일[\s\S]{0,8}?(?:불가|휴무|제외)/.test(val)) avail.add('토');
-  if (/일요일/.test(val) && !/일요일[\s\S]{0,10}?(?:불가|휴무|제외)/.test(val)) avail.add('일');
-  const list = (val.match(/([월화수목금토일])(?:\s*[,·/]\s*[월화수목금토일])+/) || [])[0];
-  if (list) (list.match(/[월화수목금토일]/g) || []).forEach((d) => avail.add(d));
-  // 요일 범위(월~금, 월-목 하이픈 포함) — 날짜(숫자) 아닌 것만. 여러 범위 모두.
-  for (const mm of val.matchAll(/(?<!\d)([월화수목금토일])\s*[~\-–]\s*([월화수목금토일])(?!\d)/g)) {
-    const i = ALL_DAYS.indexOf(mm[1]), j = ALL_DAYS.indexOf(mm[2]); if (i >= 0 && j >= 0) for (let k = i; ; k = (k + 1) % 7) { avail.add(ALL_DAYS[k]); if (k === j) break; }
-  }
-  // 단독 요일 + 시간("일 13:00", "일 12:00~14:00") — 앞이 한글 아니어야(평일/당일/매일/공휴일의 '일' 배제)
-  for (const mm of val.matchAll(/(?:^|[^가-힣])([월화수목금토일])\s*\d{1,2}\s*[:시]/g)) avail.add(mm[1]);
-  // 제외: "X요일 휴무/불가"(중간 한글 허용), "요일범위 + 체험불가"(금-토 체험불가), 주말 금지
+  // --- 제외요일/공휴일 (days 계산용, 삭제 전에 먼저) ---
   const closed = new Set();
-  for (const mm of val.matchAll(/([월화수목금토일])요일[\s\S]{0,10}?(?:방문\s*불가|예약\s*및\s*방문\s*불가|체험\s*불가|휴무|불가|제외)/g)) closed.add(mm[1]);
-  for (const mm of val.matchAll(/(?<!\d)([월화수목금토일])\s*[~\-–]\s*([월화수목금토일])(?!\d)[\s\S]{0,8}?(?:체험\s*불가|방문\s*불가|예약\s*불가|불가|휴무)/g)) {
-    const i = ALL_DAYS.indexOf(mm[1]), j = ALL_DAYS.indexOf(mm[2]); if (i >= 0 && j >= 0) for (let k = i; ; k = (k + 1) % 7) { closed.add(ALL_DAYS[k]); if (k === j) break; }
+  let excludeHoliday = /공휴일[\s\S]{0,15}?(?:불가|제외|휴무)/.test(val) ? 1 : 0; // '불가능'의 가능 오인 방지 위해 긍정매칭만
+  for (const m of val.matchAll(/([월화수목금토일])(?:요일)?\s*(?:정기)?\s*(?:휴무|(?:방문|예약|체험)(?:\s*및\s*(?:방문|예약|체험))?\s*불가)/g)) closed.add(m[1]);
+  for (const m of val.matchAll(/[(（]([월화수목금토일,\s]+?)[^)）]*?(?:불가|휴무|제외)[)）]/g)) (m[1].match(/[월화수목금토일]/g) || []).forEach((d) => closed.add(d));
+  if (/주말(?![\s\S]{0,6}?가능)[\s\S]{0,25}?(?:불가|제외|휴무)/.test(val)) { closed.add('토'); closed.add('일'); }
+  for (const m of val.matchAll(/([월화수목금토일])\s*[~\-–]\s*([월화수목금토일])\s*(?:체험|방문|예약)?\s*불가/g)) {
+    const i = ALL_DAYS.indexOf(m[1]), j = ALL_DAYS.indexOf(m[2]); if (i >= 0 && j >= 0) for (let k = i; ; k = (k + 1) % 7) { closed.add(ALL_DAYS[k]); if (k === j) break; }
   }
-  if (banWeekend) { closed.add('토'); closed.add('일'); }
-  // 기준: 가용 있으면 그걸, 없고 제외만 있으면 전체(=제외만 뺌), 둘 다 없으면 미상(빈값)
-  const base = avail.size ? avail : (closed.size ? new Set(ALL_DAYS) : new Set());
+  const banTimes = [];
+  for (const m of val.matchAll(/(?:체험|방문|예약)\s*불가\s*시간\s*(\d{1,2}:\d{2})\s*[~\-–]\s*(\d{1,2}:\d{2})/g)) banTimes.push(`${m[1]}~${m[2]}`);
+
+  // --- 브레이크타임 ---
+  let brkStr = '', brkRange = '';
+  const brk = val.match(new RegExp(`(${TIMEEXP})\\s*[~\\-–]\\s*(${TIMEEXP})\\s*브레이크`)) || val.match(new RegExp(`브레이크\\s*타?임?\\s*(${TIMEEXP})\\s*[~\\-–]\\s*(${TIMEEXP})`));
+  if (brk) { const b = extractRanges(brk[0]); if (b.length) { brkRange = b[0]; brkStr = ` (브레이크 ${b[0]})`; } }
+  const drop = (r) => banTimes.includes(r) || r === brkRange; // 제외시간·브레이크는 영업범위에서 뺌
+
+  // 숙박
+  if (/체크\s*인|체크\s*아웃|입실|퇴실/.test(val)) {
+    const ci = val.match(new RegExp(`체크\\s*인\\s*(${TIMEEXP})`)); const co = val.match(new RegExp(`체크\\s*아웃\\s*(${TIMEEXP})`));
+    const p = [];
+    if (ci) p.push(`체크인 ${parseOneTime(ci[1])}`);
+    if (co) p.push(`체크아웃 ${parseOneTime(co[1])}`);
+    const posDays = expandDayLabel((val.match(new RegExp(`(평일|주말|매일|[월화수목금토일]\\s*[~\\-–]\\s*[월화수목금토일])`)) || [''])[0] || '');
+    const days = ALL_DAYS.filter((d) => (posDays.size ? posDays.has(d) : true) && !closed.has(d));
+    return { days: (posDays.size ? days : []).join(','), hours: p.join(' / '), excludeHoliday };
+  }
+
+  // --- 라벨 그룹 분할 ---
+  // 라벨: 평일/주말/매일 or 요일범위/리스트/런(월화수금) — 뒤에 시간(숫자/오전/오후/정오/새벽)이 오는 것
+  const dayTok = `(?:[${DAYCH}](?:요일)?\\s*[~\\-–]\\s*[${DAYCH}](?:요일)?|[${DAYCH}]{2,}|[${DAYCH}](?:요일)?)`;
+  const labelRe = new RegExp(`(평일|주말|매일|연중무휴|${dayTok}(?:\\s*[,·]\\s*${dayTok})*)(?=\\s*(?:오전|오후|저녁|새벽|정오|\\d))`, 'g');
+
+  const posDays = new Set();
+  const groups = [];
+  const labels = [...val.matchAll(labelRe)];
+  if (labels.length) {
+    for (let i = 0; i < labels.length; i++) {
+      const start = labels[i].index, lbl = labels[i][0];
+      const end = i + 1 < labels.length ? labels[i + 1].index : val.length;
+      const body = val.slice(start + lbl.length, end);
+      const ranges = extractRanges(body).filter((r) => !drop(r));
+      expandDayLabel(lbl).forEach((d) => posDays.add(d));
+      if (ranges.length) groups.push({ lbl: tidyLabel(lbl), ranges: [...new Set(ranges)] });
+    }
+  }
+  let hours = '';
+  if (groups.length) {
+    const single = groups.length === 1;
+    hours = groups.map((g) => {
+      const t = g.ranges.join(', ');
+      return single ? t : `${g.lbl} ${t}`; // 그룹 1개면 라벨 생략(요일칩과 중복)
+    }).join(' / ');
+  } else {
+    // 라벨 없음 — 범위만(노트 세그먼트 자연 배제: 범위 있는 것만)
+    const ranges = extractRanges(val).filter((r) => !drop(r));
+    const uniq = [...new Set(ranges)];
+    hours = uniq.length <= 2 ? uniq.join(', ') : uniq[0];
+  }
+  if (hours) hours += brkStr;
+
+  let base;
+  if (posDays.size) base = posDays;
+  else if (closed.size) base = new Set(ALL_DAYS);
+  else base = new Set();
   const days = ALL_DAYS.filter((d) => base.has(d) && !closed.has(d));
-  // 브레이크타임 범위는 영업시간이 아니라 쉬는 시간 → 분리해 "(브레이크 …)"로. 라벨이 앞/뒤 둘 다 대응.
-  const brk = val.match(/브레이크\s*타?임?[^0-9]{0,4}(\d{1,2}):(\d{2})\s*[~\-–]\s*(\d{1,2}):(\d{2})/)
-    || val.match(/(\d{1,2}):(\d{2})\s*[~\-–]\s*(\d{1,2}):(\d{2})[^가-힣0-9]{0,3}브레이크/);
-  const valH = val
-    .replace(/브레이크\s*타?임?[^0-9]{0,4}\d{1,2}:\d{2}\s*[~\-–]\s*\d{1,2}:\d{2}/g, ' ')
-    .replace(/\d{1,2}:\d{2}\s*[~\-–]\s*\d{1,2}:\d{2}[^가-힣0-9]{0,3}브레이크\s*타?임?/g, ' ');
-  // 시간: 깔끔한 HH:MM~HH:MM 범위가 있으면 그것만(요일/공휴일 제한 문구 제거), 없으면(시/분 자유텍스트) 라벨만 떼고 보존
-  const times = [...valH.matchAll(/(\d{1,2}):(\d{2})\s*(?:부터)?\s*[~\-–]\s*(?:오전|오후)?\s*(\d{1,2}):(\d{2})/g)].map((mm) => `${mm[1]}:${mm[2]}~${mm[3]}:${mm[4]}`);
-  let hours = times.length
-    ? [...new Set(times)].join(' / ')
-    : valH.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/, '')
-        .replace(/\s*(?:제한인원|최소\s*\d|사전\s*예약|예약\s*연락|예약\s*필수|본\s*캠페인|리뷰\s*작성|★|※)[\s\S]*$/, '').trim(); // 뒤 안내문 컷
-  if (brk && hours) hours += ` (브레이크 ${brk[1]}:${brk[2]}~${brk[3]}:${brk[4]})`;
-  // 공휴일 방문/예약 불가 → 공휴일 제외 플래그
-  const excludeHoliday = /공휴일(?![\s\S]{0,20}?가능)[\s\S]{0,30}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val) ? 1 : 0;
-  return { days: days.join(','), hours, excludeHoliday };
+  return { days: days.join(','), hours: hours.trim(), excludeHoliday };
 }
 function rbAddress(txt) {
   const m = txt.match(/위치\s*[:：]\s*([\s\S]*?)(?:\s*★|\s*예약\s*문의|\s*당첨일|\s*※|\s*알림톡|\s*[-–]\s*예약|$)/);
@@ -910,7 +1023,7 @@ async function runRingble({ db, limit = 300, deadlineTs = 0 }) {
         if (!d.name) { excluded++; continue; }
         const channel = d.channel || c.channel; // 상세 채널 우선(목록 아이콘 부정확)
         const category = categoryByKeyword(d.content + ' ' + d.name, d.name) || '음식점';
-        const cls = classify({ name: d.name, channel }, dedupe, today);
+        const cls = classify({ name: d.name, channel, address: d.address }, dedupe, today);
         if (cls.status === 'dup_active') { dupActive++; continue; }
         const ins = await db.execute({
           sql: `INSERT OR IGNORE INTO scraped_items
@@ -986,7 +1099,10 @@ function soDeadline(txt) {
 async function soScrapeDetail(c) {
   const html = await (await fetch(`${SO_BASE}/campaign/?c=${c}`, { headers: { 'User-Agent': UA } })).text();
   const txt = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
-  const { name, channel } = soName(html);
+  const { name, channel: chBracket } = soName(html);
+  // 서울오빠는 블로그가 기본 채널이라 제목에 채널 대괄호를 안 붙인다(인스타/릴스/클립/유튜브만 [채널] 표기).
+  // → 대괄호 없으면 '블로그'로 간주(채널 서브카테고리 교차검증: 무-대괄호는 인스타/클립 목록에 0건).
+  const channel = chBracket || '블로그';
   const hd = rbHoursDays(txt); // "방문가능시간 : 월~일 17:30~19:30" — 링블과 동일 형식
   let address = soAddress(html);
   if (name) address = address.replace(new RegExp('\\s*' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$'), '').trim(); // 주소 뒤 매장명 제거
@@ -1016,7 +1132,7 @@ async function runSeouloba({ db, limit = 300, deadlineTs = 0 }) {
         const d = await soScrapeDetail(c);
         if (!d.name || !d.address) { excluded++; continue; }
         const category = categoryByKeyword(d.content + ' ' + d.name, d.name) || '음식점';
-        const cls = classify({ name: d.name, channel: d.channel }, dedupe, today);
+        const cls = classify({ name: d.name, channel: d.channel, address: d.address }, dedupe, today);
         if (cls.status === 'dup_active') { dupActive++; continue; }
         const ins = await db.execute({
           sql: `INSERT OR IGNORE INTO scraped_items
