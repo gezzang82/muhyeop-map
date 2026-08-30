@@ -1349,7 +1349,10 @@ function ombHoursDays(raw) {
   const t = ombNormTime(stripTags(String(raw || '')));
   const brackets = [...t.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim());
   const timed = brackets.filter((b) => /\d{1,2}:\d{2}/.test(b));
-  const hours = timed.map((b) => b.replace(/요일/g, '').replace(/\s*-\s*/g, '~').replace(/\s+/g, ' ').trim()).join(' / ');
+  let hours = timed.map((b) => b.replace(/요일/g, '').replace(/\s*-\s*/g, '~').replace(/\s+/g, ' ').trim()).join(' / ');
+  // 시간대가 하나뿐이면 요일 라벨(평일/매일/월~금 등)은 '요일' 필드와 중복 → 제거하고 시간만. 여러 시간대면 라벨 유지(구분 필요).
+  const ranges = hours.match(/\d{1,2}:\d{2}\s*~\s*\d{1,2}:\d{2}/g) || [];
+  if (ranges.length === 1) hours = ranges[0].replace(/\s+/g, '');
   const set = new Set();
   timed.forEach((b) => { b.split(/\s*\/\s*/).forEach((seg) => ombDaysFromLabel(seg.split(/\d{1,2}:\d{2}/)[0]).forEach((d) => set.add(d))); });
   brackets.filter((b) => !/\d/.test(b) && !/휴무|불가/.test(b)).forEach((b) => ombDaysFromLabel(b).forEach((d) => set.add(d)));
