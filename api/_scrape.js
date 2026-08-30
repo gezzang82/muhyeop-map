@@ -1202,10 +1202,11 @@ function rnNameVariants(name) {
   return V;
 }
 async function rnFetchPage(page) {
-  const t = await fetchText(`${RN_BASE}/campaigns?page=${page}`);
-  const m = t.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-  if (!m) return null;
-  try { return JSON.parse(m[1]).props.pageProps.data; } catch (e) { return null; }
+  // v2 공개 API가 실제 페이지네이션. (SSG `/campaigns` 페이지는 page 파라미터를 무시하고 빌드시점 96건만 고정 반환 →
+  //  전체 카탈로그 접근 불가였음. v2는 무인증으로 page당 16건씩 전량 페이징 → 계정 노출/차단 없이 전량 수집.)
+  const res = await fetch(`${RN_BASE}/api/v2/campaigns?page=${page}&size=20`, { headers: { 'User-Agent': UA, Accept: 'application/json', Referer: `${RN_BASE}/campaigns` } });
+  if (!res.ok) return null;
+  try { return await res.json(); } catch (e) { return null; } // {page, objects, has_more, total_pages, total_count}
 }
 async function rnNaverLocal(q) {
   // 429(레이트리밋)·5xx는 일시장애 → 백오프 재시도(무거운 패스 끝에서 몰려 실패하던 것 방지).
@@ -1243,13 +1244,19 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0 }) {
   const today = new Date().toISOString().slice(0, 10);
   const dedupe = await loadDedupe(db);
   const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='리뷰노트'")).rows.map((r) => Number(r.source_id)));
+  // 페이지 커서(scrape_state.last_max_id를 페이지 번호로 재사용). v2 API가 page당 16건 · 수천 페이지라
+  // 한 패스에 다 못 훑음 → 패스마다 이어서 훑고, 끝에 도달하면 1페이지로 돌아가 신규 재순회(포블로그 방식).
+  const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [platform] });
+  const startPage = Math.max(1, Number(stRes.rows[0]?.last_max_id || 0) || 1);
+  const MAX_PAGES = 40; // 패스당 페이지 상한(≈640건 스캔). 나머지는 다음 패스에서 커서로 이어감
   let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, geoFail = 0, timedOut = false;
-  for (let page = 1; page <= 30; page++) {
-    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
-    let data; try { data = await rnFetchPage(page); } catch (e) { break; }
-    if (!data || !Array.isArray(data.objects) || !data.objects.length) break;
+  let page = startPage, pagesThis = 0, reachedEnd = false, stopped = false;
+  for (; pagesThis < MAX_PAGES; pagesThis++, page++) {
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; stopped = true; break; }
+    let data; try { data = await rnFetchPage(page); } catch (e) { stopped = true; break; }
+    if (!data || !Array.isArray(data.objects) || !data.objects.length) { reachedEnd = true; break; }
     for (const o of data.objects) {
-      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; stopped = true; break; }
       const id = Number(o.id);
       if (doneIds.has(id)) continue;
       // 방문형 + 실제 시/도 + 지원 채널만
@@ -1258,7 +1265,6 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0 }) {
       if (o.sort !== 'VISIT' || !RN_REAL_SIDO.has(city) || !channel) { excluded++; continue; }
       const rnName = rnCleanName(o.title);
       if (!rnName || RN_NONSTORE.test(rnName)) { excluded++; continue; } // 빈 이름·비매장(이벤트/서비스) 사전제외
-      if (processed >= limit) { timedOut = true; break; }
       processed++;
       try {
         const name = rnName;
@@ -1277,16 +1283,22 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0 }) {
         if (ins.rowsAffected > 0) staged++;
       } catch (e) { failed++; }
     }
-    if (timedOut || processed >= limit) break;
-    if (!data.has_more) break;
-    await sleep(400);
+    if (stopped) break;
+    if (data.has_more === false) { reachedEnd = true; break; }
   }
+  // 다음 커서: 끝 도달이면 1로 wrap(신규 재순회), 중간이면 다음 페이지에서 이어감
+  const nextPage = reachedEnd ? 1 : page;
+  await db.execute({
+    sql: `INSERT INTO scrape_state (platform, last_max_id, last_run_at) VALUES (?, ?, datetime('now','+9 hours'))
+          ON CONFLICT(platform) DO UPDATE SET last_max_id = excluded.last_max_id, last_run_at = excluded.last_run_at`,
+    args: [platform, nextPage],
+  });
   await db.execute({
     sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
-          VALUES ('리뷰노트', 0, 0, ?, ?, ?, ?)`,
-    args: [processed, staged, excluded + dupActive, `방문형 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 좌표실패 ${geoFail}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+          VALUES ('리뷰노트', ?, ?, ?, ?, ?, ?)`,
+    args: [startPage, nextPage, processed, staged, excluded + dupActive, `page ${startPage}~${page}${reachedEnd ? '(끝→1)' : ''} 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 좌표실패 ${geoFail}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 시간중단' : ''})`],
   });
-  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut };
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut, fromPage: startPage, toPage: page, reachedEnd };
 }
 
 module.exports = { categoryByKeyword, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
