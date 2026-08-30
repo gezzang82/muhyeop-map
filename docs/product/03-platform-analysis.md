@@ -150,12 +150,14 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
 **플랫폼 등록 touchpoint (새 플랫폼 하나 추가 시 손봐야 할 곳)**:
 1. `api/_scrape.js` — `runXxx()` 파서 함수 + `runScrape()` 디스패치 분기(영문키·한글명 둘 다 인식) + `module.exports`
 2. `scripts/crawl-worker.js` — pass에 `runScrape({platform})` 호출 + 이어서 `runAutopilot` (자동 수집 스케줄)
-3. **UI 플랫폼 select 4곳** — 옵션 추가:
+3. **UI 플랫폼 select 5곳** — 옵션 추가:
    - `index.html` `#inputPlatform` — **유저 제보 폼**(한글명)
    - `admin.html` `#addPlatform` — **어드민 캠페인 등록 폼**
    - `admin.html` `#cvPlatform` — **어드민 조회(캠페인) 필터**
    - `admin.html` `#collectPlatform` — **어드민 수동수집**(runScrape 키와 일치, 영문키)
-4. `app.js` `PLATFORM_COLORS` — 핀/뱃지 브랜드 색상(없으면 `getPlatformColor` 회색 `#666` fallback). 무협맵은 로고 이미지가 아니라 **색상 뱃지** 방식
+   - `admin.js` `EXCEL_PLATFORM_OPTIONS` — **Excel 업로드 수정 옵션**(한글명)
+4. `app.js` `PLATFORM_COLORS` — 핀/뱃지 브랜드 색상(없으면 `getPlatformColor` 회색 `#666` fallback). 무협맵은 로고 이미지가 아니라 **색상 뱃지** 방식. 태그 배경은 `${color}29`(16% 알파)로 자동 파생 → **색 하나만 넣으면 텍스트+배경 둘 다** 됨.
+   - ⚠️ 어드민 대시보드 플랫폼 통계 색상은 과거 `admin.js`에 **색상맵을 중복 정의**해 신규 플랫폼에서 회색으로 어긋났음(오마이블로그 사례) → **`getPlatformColor` 재사용으로 통일**(2026-08-30). 색은 ④ 한 곳만 관리.
 - ⚠️ 표기 불일치: 제보폼·`#addPlatform`·`#cvPlatform`·`PLATFORM_COLORS`는 **한글명**, `#collectPlatform`은 **영문키**(`reviewnote`·`gangnam`…). `runScrape`가 둘 다 받으니 규칙만 맞추면 됨.
 - ⚠️ 현재 제보폼·조회필터·색상엔 아직 자동수집 안 하는 레뷰·미블·리뷰플레이스·체험뷰가 미리 들어있음(유저 수동제보용). 자동수집 신규 플랫폼은 위 전 지점에 추가해야 함.
 
