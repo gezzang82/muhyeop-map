@@ -103,11 +103,19 @@ async function pass() {
     remaining = soa.remaining;
     console.log(`  [${ts()}] └ [서울오빠] AI검증: 자동등록 ${soa.registered} · 검수 ${soa.review} · 스킵 ${soa.skipped} · 남은대기 ${soa.remaining}`);
   }
-  // 리뷰노트 (목록 SSR 무인증 → 방문형·실지역만, 매장명+지역으로 도로명 해석, 전국 1회)
+  // 리뷰노트 (v2 공개 API를 시/도별 city= 필터로 순회 → 지역마다 페이지 커서, 방문형·지원채널만 도로명 해석)
   if (!stopping) {
-    const rn = await runScrape({ db, platform: '리뷰노트', limit: 400 });
-    if ((rn.newCandidates || 0) > (rn.processed || 0)) more = true;
-    console.log(`  [${ts()}] 수집(리뷰노트): 처리 ${rn.processed} · 적재 ${rn.staged} · 좌표실패 ${rn.geoFail} · 중복 ${rn.dupActive} · 제외 ${rn.excluded}`);
+    const RN_REGIONS = ['서울', '경기', '인천', '강원', '대전', '세종', '충남', '충북', '부산', '울산', '경남', '경북', '대구', '광주', '전남', '전북', '제주'];
+    let rnStaged = 0, rnEndAll = true;
+    for (const region of RN_REGIONS) {
+      if (stopping) break;
+      const rn = await runScrape({ db, platform: '리뷰노트', region, limit: 200 });
+      rnStaged += rn.staged || 0;
+      if (!rn.reachedEnd) rnEndAll = false;
+      console.log(`  [${ts()}]   리뷰노트:${region} page ${rn.fromPage}~${rn.toPage} 적재 ${rn.staged} 좌표실패 ${rn.geoFail} 중복 ${rn.dupActive}${rn.reachedEnd ? ' (끝→1)' : ''}`);
+    }
+    if (!rnEndAll) more = true; // 아직 한 바퀴 안 끝난 지역 있음
+    console.log(`  [${ts()}] 수집(리뷰노트 17개 시/도): 총 적재 ${rnStaged}`);
     const rna = await runAutopilot({ db });
     remaining = rna.remaining;
     console.log(`  [${ts()}] └ [리뷰노트] AI검증: 자동등록 ${rna.registered} · 검수 ${rna.review} · 스킵 ${rna.skipped} · 남은대기 ${rna.remaining}`);
