@@ -546,6 +546,18 @@ async function runFoblog({ db, limit = 40 }) {
       const cid = Number(it.CID);
       if (cid > lastMaxId && (it.CATEGORY1 || 'local') === 'local') { newItems.push(it); anyNew = true; }
     }
+    // 고정노출(추천) 캠페인은 CID가 커서보다 낮아도 목록 최상단에 뜬다 → 첫 페이지의 미수집 활성건을 포착
+    // (증분 로직이 'CID > 커서'만 보면 재활성·고정된 저CID 캠페인을 영구히 스킵하던 누락 방지)
+    if (offset === 0 && lastMaxId > 0) {
+      const lows = batch.filter((it) => (it.CATEGORY1 || 'local') === 'local' && Number(it.CID) <= lastMaxId).map((it) => Number(it.CID));
+      if (lows.length) {
+        const seen = new Set((await db.execute({ sql: `SELECT source_id FROM scraped_items WHERE platform='포블로그' AND source_id IN (${lows.map(() => '?').join(',')})`, args: lows })).rows.map((r) => Number(r.source_id)));
+        for (const it of batch) {
+          const cid = Number(it.CID);
+          if ((it.CATEGORY1 || 'local') === 'local' && cid <= lastMaxId && !seen.has(cid)) { newItems.push(it); anyNew = true; }
+        }
+      }
+    }
     if (lastMaxId > 0 && !anyNew) break; // 증분: 이 배치가 전부 기처리면 이후(더 오래된)도 다 봄 → 중단
     if (batch.length < 30) break; // 마지막 페이지
     offset += 30;
