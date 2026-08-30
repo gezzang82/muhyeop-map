@@ -1333,7 +1333,12 @@ async function ombFetch(path) {
 // 방문시간/요일 파서 — appDe_visitInstruction의 "[요일 시간]" 대괄호에서 추출(visitInfo 구조화필드는 비어있음).
 // 예: "[평일 10:00~20:00] ❌주말·공휴일 불가", "[월-금 10:00~20:00] [토 10:00~18:00]", "[화,수,목,금 …]".
 const OMB_ALLDAYS = ['월', '화', '수', '목', '금', '토', '일'], OMB_WD = ['월', '화', '수', '목', '금'];
-const ombNormTime = (x) => String(x).replace(/(\d{1,2})\s*시\s*(\d{2})\s*분?/g, (m, h, mm) => h.padStart(2, '0') + ':' + mm).replace(/(\d{1,2})\s*시/g, (m, h) => h.padStart(2, '0') + ':00');
+const ombNormTime = (x) => String(x)
+  .replace(/오후\s*(\d{1,2})\s*시\s*(\d{1,2})?\s*분?/g, (m, h, mm) => { let H = +h; if (H < 12) H += 12; return H + ':' + (mm ? String(mm).padStart(2, '0') : '00'); }) // 오후 5시→17:00
+  .replace(/오전\s*(\d{1,2})\s*시\s*(\d{1,2})?\s*분?/g, (m, h, mm) => String(h).padStart(2, '0') + ':' + (mm ? String(mm).padStart(2, '0') : '00'))
+  .replace(/(\d{1,2})\s*시\s*(\d{1,2})\s*분/g, (m, h, mm) => String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0'))
+  .replace(/(\d{1,2})\s*시/g, (m, h) => String(h).padStart(2, '0') + ':00')
+  .replace(/(오전|오후)\s*(?=\d{1,2}:\d{2})/g, ''); // "오후 17:00" 같은 24h 표기의 오전/오후 라벨 제거
 function ombDaysFromLabel(label) {
   const s = new Set(); let L = String(label).replace(/요일/g, '');
   if (/매일/.test(L)) { OMB_ALLDAYS.forEach((d) => s.add(d)); return s; }
@@ -1349,12 +1354,13 @@ function ombHoursDays(raw) {
   const t = ombNormTime(stripTags(String(raw || '')));
   const brackets = [...t.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim());
   const timed = brackets.filter((b) => /\d{1,2}:\d{2}/.test(b));
-  let hours = timed.map((b) => b.replace(/요일/g, '').replace(/\s*-\s*/g, '~').replace(/\s+/g, ' ').trim()).join(' / ');
-  // 유효 시간대만: 00:00~00:00(협의용 placeholder)은 제외. 하나뿐이면 요일 라벨(평일/매일/월~금)은 '요일' 필드와
-  // 중복이라 제거하고 시간만. 유효 시간대가 없으면 시간 비움. 여러 시간대면 라벨 유지(구분 필요).
-  const ranges = (hours.match(/\d{1,2}:\d{2}\s*~\s*\d{1,2}:\d{2}/g) || []).map((r) => r.replace(/\s+/g, '')).filter((r) => r !== '00:00~00:00');
+  // 유효 시간대: 전체 텍스트에서 추출('[...]' 없이 "17:00 - 02:00"만 있는 케이스 커버). '-'와 '~' 구분자 모두, 00:00~00:00 제외.
+  const ranges = (t.match(/\d{1,2}:\d{2}\s*[-~]\s*\d{1,2}:\d{2}/g) || []).map((r) => r.replace(/\s*[-~]\s*/, '~').replace(/\s+/g, '')).filter((r) => r !== '00:00~00:00');
+  // 시간대 1개면 요일 라벨은 '요일' 필드와 중복 → 시간만. 여러 개면 라벨 유지(구분 필요). 없으면 비움.
+  let hours;
   if (ranges.length === 0) hours = '';
   else if (ranges.length === 1) hours = ranges[0];
+  else hours = timed.map((b) => b.replace(/요일/g, '').replace(/\s*[-~]\s*/g, '~').replace(/\s+/g, ' ').trim()).join(' / ') || ranges.join(' / ');
   const hasHours = ranges.length > 0;
   const set = new Set();
   timed.forEach((b) => { b.split(/\s*\/\s*/).forEach((seg) => ombDaysFromLabel(seg.split(/\d{1,2}:\d{2}/)[0]).forEach((d) => set.add(d))); });
