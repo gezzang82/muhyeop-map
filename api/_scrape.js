@@ -852,12 +852,19 @@ function rbDeadline(txt) {
   const m = txt.match(/모집\s*기간[\s\S]*?~\s*(\d{2})년\s*(\d{2})월\s*(\d{2})일/);
   return m ? `20${m[1]}-${m[2]}-${m[3]}` : '';
 }
+// 채널: 상세의 "{채널} N일 남음 신청 N / 모집 N" 패턴에서. 목록 카드는 아이콘이라 텍스트 없음(기본 블로그로 오검출).
+function rbChannel(txt) {
+  const m = txt.match(/(블로그|인스타그램|인스타|릴스|유튜브|기자단)\s*(?:\d+\s*일\s*남음|오늘\s*마감|마감임박|마감)\s*신청/);
+  let ch = m ? m[1] : '';
+  if (ch === '인스타') ch = '인스타그램';
+  return ch;
+}
 async function rbScrapeDetail(number) {
   const html = await (await fetch(`${RB_BASE}/detail.php?number=${number}&category=${RB_VISIT_CAT}`, { headers: { 'User-Agent': UA } })).text();
   const txt = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
   const hd = rbHoursDays(txt);
   return {
-    name: rbStoreName(html), content: rbContent(txt), address: rbAddress(txt),
+    name: rbStoreName(html), content: rbContent(txt), address: rbAddress(txt), channel: rbChannel(txt),
     days: hd.days, hours: hd.hours, excludeHoliday: hd.excludeHoliday, deadline: rbDeadline(txt),
     placeUrl: (html.match(/https?:\/\/naver\.me\/[A-Za-z0-9]+/) || [])[0] || '',
   };
@@ -898,14 +905,15 @@ async function runRingble({ db, limit = 300, deadlineTs = 0 }) {
       try {
         const d = await rbScrapeDetail(c.number);
         if (!d.name) { excluded++; continue; }
+        const channel = d.channel || c.channel; // 상세 채널 우선(목록 아이콘 부정확)
         const category = categoryByKeyword(d.content + ' ' + d.name, d.name) || '음식점';
-        const cls = classify({ name: d.name, channel: c.channel }, dedupe, today);
+        const cls = classify({ name: d.name, channel }, dedupe, today);
         if (cls.status === 'dup_active') { dupActive++; continue; }
         const ins = await db.execute({
           sql: `INSERT OR IGNORE INTO scraped_items
             (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'',?,?,'pending')`,
-          args: [platform, c.number, `${RB_BASE}/detail.php?number=${c.number}`, d.name, d.address || '', category, c.channel, d.content, d.deadline || '', d.hours || '', d.days || '', d.excludeHoliday || 0, cls.status, cls.matchedPlaceId],
+          args: [platform, c.number, `${RB_BASE}/detail.php?number=${c.number}`, d.name, d.address || '', category, channel, d.content, d.deadline || '', d.hours || '', d.days || '', d.excludeHoliday || 0, cls.status, cls.matchedPlaceId],
         });
         if (ins.rowsAffected > 0) staged++;
       } catch (e) { failed++; }
