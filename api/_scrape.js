@@ -537,7 +537,7 @@ async function runFoblog({ db, limit = 40 }) {
   const dedupe = await loadDedupe(db);
   let staged = 0, excluded = 0, dupActive = 0, failed = 0;
   // 커서는 '연속 성공 처리한 CID 최댓값'까지만 전진(과거: maxSeen으로 점프 → 미처리 신규 영구 스킵 버그)
-  let cursorAdvance = lastMaxId, sawFail = false;
+  let cursorAdvance = lastMaxId, sawFail = false, consecShort = 0, throttled = false;
 
   for (let i = 0; i < targets.length; i++) {
     const it = targets[i];
@@ -550,6 +550,8 @@ async function runFoblog({ db, limit = 40 }) {
       let html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`);
       // 축약 페이지(campaigninfo 없음)는 만료 or 레이트리밋 축약본 — 백오프 후 1회 재시도해 차단 오탐 방지
       if (!/campaigninfo-label/.test(html)) { await sleep(2500); html = await fetchText(`${FB_BASE}/campaign/${it.CID}/`); }
+      // 서킷브레이커: 축약이 연속되면(=IP 차단 추정) 즉시 중단해 4blog 부하↓ → 차단 빨리 해제. 커서는 전진 안 함(다음에 재개).
+      if (!/campaigninfo-label/.test(html)) { if (++consecShort >= 5) { throttled = true; sawFail = true; break; } } else consecShort = 0;
       const { address, hours, days, holiday, deadline: dlCal } = fbParseDetail(html);
       if (!address) { excluded++; ok = true; } // 재시도 후에도 주소 없으면 만료로 보고 제외(커서 전진)
       else {
@@ -591,9 +593,9 @@ async function runFoblog({ db, limit = 40 }) {
   await db.execute({
     sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    args: [platform, lastMaxId, newCursor, targets.length, staged, excluded + dupActive, `신규후보 ${newItems.length} 처리 ${targets.length} (dup_active ${dupActive}, 실패 ${failed})`],
+    args: [platform, lastMaxId, newCursor, targets.length, staged, excluded + dupActive, `신규후보 ${newItems.length} 처리 ${targets.length} (dup_active ${dupActive}, 실패 ${failed}${throttled ? ', 차단감지-중단' : ''})`],
   });
-  return { platform, cursorFrom: lastMaxId, cursorTo: newCursor, newCandidates: newItems.length, processed: targets.length, staged, excluded, dupActive, failed };
+  return { platform, cursorFrom: lastMaxId, cursorTo: newCursor, newCandidates: newItems.length, processed: targets.length, staged, excluded, dupActive, failed, throttled };
 }
 
 // 플랫폼 디스패처
