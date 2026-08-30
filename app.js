@@ -1094,6 +1094,8 @@ function openReviewForm(placeId) {
   _reviewValidated = false;
   document.getElementById('reviewUrl').value = '';
   document.getElementById('reviewPreview').innerHTML = '';
+  // 직전 등록 성공/401 후 disabled로 남은 버튼을 항상 초기화(두 번째 등록이 안 되던 버그 방지)
+  const sb = document.getElementById('reviewSubmitBtn'); if (sb) sb.disabled = false;
   rvSetError('');
   document.getElementById('reviewFormOverlay').classList.add('open');
 }
@@ -1130,7 +1132,7 @@ async function submitReview() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, placeId: _reviewFormPlaceId })
     });
-    if (res.status === 401) { openLoginSheet(); return; }
+    if (res.status === 401) { btn.disabled = false; openLoginSheet(); return; }
     const data = await res.json();
     if (!res.ok) { rvSetError(data.error || data.reason || '등록에 실패했어요.'); btn.disabled = false; return; }
     closeReviewForm();
