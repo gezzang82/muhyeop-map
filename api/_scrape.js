@@ -601,6 +601,7 @@ async function runScrape({ db, platform, mode, limit, region, deadlineTs }) {
   if (platform === 'foblog' || platform === '포블로그') return runFoblog({ db, limit });
   if (platform === 'gangnam' || platform === '강남맛집') return runGangnam({ db, limit, deadlineTs });
   if (platform === 'ringble' || platform === '링블') return runRingble({ db, limit, deadlineTs });
+  if (platform === 'seoulouba' || platform === '서울오빠') return runSeouloba({ db, limit, deadlineTs });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs });
 }
 
@@ -819,7 +820,8 @@ function rbHoursDays(txt) {
   const times = [...val.matchAll(/(\d{1,2}:\d{2})\s*[~\-–]\s*(\d{1,2}:\d{2})/g)].map((mm) => `${mm[1]}~${mm[2]}`);
   const hours = times.length
     ? [...new Set(times)].join(' / ')
-    : val.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/, '').trim();
+    : val.replace(/^(?:평일\s*\/\s*주말|평일\s*,\s*주말|평일|주말|매일|연중무휴|[월화수목금토일](?:\s*[,·/~]\s*[월화수목금토일])*(?:요일)?)\s*/, '')
+        .replace(/\s*(?:제한인원|최소\s*\d|사전\s*예약|예약\s*연락|예약\s*필수|본\s*캠페인|리뷰\s*작성|★|※)[\s\S]*$/, '').trim(); // 뒤 안내문 컷
   // 공휴일 방문/예약 불가 → 공휴일 제외 플래그
   const excludeHoliday = /공휴일(?![\s\S]{0,20}?가능)[\s\S]{0,30}?(?:방문\s*불가|예약\s*불가|휴무|불가|제외)/.test(val) ? 1 : 0;
   return { days: days.join(','), hours, excludeHoliday };
@@ -901,4 +903,86 @@ async function runRingble({ db, limit = 300, deadlineTs = 0 }) {
   return { platform, newCandidates: processed, processed, staged, excluded, dupActive, failed, timedOut };
 }
 
-module.exports = { runDinnerqueen, runFoblog, runGangnam, runRingble, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays };
+// ===== 서울오빠(seoulouba.co.kr) — 그누보드 SSR, 방문형 cat=377 =====
+// 목록 /campaign/?cat=377&page=N → 카드 링크 ?c=N. 상세에서 매장명(카카오 공유 title)·제공내역·
+// 위치(실주소)·방문가능시간(요일/시간, 링블 파서 재활용)·크리에이터모집(마감)·네이버 플레이스·채널.
+const SO_BASE = 'https://seoulouba.co.kr';
+const SO_VISIT_CAT = 377;
+// 매장명+채널: 카카오 공유 title "[블로그+클립][판교] 쉐누하누" → 앞 [채널][지역] 제거, 채널은 첫 대괄호
+function soName(html) {
+  const m = html.match(/content:\s*\{\s*title:\s*"([^"]+)"/) || html.match(/title:\s*"(\[[^"]+)"/);
+  if (!m) return { name: '', channel: '' };
+  const raw = m[1].replace(/&amp;/g, '&').trim();
+  // 채널은 채널키워드 든 대괄호만(지역 대괄호 [판교] 등과 구분). 없으면 빈값.
+  const chBracket = (raw.match(/\[[^\]]*\]/g) || []).find((b) => /블로그|클립|인스타|릴스|유튜브|구매평|기자단/.test(b));
+  const channel = chBracket ? chBracket.replace(/[[\]]/g, '').replace(/\s*\+\s*/g, ',').replace(/\s+/g, '') : '';
+  const name = raw.replace(/^(?:\s*\[[^\]]*\])+\s*/, '').trim(); // 앞 [채널][지역] 다 제거
+  return { name, channel };
+}
+function soAddress(html) {
+  const m = html.match(/map_adress[\s\S]*?txt_short[^>]*>\s*([^<]+?)\s*</);
+  return m ? m[1].replace(/\s+/g, ' ').trim() : '';
+}
+function soContent(txt) {
+  const m = txt.match(/제공내역\s*([\s\S]*?)\s*(?:\*|방문가능시간|크리에이터\s*모집|위치|리뷰어|유의사항)/);
+  return m ? m[1].replace(/\s+/g, ' ').trim() : '';
+}
+function soDeadline(txt) {
+  const m = txt.match(/크리에이터\s*모집[\s\S]{0,20}?~\s*(\d{2})-(\d{2})-(\d{2})/);
+  return m ? `20${m[1]}-${m[2]}-${m[3]}` : '';
+}
+async function soScrapeDetail(c) {
+  const html = await (await fetch(`${SO_BASE}/campaign/?c=${c}`, { headers: { 'User-Agent': UA } })).text();
+  const txt = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+  const { name, channel } = soName(html);
+  const hd = rbHoursDays(txt); // "방문가능시간 : 월~일 17:30~19:30" — 링블과 동일 형식
+  return { name, channel, content: soContent(txt), address: soAddress(html), days: hd.days, hours: hd.hours, excludeHoliday: hd.excludeHoliday, deadline: soDeadline(txt), placeUrl: (html.match(/https?:\/\/naver\.me\/[A-Za-z0-9]+/) || [])[0] || '' };
+}
+const soParseList = (html) => [...new Set([...html.matchAll(/campaign\/\?c=(\d+)/g)].map((m) => Number(m[1])))];
+async function runSeouloba({ db, limit = 300, deadlineTs = 0 }) {
+  const platform = '서울오빠';
+  const today = new Date().toISOString().slice(0, 10);
+  const dedupe = await loadDedupe(db);
+  // 이미 스테이징된 c는 상세 fetch 없이 스킵(무커서 재실행 시 신규로 전진)
+  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='서울오빠'")).rows.map((r) => Number(r.source_id)));
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, timedOut = false;
+  const seen = new Set();
+  for (let page = 1; page <= 40; page++) {
+    let cids = [];
+    try { cids = soParseList(await (await fetch(`${SO_BASE}/campaign/?cat=${SO_VISIT_CAT}&page=${page}`, { headers: { 'User-Agent': UA } })).text()); } catch (e) { break; }
+    const fresh = cids.filter((c) => !seen.has(c));
+    if (!fresh.length) break; // 페이지 반복/끝
+    for (const c of fresh) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      seen.add(c);
+      if (doneIds.has(c)) continue; // 기처리 — detail fetch 없이 스킵
+      if (processed >= limit) { timedOut = true; break; }
+      processed++;
+      try {
+        const d = await soScrapeDetail(c);
+        if (!d.name || !d.address) { excluded++; continue; }
+        const category = categoryByKeyword(d.content + ' ' + d.name, d.name) || '음식점';
+        const cls = classify({ name: d.name, channel: d.channel }, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; continue; }
+        const ins = await db.execute({
+          sql: `INSERT OR IGNORE INTO scraped_items
+            (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'',?,?,'pending')`,
+          args: [platform, c, `${SO_BASE}/campaign/?c=${c}`, d.name, d.address, category, d.channel, d.content, d.deadline || '', d.hours || '', d.days || '', d.excludeHoliday || 0, cls.status, cls.matchedPlaceId],
+        });
+        if (ins.rowsAffected > 0) staged++;
+      } catch (e) { failed++; }
+      await sleep(700);
+    }
+    if (timedOut || processed >= limit) break;
+    await sleep(500);
+  }
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('서울오빠', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive, `방문형 처리 ${processed} (dup_active ${dupActive}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, failed, timedOut };
+}
+
+module.exports = { runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };

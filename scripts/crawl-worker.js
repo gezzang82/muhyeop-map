@@ -94,6 +94,15 @@ async function pass() {
     remaining = fa.remaining;
     console.log(`  [${ts()}] └ [포블로그] AI검증: 자동등록 ${fa.registered} · 검수 ${fa.review} · 스킵 ${fa.skipped} · 남은대기 ${fa.remaining}`);
   }
+  // 서울오빠 (방문형 cat=377 목록 순회 → 상세 파싱, 전국)
+  if (!stopping) {
+    const so = await runScrape({ db, platform: '서울오빠', limit: 200 });
+    if ((so.newCandidates || 0) > (so.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(서울오빠): 처리 ${so.processed} · 적재 ${so.staged} · 중복 ${so.dupActive} · 제외 ${so.excluded}`);
+    const soa = await runAutopilot({ db });
+    remaining = soa.remaining;
+    console.log(`  [${ts()}] └ [서울오빠] AI검증: 자동등록 ${soa.registered} · 검수 ${soa.review} · 스킵 ${soa.skipped} · 남은대기 ${soa.remaining}`);
+  }
   return { collected, more, remaining };
 }
 
