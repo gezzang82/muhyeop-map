@@ -813,6 +813,8 @@ function rbHoursDays(txt) {
   for (const mm of val.matchAll(/(?<!\d)([월화수목금토일])\s*[~\-–]\s*([월화수목금토일])(?!\d)/g)) {
     const i = ALL_DAYS.indexOf(mm[1]), j = ALL_DAYS.indexOf(mm[2]); if (i >= 0 && j >= 0) for (let k = i; ; k = (k + 1) % 7) { avail.add(ALL_DAYS[k]); if (k === j) break; }
   }
+  // 단독 요일 + 시간("일 13:00", "일 12:00~14:00") — 앞이 한글 아니어야(평일/당일/매일/공휴일의 '일' 배제)
+  for (const mm of val.matchAll(/(?:^|[^가-힣])([월화수목금토일])\s*\d{1,2}\s*[:시]/g)) avail.add(mm[1]);
   // 제외: "X요일 휴무/불가"(중간 한글 허용), "요일범위 + 체험불가"(금-토 체험불가), 주말 금지
   const closed = new Set();
   for (const mm of val.matchAll(/([월화수목금토일])요일[\s\S]{0,10}?(?:방문\s*불가|예약\s*및\s*방문\s*불가|체험\s*불가|휴무|불가|제외)/g)) closed.add(mm[1]);
