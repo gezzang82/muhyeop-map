@@ -1,8 +1,23 @@
 apply plugin: 'com.android.application'
 
+// 릴리스 서명: keystore.properties(gitignore됨)에서 읽음. 파일 없으면 서명 설정 생략(디버그 빌드 가능).
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) { keystoreProps.load(new FileInputStream(keystorePropsFile)) }
+
 android {
     namespace = "com.muhyeop.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
     defaultConfig {
         applicationId "com.muhyeop.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -18,6 +33,7 @@ android {
     }
     buildTypes {
         release {
+            if (keystorePropsFile.exists()) { signingConfig signingConfigs.release }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

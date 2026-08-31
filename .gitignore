@@ -13,6 +13,11 @@ mobile-app/android/build
 mobile-app/android/app/build
 mobile-app/android/capacitor-cordova-android-plugins
 mobile-app/android/local.properties
+
+# Android 릴리스 서명(절대 커밋 금지 — 유출 시 앱 위조 가능)
+*.jks
+*.keystore
+mobile-app/android/keystore.properties
 .env*
 
 # Turso 사용량 일일 로그(로컬 전용)
