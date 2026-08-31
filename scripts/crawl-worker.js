@@ -27,7 +27,7 @@ for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
   if (m) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
 }
 
-const { runScrape, SEOUL_AREA2, AREA2_BY_REGION } = require('../api/_scrape');
+const { runScrape, loadDedupe, SEOUL_AREA2, AREA2_BY_REGION } = require('../api/_scrape');
 const { runAutopilot } = require('../api/_autopilot');
 
 // 지역별 수집 단위(하위지역). '전체' 목록은 하위지역을 다 담지 않아 누락되므로 하위지역별로 순회한다.
@@ -40,7 +40,7 @@ function subdistrictsFor(region) {
 
 const regions = (process.argv[2] || '서울').split(',').map((s) => s.trim()).filter(Boolean);
 const minWaitSec = Math.max(10, parseInt(process.argv[3], 10) || 30);
-const IDLE_WAIT_SEC = 600; // 새로 긁을 게 없을 때 대기(10분)
+const IDLE_WAIT_SEC = 1800; // 새로 긁을 게 없을 때 대기(30분) — 유휴 패스의 DB 읽기 절감. 크롤 소스는 하루 단위 갱신이라 무해.
 
 const db = createClient({ url: process.env.TURSO_DATABASE_URL, authToken: process.env.TURSO_AUTH_TOKEN });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -53,10 +53,13 @@ async function pass() {
   let collected = 0, more = false, remaining = 0;
   for (const region of regions) {
     if (stopping) break;
+    // 중복확인용 전체 매장/캠페인은 이 지역 하위지역 순회 동안 1번만 읽어 공유(하위지역마다 전체테이블 재조회 방지).
+    // autopilot(등록)은 이 하위지역 루프가 끝난 뒤(아래) 1회만 돌므로 순회 중 신선도 유지 → 안전.
+    const ddDedupe = await loadDedupe(db);
     // 하위지역별로 순회 수집('전체' 목록이 하위지역을 다 안 담아서 누락되던 것 해결)
     for (const t of subdistrictsFor(region)) {
       if (stopping) break;
-      const s = await runScrape({ db, platform: 'dinnerqueen', mode: t.mode, limit: 250, region: t.region });
+      const s = await runScrape({ db, platform: 'dinnerqueen', mode: t.mode, limit: 250, region: t.region, dedupe: ddDedupe });
       collected += s.staged || 0;
       if ((s.newCandidates || 0) > (s.processed || 0)) more = true; // 아직 못 긁은 신규 남음
       const label = t.mode === 'jeonche' ? t.region : `${t.region}>${t.mode}`;
@@ -107,9 +110,11 @@ async function pass() {
   if (!stopping) {
     const RN_REGIONS = ['서울', '경기', '인천', '강원', '대전', '세종', '충남', '충북', '부산', '울산', '경남', '경북', '대구', '광주', '전남', '전북', '제주'];
     let rnStaged = 0, rnEndAll = true;
+    // 17개 시/도 순회 동안 중복확인 데이터 1번만 읽어 공유(autopilot는 이 루프 뒤 1회 → 안전).
+    const rnDedupe = await loadDedupe(db);
     for (const region of RN_REGIONS) {
       if (stopping) break;
-      const rn = await runScrape({ db, platform: '리뷰노트', region, limit: 200 });
+      const rn = await runScrape({ db, platform: '리뷰노트', region, limit: 200, dedupe: rnDedupe });
       rnStaged += rn.staged || 0;
       if (!rn.reachedEnd) rnEndAll = false;
       console.log(`  [${ts()}]   리뷰노트:${region} page ${rn.fromPage}~${rn.toPage} 적재 ${rn.staged} 좌표실패 ${rn.geoFail} 중복 ${rn.dupActive}${rn.reachedEnd ? ' (끝→1)' : ''}`);

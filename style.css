@@ -876,7 +876,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 #map { flex: 1; min-width: 0; z-index: 1; position: relative; touch-action: none; }
 /* 지도 로딩 실패 안내 (지도 영역만 덮음) */
 .map-error {
-  position: absolute; inset: 0; z-index: 50;
+  /* 지도 영역만이 아니라 화면 전체(PC 사이드바·헤더 포함)를 덮는다. 데이터/지도 로드 실패 공용. */
+  position: fixed; inset: 0; z-index: 10000;
   display: flex; align-items: center; justify-content: center;
   background: #f2f4f6; padding: 24px;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;

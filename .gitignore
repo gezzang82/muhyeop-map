@@ -13,3 +13,7 @@ mobile-app/android/build
 mobile-app/android/app/build
 mobile-app/android/capacitor-cordova-android-plugins
 mobile-app/android/local.properties
+.env*
+
+# Turso 사용량 일일 로그(로컬 전용)
+scripts/.db-usage-log.tsv

@@ -26,11 +26,21 @@ function loadInitialData() {
         fetch(campaignsUrl),
         fetch('/api/banners')
       ]);
+      // 서버 일시 장애(예: DB 읽기 한도 초과로 500)면 여기서 던져 부팅 핸들러가 안내 화면(#mapError)을 띄우게 함.
+      // 배너는 비필수라 실패해도 앱은 뜨게 함(빈 배열).
+      if (!placesRes.ok || !campaignsRes.ok) {
+        throw new Error(`데이터 로드 실패: places ${placesRes.status}, campaigns ${campaignsRes.status}`);
+      }
       places = await placesRes.json();
       campaigns = await campaignsRes.json();
-      banners = await bannersRes.json();
+      banners = bannersRes.ok ? await bannersRes.json().catch(() => []) : [];
+      if (!Array.isArray(places) || !Array.isArray(campaigns)) {
+        throw new Error('데이터 형식 오류(배열 아님)');
+      }
       invalidateActiveCache();
     })();
+    // 실패 시 메모를 풀어 다음 호출(다시 시도)이 재요청하도록 함
+    _dataLoadPromise.catch(() => { _dataLoadPromise = null; });
   }
   return _dataLoadPromise;
 }
@@ -3586,7 +3596,10 @@ document.addEventListener('DOMContentLoaded', initSplash);
 // 지도 로딩/인증 실패 시 지도 영역에 안내 화면 노출
 function showMapError() {
   const err = document.getElementById('mapError');
-  if (err) err.hidden = false;
+  if (!err) return;
+  // 부모 DIV의 스태킹 컨텍스트에 갇히면 z-index가 커도 사이드바/캐릭터를 못 덮음 → body 최상위로 옮겨 화면 전체를 덮게 함
+  if (err.parentElement !== document.body) document.body.appendChild(err);
+  err.hidden = false;
 }
 function hideAppLoading() {
   const el = document.getElementById('appLoading');
@@ -3645,7 +3658,14 @@ document.addEventListener('contextmenu', function(e) {
 
 window.addEventListener('load', async function() {
   initAppLoading();
-  await loadInitialData();
+  try {
+    await loadInitialData();
+  } catch (e) {
+    // 매장/캠페인 데이터를 못 불러옴(서버 일시 장애 등) → 빈 지도 대신 안내 화면 + 다시 시도.
+    if (document.getElementById('map')) showMapError();
+    hideAppLoading();
+    return;
+  }
   await refreshAuthUI();
   const url = new URL(location.href);
   if (url.searchParams.get('signup') === '1') {

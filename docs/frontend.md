@@ -11,6 +11,7 @@
 - 캠페인에는 `deadline`(마감일, 빈 값 허용 = 마감일 없음), `createdAt`, `source`(`user`/그 외) 등이 있음
 - 지도에 마커를 찍고, 마커 클릭 시 정보창(인포윈도우)에 협찬 내용을 보여줌
 - **활성 캠페인 캐시**: `getActiveCampaigns(placeId)`/`hasActiveCampaign`는 매 호출 `campaigns` 전체를 필터링하지 않고, `getActiveByPlaceMap()`가 만든 `placeId→활성캠페인[]` 맵을 재사용(지도 이동마다 O(매장×캠페인) 반복 스캔 제거). 캐시는 **명시적으로만 무효화**(`invalidateActiveCache()`): 데이터 로드 후, 제보 등록(`campaigns.push`) 후, 채널필터 변경(`filterChannel`) 시. `campaigns`를 직접 건드리면 이 무효화를 같이 호출해야 함. PC "총 협찬수"(`updateStatCount`)도 마감/숨김 제외한 활성만 집계.
+- **데이터 로드 실패 폴백(`#mapError`)**: `loadInitialData`가 `/api/places`·`/api/campaigns` 응답이 `!res.ok`(예: 서버 장애/DB 읽기한도 500)이거나 배열이 아니면 **에러를 던짐**. 부팅 핸들러(`window load`)가 `try/catch`로 잡아 `showMapError()`(기존 지도 스크립트 실패용 오버레이 재사용) + `hideAppLoading()` 후 중단 → 빈 지도/무한스피너 대신 "지도를 불러오지 못했어요 / 다시 시도"(reload). 실패 시 `_dataLoadPromise=null`로 메모 해제(재시도 가능). `.map-error`는 `position:fixed;z-index:10000`이고 `showMapError`가 오버레이를 `document.body` 최상위로 옮겨(부모 스태킹 컨텍스트 탈출) PC 사이드바·아이콘레일·라이브캐릭터까지 **화면 전체를 덮음**. 배너는 비필수라 실패해도 빈 배열로 넘어감.
 
 ## 지도 마커 렌더링 / 격자 클러스터링 (`renderMarkers`)
 - **뷰포트 컬링**: 화면(+40% 마진, `viewBoundsWithMargin(0.4)`)에 들어오는 매장만 대상. 지도 idle(줌/이동 멈춤)마다 120ms 디바운스로 재렌더. 회색핀(활성 캠페인 없음)은 `GRAY_PIN_MIN_ZOOM` 이상에서만.

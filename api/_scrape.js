@@ -380,7 +380,7 @@ function classify(item, dedupe, today) {
 /**
  * 증분 수집 실행. { db, mode:'jeonche'|'all-seoul', limit } → 요약
  */
-async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서울', deadlineTs = 0 }) {
+async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서울', deadlineTs = 0, dedupe: _dedupe = null }) {
   const platform = '디너의여왕'; // scraped_items에 저장되는 표시용 플랫폼명(지역 무관)
   // 커서는 수집 범위별로 분리 — taste ID가 전 지역 공통 번호라, 커서 하나로 여러 범위 돌리면 낮은 ID가 스킵됨.
   // 서울 전체/전역=기존 키('디너의여왕'), 서울 특정 하위지역='디너의여왕:서울:하위지역', 그 외 지역='디너의여왕:지역'.
@@ -396,7 +396,8 @@ async function runDinnerqueen({ db, mode = 'jeonche', limit = 40, region = '서�
   const newIds = allIds.filter((id) => id > lastMaxId).sort((a, b) => a - b);
   const targets = newIds.slice(0, limit);
 
-  const dedupe = await loadDedupe(db);
+  // 지역 순회 시 crawl-worker가 미리 1번 읽어 넘겨주면 재사용(전체테이블 반복읽기 방지). 없으면 자체 로드.
+  const dedupe = _dedupe || await loadDedupe(db);
   let staged = 0, excluded = 0, dupActive = 0, failed = 0;
   // 커서는 '연속으로 성공 처리한 대상의 최댓값'까지만 전진(과거: 목록 최댓값으로 점프 → 미처리 신규 영구 스킵 버그).
   // 실패가 나면 그 지점 이후는 커서를 올리지 않아 다음 실행에서 재시도(누락 방지).
@@ -632,14 +633,14 @@ async function runFoblog({ db, limit = 40 }) {
 }
 
 // 플랫폼 디스패처
-async function runScrape({ db, platform, mode, limit, region, deadlineTs }) {
+async function runScrape({ db, platform, mode, limit, region, deadlineTs, dedupe }) {
   if (platform === 'foblog' || platform === '포블로그') return runFoblog({ db, limit });
   if (platform === 'gangnam' || platform === '강남맛집') return runGangnam({ db, limit, deadlineTs });
   if (platform === 'ringble' || platform === '링블') return runRingble({ db, limit, deadlineTs });
   if (platform === 'seoulouba' || platform === '서울오빠') return runSeouloba({ db, limit, deadlineTs });
-  if (platform === 'reviewnote' || platform === '리뷰노트') return runReviewnote({ db, limit, deadlineTs, region });
+  if (platform === 'reviewnote' || platform === '리뷰노트') return runReviewnote({ db, limit, deadlineTs, region, dedupe });
   if (platform === 'ohmyblog' || platform === '오마이블로그') return runOhmyblog({ db, limit, deadlineTs });
-  return runDinnerqueen({ db, mode, limit, region, deadlineTs });
+  return runDinnerqueen({ db, mode, limit, region, deadlineTs, dedupe });
 }
 
 // 승인 대기(pending) 항목을 현재(개선된) 파서로 재파싱해 요일/시간/주소/공휴일/카테고리 갱신.
@@ -1243,10 +1244,11 @@ async function rnResolveAddress(name, city, sigungu) {
   }
   return null;
 }
-async function runReviewnote({ db, limit = 300, deadlineTs = 0, region = '' }) {
+async function runReviewnote({ db, limit = 300, deadlineTs = 0, region = '', dedupe: _dedupe = null }) {
   const platform = '리뷰노트';
   const today = new Date().toISOString().slice(0, 10);
-  const dedupe = await loadDedupe(db);
+  // 지역 순회 시 crawl-worker가 미리 1번 읽어 넘겨주면 재사용. 없으면 자체 로드.
+  const dedupe = _dedupe || await loadDedupe(db);
   const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='리뷰노트'")).rows.map((r) => Number(r.source_id)));
   // 지역별(v2 `city=` 필터) 순회. 시/도마다 별도 페이지 커서(scrape_state '리뷰노트:서울' 등)를 두고,
   // 패스마다 이어서 훑고 끝(has_more=false)에 도달하면 1페이지로 돌아가 신규 재순회. 지역별이라 각 목록이
@@ -1435,4 +1437,4 @@ async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
   return { platform, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut };
 }
 
-module.exports = { categoryByKeyword, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
