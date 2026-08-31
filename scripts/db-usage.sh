@@ -6,7 +6,7 @@
 
 set -euo pipefail
 DB="${1:-muhyeop-map}"
-LIMIT_READ=500000000   # starter 플랜 rows read 월 한도(대시보드 값과 다르면 수정)
+LIMIT_READ=2500000000   # Developer 플랜 rows read 월 한도(2.5B). 플랜 바뀌면 `turso plan show`로 확인해 수정
 TURSO="$(command -v turso || echo "$HOME/.turso/turso")"
 LOG="$(dirname "$0")/.db-usage-log.tsv"
 
@@ -38,7 +38,7 @@ printf "%s\t%s\t%s\n" "$NOW" "$READ" "$WRITE" >> "$LOG"
 RM=$(awk -v r="$READ"  'BEGIN{printf "%.1f", r/1000000}')
 WM=$(awk -v w="$WRITE" 'BEGIN{printf "%.1f", w/1000000}')
 echo "━━━ Turso 사용량 ($DB) · $NOW ━━━"
-echo "  rows read : ${RM}M / 500M  = ${PCT}%${DELTA_MSG}"
-echo "  rows write: ${WM}M / 10M"
+echo "  rows read : ${RM}M / 2500M = ${PCT}%${DELTA_MSG}"
+echo "  rows write: ${WM}M / 25M"
 echo "  storage   : ${STORAGE}"
 if awk -v p="$PCT" 'BEGIN{exit !(p>=80)}'; then echo "  ⚠️  읽기 80% 이상 — 주의"; fi
