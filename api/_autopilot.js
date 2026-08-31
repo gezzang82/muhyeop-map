@@ -59,11 +59,15 @@ function similarNearby(candName, coords, places, radiusM = 300, topN = 8) {
 
 async function insertPlace(db, { name, address, lat, lng, category }) {
   // 같은 이름+좌표 매장이 있으면 재사용(중복 매장 방지 — 한 매장에 채널별 캠페인이 붙게).
-  const dup = await db.execute({
-    sql: "SELECT id FROM places WHERE REPLACE(name,' ','') = REPLACE(?,' ','') AND ABS(lat - ?) < 0.0007 AND ABS(lng - ?) < 0.0007 LIMIT 1",
-    args: [String(name), Number(lat), Number(lng)],
+  // 좌표 인덱스(idx_places_lat_lng)로 근처 매장만 읽고 이름은 앱에서 비교 — REPLACE()가 인덱스를 막아
+  // 매 등록마다 places 전체(2만행)를 스캔하던 것을 근처 몇 행만 읽도록.
+  const nkey = String(name).replace(/ /g, '');
+  const near = await db.execute({
+    sql: 'SELECT id, name FROM places WHERE lat > ? AND lat < ? AND lng > ? AND lng < ?',
+    args: [Number(lat) - 0.0007, Number(lat) + 0.0007, Number(lng) - 0.0007, Number(lng) + 0.0007],
   });
-  if (dup.rows.length) return Number(dup.rows[0].id);
+  const hit = near.rows.find((p) => String(p.name).replace(/ /g, '') === nkey);
+  if (hit) return Number(hit.id);
   const r = await db.execute({
     sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id)
           VALUES (?, ?, ?, ?, ?, '', '', '', NULL)`,
@@ -111,21 +115,24 @@ async function markSkipped(db, id, note) {
  * @param {object} o { db, dry, deadlineTs }
  * @returns 요약 { processed, registered, review, skipped, remaining, dry, decisions[] }
  */
-async function runAutopilot({ db, dry = false, deadlineTs = 0 }) {
+async function runAutopilot({ db, dry = false, deadlineTs = 0, places: _places = null }) {
   const today = kstToday();
 
   // 아직 자동판정 안 한 승인 대기만(auto_seen=0). 오래된 것부터.
+  // auto_seen은 NULL 없이 0/1이라 COALESCE 불필요 → idx_scraped_status_seen(status,auto_seen) 인덱스로
+  // 전체 3.3만 스캔 대신 대상(pending&seen=0)만 읽음.
   const pend = await db.execute({
-    sql: `SELECT * FROM scraped_items WHERE status='pending' AND COALESCE(auto_seen,0)=0 ORDER BY id ASC LIMIT ?`,
+    sql: `SELECT * FROM scraped_items WHERE status='pending' AND auto_seen=0 ORDER BY id ASC LIMIT ?`,
     args: [MAX_PER_RUN],
   });
   const rows = pend.rows;
 
-  const remRes = await db.execute("SELECT COUNT(*) AS n FROM scraped_items WHERE status='pending' AND COALESCE(auto_seen,0)=0");
+  const remRes = await db.execute("SELECT COUNT(*) AS n FROM scraped_items WHERE status='pending' AND auto_seen=0");
   const totalPending = Number(remRes.rows[0]?.n || 0);
 
-  const placesRes = await db.execute('SELECT id, name, lat, lng FROM places');
-  const places = placesRes.rows;
+  // 매장 목록(중복확인용). crawl-worker가 패스당 1번 읽어 넘겨주면 재사용(autopilot 호출마다 2만행 재읽기 방지).
+  // 넘겨받은 배열엔 이 실행에서 새로 만든 매장을 push해 같은 패스 내 뒤 호출도 최신으로 봄.
+  const places = _places || (await db.execute('SELECT id, name, lat, lng FROM places')).rows;
   // 자동등록을 막는(=검수로 보내는) '차단성' 경고만 남김. 요일·카테고리 불확실은 차단 안 함:
   //  - 요일 불확실 → 요일 비워서 등록(공개화면 요일 미노출)
   //  - 카테고리 불확실 → 신규매장은 AI가 카테고리 판단, 기존매장은 기존 값 유지

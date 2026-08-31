@@ -51,58 +51,60 @@ process.on('SIGINT', () => { console.log('\n중단 요청 — 이번 패스 끝�
 
 async function pass() {
   let collected = 0, more = false, remaining = 0;
+  // 이 패스 동안 모든 플랫폼이 공유할 중복확인 데이터(전체 매장/캠페인)를 1번만 읽음(플랫폼·하위지역마다 재조회 방지).
+  // autopilot이 패스 중간에 매장을 등록해도 쓰기 시점의 좌표+이름 가드가 중복매장을 막아 안전(패스 내 stale 허용).
+  const dedupe = await loadDedupe(db);
+  // autopilot 중복확인용 매장 목록(좌표 포함)도 패스당 1번만. runAutopilot이 새로 등록한 매장을 이 배열에 push해 최신 유지.
+  const apPlaces = (await db.execute('SELECT id, name, lat, lng FROM places')).rows.map((r) => ({ id: r.id, name: r.name, lat: r.lat, lng: r.lng }));
   for (const region of regions) {
     if (stopping) break;
-    // 중복확인용 전체 매장/캠페인은 이 지역 하위지역 순회 동안 1번만 읽어 공유(하위지역마다 전체테이블 재조회 방지).
-    // autopilot(등록)은 이 하위지역 루프가 끝난 뒤(아래) 1회만 돌므로 순회 중 신선도 유지 → 안전.
-    const ddDedupe = await loadDedupe(db);
     // 하위지역별로 순회 수집('전체' 목록이 하위지역을 다 안 담아서 누락되던 것 해결)
     for (const t of subdistrictsFor(region)) {
       if (stopping) break;
-      const s = await runScrape({ db, platform: 'dinnerqueen', mode: t.mode, limit: 250, region: t.region, dedupe: ddDedupe });
+      const s = await runScrape({ db, platform: 'dinnerqueen', mode: t.mode, limit: 250, region: t.region, dedupe });
       collected += s.staged || 0;
       if ((s.newCandidates || 0) > (s.processed || 0)) more = true; // 아직 못 긁은 신규 남음
       const label = t.mode === 'jeonche' ? t.region : `${t.region}>${t.mode}`;
       console.log(`  [${ts()}] 수집(${label}): 신규 ${s.newCandidates} · 처리 ${s.processed} · 적재 ${s.staged} · 중복 ${s.dupActive}`);
     }
     // 지역의 하위지역을 다 긁은 뒤 AI 검증·등록 1회
-    const a = await runAutopilot({ db });
+    const a = await runAutopilot({ db, places: apPlaces });
     remaining = a.remaining;
     console.log(`  [${ts()}] └ [${region}] AI검증: 자동등록 ${a.registered} · 검수 ${a.review} · 스킵 ${a.skipped} · 남은대기 ${a.remaining}`);
   }
   // 강남맛집 (목록 1회로 전국 방문형 수집 → 지역 순회 불필요)
   if (!stopping) {
-    const g = await runScrape({ db, platform: '강남맛집', limit: 8000 }); // all 피드 전량(≈6.5천), 지역순회 불필요
+    const g = await runScrape({ db, platform: '강남맛집', limit: 8000, dedupe }); // all 피드 전량(≈6.5천), 지역순회 불필요
     if ((g.newCandidates || 0) > (g.processed || 0)) more = true;
     console.log(`  [${ts()}] 수집(강남맛집): 방문형 ${g.newCandidates} · 처리 ${g.processed} · 적재 ${g.staged} · 중복 ${g.dupActive}`);
-    const ga = await runAutopilot({ db });
+    const ga = await runAutopilot({ db, places: apPlaces });
     remaining = ga.remaining;
     console.log(`  [${ts()}] └ [강남맛집] AI검증: 자동등록 ${ga.registered} · 검수 ${ga.review} · 스킵 ${ga.skipped} · 남은대기 ${ga.remaining}`);
   }
   // 링블 (방문형 카테고리 832 목록 순회 → 상세 파싱, 전국 1회)
   if (!stopping) {
-    const rb = await runScrape({ db, platform: '링블', limit: 400 });
+    const rb = await runScrape({ db, platform: '링블', limit: 400, dedupe });
     if ((rb.newCandidates || 0) > (rb.processed || 0)) more = true;
     console.log(`  [${ts()}] 수집(링블): 방문형 처리 ${rb.processed} · 적재 ${rb.staged} · 중복 ${rb.dupActive}`);
-    const ra = await runAutopilot({ db });
+    const ra = await runAutopilot({ db, places: apPlaces });
     remaining = ra.remaining;
     console.log(`  [${ts()}] └ [링블] AI검증: 자동등록 ${ra.registered} · 검수 ${ra.review} · 스킵 ${ra.skipped} · 남은대기 ${ra.remaining}`);
   }
   // 포블로그 (V2 목록 전량 커서 수집 → 상세 파싱, 전국)
   if (!stopping) {
-    const fb = await runScrape({ db, platform: '포블로그', limit: 120 });
+    const fb = await runScrape({ db, platform: '포블로그', limit: 120, dedupe });
     if ((fb.newCandidates || 0) > (fb.processed || 0)) more = true;
     console.log(`  [${ts()}] 수집(포블로그): 신규 ${fb.newCandidates} · 처리 ${fb.processed} · 적재 ${fb.staged} · 중복 ${fb.dupActive} · 제외 ${fb.excluded}`);
-    const fa = await runAutopilot({ db });
+    const fa = await runAutopilot({ db, places: apPlaces });
     remaining = fa.remaining;
     console.log(`  [${ts()}] └ [포블로그] AI검증: 자동등록 ${fa.registered} · 검수 ${fa.review} · 스킵 ${fa.skipped} · 남은대기 ${fa.remaining}`);
   }
   // 서울오빠 (방문형 cat=377 목록 순회 → 상세 파싱, 전국)
   if (!stopping) {
-    const so = await runScrape({ db, platform: '서울오빠', limit: 200 });
+    const so = await runScrape({ db, platform: '서울오빠', limit: 200, dedupe });
     if ((so.newCandidates || 0) > (so.processed || 0)) more = true;
     console.log(`  [${ts()}] 수집(서울오빠): 처리 ${so.processed} · 적재 ${so.staged} · 중복 ${so.dupActive} · 제외 ${so.excluded}`);
-    const soa = await runAutopilot({ db });
+    const soa = await runAutopilot({ db, places: apPlaces });
     remaining = soa.remaining;
     console.log(`  [${ts()}] └ [서울오빠] AI검증: 자동등록 ${soa.registered} · 검수 ${soa.review} · 스킵 ${soa.skipped} · 남은대기 ${soa.remaining}`);
   }
@@ -110,27 +112,25 @@ async function pass() {
   if (!stopping) {
     const RN_REGIONS = ['서울', '경기', '인천', '강원', '대전', '세종', '충남', '충북', '부산', '울산', '경남', '경북', '대구', '광주', '전남', '전북', '제주'];
     let rnStaged = 0, rnEndAll = true;
-    // 17개 시/도 순회 동안 중복확인 데이터 1번만 읽어 공유(autopilot는 이 루프 뒤 1회 → 안전).
-    const rnDedupe = await loadDedupe(db);
     for (const region of RN_REGIONS) {
       if (stopping) break;
-      const rn = await runScrape({ db, platform: '리뷰노트', region, limit: 200, dedupe: rnDedupe });
+      const rn = await runScrape({ db, platform: '리뷰노트', region, limit: 200, dedupe });
       rnStaged += rn.staged || 0;
       if (!rn.reachedEnd) rnEndAll = false;
       console.log(`  [${ts()}]   리뷰노트:${region} page ${rn.fromPage}~${rn.toPage} 적재 ${rn.staged} 좌표실패 ${rn.geoFail} 중복 ${rn.dupActive}${rn.reachedEnd ? ' (끝→1)' : ''}`);
     }
     if (!rnEndAll) more = true; // 아직 한 바퀴 안 끝난 지역 있음
     console.log(`  [${ts()}] 수집(리뷰노트 17개 시/도): 총 적재 ${rnStaged}`);
-    const rna = await runAutopilot({ db });
+    const rna = await runAutopilot({ db, places: apPlaces });
     remaining = rna.remaining;
     console.log(`  [${ts()}] └ [리뷰노트] AI검증: 자동등록 ${rna.registered} · 검수 ${rna.review} · 스킵 ${rna.skipped} · 남은대기 ${rna.remaining}`);
   }
   // 오마이블로그 (공개 REST API, active 목록 전량 → 방문형 A/C만, 상세에서 전체주소, 전국 1회)
   if (!stopping) {
-    const omb = await runScrape({ db, platform: '오마이블로그', limit: 400 });
+    const omb = await runScrape({ db, platform: '오마이블로그', limit: 400, dedupe });
     if ((omb.newCandidates || 0) > (omb.processed || 0)) more = true;
     console.log(`  [${ts()}] 수집(오마이블로그): 처리 ${omb.processed} · 적재 ${omb.staged} · 주소실패 ${omb.geoFail} · 중복 ${omb.dupActive} · 제외 ${omb.excluded}`);
-    const oa = await runAutopilot({ db });
+    const oa = await runAutopilot({ db, places: apPlaces });
     remaining = oa.remaining;
     console.log(`  [${ts()}] └ [오마이블로그] AI검증: 자동등록 ${oa.registered} · 검수 ${oa.review} · 스킵 ${oa.skipped} · 남은대기 ${oa.remaining}`);
   }

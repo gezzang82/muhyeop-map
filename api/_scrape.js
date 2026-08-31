@@ -208,7 +208,9 @@ function categoryByKeyword(content, name) {
   if (/세차|세차장|손세차|셀프세차|디테일링|광택|세탁|빨래|드라이클리닝|코인빨래|코인워시|애견|반려동물|반려견|반려묘|퍼피|펫샵|펫호텔|펫카페|\b펫\b|강아지|고양이|동물병원|수선|열쇠|철물|프린트|인쇄|택배|무인점포|무인매장/.test(s)) return '기타';
   if (/약손|안마|마사지|지압|경락|스웨디시|발마사지|타이마사지|풋마사지|스포츠마사지|림프|테라피|상담센터|심리상담|발달센터|치유센터|금거래소|금은방|귀금속|결혼정보|컨설팅|신당|신점|보살|운전면허/.test(s)) return '기타';
   if (/안경|선글라스|콘택트\s*렌즈|안경원|아이웨어/.test(s)) return '안경/잡화';
-  if (/원데이\s*클래스|클래스\s*체험|보컬|레슨|트레이닝|학원|공방|드로잉|플라워|캔들|공예|만들기|전시|관람|원데이클래스|파티룸|대관|모임\s*공간|공간\s*대여|스튜디오|셀프사진|포토부스|방탈출|보드게임|사진관|증명사진|프로필\s*촬영|사진\s*스튜디오|갤러리|공연|영화|VR|브이알|테마파크|미술관|박물관/.test(s)) return '문화';
+  // 파티룸·공간대여는 문화가 아닌 기타(문화 규칙보다 먼저 판정). 단 숙박(게스트하우스·펜션 등)이면 숙박/여가 우선. 결정: 2026-08-31
+  if (!/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|리조트|게스트하우스|한옥스테이|캠핑/.test(s) && /파티룸|루프탑\s*파티|모임\s*공간|공간\s*대여/.test(s)) return '기타';
+  if (/원데이\s*클래스|클래스\s*체험|보컬|레슨|트레이닝|학원|공방|드로잉|플라워|캔들|공예|만들기|전시|관람|원데이클래스|대관|스튜디오|셀프사진|포토부스|방탈출|보드게임|사진관|증명사진|프로필\s*촬영|사진\s*스튜디오|갤러리|공연|영화|VR|브이알|테마파크|미술관|박물관/.test(s)) return '문화';
   if (/케이크|디저트|베이커리|커피|브런치|룸카페|스터디카페|카페|도넛|도너츠|donut|마카롱|와플|타르트|베이글|크로플|크루아상|휘낭시에|쿠키|스콘|푸딩|빙수|젤라또|아이스크림|스무디|밀크티|버블티|에스프레소|라떼|티라미수|롤케익|생과일|카눌레|팬케이크|프레첼|츄러스|약과|양갱|앙버터/.test(s)) return '카페';
   if (/네일|피부|왁싱|헤어|미용|에스테틱|태닝|속눈썹|반영구|필러|보톡스|두피|체형|다이어트|\b펌\b|염색|풋앤바디|바디케어|스킨케어|피부관리|메이크업|브로우|슈가링|제모|타투/.test(s)) return '뷰티';
   if (/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|리조트|게스트하우스|한옥스테이|캠핑/.test(s)) return '숙박/여가';
@@ -227,6 +229,7 @@ function mapCategory(platformCat, content, name) {
     if (/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|캠핑|리조트|게스트하우스|한옥스테이|독채|\b스테이\b/.test(s)) return { cat: '숙박/여가', flag: false };
     if (/헬스|피트니스|필라테스|요가|골프|클라이밍|스크린골프|퍼스널트레이닝|\bPT\b/i.test(s)) return { cat: '기타', flag: false };
     if (/사주|타로|운세|점집|신점|철학관|작명/.test(s)) return { cat: '기타', flag: false };
+    if (/파티룸|루프탑\s*파티|모임\s*공간|공간\s*대여/.test(s)) return { cat: '기타', flag: false };
     return { cat: '문화', flag: true };
   }
   if (platformCat === '배송') return { cat: '기타', flag: true };
@@ -532,7 +535,7 @@ function fbParseDetail(html) {
   return { address, hours, days, holiday, deadline };
 }
 
-async function runFoblog({ db, limit = 40 }) {
+async function runFoblog({ db, limit = 40, dedupe: _dedupe = null }) {
   const platform = '포블로그';
   const today = new Date().toISOString().slice(0, 10);
   const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [platform] });
@@ -568,7 +571,7 @@ async function runFoblog({ db, limit = 40 }) {
   }
   const targets = newItems.sort((a, b) => Number(a.CID) - Number(b.CID)).slice(0, limit); // 오름차순: limit 초과분은 다음 실행에서 이어받음(스킵 방지)
 
-  const dedupe = await loadDedupe(db);
+  const dedupe = _dedupe || await loadDedupe(db);
   let staged = 0, excluded = 0, dupActive = 0, failed = 0;
   // 커서는 '연속 성공 처리한 CID 최댓값'까지만 전진(과거: maxSeen으로 점프 → 미처리 신규 영구 스킵 버그)
   let cursorAdvance = lastMaxId, sawFail = false, consecShort = 0, throttled = false;
@@ -634,12 +637,12 @@ async function runFoblog({ db, limit = 40 }) {
 
 // 플랫폼 디스패처
 async function runScrape({ db, platform, mode, limit, region, deadlineTs, dedupe }) {
-  if (platform === 'foblog' || platform === '포블로그') return runFoblog({ db, limit });
-  if (platform === 'gangnam' || platform === '강남맛집') return runGangnam({ db, limit, deadlineTs });
-  if (platform === 'ringble' || platform === '링블') return runRingble({ db, limit, deadlineTs });
-  if (platform === 'seoulouba' || platform === '서울오빠') return runSeouloba({ db, limit, deadlineTs });
+  if (platform === 'foblog' || platform === '포블로그') return runFoblog({ db, limit, dedupe });
+  if (platform === 'gangnam' || platform === '강남맛집') return runGangnam({ db, limit, deadlineTs, dedupe });
+  if (platform === 'ringble' || platform === '링블') return runRingble({ db, limit, deadlineTs, dedupe });
+  if (platform === 'seoulouba' || platform === '서울오빠') return runSeouloba({ db, limit, deadlineTs, dedupe });
   if (platform === 'reviewnote' || platform === '리뷰노트') return runReviewnote({ db, limit, deadlineTs, region, dedupe });
-  if (platform === 'ohmyblog' || platform === '오마이블로그') return runOhmyblog({ db, limit, deadlineTs });
+  if (platform === 'ohmyblog' || platform === '오마이블로그') return runOhmyblog({ db, limit, deadlineTs, dedupe });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs, dedupe });
 }
 
@@ -767,12 +770,12 @@ async function gnScrapeDetail(id, name) {
     return { address: gnDetailAddress(html, name), days, excludeHoliday };
   } catch (e) { return { address: '', days: '', excludeHoliday: 0 }; }
 }
-async function runGangnam({ db, limit = 8000, deadlineTs = 0 }) {
+async function runGangnam({ db, limit = 8000, deadlineTs = 0, dedupe: _dedupe = null }) {
   const platform = '강남맛집';
   const today = new Date().toISOString().slice(0, 10);
   const cards = await gnFetchList(Math.max(200, Math.min(12000, limit)));
   const visit = cards.filter((c) => c.type.includes('방문'));
-  const dedupe = await loadDedupe(db);
+  const dedupe = _dedupe || await loadDedupe(db);
   let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, timedOut = false;
   for (const c of visit) {
     if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
@@ -1024,10 +1027,10 @@ async function rbFetchList(start) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return rbParseList(await res.text());
 }
-async function runRingble({ db, limit = 300, deadlineTs = 0 }) {
+async function runRingble({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = null }) {
   const platform = '링블';
   const today = new Date().toISOString().slice(0, 10);
-  const dedupe = await loadDedupe(db);
+  const dedupe = _dedupe || await loadDedupe(db);
   let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, timedOut = false;
   const seen = new Set();
   for (let start = 1; start <= 20; start++) {
@@ -1130,10 +1133,10 @@ async function soScrapeDetail(c) {
   return { name, channel, content: soContent(txt, html), address, days: hd.days, hours: hd.hours, excludeHoliday: hd.excludeHoliday, deadline: soDeadline(txt), placeUrl: (html.match(/https?:\/\/naver\.me\/[A-Za-z0-9]+/) || [])[0] || '' };
 }
 const soParseList = (html) => [...new Set([...html.matchAll(/campaign\/\?c=(\d+)/g)].map((m) => Number(m[1])))];
-async function runSeouloba({ db, limit = 300, deadlineTs = 0 }) {
+async function runSeouloba({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = null }) {
   const platform = '서울오빠';
   const today = new Date().toISOString().slice(0, 10);
-  const dedupe = await loadDedupe(db);
+  const dedupe = _dedupe || await loadDedupe(db);
   // 이미 스테이징된 c는 상세 fetch 없이 스킵(무커서 재실행 시 신규로 전진)
   const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='서울오빠'")).rows.map((r) => Number(r.source_id)));
   let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, timedOut = false;
@@ -1377,10 +1380,10 @@ function ombHoursDays(raw) {
   if (!hasHours && !brackets.some((b) => /[월화수목금토일]/.test(b) && !/휴무|불가/.test(b))) days = '';
   return { hours, days, excludeHoliday };
 }
-async function runOhmyblog({ db, limit = 400, deadlineTs = 0 }) {
+async function runOhmyblog({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = null }) {
   const platform = '오마이블로그';
   const today = new Date().toISOString().slice(0, 10);
-  const dedupe = await loadDedupe(db);
+  const dedupe = _dedupe || await loadDedupe(db);
   const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='오마이블로그'")).rows.map((r) => Number(r.source_id)));
   let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, geoFail = 0, timedOut = false;
   let page = 1, totalPages = 1;

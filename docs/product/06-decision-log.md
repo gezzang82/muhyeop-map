@@ -2,13 +2,19 @@
 
 ## 2026-08
 
+### 파티룸·공간대여는 '기타'로 분류 (2026-08-31)
+
+원우씨 지적("홍대파티룸 메리후드가 숙박/여가로 돼 있는데 파티룸은 숙박/여가가 아닌 것 같다"). 파티룸은 **공간대여** 성격이라 우리 카테고리에 딱 맞는 게 없고, 숙박/여가는 숙박(펜션·풀빌라·게스트하우스)을 뜻하므로 부적합. **파티룸/루프탑파티/모임공간/공간대여 = 기타**로 확정(문화 아님 — 원우씨 선택). `categoryByKeyword`(문화 규칙보다 먼저 판정, 단 숙박 키워드 있으면 숙박/여가 우선하는 가드)와 `mapCategory`의 강남맛집 '여가' 매핑 양쪽에 규칙 추가. 기존 숙박/여가로 잘못 들어간 파티룸 6건(#8370·9000·11246·13062·17286·20149) 기타로 정정. 게스트하우스(#10801)·댕댕스테이(#13194)는 숙박/여가 유지.
+
 ### Turso 읽기한도 초과(앱 데이터 다운) → 크롤러 중복확인 읽기 대폭 절감 (2026-08-31)
 
 월 읽기 한도 초과로 Turso가 **읽기 차단** → 공개 API(`/api/places`, `/api/campaigns?active=1`)가 500, 앱이 빈 데이터로 뜸(홈 200). **원인 규명**:
 - (오해정정) 엣지 캐싱은 **정상 작동 중**이었음. 응답의 `cache-control: public, max-age=0, must-revalidate`는 Vercel이 s-maxage를 CDN 캐시로만 쓰고 브라우저엔 캐시 안 시킬 때 보내는 정상 헤더. 방문자 경로는 문제 아님.
 - **진짜 주범: 크롤러 `loadDedupe`(전체 매장+전체 캠페인 ≈3.8만 행 통읽기)를 한 바퀴에 ~39회 호출** — 디너의여왕 서울 17개 하위지역마다 1회, 리뷰노트 17개 시/도마다 1회, 나머지 5개 플랫폼 각 1회. 바퀴당 ~150만 행, 하루종일 돌면 수천만~수억 행. + 당일 대규모 전수감사(전체 반복조회)가 얹힘.
 - **해결(코드)**: 디너의여왕 하위지역 루프·리뷰노트 시/도 루프는 **autopilot(등록)이 루프가 끝난 뒤 1회만 돌므로**, 루프 전에 `loadDedupe`를 **1번만 읽어 공유**해도 신선도 손실 0. `runScrape`/`runDinnerqueen`/`runReviewnote`에 optional `dedupe` 인자 추가, `crawl-worker.js`가 지역 루프 전에 1회 로드해 주입. **바퀴당 loadDedupe ~39→~7회**. 쓰기 시점의 이름+좌표 중복매장 가드가 남아 있어 정확성도 안전. 추가로 유휴 대기 10분→30분(유휴 패스 읽기 절감, daily 갱신이라 무해).
-- **즉시 복구**: 읽기 한도는 매월 1일 리셋(9/1 자동 복구) 또는 Turso 대시보드 "Unblock Reads"(초과요금). 앱은 살아있고 DB 읽기만 막힌 상태라 한도 회복 시 즉시 정상화.
+- **진짜 주범 재규명 + 인덱스(측정 기반)**: loadDedupe 수정 후에도 실측 10분 읽기가 오히려 늘어(9.48M→12.23M) 재분석 → **인덱스 없는 전체 스캔이 본체**였음. ①`_autopilot.js`가 대기건을 `status='pending' AND COALESCE(auto_seen,0)=0`로 매 호출 `scraped_items` 3.3만 전수스캔(패스당 9회) ②`insertCampaign`의 `WHERE link=?`가 인덱스 없어 캠페인 등록/확인마다 `campaigns` 2.7만 전수스캔 ③`insertPlace`의 `REPLACE(name,' ','')` 중복확인이 인덱스 무력화로 등록마다 places 2만 스캔 ④autopilot이 호출마다 places 전체 재읽기. **조치**: `CREATE INDEX idx_scraped_status_seen(status,auto_seen)`(auto_seen NULL 0건 확인 후 `COALESCE` 제거)·`CREATE INDEX idx_campaigns_link(link)`; insertPlace 중복확인을 좌표 인덱스(`idx_places_lat_lng`) 범위조회+앱 이름비교로; loadDedupe·autopilot용 places를 **패스당 1회** 로드해 전 플랫폼/autopilot 호출이 공유(runXxx·runScrape·runAutopilot에 optional `dedupe`/`places` 주입). **실측: 12.23M→1.26M/10분(~10배↓)**. 인덱스는 즉시 적용(재시작 불필요). **교훈: "왜 읽기가 많나"는 대개 인덱스 없는 전수스캔 — EXPLAIN QUERY PLAN으로 확인.**
+- **일일 사용량 모니터**: `turso db inspect`(control-plane, 읽기 quota 미소모)로 rows read/written 확인. `scripts/db-usage.sh`가 전날 대비 증가분·80% 경고 출력. (Turso CLI `db usage`는 이 버전에 없어 `inspect` 사용)
+- **즉시 복구**: Free 티어는 Overages 없이 한도 도달 시 **계정 전체 차단**(3개 DB 다운), 리셋은 청구주기 기준(대시보드 표기 10/1)이라 대기=한 달 다운. → **Developer($5.99/월)로 업그레이드**해 즉시 해제(원우씨 결제 완료, 앱 복구 확인).
 - **데이터 로드 실패 폴백 화면 추가**: 기존엔 API 500 시 `placesRes.json()`이 텍스트 응답에서 터져 **로딩 스피너 무한**이었음. `loadInitialData`가 `!res.ok`·비배열을 감지해 던지고 부팅 핸들러가 잡아 기존 `#mapError` 오버레이("지도를 불러오지 못했어요 / 다시 시도")를 재사용. 실패 시 `_dataLoadPromise` 메모 해제로 재시도 가능. `.map-error`를 `position:fixed;z-index:10000`로, `showMapError`가 오버레이를 `body` 최상위로 이동(부모 스태킹 컨텍스트 탈출) → **PC 사이드바·아이콘레일·라이브캐릭터까지 화면 전체를 덮음**. 실제 500 상태로 검증 완료.
 
 ### 지오코딩·중복매칭·성능·env 보호 대정비 (2026-08-30)
