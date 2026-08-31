@@ -98,3 +98,36 @@ scraped_items (승인 대기 큐)
 ## 9. 법적 원칙 (요약)
 
 디너의여왕 **한정** · 사실 필드 위주 · **협찬 내용 재작성 지향**(향후 AI로 자동화 검토) · **원문 링크백** · 저빈도. 상세·판례는 [07-legal-review](07-legal-review.md), 경쟁사 집계 방식 비교는 [11-competition](11-competition.md). 장기 방향 = **제휴**.
+
+---
+
+## 10. DB 읽기 한도·성능 (Turso) — 2026-08-31 사고 후 런북
+
+### 무슨 일이었나
+크롤 시작 며칠 만에 **Turso 월 rows-read 한도(Free 500M) 초과 → 계정 전체 차단**(3개 DB 다운). 공개 API(`/api/places`·`/api/campaigns`)가 500이 되어 **앱이 빈 데이터로 뜸**(홈은 200). Free 티어는 Overages가 없어 한도 도달 시 그냥 막고, 리셋은 청구주기 기준(대시보드 표기)이라 대기=한 달 다운.
+
+### 진짜 원인 = 인덱스 없는 전수스캔 (loadDedupe 아님)
+크롤러가 매 패스 반복하는 쿼리 중 **인덱스가 없어 전체 테이블을 스캔**하던 것들이 주범(Turso는 스캔한 행을 전부 읽기로 카운트):
+- `_autopilot.js` 대기조회 `status='pending' AND COALESCE(auto_seen,0)=0` → `scraped_items` 3.3만 전수스캔 ×패스당 여러 번
+- `insertCampaign`의 `WHERE link=?` → `campaigns` 2.7만 전수스캔 ×등록건수
+- `insertPlace`의 `REPLACE(name,' ','')` 중복확인 → 인덱스 무력화, 등록마다 places 2만 스캔
+- + loadDedupe·autopilot이 매 호출 places/campaigns 전체 재읽기
+
+### 조치 (적용 완료)
+- **인덱스 2개 생성**(운영 DB, 재시작 불필요·되돌림 가능): `idx_scraped_status_seen(status,auto_seen)`, `idx_campaigns_link(link)`. + 기존 `idx_places_lat_lng` 재활용.
+- **쿼리 수정**: 대기조회 `COALESCE(auto_seen,0)=0`→`auto_seen=0`(NULL 0건 확인); insertPlace 중복확인을 좌표 인덱스 범위조회+앱 이름비교로.
+- **패스당 1회 공유**: loadDedupe·autopilot용 places를 크롤러가 패스 시작에 1번 읽어 전 플랫폼/autopilot 호출에 주입.
+- **결과: 실측 12.23M→1.26M/10분(~10배↓)**. (상세 결정 [06-decision-log](06-decision-log.md) 2026-08-31)
+
+### 모니터링 (매일)
+- `bash scripts/db-usage.sh` — rows read/written 현황 + **전날 대비 증가분** + 80% 경고. (`turso db inspect`는 control-plane이라 읽기 quota 미소모.)
+- 활성 크롤러는 **캐치업(active)일 때 읽기 많고, 유휴(idle, auto_seen=0이 0에 근접)면 급감** → 하루 증가분은 유휴 상태에서 재보면 실제 상시비용.
+
+### 읽기가 다시 급증하면 (대응 순서)
+1. `scripts/db-usage.sh`로 증가 속도 확인(10분/하루 단위).
+2. 크롤러의 새/변경 쿼리 의심 → **`EXPLAIN QUERY PLAN <쿼리>`** 로 `SCAN`(전수) vs `SEARCH USING INDEX` 확인.
+3. `SCAN table`이면 그 컬럼에 인덱스 추가(`CREATE INDEX IF NOT EXISTS ...`). **원칙: 크롤러 핫패스(매 패스/매 아이템 실행)의 WHERE 컬럼은 반드시 인덱스.** `REPLACE()`/`COALESCE()`/함수를 WHERE에 쓰면 인덱스가 죽으니 피할 것.
+4. 반복 전체읽기는 패스당 1회 로드해 공유.
+
+### 플랜
+- 현재 **Developer($5.99/월)** — Free 초과 차단으로 업그레이드(2026-08-31). Free는 상시 크롤러엔 부적합(계정 차단 리스크). 상시 24h 운영이면 유휴 최적화 유지 + 사용량 모니터로 충분.
