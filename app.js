@@ -619,10 +619,10 @@ async function loadCampaignsForView() {
     if (!res.ok) return;
     const arr = await res.json();
     if (!Array.isArray(arr)) return;
-    let added = 0;
-    for (const c of arr) { if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); added++; } }
+    for (const c of arr) { if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); } }
     keys.forEach(k => _loadedTiles.add(k)); // 빈 영역도 로드 표시(재요청 방지)
-    if (added > 0) { invalidateActiveCache(); renderMarkers(); renderSidebar(); }
+    // 로드 완료 → 재렌더(전체매장 클러스터 → 활성 핀 전환). 빈 영역도 재렌더해 viewLoaded 반영.
+    invalidateActiveCache(); renderMarkers(); renderSidebar();
   } catch (e) {} finally { _campInFlight.delete(bboxKey); }
 }
 
@@ -657,7 +657,11 @@ function renderMarkers() {
   // 보이는 범위만 그린다(지도 이동/줌 멈추면 idle에서 재렌더). 실사용 줌(시/동)에서 1만→수백으로 급감.
   const vb = viewBoundsWithMargin(0.4);
   const inView = (lat, lng) => !vb || (lat >= vb.minLat && lat <= vb.maxLat && lng >= vb.minLng && lng <= vb.maxLng);
-  const visiblePlaces = places.filter(place => !place.hidden && (hasActiveCampaign(place.id) || showGrayPins) && inView(place.lat, place.lng));
+  // 뷰포트 로딩: 이 뷰의 캠페인 타일이 다 로드됐으면 활성 판정으로 필터, 아직이면(저줌이라 게이트 or 로딩 중)
+  // 전체 매장을 클러스터로 보여준다(빈 화면·깜빡임 방지). 로드 완료되면 loadCampaignsForView가 재렌더해 활성 핀으로 전환.
+  const viewLoaded = map.getZoom() >= CAMPAIGN_MIN_ZOOM && !!vb && _campaignTilesFor(vb).every(k => _loadedTiles.has(k));
+  const visiblePlaces = places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
+    (viewLoaded ? (hasActiveCampaign(place.id) || showGrayPins) : true));
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
   if (!renderMarkers._idleBound) {
