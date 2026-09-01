@@ -219,7 +219,8 @@ function categoryByKeyword(content, name) {
 }
 function mapCategory(platformCat, content, name) {
   const s = content + ' ' + name;
-  if (/헬스|피트니스|퍼스널\s*트레이닝|\bPT\b/i.test(s)) return { cat: '기타', flag: false };
+  // 운동/스포츠는 플랫폼 카테고리(뷰티·맛집 등) 지름길보다 먼저 기타로. 필라테스/요가/골프 등이 뷰티·음식점으로 새던 것 방지(2026-09-01)
+  if (/헬스|피트니스|필라테스|요가|골프|스크린골프|클라이밍|크로스핏|복싱|주짓수|테니스|스쿼시|\bPT\b|퍼스널\s*트레이닝|무에타이|킥복싱|펜싱|볼링|당구|다이빙|서핑|스피닝/i.test(s)) return { cat: '기타', flag: false };
   if (platformCat === '뷰티') return { cat: '뷰티', flag: false };
   if (platformCat === '맛집') {
     if (/카페|디저트|케이크|베이커리|커피|브런치|빙수|마카롱|도넛|와플|타르트|아이스크림|젤라또|스무디|밀크티|버블티|베이글|크로플|휘낭시에|쿠키/.test(s)) return { cat: '카페', flag: false };
