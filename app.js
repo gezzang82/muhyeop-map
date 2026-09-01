@@ -6,36 +6,54 @@ let places = [];
 let campaigns = [];
 let banners = [];
 
+// 지도 경량화(뷰포트 로딩, 2026-09-01): 공개 앱은 캠페인을 화면(bbox)에 보이는 것만 받아 `campaigns`에 누적.
+let totalActiveCount = 0;      // 전역 활성 캠페인 수(서버 count) — 총 협찬수 표시용
+let recentCampaigns = [];      // 최근 활성 캠페인(서버 recent) — 라이브버블용(placeName/placeLat/placeLng 포함)
+const _loadedTiles = new Set();       // 이미 받은 bbox 타일 키(재요청 방지)
+const _loadedCampaignIds = new Set(); // 이미 담은 캠페인 id(중복 병합 방지)
+const _loadedPlaceCampaigns = new Set(); // ?placeId= 상세 폴백을 이미 시도한 매장(중복 요청 방지)
+const _campInFlight = new Set();      // 진행 중인 bbox 요청(동일 bbox 중복 방지)
+
 let _dataLoadPromise = null;
 function loadInitialData() {
   if (!_dataLoadPromise) {
     _dataLoadPromise = (async () => {
       // 사이트 방문 집계(비차단, 페이지 로드 1회). 실패 무시 — 지도 로딩엔 영향 없음.
       // 어드민(admin.js도 loadInitialData 사용)에서는 집계 제외 — 관리자 새로고침이 PV에 안 잡히게.
-      if (!/^\/admin/.test(location.pathname)) {
+      const isAdminPage = /^\/admin/.test(location.pathname);
+      if (!isAdminPage) {
         fetch('/api/places?visit=1', {
           method: 'POST', keepalive: true,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ref: document.referrer || '' })
         }).catch(() => {});
       }
-      // 공개 앱은 활성 캠페인만 받아 페이로드 최소화(만료분은 화면에 안 쓰임). 어드민은 통계용으로 전체 필요.
-      const campaignsUrl = /^\/admin/.test(location.pathname) ? '/api/campaigns' : '/api/campaigns?active=1';
-      const [placesRes, campaignsRes, bannersRes] = await Promise.all([
-        fetch('/api/places'),
-        fetch(campaignsUrl),
-        fetch('/api/banners')
-      ]);
-      // 서버 일시 장애(예: DB 읽기 한도 초과로 500)면 여기서 던져 부팅 핸들러가 안내 화면(#mapError)을 띄우게 함.
-      // 배너는 비필수라 실패해도 앱은 뜨게 함(빈 배열).
-      if (!placesRes.ok || !campaignsRes.ok) {
-        throw new Error(`데이터 로드 실패: places ${placesRes.status}, campaigns ${campaignsRes.status}`);
-      }
-      places = await placesRes.json();
-      campaigns = await campaignsRes.json();
-      banners = bannersRes.ok ? await bannersRes.json().catch(() => []) : [];
-      if (!Array.isArray(places) || !Array.isArray(campaigns)) {
-        throw new Error('데이터 형식 오류(배열 아님)');
+      if (isAdminPage) {
+        // 어드민: 통계용으로 매장·캠페인 전체 필요(뷰포트 로딩 미적용).
+        const [placesRes, campaignsRes, bannersRes] = await Promise.all([
+          fetch('/api/places'), fetch('/api/campaigns'), fetch('/api/banners')
+        ]);
+        if (!placesRes.ok || !campaignsRes.ok) {
+          throw new Error(`데이터 로드 실패: places ${placesRes.status}, campaigns ${campaignsRes.status}`);
+        }
+        places = await placesRes.json();
+        campaigns = await campaignsRes.json();
+        banners = bannersRes.ok ? await bannersRes.json().catch(() => []) : [];
+        if (!Array.isArray(places) || !Array.isArray(campaigns)) throw new Error('데이터 형식 오류(배열 아님)');
+      } else {
+        // 공개 앱(뷰포트 로딩): 매장 전량 + 배너 + 총수(count) + 최근(recent, 버블). 캠페인은 지도 이동 시 bbox로 채움.
+        const [placesRes, bannersRes, countRes, recentRes] = await Promise.all([
+          fetch('/api/places'), fetch('/api/banners'),
+          fetch('/api/campaigns?count=active'), fetch('/api/campaigns?recent=24')
+        ]);
+        // 매장 실패는 치명적(부팅 핸들러가 #mapError 노출). count/recent/배너는 비필수(기본값).
+        if (!placesRes.ok) throw new Error(`데이터 로드 실패: places ${placesRes.status}`);
+        places = await placesRes.json();
+        if (!Array.isArray(places)) throw new Error('데이터 형식 오류(배열 아님)');
+        campaigns = [];
+        banners = bannersRes.ok ? await bannersRes.json().catch(() => []) : [];
+        totalActiveCount = countRes.ok ? ((await countRes.json().catch(() => ({}))).count || 0) : 0;
+        recentCampaigns = recentRes.ok ? (await recentRes.json().catch(() => []) || []) : [];
       }
       invalidateActiveCache();
     })();
@@ -574,6 +592,56 @@ function viewBoundsWithMargin(margin) {
   return { minLat: sw.lat() - lm, maxLat: ne.lat() + lm, minLng: sw.lng() - gm, maxLng: ne.lng() + gm };
 }
 
+// ===== 뷰포트(bbox) 캠페인 로딩 — 화면에 보이는 매장의 활성 캠페인만 받아 `campaigns`에 누적 =====
+const CAMPAIGN_MIN_ZOOM = 11; // 이 미만(전국·광역 뷰)에선 캠페인 로드 안 함(bbox가 너무 커짐) → 클러스터만.
+                              // 11=도시 단위(첫 방문 기본줌과 일치 → 랜딩에서 그 지역 협찬 로드). 그 이하 줌아웃은 클러스터만.
+const CAMPAIGN_TILE = 0.05;   // 로드 추적/캐시 정렬용 격자(도). 뷰를 이 격자에 스냅해 CDN 캐시 적중률↑.
+function _campaignTilesFor(vb) {
+  const keys = [];
+  for (let la = Math.floor(vb.minLat / CAMPAIGN_TILE); la <= Math.floor(vb.maxLat / CAMPAIGN_TILE); la++)
+    for (let lo = Math.floor(vb.minLng / CAMPAIGN_TILE); lo <= Math.floor(vb.maxLng / CAMPAIGN_TILE); lo++)
+      keys.push(la + ':' + lo);
+  return keys;
+}
+async function loadCampaignsForView() {
+  if (!map || typeof map.getZoom !== 'function' || map.getZoom() < CAMPAIGN_MIN_ZOOM) return;
+  const vb = viewBoundsWithMargin(0.4);
+  if (!vb) return;
+  const keys = _campaignTilesFor(vb);
+  if (keys.every(k => _loadedTiles.has(k))) return; // 이미 다 받은 영역 → 요청 안 함(팬해도 재요청 X)
+  const s = Math.floor(vb.minLat / CAMPAIGN_TILE) * CAMPAIGN_TILE, n = (Math.floor(vb.maxLat / CAMPAIGN_TILE) + 1) * CAMPAIGN_TILE;
+  const w = Math.floor(vb.minLng / CAMPAIGN_TILE) * CAMPAIGN_TILE, e = (Math.floor(vb.maxLng / CAMPAIGN_TILE) + 1) * CAMPAIGN_TILE;
+  const bboxKey = `${w.toFixed(4)},${s.toFixed(4)},${e.toFixed(4)},${n.toFixed(4)}`;
+  if (_campInFlight.has(bboxKey)) return; // 같은 bbox 요청 진행 중(초기 호출+첫 idle 중복 방지)
+  _campInFlight.add(bboxKey);
+  try {
+    const res = await fetch(`/api/campaigns?active=1&bbox=${bboxKey}`);
+    if (!res.ok) return;
+    const arr = await res.json();
+    if (!Array.isArray(arr)) return;
+    let added = 0;
+    for (const c of arr) { if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); added++; } }
+    keys.forEach(k => _loadedTiles.add(k)); // 빈 영역도 로드 표시(재요청 방지)
+    if (added > 0) { invalidateActiveCache(); renderMarkers(); renderSidebar(); }
+  } catch (e) {} finally { _campInFlight.delete(bboxKey); }
+}
+
+// 특정 매장의 활성 캠페인이 아직 안 받아졌으면 서버에서 받아 병합(상세 폴백). 화면 밖 매장을 focus로 열 때.
+async function ensurePlaceCampaigns(placeId) {
+  if (getActiveCampaigns(placeId).length) return;      // 이미 있음
+  if (_loadedPlaceCampaigns.has(placeId)) return;       // 이미 시도(빈 결과 포함)
+  _loadedPlaceCampaigns.add(placeId);
+  try {
+    const res = await fetch(`/api/campaigns?active=1&placeId=${placeId}`);
+    if (!res.ok) return;
+    const arr = await res.json();
+    if (!Array.isArray(arr)) return;
+    let added = 0;
+    for (const c of arr) { if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); added++; } }
+    if (added > 0) invalidateActiveCache();
+  } catch (e) {}
+}
+
 function renderMarkers() {
   if (markerCluster) { markerCluster.setMap(null); markerCluster = null; }
   markers.forEach(m => m.setMap(null));
@@ -595,7 +663,8 @@ function renderMarkers() {
   if (!renderMarkers._idleBound) {
     renderMarkers._idleBound = true;
     let _t;
-    naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_t); _t = setTimeout(renderMarkers, 120); });
+    naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_t); _t = setTimeout(() => { renderMarkers(); loadCampaignsForView(); }, 120); });
+    loadCampaignsForView(); // 초기 뷰 캠페인 로드(첫 렌더 시 1회; 이후 idle에서 갱신)
   }
 
   // ===== 자체 격자(grid) 클러스터링 — supercluster류 방식 =====
@@ -1215,6 +1284,17 @@ function renderSidebar() {
     });
   countEl.textContent = activePlaces.length;
 
+  // 저줌(전국·시 단위)에선 캠페인을 안 받으므로(뷰포트 로딩), 빈 목록 대신 확대 안내.
+  if (activePlaces.length === 0 && map && typeof map.getZoom === 'function' && map.getZoom() < CAMPAIGN_MIN_ZOOM) {
+    countEl.textContent = totalActiveCount ? totalActiveCount.toLocaleString() : '';
+    list.innerHTML = `
+      <div class="empty-state">
+        <img src="image/img_list_80.png" alt="" class="empty-img">
+        <p>지도를 확대하면<br>이 지역의 협찬이 보여요.</p>
+      </div>`;
+    return;
+  }
+
   if (activePlaces.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
@@ -1306,12 +1386,14 @@ function moveToMyLocation() {
   }).catch(() => { showToast('위치 권한을 허용해주세요'); restore(); });
 }
 
-function focusPlace(placeId, zoom) {
+async function focusPlace(placeId, zoom) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
 
   map.setCenter(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
   map.setZoom(zoom || 16);
+  // 뷰포트 로딩: 화면 밖 매장이면 이 매장 캠페인이 아직 없을 수 있어 상세 열기 전에 확보(빈 상세 방지).
+  await ensurePlaceCampaigns(placeId);
   // 종료(비활성) 매장은 이 줌(≥GRAY_PIN_MIN_ZOOM)에서만 회색핀이 뜬다. 현재 마커가 없으면
   // 새 줌 기준으로 다시 그려 회색핀을 만들어야 아래 상세 오픈에서 setSelectedMarker가 핀을 선택함.
   if (!markerMap[placeId]) renderMarkers();
@@ -3024,6 +3106,8 @@ async function submitCampaign() {
     })
   }).then(r => r.json());
   campaigns.push(newCampaign);
+  if (newCampaign && newCampaign.id != null) _loadedCampaignIds.add(newCampaign.id); // 뷰포트 bbox 재요청 시 중복 방지
+  totalActiveCount++; // 총 협찬수 즉시 반영(공개 앱; 서버 count 재조회 대신 낙관적 증가)
   invalidateActiveCache();
   updateStatCount();
 
@@ -3077,14 +3161,17 @@ function showToast(msg) {
 // ===== 실시간 제보 알림 =====
 // 실제 등록된 캠페인 기반: 유저 실제 제보를 우선으로, 부족하면 어드민 등록분을 익명으로 채워 최신 10건 풀을 구성
 function buildLiveMessagePool() {
+  // 뷰포트 로딩이라 전역 campaigns는 보이는 것만 → 서버 recent(전역 최근 활성, 매장명 조인)를 사용.
+  // 어드민은 recentCampaigns가 비어 campaigns로 폴백(전량 로드).
+  const src = (recentCampaigns && recentCampaigns.length) ? recentCampaigns : campaigns;
   const withPlace = (c) => {
-    const place = places.find(p => p.id === c.placeId);
-    return place ? { nick: c.source === 'user' ? (c.reporterNickname || '익명') : '익명', place: place.name, placeId: place.id, createdAt: c.createdAt || '' } : null;
+    const name = c.placeName || (places.find(p => p.id === c.placeId) || {}).name;
+    return name ? { nick: c.source === 'user' ? (c.reporterNickname || '익명') : '익명', place: name, placeId: c.placeId, createdAt: c.createdAt || '' } : null;
   };
   // 마감 지난 캠페인은 제외 (getActiveCampaigns와 동일 기준, 빈 마감일=마감없음은 포함)
   const isLive = c => !c.hidden && deadlineToUTC(c.deadline) >= getKSTTodayUTC();
-  const userOnes = campaigns.filter(c => c.source === 'user' && isLive(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  const otherOnes = campaigns.filter(c => c.source !== 'user' && isLive(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const userOnes = src.filter(c => c.source === 'user' && isLive(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const otherOnes = src.filter(c => c.source !== 'user' && isLive(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   const pool = [...userOnes, ...otherOnes].slice(0, 10).map(withPlace).filter(Boolean);
   // 셔플 (Fisher-Yates) — 매번 같은 순서로 도는 느낌 방지
   for (let i = pool.length - 1; i > 0; i--) {
@@ -3542,9 +3629,10 @@ function bindClearBtn(btn, input) {
 function updateStatCount() {
   const statCountEl = document.getElementById('pcStatCount');
   if (!statCountEl) return;
-  // 지도에 실제 노출되는 것과 동일 기준: 마감 지난 캠페인·숨김 제외 (빈 마감일=상시는 포함)
+  // 뷰포트 로딩(공개 앱)에선 campaigns가 보이는 것만이라 서버 총수(totalActiveCount)를 사용.
+  // 어드민은 전량 로드라 totalActiveCount=0 → campaigns 집계로 폴백(마감·숨김 제외, 빈 마감일=상시 포함).
   const today = getKSTTodayUTC();
-  const activeCount = campaigns.filter(c => !c.hidden && deadlineToUTC(c.deadline) >= today).length;
+  const activeCount = totalActiveCount || campaigns.filter(c => !c.hidden && deadlineToUTC(c.deadline) >= today).length;
   statCountEl.textContent = activeCount.toLocaleString();
 }
 

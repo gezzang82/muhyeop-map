@@ -270,7 +270,49 @@ module.exports = async function handler(req, res) {
       const rows = rowsRes.rows.map(r => ({ ...toCampaign(r), placeName: r.place_name || '' }));
       return res.status(200).json({ rows, total, page, size });
     }
-    // 공개 지도 조회: 숨김 캠페인 + 숨김 매장 소속 캠페인 제외, 이메일(PII) 제외하고 반환
+    // ── 지도 경량화(뷰포트 로딩) 공개 분기 — 2026-09-01 ──
+    const kstDay = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const activeSql = "COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)";
+    // 전역 활성 캠페인 수(총 협찬수). 페이로드 소량.
+    if (q.count === 'active') {
+      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      const r = await db.execute({ sql: `SELECT COUNT(*) AS n FROM campaigns c LEFT JOIN places p ON p.id=c.place_id WHERE ${activeSql}`, args: [kstDay] });
+      return res.status(200).json({ count: Number(r.rows[0]?.n || 0) });
+    }
+    // 최근 활성 캠페인 N건(라이브버블). 매장 이름/좌표 조인(클릭 시 focus용).
+    if (q.recent) {
+      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      const n = Math.min(50, Math.max(1, parseInt(q.recent, 10) || 20));
+      const r = await db.execute({
+        sql: `SELECT c.*, p.name AS place_name, p.lat AS place_lat, p.lng AS place_lng FROM campaigns c LEFT JOIN places p ON p.id=c.place_id WHERE ${activeSql} ORDER BY c.id DESC LIMIT ?`,
+        args: [kstDay, n]
+      });
+      return res.status(200).json(r.rows.map(row => { const c = toCampaign(row); delete c.reporterEmail; c.placeName = row.place_name || ''; c.placeLat = row.place_lat; c.placeLng = row.place_lng; return c; }));
+    }
+    // 특정 매장의 활성 캠페인(상세 폴백) — 화면 밖 매장을 focus(버블·검색)로 열 때 사용.
+    if (q.placeId) {
+      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      const pid = parseInt(q.placeId, 10);
+      if (!Number.isFinite(pid)) return res.status(400).json({ error: 'placeId invalid' });
+      const r = await db.execute({
+        sql: `SELECT c.* FROM campaigns c LEFT JOIN places p ON p.id=c.place_id WHERE c.place_id=? AND ${activeSql}`,
+        args: [pid, kstDay]
+      });
+      return res.status(200).json(r.rows.map(row => { const c = toCampaign(row); delete c.reporterEmail; return c; }));
+    }
+    // 뷰포트(bbox=W,S,E,N) 안 매장의 활성 캠페인만. idx_places_lat_lng 사용.
+    if (q.bbox) {
+      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      const p4 = String(q.bbox).split(',').map(Number);
+      if (p4.length !== 4 || !p4.every(v => Number.isFinite(v))) return res.status(400).json({ error: 'bbox must be W,S,E,N' });
+      const [w, s, e, n] = p4;
+      const r = await db.execute({
+        sql: `SELECT c.* FROM campaigns c JOIN places p ON p.id=c.place_id WHERE p.lat BETWEEN ? AND ? AND p.lng BETWEEN ? AND ? AND ${activeSql}`,
+        args: [s, n, w, e, kstDay]
+      });
+      return res.status(200).json(r.rows.map(row => { const c = toCampaign(row); delete c.reporterEmail; delete c.viewCount; delete c.clickCount; return c; }));
+    }
+    // 공개 지도 조회(전량, 하위호환/폴백): 숨김 캠페인 + 숨김 매장 소속 캠페인 제외, 이메일(PII) 제외하고 반환
     // ?active=1: 만료(마감 지난) 캠페인 제외 → 공개 페이로드 대폭 축소(만료분은 화면에 안 쓰임). 공개 앱만 사용.
     // 엣지 캐싱: 활성 협찬은 크롤로 하루 단위 갱신 → 5분 CDN 캐시 + 10분 stale-while-revalidate.
     //   방문자마다 12k행 조회(≈6초)하던 것을 대부분 CDN 히트(≈50ms)로. 제보 등 쓰기 후 최대 5분 지연(SWR로 자동 갱신).
