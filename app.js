@@ -657,11 +657,13 @@ function renderMarkers() {
   // 보이는 범위만 그린다(지도 이동/줌 멈추면 idle에서 재렌더). 실사용 줌(시/동)에서 1만→수백으로 급감.
   const vb = viewBoundsWithMargin(0.4);
   const inView = (lat, lng) => !vb || (lat >= vb.minLat && lat <= vb.maxLat && lng >= vb.minLng && lng <= vb.maxLng);
-  // 뷰포트 로딩: 이 뷰의 캠페인 타일이 다 로드됐으면 활성 판정으로 필터, 아직이면(저줌이라 게이트 or 로딩 중)
-  // 전체 매장을 클러스터로 보여준다(빈 화면·깜빡임 방지). 로드 완료되면 loadCampaignsForView가 재렌더해 활성 핀으로 전환.
-  const viewLoaded = map.getZoom() >= CAMPAIGN_MIN_ZOOM && !!vb && _campaignTilesFor(vb).every(k => _loadedTiles.has(k));
+  // 뷰포트 로딩:
+  //  - 고줌(zoom≥CAMPAIGN_MIN_ZOOM, 개별핀 구간): 처음부터 활성 핀만 표시(캠페인 로드되면 컬러 핀이 뜸).
+  //    로딩 중엔 전체 매장(비활성 포함)을 보였다 숨기지 않는다 → dim으로 시작/종료핀 깜빡임 방지.
+  //  - 저줌(전국·광역, 캠페인 미로드): 전체 매장을 클러스터로만 표시(빈 화면 방지, 개별 dim 핀 아님).
+  const campaignsHere = map.getZoom() >= CAMPAIGN_MIN_ZOOM;
   const visiblePlaces = places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
-    (viewLoaded ? (hasActiveCampaign(place.id) || showGrayPins) : true));
+    (campaignsHere ? (hasActiveCampaign(place.id) || showGrayPins) : true));
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
   if (!renderMarkers._idleBound) {
