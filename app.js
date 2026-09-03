@@ -42,6 +42,9 @@ function loadInitialData() {
         if (!Array.isArray(places) || !Array.isArray(campaigns)) throw new Error('데이터 형식 오류(배열 아님)');
       } else {
         // 공개 앱(뷰포트 로딩): 매장 전량 + 배너 + 총수(count) + 최근(recent, 버블). 캠페인은 지도 이동 시 bbox로 채움.
+        campaigns = []; // 프리페치가 push하기 전에 먼저 초기화(경쟁 시 덮어쓰기 방지)
+        // 첫 화면 캠페인을 매장/배너 로드와 '병렬'로 프리페치 → 지도 뜨자마자 핀 표시(첫 핀 지연 제거).
+        const prefetchP = _fetchCampaignTiles(_initialViewBounds());
         const [placesRes, bannersRes, countRes, recentRes] = await Promise.all([
           fetch('/api/places'), fetch('/api/banners'),
           fetch('/api/campaigns?count=active'), fetch('/api/campaigns?recent=24')
@@ -50,10 +53,10 @@ function loadInitialData() {
         if (!placesRes.ok) throw new Error(`데이터 로드 실패: places ${placesRes.status}`);
         places = await placesRes.json();
         if (!Array.isArray(places)) throw new Error('데이터 형식 오류(배열 아님)');
-        campaigns = [];
         banners = bannersRes.ok ? await bannersRes.json().catch(() => []) : [];
         totalActiveCount = countRes.ok ? ((await countRes.json().catch(() => ({}))).count || 0) : 0;
         recentCampaigns = recentRes.ok ? (await recentRes.json().catch(() => []) || []) : [];
+        await prefetchP; // 캠페인 시딩 완료 보장 후 아래 invalidateActiveCache
       }
       invalidateActiveCache();
     })();
@@ -603,9 +606,8 @@ function _campaignTilesFor(vb) {
       keys.push(la + ':' + lo);
   return keys;
 }
-async function loadCampaignsForView() {
-  if (!map || typeof map.getZoom !== 'function' || map.getZoom() < CAMPAIGN_MIN_ZOOM) return;
-  const vb = viewBoundsWithMargin(0.4);
+// 뷰(vb)의 캠페인 타일을 받아 campaigns에 병합. map이 있으면 재렌더, 없으면(초기 프리페치) 데이터만 시딩.
+async function _fetchCampaignTiles(vb) {
   if (!vb) return;
   const keys = _campaignTilesFor(vb);
   if (keys.every(k => _loadedTiles.has(k))) return; // 이미 다 받은 영역 → 요청 안 함(팬해도 재요청 X)
@@ -621,9 +623,29 @@ async function loadCampaignsForView() {
     if (!Array.isArray(arr)) return;
     for (const c of arr) { if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); } }
     keys.forEach(k => _loadedTiles.add(k)); // 빈 영역도 로드 표시(재요청 방지)
-    // 로드 완료 → 재렌더(전체매장 클러스터 → 활성 핀 전환). 빈 영역도 재렌더해 viewLoaded 반영.
-    invalidateActiveCache(); renderMarkers(); renderSidebar();
+    // 로드 완료 → 재렌더(전체매장 클러스터 → 활성 핀 전환). map 없으면(프리페치) 시딩만 → 초기 렌더가 반영.
+    invalidateActiveCache();
+    if (map) { renderMarkers(); renderSidebar(); }
   } catch (e) {} finally { _campInFlight.delete(bboxKey); }
+}
+async function loadCampaignsForView() {
+  if (!map || typeof map.getZoom !== 'function' || map.getZoom() < CAMPAIGN_MIN_ZOOM) return;
+  await _fetchCampaignTiles(viewBoundsWithMargin(0.4));
+}
+// 지도 생성 전, 초기 중심/줌으로 첫 화면 캠페인을 places 로드와 병렬 프리페치(첫 핀 지연 제거).
+// map.getBounds()를 못 쓰므로 화면 크기·줌으로 뷰를 계산(여백 넉넉히 = 실제 뷰의 상위집합이라 커버리지 안전).
+function _initialViewBounds() {
+  const saved = getSavedMapCenter();
+  const lat = saved ? saved.lat : 37.5563, lng = saved ? saved.lng : 126.9980;
+  const zoom = saved ? 15 : 11;
+  if (zoom < CAMPAIGN_MIN_ZOOM) return null;
+  const degPerPx = 360 / (256 * Math.pow(2, zoom));
+  const el = document.getElementById('map');
+  const w = (el && el.clientWidth) || window.innerWidth || 390;
+  const h = (el && el.clientHeight) || window.innerHeight || 700;
+  const halfLng = (w / 2) * degPerPx * 1.4; // 1.4 = 렌더와 동일한 0.4 여백 포함
+  const halfLat = (h / 2) * degPerPx * 1.4;
+  return { minLat: lat - halfLat, maxLat: lat + halfLat, minLng: lng - halfLng, maxLng: lng + halfLng };
 }
 
 // 특정 매장의 활성 캠페인이 아직 안 받아졌으면 서버에서 받아 병합(상세 폴백). 화면 밖 매장을 focus로 열 때.
@@ -3697,7 +3719,8 @@ function showMapError() {
 }
 function hideAppLoading() {
   const el = document.getElementById('appLoading');
-  if (!el) return;
+  if (!el || el._hidden) return;
+  el._hidden = true; // 멱등 — idle 리스너/안전타임아웃에서 여러 번 불려도 1회만 실행
   el.classList.add('hide');
   setTimeout(() => { el.style.display = 'none'; if (_loadingAnim) { _loadingAnim.destroy(); _loadingAnim = null; } }, 400);
 }
@@ -3760,31 +3783,35 @@ window.addEventListener('load', async function() {
     hideAppLoading();
     return;
   }
-  await refreshAuthUI();
-  const url = new URL(location.href);
-  if (url.searchParams.get('signup') === '1') {
-    url.searchParams.delete('signup');
-    history.replaceState(null, '', url.toString());
-    // URL 파라미터만 믿지 않고 실제 상태로 판단: SNS 미등록 + 아직 한 번도 안내 안 받은 신규 로그인 사용자에게만 노출
-    // (모바일에서 탭이 폐기됐다 복원되면 signup=1이 살아난 채 재로드돼 중복 노출되던 문제 방지)
-    if (currentUser && !(currentUser.urlPlatform && currentUser.urlId) && !_snsRegisterPrompted()) {
-      openSignupInfoSheet();
-    }
-  }
   if (!document.getElementById('map')) { hideAppLoading(); return; }
-  updateStatCount();
   // 네이버 지도 스크립트가 로드되지 않은 경우(차단/네트워크 실패 등) 안내 화면 노출
   if (typeof naver === 'undefined' || !naver.maps) {
     showMapError();
     hideAppLoading();
     return;
   }
-  initMap();
+  updateStatCount();
+  initMap(); // 지도+핀 먼저(로그인 인증 대기 없이) — 첫 핀 지연 제거
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   startLiveAlerts();
+  // 로딩 애니메이션은 첫 핀이 실제로 그려질 때(map idle) 숨김 → 빈 지도로 오해 방지. 안전 타임아웃 병행.
+  naver.maps.Event.addListener(map, 'idle', hideAppLoading);
+  setTimeout(hideAppLoading, 3500);
+  // 로그인 상태/가입안내는 지도 표시를 막지 않도록 백그라운드에서 처리(핀 노출 이후 UI만 갱신)
+  refreshAuthUI().then(function() {
+    const url = new URL(location.href);
+    if (url.searchParams.get('signup') === '1') {
+      url.searchParams.delete('signup');
+      history.replaceState(null, '', url.toString());
+      // URL 파라미터만 믿지 않고 실제 상태로 판단: SNS 미등록 + 아직 한 번도 안내 안 받은 신규 로그인 사용자에게만 노출
+      // (모바일에서 탭이 폐기됐다 복원되면 signup=1이 살아난 채 재로드돼 중복 노출되던 문제 방지)
+      if (currentUser && !(currentUser.urlPlatform && currentUser.urlId) && !_snsRegisterPrompted()) {
+        openSignupInfoSheet();
+      }
+    }
+  }).catch(function() {});
   renderLeaderboard();
   if (LEADERBOARD_ENABLED) setInterval(renderLeaderboard, 60000);
-  hideAppLoading();
 });
 
 let _prevIsMobile = window.innerWidth <= 640;
