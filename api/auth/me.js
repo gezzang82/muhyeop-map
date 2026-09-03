@@ -21,6 +21,9 @@ module.exports = async function handler(req, res) {
     await db.execute("CREATE TABLE IF NOT EXISTS user_visits (user_id INTEGER NOT NULL, visit_date TEXT NOT NULL, UNIQUE(user_id, visit_date))");
     await db.execute({ sql: "INSERT OR IGNORE INTO user_visits (user_id, visit_date) VALUES (?, date('now','+9 hours'))", args: [session.userId] });
   } catch (e) {}
+  // 최종접속 시각: 매 접속마다 갱신(UTC 저장, 어드민에서 fmtKST로 KST 변환). user_visits는 날짜만 남아 시각 표기 불가라 별도 컬럼.
+  try { await db.execute("ALTER TABLE users ADD COLUMN last_seen_at TEXT"); } catch (e) {}
+  try { await db.execute({ sql: "UPDATE users SET last_seen_at = datetime('now') WHERE id = ?", args: [session.userId] }); } catch (e) {}
 
   const result = await db.execute({ sql: 'SELECT email, url_platform, url_id, created_at FROM users WHERE id = ?', args: [session.userId] });
   const row = result.rows[0] || {};
