@@ -3894,7 +3894,7 @@ function updateUrlPlatform(platform, prefix = 'input', keepId = false) {
 
 function buildUrlFromInputs(prefix = 'input') {
   const platform = document.getElementById(`${prefix}UrlPlatform`).value;
-  const id = document.getElementById(`${prefix}UrlId`).value.trim();
+  const id = document.getElementById(`${prefix}UrlId`).value.trim().toLowerCase(); // 블로그·인스타 ID는 소문자만 유효
   const domain = URL_PLATFORM_DOMAINS[platform];
   if (!domain || !id) return '';
   return `https://${domain}${id}`;

@@ -36,7 +36,8 @@ module.exports = async function handler(req, res) {
   } catch (e) {}
 
   const finalPlatform = urlPlatform && urlId ? urlPlatform : '';
-  const finalId = urlPlatform && urlId ? String(urlId).trim() : '';
+  // 블로그(네이버)·인스타 ID는 소문자만 유효 → 대문자로 입력해도 링크가 열리도록 소문자 정규화
+  const finalId = urlPlatform && urlId ? String(urlId).trim().toLowerCase() : '';
 
   await db.execute({
     sql: 'UPDATE users SET url_platform = ?, url_id = ?, email = ? WHERE id = ?',
