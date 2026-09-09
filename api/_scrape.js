@@ -1356,8 +1356,13 @@ function ombDaysFromLabel(label) {
   if (/평일/.test(L)) OMB_WD.forEach((d) => s.add(d));
   if (/주말/.test(L)) { s.add('토'); s.add('일'); }
   L = L.replace(/평일|매일|주말/g, '');
-  const rng = L.match(/([월화수목금토일])\s*[~\-]\s*([월화수목금토일])/);
-  if (rng) { const a = OMB_ALLDAYS.indexOf(rng[1]), b = OMB_ALLDAYS.indexOf(rng[2]); if (a >= 0 && b >= 0 && a <= b) for (let i = a; i <= b; i++) s.add(OMB_ALLDAYS[i]); }
+  // 범위(월~금, 일~목 등)를 요일 순환(월→…→일→월) 기준으로 확장 + 범위 문자열은 제거해 아래 개별 스캔이
+  // 양끝만 줍는 것 방지. 역순/주 경계 넘는 범위(예: 일~목=일·월·화·수·목, 금~월=금·토·일·월)도 처리.
+  L = L.replace(/([월화수목금토일])\s*[~\-]\s*([월화수목금토일])/g, (m, a, b) => {
+    const ai = OMB_ALLDAYS.indexOf(a);
+    if (ai >= 0) for (let k = 0; k < 7; k++) { const idx = (ai + k) % 7; s.add(OMB_ALLDAYS[idx]); if (OMB_ALLDAYS[idx] === b) break; }
+    return ' ';
+  });
   (L.match(/[월화수목금토일]/g) || []).forEach((d) => s.add(d));
   return s;
 }

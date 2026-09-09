@@ -160,10 +160,11 @@ function getCategoryPinSelected(cat) {
     + `</svg>`;
 }
 
-// 캠페인 없는(마감) 매장 핀: 회색(#BABABA) 원 + 흰 아이콘 opacity 50%
+// 캠페인 없는(마감) 매장 핀: 회색(#BABABA) 원 + 흰 아이콘. 지나간 협찬이라 핀 전체를 흐리게(opacity 30%).
+// (선택 시 getGrayPinSelected는 또렷하게 — 후기 보러 들어온 상태라)
 function getGrayPin(cat) {
   const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
-  return `<svg class="map-pin-svg" width="34" height="34" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">`
+  return `<svg class="map-pin-svg map-pin-ended" width="34" height="34" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">`
     + `<circle cx="15" cy="15" r="14" fill="#fff"/>`
     + `<circle cx="15" cy="15" r="14.5" stroke="#000" stroke-opacity="0.08"/>`
     + `<circle cx="15" cy="15" r="12" fill="#BABABA"/>`
