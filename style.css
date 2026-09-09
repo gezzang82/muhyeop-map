@@ -1130,8 +1130,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   filter: drop-shadow(0 2px 5px rgba(0,0,0,0.28));
 }
 /* 마감(회색) 핀은 지나간 협찬이라 흐리게. 선택 시(map-pin-selected)엔 또렷하게. */
-.map-pin:not(.map-pin-selected) .map-pin-svg.map-pin-ended { opacity: 0.3; }
-.map-pin:hover .map-pin-svg.map-pin-ended { opacity: 0.55; }
+.map-pin:not(.map-pin-selected) .map-pin-svg.map-pin-ended { opacity: 0.5; }
+.map-pin:hover .map-pin-svg.map-pin-ended { opacity: 0.7; }
 .map-pin:hover { transform: scale(1.12); }
 .map-pin-selected { width: 48px; height: 48px; }
 .map-pin-selected:hover { transform: none; }
