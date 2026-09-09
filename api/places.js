@@ -22,6 +22,11 @@ async function ensureSiteVisitTables(db) {
   await db.execute("CREATE TABLE IF NOT EXISTS site_daily (visit_date TEXT PRIMARY KEY, pv INTEGER DEFAULT 0, uv INTEGER DEFAULT 0)");
   await db.execute("CREATE TABLE IF NOT EXISTS site_visitor (visit_date TEXT NOT NULL, visitor_key TEXT NOT NULL, PRIMARY KEY(visit_date, visitor_key))");
   await db.execute("CREATE TABLE IF NOT EXISTS site_referrer (ref TEXT PRIMARY KEY, cnt INTEGER DEFAULT 0)");
+  // 일별 유입경로(채널별 날짜 축) — "어느 날 어떤 채널로 몇 명 왔나"(블로그/카톡 효과 측정용). 기존 site_referrer는 누적 유지.
+  await db.execute("CREATE TABLE IF NOT EXISTS site_referrer_daily (visit_date TEXT NOT NULL, ref TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, ref))");
+  // 체류시간 집계(일별 평균 = dwell_sum/dwell_count 초). 이탈 시 클라 sendBeacon(?visit=dwell)이 누적.
+  try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_sum INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
+  try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_count INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
 }
 function kstDay() {
   return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); // KST 날짜(YYYY-MM-DD)
@@ -73,8 +78,22 @@ module.exports = async function handler(req, res) {
         const refKey = classifyReferrer(req.body && req.body.ref);
         if (refKey) {
           await db.execute({ sql: "INSERT INTO site_referrer (ref, cnt) VALUES (?, 1) ON CONFLICT(ref) DO UPDATE SET cnt = cnt + 1", args: [refKey] });
+          await db.execute({ sql: "INSERT INTO site_referrer_daily (visit_date, ref, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, ref) DO UPDATE SET cnt = cnt + 1", args: [day, refKey] });
         }
       } catch (e) { /* 집계 실패는 무시 */ }
+      return res.status(200).json({ ok: true });
+    }
+    // 체류시간 기록: 이탈 시 sendBeacon POST ?visit=dwell {dwell:초}. 일별 dwell_sum/dwell_count 누적(평균 산출용). fail-open.
+    if (req.method === 'POST' && req.query.visit === 'dwell') {
+      try {
+        await ensureSiteVisitTables(db);
+        const day = kstDay();
+        let sec = Math.round(Number(req.body && req.body.dwell) || 0);
+        if (sec > 0) {
+          if (sec > 1800) sec = 1800; // 30분 상한(백그라운드 방치 등 이상치 컷)
+          await db.execute({ sql: "INSERT INTO site_daily (visit_date, pv, uv, dwell_sum, dwell_count) VALUES (?, 0, 0, ?, 1) ON CONFLICT(visit_date) DO UPDATE SET dwell_sum = dwell_sum + ?, dwell_count = dwell_count + 1", args: [day, sec, sec] });
+        }
+      } catch (e) { /* 무시 */ }
       return res.status(200).json({ ok: true });
     }
     // 조회: 어드민 대시보드 GET ?visit=stats[&period=day|week|month]
@@ -83,15 +102,16 @@ module.exports = async function handler(req, res) {
       try {
       await ensureSiteVisitTables(db);
       const day = kstDay();
-      const today = (await db.execute({ sql: "SELECT pv, uv FROM site_daily WHERE visit_date = ?", args: [day] })).rows[0] || {};
+      const today = (await db.execute({ sql: "SELECT pv, uv, dwell_sum, dwell_count FROM site_daily WHERE visit_date = ?", args: [day] })).rows[0] || {};
       const total = (await db.execute("SELECT COALESCE(SUM(pv),0) AS pv, COALESCE(SUM(uv),0) AS uv FROM site_daily")).rows[0] || {};
+      const dwellAvg = (r) => { const c = Number(r.dwell_count || 0); return c > 0 ? Math.round(Number(r.dwell_sum || 0) / c) : 0; };
 
       // 기간별 시계열: PV=SUM(pv)(site_daily), UV=COUNT(DISTINCT visitor_key)(site_visitor, 기간 내 진짜 고유)
       const period = req.query.period === 'week' ? 'week' : req.query.period === 'month' ? 'month' : 'day';
       let series;
       if (period === 'day') {
-        const rows = (await db.execute("SELECT visit_date AS k, pv, uv FROM site_daily ORDER BY visit_date DESC LIMIT 14")).rows;
-        series = rows.map(r => ({ label: String(r.k).slice(5), pv: Number(r.pv || 0), uv: Number(r.uv || 0) })).reverse();
+        const rows = (await db.execute("SELECT visit_date AS k, pv, uv, dwell_sum, dwell_count FROM site_daily ORDER BY visit_date DESC LIMIT 14")).rows;
+        series = rows.map(r => ({ label: String(r.k).slice(5), pv: Number(r.pv || 0), uv: Number(r.uv || 0), dwell: dwellAvg(r) })).reverse();
       } else {
         const keyExpr = period === 'week' ? "strftime('%Y-%W', visit_date)" : "substr(visit_date,1,7)";
         const pvRows = (await db.execute(`SELECT ${keyExpr} AS k, SUM(pv) AS pv, MIN(visit_date) AS mind FROM site_daily GROUP BY k ORDER BY k DESC LIMIT 12`)).rows;
@@ -103,11 +123,22 @@ module.exports = async function handler(req, res) {
         })).reverse();
       }
       const refRows = (await db.execute("SELECT ref, cnt FROM site_referrer ORDER BY cnt DESC LIMIT 8")).rows;
+      // 오늘 유입경로(채널별) — "오늘 방문자 어디서 왔나"
+      const todayRefRows = (await db.execute({ sql: "SELECT ref, cnt FROM site_referrer_daily WHERE visit_date = ? ORDER BY cnt DESC", args: [day] })).rows;
+      // 최근 14일 일별 유입경로 — 날짜×채널 매트릭스(블로그/카톡 올린 날 효과 확인용)
+      const since = new Date(Date.now() + 9 * 3600 * 1000 - 13 * 86400 * 1000).toISOString().slice(0, 10);
+      const rdRows = (await db.execute({ sql: "SELECT visit_date AS d, ref, cnt FROM site_referrer_daily WHERE visit_date >= ? ORDER BY visit_date DESC", args: [since] })).rows;
+      const rdMap = {};
+      rdRows.forEach(r => { (rdMap[r.d] = rdMap[r.d] || {})[r.ref] = Number(r.cnt || 0); });
+      const referrerDaily = Object.keys(rdMap).sort().reverse().map(d => ({ date: d, channels: rdMap[d] }));
       return res.status(200).json({
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
+        todayDwell: dwellAvg(today), todayDwellCount: Number(today.dwell_count || 0),
         period, series,
-        referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) }))
+        referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
+        todayReferrers: todayRefRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
+        referrerDaily
       });
       } catch (e) {
         // 500으로 통째 실패 대신, 에러 메시지를 응답에 담아 진단 가능하게(대시보드는 빈 값으로 degrade)

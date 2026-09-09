@@ -27,6 +27,22 @@ function loadInitialData() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ref: document.referrer || '' })
         }).catch(() => {});
+        // 체류시간 측정: 로드~이탈. 화면이 숨겨지거나(앱 전환·탭 전환) 페이지가 사라질 때 머문 초를 1회 beacon 전송.
+        // 근사치(첫 이탈 기준) — 정확한 세션시간보단 "머무는지/튕기는지" 방향 지표용. 서버가 일별 평균으로 집계.
+        const _dwellT0 = Date.now();
+        let _dwellSent = false;
+        const _sendDwell = () => {
+          if (_dwellSent) return; _dwellSent = true;
+          const sec = Math.min(1800, Math.round((Date.now() - _dwellT0) / 1000));
+          if (sec < 1) return;
+          const url = '/api/places?visit=dwell', payload = JSON.stringify({ dwell: sec });
+          try {
+            if (navigator.sendBeacon) navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+            else fetch(url, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: payload }).catch(() => {});
+          } catch (e) {}
+        };
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _sendDwell(); });
+        window.addEventListener('pagehide', _sendDwell);
       }
       if (isAdminPage) {
         // 어드민: 통계용으로 매장·캠페인 전체 필요(뷰포트 로딩 미적용).

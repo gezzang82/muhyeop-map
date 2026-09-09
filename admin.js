@@ -481,11 +481,36 @@ function renderVisitChart(series) {
     const pv = d.pv || 0, uv = d.uv || 0;
     const pvH = Math.round(pv / maxPv * 100);
     const uvH = pv ? Math.round(uv / pv * 100) : 0;
-    return `<div class="vc-col" title="${d.label} · PV ${pv} · UV ${uv}">
+    const dw = d.dwell ? ` · 체류 ${fmtDwell(d.dwell)}` : '';
+    return `<div class="vc-col" title="${d.label} · PV ${pv} · UV ${uv}${dw}">
         <div class="vc-val">${pv}</div>
         <div class="vc-bar"><div class="vc-bar-pv" style="height:${pvH}%"><div class="vc-bar-uv" style="height:${uvH}%"></div></div></div>
         <div class="vc-label">${d.label}</div>
       </div>`;
+  }).join('');
+}
+
+// 체류시간(초) → 사람이 읽는 표기
+function fmtDwell(sec) {
+  sec = Math.round(Number(sec) || 0);
+  if (sec <= 0) return '-';
+  if (sec < 60) return sec + '초';
+  return Math.floor(sec / 60) + '분 ' + (sec % 60) + '초';
+}
+const REF_LABELS = { direct: '직접·앱', naver: '네이버', instagram: '인스타그램', google: '구글', daum: '다음', kakao: '카카오', youtube: '유튜브', facebook: '페이스북', daangn: '당근' };
+
+// 일별 유입경로: 날짜별로 채널 칩(개수) 나열. 외부 채널(네이버/인스타/카톡 등)은 강조색.
+function renderReferrerDaily(rows) {
+  const el = document.getElementById('referrerDaily');
+  if (!el) return;
+  if (!rows || !rows.length) { el.innerHTML = '<div class="empty-msg">아직 유입 데이터가 없어요. (배포 후부터 날짜별로 쌓여요)</div>'; return; }
+  el.innerHTML = rows.map(r => {
+    const chs = Object.entries(r.channels || {}).sort((a, b) => b[1] - a[1]);
+    const chips = chs.map(([ref, cnt]) => {
+      const ext = ref !== 'direct';
+      return `<span class="rd-chip${ext ? ' rd-chip--ext' : ''}">${REF_LABELS[ref] || escHtml(ref)} <b>${cnt}</b></span>`;
+    }).join('');
+    return `<div class="rd-row"><span class="rd-date">${escHtml(String(r.date).slice(5))}</span><span class="rd-chs">${chips}</span></div>`;
   }).join('');
 }
 
@@ -547,8 +572,11 @@ function renderDashboard() {
     set('statVisitTodayPv', s.todayPv);
     set('statVisitTodayUv', s.todayUv);
     set('statVisitTotalPv', s.totalPv);
+    const dwEl = document.getElementById('statVisitTodayDwell');
+    if (dwEl) dwEl.textContent = s.todayDwellCount ? fmtDwell(s.todayDwell) : '-';
     renderVisitChart(s.series || []);
     renderReferrers(s.referrers || []);
+    renderReferrerDaily(s.referrerDaily || []);
   }).catch(() => {});
 
   // 마감 임박 (D-DAY ~ D-4): 활성 캠페인을 마감까지 남은 일수별로 집계. 상시(마감일 없음)는 제외.

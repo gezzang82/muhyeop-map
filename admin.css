@@ -258,6 +258,16 @@ body {
 
 .empty-msg { font-size: 13px; color: var(--muted-light); padding: 16px 0; text-align: center; }
 
+/* 일별 유입경로: 날짜 행 + 채널 칩 */
+.referrer-daily { display: flex; flex-direction: column; }
+.rd-row { display: flex; align-items: flex-start; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f0f0f3; }
+.rd-row:last-child { border-bottom: 0; }
+.rd-date { font-size: 13px; font-weight: 700; color: var(--text); min-width: 46px; padding-top: 3px; font-variant-numeric: tabular-nums; }
+.rd-chs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.rd-chip { font-size: 12px; color: var(--muted); background: #f0f0f3; border-radius: var(--radius-pill); padding: 3px 10px; white-space: nowrap; }
+.rd-chip b { font-weight: 700; }
+.rd-chip--ext { color: #fff; background: var(--brand); }
+
 /* ===== 테이블 ===== */
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
 .admin-table { width: 100%; border-collapse: collapse; background: var(--surface); font-size: 13px; }
