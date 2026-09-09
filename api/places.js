@@ -49,6 +49,13 @@ function classifyReferrer(ref) {
   return host;
 }
 
+// 방문 집계 제외 IP(운영자 본인 등) — 자기 접속이 PV/UV/체류시간을 부풀리지 않게.
+// 기본: 확인된 집 IP. 추가/변경은 환경변수 EXCLUDED_VISIT_IPS(콤마 구분)로도 가능(집 IP 바뀔 때).
+const EXCLUDED_VISIT_IPS = new Set(
+  ['119.67.74.173'].concat(String(process.env.EXCLUDED_VISIT_IPS || '').split(','))
+    .map(s => s.trim()).filter(Boolean)
+);
+
 module.exports = async function handler(req, res) {
   const db = getDb();
   try {
@@ -70,6 +77,7 @@ module.exports = async function handler(req, res) {
         await ensureSiteVisitTables(db);
         const day = kstDay();
         const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+        if (EXCLUDED_VISIT_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true }); // 운영자 본인 접속은 집계 제외
         await db.execute({ sql: "INSERT INTO site_daily (visit_date, pv, uv) VALUES (?, 1, 0) ON CONFLICT(visit_date) DO UPDATE SET pv = pv + 1", args: [day] });
         const ins = await db.execute({ sql: "INSERT OR IGNORE INTO site_visitor (visit_date, visitor_key) VALUES (?, ?)", args: [day, ip] });
         if (ins.rowsAffected > 0) {
@@ -87,6 +95,8 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST' && req.query.visit === 'dwell') {
       try {
         await ensureSiteVisitTables(db);
+        const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+        if (EXCLUDED_VISIT_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true }); // 운영자 본인 접속은 체류시간 집계 제외
         const day = kstDay();
         let sec = Math.round(Number(req.body && req.body.dwell) || 0);
         if (sec > 0) {
