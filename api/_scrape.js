@@ -1465,20 +1465,46 @@ async function gdFetchList(page, unit = 20) {
 }
 const GD_CH = { '블로그': '블로그', '인스타그램': '인스타그램', '인스타': '인스타그램', '클립': '클립', '릴스': '릴스', '유튜브': '유튜브' };
 const gdName = (n) => String(n || '').replace(/^\s*\[[^\]]*\]\s*/, '').replace(/\s+/g, ' ').trim(); // "[경남 밀양] 위양448" → "위양448"
+// 구구다스 방문가능시간 파서(전용) — "평일 및 주말 10:00~19:00 (18:30 라스트오더)" 류.
+// rbHoursDays(서울오빠/링블용)는 구구다스 포맷에서 요일 오인·괄호/후속 숫자를 시간으로 오독(55:00 등)해서 전용으로.
+const GD_DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+function gdHoursDays(raw) {
+  const t = String(raw || '').replace(/\([^)]*\)/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); // 괄호(라스트오더 등) 제거
+  const set = new Set();
+  if (/매일|연중무휴|무휴|모든\s*요일/.test(t)) GD_DAYS.forEach((d) => set.add(d));
+  if (/평일/.test(t)) ['월', '화', '수', '목', '금'].forEach((d) => set.add(d));
+  if (/주말/.test(t)) { set.add('토'); set.add('일'); }
+  let L = t.replace(/평일|매일|주말|연중무휴|무휴/g, ' '); // 키워드 제거(평일의 '일'이 개별요일로 오인되는 것 방지)
+  const rng = L.match(/([월화수목금토일])\s*~\s*([월화수목금토일])/);
+  if (rng) { const a = GD_DAYS.indexOf(rng[1]); for (let k = 0; k < 7; k++) { const idx = (a + k) % 7; set.add(GD_DAYS[idx]); if (GD_DAYS[idx] === rng[2]) break; } }
+  L = L.replace(/([월화수목금토일])\s*~\s*([월화수목금토일])/g, ' ');
+  (L.match(/[월화수목금토일]/g) || []).forEach((d) => set.add(d));
+  const days = GD_DAYS.filter((d) => set.has(d)).join(',');
+  // 유효 시간(HH 0~29 심야표기 허용, MM 0~59)만 — 전화번호·제한인원 등 스퍼리어스 숫자 배제
+  const times = [...t.matchAll(/(\d{1,2}):(\d{2})\s*~\s*(\d{1,2}):(\d{2})/g)]
+    .filter((m) => +m[1] <= 29 && +m[2] < 60 && +m[3] <= 29 && +m[4] < 60)
+    .map((m) => `${m[1].padStart(2, '0')}:${m[2]}~${m[3].padStart(2, '0')}:${m[4]}`);
+  const hours = [...new Set(times)].join(', ');
+  const excludeHoliday = /공휴일[^<]{0,10}(불가|휴무|제외|[Xx엑스])/.test(String(raw || '')) ? 1 : 0;
+  return { days, hours, excludeHoliday };
+}
 function gdParseDetail(html) {
   const h = String(html || '');
   // 방문 매장 주소: "매장주소 :" 라벨 우선(광고주 사무실 '주소:'와 구분해야 함), 없으면 class="addr" 폴백
   let am = h.match(/매장\s*주소\s*[:：]\s*(?:&nbsp;|\s)*([^<]+)/);
   if (!am) am = h.match(/class="addr"\s*>\s*([^<]+?)\s*</);
   const address = am ? am[1].replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : '';
-  // 방문가능시간 텍스트를 rbHoursDays(서울오빠·링블 공용 파서)로 파싱 — 요일/시간/공휴일
-  let hd = { hours: '', days: '', excludeHoliday: 0 };
+  // 방문가능시간: 라벨 이후 ~400자를 태그제거(시간이 sub-node에 있어도 회수) 후, 다음 섹션 라벨 전까지만.
+  // gdHoursDays가 유효시간(HH<=29)만 남기므로 후속 내용의 쓰레기 숫자(48:00 등)는 자동 배제.
+  let vt = '';
   const idx = h.indexOf('방문가능시간');
   if (idx >= 0) {
-    const chunk = h.slice(idx, idx + 700).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
-    try { hd = rbHoursDays(chunk); } catch (e) {}
+    vt = h.slice(idx, idx + 400).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ')
+      .replace(/^방문가능시간\s*[:：]?\s*/, '')
+      .split(/제한\s*인원|예약\s*안내|예약\s*문의|예약\s*필수|제공\s*내역|이용\s*안내|주의\s*사항|오시는\s*길|캠페인|리뷰\s*가이드|필수\s*키워드/)[0];
   }
-  return { address, hours: hd.hours || '', days: hd.days || '', excludeHoliday: hd.excludeHoliday ? 1 : 0 };
+  const hd = gdHoursDays(vt);
+  return { address, hours: hd.hours, days: hd.days, excludeHoliday: hd.excludeHoliday };
 }
 async function runGooddas({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = null }) {
   const platform = '구구다스';
