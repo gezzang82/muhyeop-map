@@ -1469,23 +1469,41 @@ const gdName = (n) => String(n || '').replace(/^\s*\[[^\]]*\]\s*/, '').replace(/
 // rbHoursDays(서울오빠/링블용)는 구구다스 포맷에서 요일 오인·괄호/후속 숫자를 시간으로 오독(55:00 등)해서 전용으로.
 const GD_DAYS = ['월', '화', '수', '목', '금', '토', '일'];
 function gdHoursDays(raw) {
-  const t = String(raw || '').replace(/\([^)]*\)/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); // 괄호(라스트오더 등) 제거
-  const set = new Set();
-  if (/매일|연중무휴|무휴|모든\s*요일/.test(t)) GD_DAYS.forEach((d) => set.add(d));
-  if (/평일/.test(t)) ['월', '화', '수', '목', '금'].forEach((d) => set.add(d));
-  if (/주말/.test(t)) { set.add('토'); set.add('일'); }
-  let L = t.replace(/평일|매일|주말|연중무휴|무휴/g, ' '); // 키워드 제거(평일의 '일'이 개별요일로 오인되는 것 방지)
-  const rng = L.match(/([월화수목금토일])\s*~\s*([월화수목금토일])/);
-  if (rng) { const a = GD_DAYS.indexOf(rng[1]); for (let k = 0; k < 7; k++) { const idx = (a + k) % 7; set.add(GD_DAYS[idx]); if (GD_DAYS[idx] === rng[2]) break; } }
-  L = L.replace(/([월화수목금토일])\s*~\s*([월화수목금토일])/g, ' ');
-  (L.match(/[월화수목금토일]/g) || []).forEach((d) => set.add(d));
-  const days = GD_DAYS.filter((d) => set.has(d)).join(',');
-  // 유효 시간(HH 0~29 심야표기 허용, MM 0~59)만 — 전화번호·제한인원 등 스퍼리어스 숫자 배제
-  const times = [...t.matchAll(/(\d{1,2}):(\d{2})\s*~\s*(\d{1,2}):(\d{2})/g)]
-    .filter((m) => +m[1] <= 29 && +m[2] < 60 && +m[3] <= 29 && +m[4] < 60)
-    .map((m) => `${m[1].padStart(2, '0')}:${m[2]}~${m[3].padStart(2, '0')}:${m[4]}`);
+  let s = String(raw || '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').replace(/\([^)]*\)/g, ' ').trim(); // 괄호(라스트오더 등) 제거
+  // 한글 시간 정규화: "오후 2시(30분/반)"→"14:00(:30)", "오전 9시"→"09:00", 오전/오후 없는 "N시"→"N:00"
+  s = s.replace(/(오전|오후|저녁|밤|낮)?\s*(\d{1,2})\s*시\s*(반|(\d{1,2})\s*분)?/g, (m, ap, h, half, mm) => {
+    let H = +h; const M = half === '반' ? 30 : (mm ? +mm : 0);
+    if ((ap === '오후' || ap === '저녁' || ap === '밤') && H < 12) H += 12;
+    if ((ap === '오전' || ap === '낮') && H === 12) H = 0;
+    return String(H).padStart(2, '0') + ':' + String(M).padStart(2, '0');
+  });
+  // 세그먼트("/") 단위로 open/close 판정 — 구구다스는 "월~토 … / 일요일 불가" 처럼 '/'로 가용/제외를 나눔.
+  const addDays = (txt, target) => {
+    if (/매일|연중무휴|무휴|모든\s*요일/.test(txt)) GD_DAYS.forEach((d) => target.add(d));
+    if (/평일/.test(txt)) ['월', '화', '수', '목', '금'].forEach((d) => target.add(d));
+    if (/주말/.test(txt)) { target.add('토'); target.add('일'); }
+    let L = txt.replace(/평일|매일|주말|연중무휴|무휴|공휴일/g, ' '); // 공휴일 제거('일' 오인 방지)
+    const rng = L.match(/([월화수목금토일])\s*~\s*([월화수목금토일])/);
+    if (rng) { const a = GD_DAYS.indexOf(rng[1]); for (let k = 0; k < 7; k++) { const idx = (a + k) % 7; target.add(GD_DAYS[idx]); if (GD_DAYS[idx] === rng[2]) break; } }
+    L = L.replace(/([월화수목금토일])\s*~\s*([월화수목금토일])/g, ' ');
+    // 개별 요일: 한글 단어 속 글자('전화'의 화, '수요' 등) 오인 방지 — 앞이 한글이 아닐 때만.
+    for (const m of L.matchAll(/(?:^|[^가-힣])([월화수목금토일])(?:요일)?/g)) target.add(m[1]);
+  };
+  const openSet = new Set(), closeSet = new Set();
+  let excludeHoliday = 0;
+  const times = [];
+  for (const seg of s.split(/\s*\/\s*/)) {
+    const isClosed = /불가|휴무|제외|안됨|안돼/.test(seg); // '체험 불가'·'방문 불가'·'~휴무' 모두 커버
+    if (/공휴일/.test(seg) && isClosed) excludeHoliday = 1;
+    addDays(seg, isClosed ? closeSet : openSet);
+    if (!isClosed) { // 가용 세그의 유효 시간만(HH 0~29, MM 0~59)
+      for (const m of seg.matchAll(/(\d{1,2}):(\d{2})\s*~\s*(\d{1,2}):(\d{2})/g))
+        if (+m[1] <= 29 && +m[2] < 60 && +m[3] <= 29 && +m[4] < 60) times.push(`${m[1].padStart(2, '0')}:${m[2]}~${m[3].padStart(2, '0')}:${m[4]}`);
+    }
+  }
+  closeSet.forEach((d) => openSet.delete(d)); // 제외(불가/휴무) 요일 빼기
+  const days = GD_DAYS.filter((d) => openSet.has(d)).join(',');
   const hours = [...new Set(times)].join(', ');
-  const excludeHoliday = /공휴일[^<]{0,10}(불가|휴무|제외|[Xx엑스])/.test(String(raw || '')) ? 1 : 0;
   return { days, hours, excludeHoliday };
 }
 function gdParseDetail(html) {
@@ -1501,7 +1519,7 @@ function gdParseDetail(html) {
   if (idx >= 0) {
     vt = h.slice(idx, idx + 400).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ')
       .replace(/^방문가능시간\s*[:：]?\s*/, '')
-      .split(/제한\s*인원|예약\s*안내|예약\s*문의|예약\s*필수|제공\s*내역|이용\s*안내|주의\s*사항|오시는\s*길|캠페인|리뷰\s*가이드|필수\s*키워드/)[0];
+      .split(/매장\s*주소|예약\s*전화|전화\s*번호|예약전화번호|제한\s*인원|예약\s*안내|예약\s*문의|예약\s*필수|제공\s*내역|이용\s*안내|주의\s*사항|오시는\s*길|캠페인|리뷰\s*가이드|필수\s*키워드/)[0];
   }
   const hd = gdHoursDays(vt);
   return { address, hours: hd.hours, days: hd.days, excludeHoliday: hd.excludeHoliday };
