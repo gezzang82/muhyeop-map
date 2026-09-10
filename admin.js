@@ -517,7 +517,7 @@ function renderReferrerDaily(rows) {
 // 접속 환경(앱/모바일웹/PC웹) — 오늘 기준 막대
 const PLAT_LABELS = { app: '📱 앱', mweb: '🌐 모바일웹', pcweb: '💻 PC웹' };
 function renderPlatforms(list) {
-  const el = document.getElementById('platformStats');
+  const el = document.getElementById('deviceStats');
   if (!el) return;
   if (!list || !list.length) { el.innerHTML = '<div class="empty-msg">아직 데이터가 없어요. (배포 후 방문부터 집계)</div>'; return; }
   const total = list.reduce((s, r) => s + (r.cnt || 0), 0) || 1;
