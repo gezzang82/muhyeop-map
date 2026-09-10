@@ -270,6 +270,35 @@ module.exports = async function handler(req, res) {
       const rows = rowsRes.rows.map(r => ({ ...toCampaign(r), placeName: r.place_name || '' }));
       return res.status(200).json({ rows, total, page, size });
     }
+    // 어드민 대시보드 통계: 캠페인 전량을 클라로 내리지 않고 서버에서 집계(COUNT/GROUP BY)만 반환 → 대시보드 즉시 렌더.
+    if (q.stats) {
+      if (!requireAdmin(req, res)) return;
+      const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+      const nh = "COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0"; // 공개 GET과 동일(숨김 제외)
+      const act = `(c.deadline='' OR c.deadline IS NULL OR c.deadline >= '${today}')`;
+      const chNames = ['블로그', '클립', '인스타그램', '릴스', '유튜브'];
+      const chSel = chNames.map((ch, i) => `SUM(CASE WHEN ${act} AND c.channels LIKE '%"${ch}"%' THEN 1 ELSE 0 END) AS ch${i}`).join(', ');
+      const ddSel = Array.from({ length: 8 }, (_, d) => `SUM(CASE WHEN c.deadline>='${today}' AND c.deadline!='' AND CAST(julianday(c.deadline)-julianday('${today}') AS INTEGER)=${d} THEN 1 ELSE 0 END) AS d${d}`).join(', ');
+      const agg = (await db.execute(
+        `SELECT COUNT(*) AS total,
+          SUM(CASE WHEN ${act} THEN 1 ELSE 0 END) AS active,
+          SUM(CASE WHEN c.source='user' THEN 1 ELSE 0 END) AS userReported,
+          SUM(CASE WHEN c.source='user' AND date(c.created_at,'+9 hours')='${today}' THEN 1 ELSE 0 END) AS userToday,
+          ${chSel}, ${ddSel}
+        FROM campaigns c JOIN places p ON p.id=c.place_id WHERE ${nh}`
+      )).rows[0] || {};
+      const plat = (await db.execute(
+        `SELECT c.platform AS k, COUNT(*) AS n FROM campaigns c JOIN places p ON p.id=c.place_id WHERE ${nh} AND ${act} GROUP BY c.platform ORDER BY n DESC`
+      )).rows.map(r => ({ platform: r.k || '', n: Number(r.n || 0) }));
+      const placeCount = Number((await db.execute("SELECT COUNT(*) AS n FROM places WHERE COALESCE(hidden,0)=0")).rows[0]?.n || 0);
+      const channels = chNames.map((ch, i) => ({ channel: ch, n: Number(agg['ch' + i] || 0) })).filter(x => x.n > 0);
+      const dday = {}; for (let d = 0; d <= 7; d++) dday[d] = Number(agg['d' + d] || 0);
+      return res.status(200).json({
+        placeCount, total: Number(agg.total || 0), active: Number(agg.active || 0),
+        userReported: Number(agg.userReported || 0), userReportedToday: Number(agg.userToday || 0),
+        platforms: plat, channels, dday,
+      });
+    }
     // ── 지도 경량화(뷰포트 로딩) 공개 분기 — 2026-09-01 ──
     const kstDay = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const activeSql = "COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)";

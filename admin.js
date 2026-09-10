@@ -20,8 +20,8 @@ async function tryLogin() {
     sessionStorage.setItem('adminLoggedIn', 'true');
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminApp').style.display = 'flex';
-    await dataReady;
-    initAdmin();
+    initAdmin();               // 대시보드는 서버 집계로 즉시 렌더(전량 로드 대기 안 함)
+    dataReady.catch(() => {});  // 승인/신고/등록 탭용 전량 로드는 백그라운드로 진행
   } catch (e) {
     document.getElementById('loginError').textContent = '로그인 중 오류가 발생했어요.';
   }
@@ -271,6 +271,7 @@ function approveStaged(id) {
   return _approveChain;
 }
 async function approveStagedImpl(id) {
+  await dataReady.catch(() => {}); // 승인은 전역 places 배열(중복확인)을 쓰므로 백그라운드 전량 로드 완료 후 진행
   const r = collectStagedRows.find(x => x.id === id);
   if (!r) return;
   const channels = String(r.channel || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -559,33 +560,52 @@ function setVisitPeriod(period, btn) {
 
 // ===== 대시보드 =====
 function renderDashboard() {
-  const today = getKSTTodayUTC();
-  const active = campaigns.filter(c => deadlineToUTC(c.deadline) >= today);
+  // 통계는 서버 집계(?stats=1)로 즉시 렌더 — 캠페인 전량(수만 건)을 클라에서 세지 않아 대시보드가 바로 뜸.
+  const setN = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (Number(v) || 0).toLocaleString(); };
+  fetch('/api/campaigns?stats=1').then(r => r.json()).then(st => {
+    setN('statPlaces', st.placeCount);
+    setN('statCampaigns', st.total);
+    setN('statActive', st.active);
+    setN('statUserReported', st.userReported);
+    setN('statUserReportedToday', st.userReportedToday);
+    const activeN = Math.max(1, Number(st.active) || 0); // 막대 분모(원본과 동일: 활성수 기준)
 
-  document.getElementById('statPlaces').textContent = places.length;
-  document.getElementById('statCampaigns').textContent = campaigns.length;
-  document.getElementById('statActive').textContent = active.length;
+    // 마감 임박 (D-DAY ~ D-7): 서버가 남은일수별 집계 제공(상시=마감없음 제외)
+    const ddayStatsEl = document.getElementById('ddayStats');
+    if (ddayStatsEl) {
+      const labels = ['D-DAY', 'D-1', 'D-2', 'D-3', 'D-4', 'D-5', 'D-6', 'D-7'];
+      ddayStatsEl.innerHTML = labels.map((label, n) => `<div class="dday-cell${n === 0 ? ' dday-today' : ''}">
+        <span class="dday-label">${label}</span>
+        <span class="dday-count">${(st.dday && st.dday[n]) || 0}</span>
+      </div>`).join('');
+    }
 
-  const userCampaigns = campaigns.filter(c => c.source === 'user');
-  const statUserEl = document.getElementById('statUserReported');
-  if (statUserEl) statUserEl.textContent = userCampaigns.length;
+    // 플랫폼별 (서버가 ORDER BY n DESC)
+    const pc = (p) => (typeof getPlatformColor === 'function' ? getPlatformColor(p) : '#666');
+    const psEl = document.getElementById('platformStats');
+    if (psEl) psEl.innerHTML = (st.platforms || []).map(({ platform: p, n }) => `
+      <div class="stat-row">
+        <span class="stat-badge" style="background:${pc(p)}22;color:${pc(p)}">${p}</span>
+        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(n / activeN * 100)}%;background:${pc(p)}"></div></div>
+        <span class="stat-num">${n}개</span>
+      </div>`).join('') || '<div class="empty-msg">모집 중인 캠페인 없음</div>';
 
-  const todayParts = getKSTDateParts();
-  const isCreatedToday = (createdAt) => {
-    if (!createdAt) return false;
-    const d = new Date(createdAt.replace(' ', 'T') + 'Z');
-    const p = getKSTDateParts(d);
-    return p.y === todayParts.y && p.m === todayParts.m && p.d === todayParts.d;
-  };
-  const statUserTodayEl = document.getElementById('statUserReportedToday');
-  if (statUserTodayEl) statUserTodayEl.textContent = userCampaigns.filter(c => isCreatedToday(c.createdAt)).length;
+    // 채널별
+    const chIcons = { '블로그': 'icon-blog', '클립': 'icon-clip', '인스타그램': 'icon-instagram', '릴스': 'icon-reels', '유튜브': 'icon-youtube' };
+    const csEl = document.getElementById('channelStats');
+    if (csEl) csEl.innerHTML = (st.channels || []).slice().sort((a, b) => b.n - a.n).map(({ channel: ch, n }) => `
+      <div class="stat-row">
+        <span class="stat-ch">${chIcons[ch] ? `<svg class="icon"><use href="#${chIcons[ch]}"></use></svg>` : ''} ${ch}</span>
+        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(n / activeN * 100)}%;background:#1a1a2e"></div></div>
+        <span class="stat-num">${n}개</span>
+      </div>`).join('') || '<div class="empty-msg">데이터 없음</div>';
+  }).catch(() => {});
 
+  // 회원 수
   const statMembersEl = document.getElementById('statMembers');
-  if (statMembersEl) {
-    fetch('/api/users').then(r => r.json()).then(users => { statMembersEl.textContent = users.length; }).catch(() => {});
-  }
+  if (statMembersEl) fetch('/api/users').then(r => r.json()).then(users => { statMembersEl.textContent = users.length; }).catch(() => {});
 
-  // 사이트 방문 집계(오늘 PV/UV, 누적 PV) + 현재 선택된 기간의 추이 그래프
+  // 사이트 방문 집계(오늘 PV/UV·체류·추이·유입경로·접속환경)
   fetch(`/api/places?visit=stats&period=${_visitPeriod}`).then(r => r.json()).then(s => {
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (v || 0).toLocaleString(); };
     set('statVisitTodayPv', s.todayPv);
@@ -598,47 +618,6 @@ function renderDashboard() {
     renderReferrerDaily(s.referrerDaily || []);
     renderPlatforms(s.todayPlatforms || []);
   }).catch(() => {});
-
-  // 마감 임박 (D-DAY ~ D-4): 활성 캠페인을 마감까지 남은 일수별로 집계. 상시(마감일 없음)는 제외.
-  const DAY_MS = 86400000;
-  const ddayStatsEl = document.getElementById('ddayStats');
-  if (ddayStatsEl) {
-    const labels = ['D-DAY', 'D-1', 'D-2', 'D-3', 'D-4', 'D-5', 'D-6', 'D-7'];
-    ddayStatsEl.innerHTML = labels.map((label, n) => {
-      const cnt = active.filter(c => (deadlineToUTC(c.deadline) - today) === n * DAY_MS).length;
-      return `<div class="dday-cell${n === 0 ? ' dday-today' : ''}">
-        <span class="dday-label">${label}</span>
-        <span class="dday-count">${cnt}</span>
-      </div>`;
-    }).join('');
-  }
-
-  // 플랫폼별
-  const platformCount = {};
-  active.forEach(c => { platformCount[c.platform] = (platformCount[c.platform] || 0) + 1; });
-  // 색상은 app.js의 getPlatformColor(=PLATFORM_COLORS) 재사용 — 별도 맵 중복정의 시 신규 플랫폼에서 색이 어긋남(오마이블로그 사례)
-  const pc = (p) => (typeof getPlatformColor === 'function' ? getPlatformColor(p) : '#666');
-  document.getElementById('platformStats').innerHTML = Object.entries(platformCount)
-    .sort((a,b) => b[1]-a[1])
-    .map(([p,n]) => `
-      <div class="stat-row">
-        <span class="stat-badge" style="background:${pc(p)}22;color:${pc(p)}">${p}</span>
-        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(n/active.length*100)}%;background:${pc(p)}"></div></div>
-        <span class="stat-num">${n}개</span>
-      </div>`).join('') || '<div class="empty-msg">모집 중인 캠페인 없음</div>';
-
-  // 채널별
-  const channelCount = {};
-  active.forEach(c => (c.channels||[]).forEach(ch => { channelCount[ch] = (channelCount[ch]||0)+1; }));
-  const chIcons = { '블로그':'icon-blog','클립':'icon-clip','인스타그램':'icon-instagram','릴스':'icon-reels','유튜브':'icon-youtube' };
-  document.getElementById('channelStats').innerHTML = Object.entries(channelCount)
-    .sort((a,b) => b[1]-a[1])
-    .map(([ch,n]) => `
-      <div class="stat-row">
-        <span class="stat-ch">${chIcons[ch] ? `<svg class="icon"><use href="#${chIcons[ch]}"></use></svg>` : ''} ${ch}</span>
-        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(n/active.length*100)}%;background:#1a1a2e"></div></div>
-        <span class="stat-num">${n}개</span>
-      </div>`).join('') || '<div class="empty-msg">데이터 없음</div>';
 }
 
 // ===== 조회 공통 상태/유틸 =====
@@ -2006,8 +1985,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     let sessionValid = true;
     try { sessionValid = (await fetch('/api/places?visit=stats')).status !== 401; } catch (e) {}
     if (sessionValid) {
-      await dataReady;
-      initAdmin();
+      initAdmin();               // 대시보드 즉시 렌더(서버 집계). 전량 로드는 백그라운드.
+      dataReady.catch(() => {});
     } else {
       // 세션 만료 → 로그인 화면으로 되돌림(반쪽 대시보드 방지)
       document.getElementById('adminApp').style.display = 'none';
