@@ -21,7 +21,12 @@ function loadInitialData() {
       // 사이트 방문 집계(비차단, 페이지 로드 1회). 실패 무시 — 지도 로딩엔 영향 없음.
       // 어드민(admin.js도 loadInitialData 사용)에서는 집계 제외 — 관리자 새로고침이 PV에 안 잡히게.
       const isAdminPage = /^\/admin/.test(location.pathname);
-      if (!isAdminPage) {
+      // 운영자 본인 접속 제외(기기 단위, IP 무관): muhyeop.com/?notrack=1 을 한 번 방문하면
+      // 이 기기에서 방문(PV/UV)·체류시간·유입경로 집계를 영구 중단(localStorage). 서버 IP 제외는 유동IP/폰/이탈시점
+      // IP차이로 새는 경우가 있어(특히 체류 beacon은 이탈 시점에 전송), 기기 단위가 확실.
+      try { if (/[?&]notrack=1/.test(location.search)) localStorage.setItem('mh_notrack', '1'); } catch (e) {}
+      let _noTrack = false; try { _noTrack = localStorage.getItem('mh_notrack') === '1'; } catch (e) {}
+      if (!isAdminPage && !_noTrack) {
         // 접속 환경: 앱(Capacitor WebView) / 모바일웹 / PC웹
         const _detectPlatform = () => {
           try { if (window.Capacitor && (window.Capacitor.isNativePlatform ? window.Capacitor.isNativePlatform() : true)) return 'app'; } catch (e) {}
