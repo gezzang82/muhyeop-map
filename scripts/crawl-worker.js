@@ -134,6 +134,15 @@ async function pass() {
     remaining = oa.remaining;
     console.log(`  [${ts()}] └ [오마이블로그] AI검증: 자동등록 ${oa.registered} · 검수 ${oa.review} · 스킵 ${oa.skipped} · 남은대기 ${oa.remaining}`);
   }
+  // 구구다스 (공개 목록 JSON + 상세 HTML: 매장주소·좌표·방문시간, 방문형=AMZ027.001, 부산/경남 위주·전국)
+  if (!stopping) {
+    const gd = await runScrape({ db, platform: '구구다스', limit: 400, dedupe });
+    if ((gd.newCandidates || 0) > (gd.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(구구다스): 처리 ${gd.processed} · 적재 ${gd.staged} · 주소없음 ${gd.geoFail} · 중복 ${gd.dupActive} · 제외 ${gd.excluded}`);
+    const ga = await runAutopilot({ db, places: apPlaces });
+    remaining = ga.remaining;
+    console.log(`  [${ts()}] └ [구구다스] AI검증: 자동등록 ${ga.registered} · 검수 ${ga.review} · 스킵 ${ga.skipped} · 남은대기 ${ga.remaining}`);
+  }
   return { collected, more, remaining };
 }
 

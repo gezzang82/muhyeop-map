@@ -647,6 +647,7 @@ async function runScrape({ db, platform, mode, limit, region, deadlineTs, dedupe
   if (platform === 'seoulouba' || platform === '서울오빠') return runSeouloba({ db, limit, deadlineTs, dedupe });
   if (platform === 'reviewnote' || platform === '리뷰노트') return runReviewnote({ db, limit, deadlineTs, region, dedupe });
   if (platform === 'ohmyblog' || platform === '오마이블로그') return runOhmyblog({ db, limit, deadlineTs, dedupe });
+  if (platform === 'gooddas' || platform === '99das' || platform === '구구다스') return runGooddas({ db, limit, deadlineTs, dedupe });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs, dedupe });
 }
 
@@ -1449,4 +1450,91 @@ async function runOhmyblog({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = 
   return { platform, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut };
 }
 
-module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+// ===== 구구다스 (99das.com) — 공개 목록 JSON(cmpnList.do, XHR 헤더 필요) + 상세 HTML(주소/방문시간 SSR) =====
+// 방문형=cmpnDcd AMZ027.001. 상세에 지번주소(class="addr")·카카오맵 좌표·방문가능시간 SSR. 원고료형(주소 없음)은 스킵.
+const GD_BASE = 'https://www.99das.com';
+async function gdFetchList(page, unit = 20) {
+  const body = `cmpnDcd=AMZ027.001&cmpnKindDcd=&type=cmpnList&area=&cate=&sns=&orderby=new&pageSize=${unit}&pageNum=${page}&tagId=cmpnList`;
+  const res = await fetch(`${GD_BASE}/amz/list/cmpnList.do`, {
+    method: 'POST',
+    headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json', Referer: `${GD_BASE}/amz/cmpn/amzCmpnList.do?cmpnDcd=AMZ027.001` },
+    body,
+  });
+  if (!res.ok) return null;
+  try { return await res.json(); } catch (e) { return null; }
+}
+const GD_CH = { '블로그': '블로그', '인스타그램': '인스타그램', '인스타': '인스타그램', '클립': '클립', '릴스': '릴스', '유튜브': '유튜브' };
+const gdName = (n) => String(n || '').replace(/^\s*\[[^\]]*\]\s*/, '').replace(/\s+/g, ' ').trim(); // "[경남 밀양] 위양448" → "위양448"
+function gdParseDetail(html) {
+  const h = String(html || '');
+  // 방문 매장 주소: "매장주소 :" 라벨 우선(광고주 사무실 '주소:'와 구분해야 함), 없으면 class="addr" 폴백
+  let am = h.match(/매장\s*주소\s*[:：]\s*(?:&nbsp;|\s)*([^<]+)/);
+  if (!am) am = h.match(/class="addr"\s*>\s*([^<]+?)\s*</);
+  const address = am ? am[1].replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  // 방문가능시간 텍스트를 rbHoursDays(서울오빠·링블 공용 파서)로 파싱 — 요일/시간/공휴일
+  let hd = { hours: '', days: '', excludeHoliday: 0 };
+  const idx = h.indexOf('방문가능시간');
+  if (idx >= 0) {
+    const chunk = h.slice(idx, idx + 700).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+    try { hd = rbHoursDays(chunk); } catch (e) {}
+  }
+  return { address, hours: hd.hours || '', days: hd.days || '', excludeHoliday: hd.excludeHoliday ? 1 : 0 };
+}
+async function runGooddas({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = null }) {
+  const platform = '구구다스';
+  const today = new Date().toISOString().slice(0, 10);
+  const dedupe = _dedupe || await loadDedupe(db);
+  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='구구다스'")).rows.map((r) => String(r.source_id)));
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, geoFail = 0, timedOut = false;
+  let page = 1;
+  while (page <= 200) {
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    const lj = await gdFetchList(page, 20);
+    const list = lj && Array.isArray(lj.list) ? lj.list : [];
+    if (!list.length) break;
+    for (const c of list) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      if (String(c.cmpnDcd) !== 'AMZ027.001') { excluded++; continue; } // 방문형만
+      const id = String(c.cmpnId || '');
+      if (!id || doneIds.has(id)) continue;
+      const name = gdName(c.cmpnNm);
+      if (!name) { excluded++; continue; }
+      const channel = GD_CH[String(c.cmpnKindDcdNm || '').trim()] || '블로그';
+      if (processed >= limit) { timedOut = true; break; }
+      processed++;
+      try {
+        const dres = await fetch(`${GD_BASE}/amz/cmpn/amzCmpnDtl.do?cmpnId=${id}`, { headers: { 'User-Agent': UA, Referer: `${GD_BASE}/` } });
+        await sleep(150);
+        if (!dres.ok) { failed++; continue; }
+        const { address, hours, days, excludeHoliday } = gdParseDetail(await dres.text());
+        if (!address) { geoFail++; continue; } // 원고료형 등 매장 주소 없음 → 스킵(방문형만)
+        const content = String(c.oferBrekdn || '').trim();
+        const rn = String(c.recrtEnDy || '');
+        const deadline = /^\d{8}$/.test(rn) ? `${rn.slice(0, 4)}-${rn.slice(4, 6)}-${rn.slice(6, 8)}` : '';
+        const auto = categoryByKeyword(content + ' ' + name, name);
+        const category = auto || '음식점';
+        const cls = classify({ name, channel, address }, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; continue; }
+        const flags = [];
+        if (!auto) flags.push('카테고리확인(기본값 음식점)');
+        if (!hours) flags.push('가능시간확인');
+        const ins = await db.execute({
+          sql: `INSERT OR IGNORE INTO scraped_items
+            (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+          args: [platform, id, `${GD_BASE}/amz/cmpn/amzCmpnDtl.do?cmpnId=${id}`, name, address, category, channel, content, deadline, hours, days, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
+        });
+        if (ins.rowsAffected > 0) staged++;
+      } catch (e) { failed++; }
+    }
+    page++;
+  }
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('구구다스', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive, `방문형 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 주소없음 ${geoFail}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut };
+}
+
+module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
