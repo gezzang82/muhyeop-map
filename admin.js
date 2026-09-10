@@ -514,6 +514,25 @@ function renderReferrerDaily(rows) {
   }).join('');
 }
 
+// 접속 환경(앱/모바일웹/PC웹) — 오늘 기준 막대
+const PLAT_LABELS = { app: '📱 앱', mweb: '🌐 모바일웹', pcweb: '💻 PC웹' };
+function renderPlatforms(list) {
+  const el = document.getElementById('platformStats');
+  if (!el) return;
+  if (!list || !list.length) { el.innerHTML = '<div class="empty-msg">아직 데이터가 없어요. (배포 후 방문부터 집계)</div>'; return; }
+  const total = list.reduce((s, r) => s + (r.cnt || 0), 0) || 1;
+  const max = Math.max(1, ...list.map(r => r.cnt || 0));
+  // app > mweb > pcweb 순 고정 정렬
+  const order = { app: 0, mweb: 1, pcweb: 2 };
+  list = list.slice().sort((a, b) => (order[a.platform] ?? 9) - (order[b.platform] ?? 9));
+  el.innerHTML = list.map(r => `
+      <div class="stat-row">
+        <span class="stat-badge" style="background:#39395c1a;color:#39395c;min-width:96px">${PLAT_LABELS[r.platform] || escHtml(r.platform)}</span>
+        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round((r.cnt || 0) / max * 100)}%;background:#39395c"></div></div>
+        <span class="stat-num">${r.cnt || 0} (${Math.round((r.cnt || 0) / total * 100)}%)</span>
+      </div>`).join('');
+}
+
 // 유입경로 집계(누적). platform-stats 스타일 재사용(막대 + 개수).
 function renderReferrers(refs) {
   const el = document.getElementById('referrerStats');
@@ -577,6 +596,7 @@ function renderDashboard() {
     renderVisitChart(s.series || []);
     renderReferrers(s.referrers || []);
     renderReferrerDaily(s.referrerDaily || []);
+    renderPlatforms(s.todayPlatforms || []);
   }).catch(() => {});
 
   // 마감 임박 (D-DAY ~ D-4): 활성 캠페인을 마감까지 남은 일수별로 집계. 상시(마감일 없음)는 제외.

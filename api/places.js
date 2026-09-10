@@ -24,6 +24,8 @@ async function ensureSiteVisitTables(db) {
   await db.execute("CREATE TABLE IF NOT EXISTS site_referrer (ref TEXT PRIMARY KEY, cnt INTEGER DEFAULT 0)");
   // 일별 유입경로(채널별 날짜 축) — "어느 날 어떤 채널로 몇 명 왔나"(블로그/카톡 효과 측정용). 기존 site_referrer는 누적 유지.
   await db.execute("CREATE TABLE IF NOT EXISTS site_referrer_daily (visit_date TEXT NOT NULL, ref TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, ref))");
+  // 접속 환경별 일자 집계(app/mweb/pcweb) — 앱 vs 웹 유입 파악.
+  await db.execute("CREATE TABLE IF NOT EXISTS site_platform_daily (visit_date TEXT NOT NULL, platform TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, platform))");
   // 체류시간 집계(일별 평균 = dwell_sum/dwell_count 초). 이탈 시 클라 sendBeacon(?visit=dwell)이 누적.
   try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_sum INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
   try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_count INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
@@ -88,6 +90,9 @@ module.exports = async function handler(req, res) {
           await db.execute({ sql: "INSERT INTO site_referrer (ref, cnt) VALUES (?, 1) ON CONFLICT(ref) DO UPDATE SET cnt = cnt + 1", args: [refKey] });
           await db.execute({ sql: "INSERT INTO site_referrer_daily (visit_date, ref, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, ref) DO UPDATE SET cnt = cnt + 1", args: [day, refKey] });
         }
+        // 접속 환경(app/mweb/pcweb) 일자별 집계 — 값이 이상하면 pcweb로 폴백
+        const plat = ({ app: 'app', mweb: 'mweb', pcweb: 'pcweb' })[String(req.body && req.body.platform)] || 'pcweb';
+        await db.execute({ sql: "INSERT INTO site_platform_daily (visit_date, platform, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, platform) DO UPDATE SET cnt = cnt + 1", args: [day, plat] });
       } catch (e) { /* 집계 실패는 무시 */ }
       return res.status(200).json({ ok: true });
     }
@@ -141,6 +146,12 @@ module.exports = async function handler(req, res) {
       const rdMap = {};
       rdRows.forEach(r => { (rdMap[r.d] = rdMap[r.d] || {})[r.ref] = Number(r.cnt || 0); });
       const referrerDaily = Object.keys(rdMap).sort().reverse().map(d => ({ date: d, channels: rdMap[d] }));
+      // 접속 환경(app/mweb/pcweb): 오늘 + 최근 14일 날짜×환경
+      const todayPlatRows = (await db.execute({ sql: "SELECT platform, cnt FROM site_platform_daily WHERE visit_date = ? ORDER BY cnt DESC", args: [day] })).rows;
+      const pdRows = (await db.execute({ sql: "SELECT visit_date AS d, platform, cnt FROM site_platform_daily WHERE visit_date >= ? ORDER BY visit_date DESC", args: [since] })).rows;
+      const pdMap = {};
+      pdRows.forEach(r => { (pdMap[r.d] = pdMap[r.d] || {})[r.platform] = Number(r.cnt || 0); });
+      const platformDaily = Object.keys(pdMap).sort().reverse().map(d => ({ date: d, platforms: pdMap[d] }));
       return res.status(200).json({
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
@@ -148,7 +159,9 @@ module.exports = async function handler(req, res) {
         period, series,
         referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
         todayReferrers: todayRefRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
-        referrerDaily
+        referrerDaily,
+        todayPlatforms: todayPlatRows.map(r => ({ platform: r.platform, cnt: Number(r.cnt || 0) })),
+        platformDaily
       });
       } catch (e) {
         // 500으로 통째 실패 대신, 에러 메시지를 응답에 담아 진단 가능하게(대시보드는 빈 값으로 degrade)
