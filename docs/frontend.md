@@ -15,7 +15,7 @@
 - **데이터 로드 실패 폴백(`#mapError`)**: `loadInitialData`가 `/api/places`·`/api/campaigns` 응답이 `!res.ok`(예: 서버 장애/DB 읽기한도 500)이거나 배열이 아니면 **에러를 던짐**. 부팅 핸들러(`window load`)가 `try/catch`로 잡아 `showMapError()`(기존 지도 스크립트 실패용 오버레이 재사용) + `hideAppLoading()` 후 중단 → 빈 지도/무한스피너 대신 "지도를 불러오지 못했어요 / 다시 시도"(reload). 실패 시 `_dataLoadPromise=null`로 메모 해제(재시도 가능). `.map-error`는 `position:fixed;z-index:10000`이고 `showMapError`가 오버레이를 `document.body` 최상위로 옮겨(부모 스태킹 컨텍스트 탈출) PC 사이드바·아이콘레일·라이브캐릭터까지 **화면 전체를 덮음**. 배너는 비필수라 실패해도 빈 배열로 넘어감.
 
 ## 지도 마커 렌더링 / 격자 클러스터링 (`renderMarkers`)
-- **뷰포트 컬링**: 화면(+40% 마진, `viewBoundsWithMargin(0.4)`)에 들어오는 매장만 대상. 지도 idle(줌/이동 멈춤)마다 120ms 디바운스로 재렌더. 회색핀(활성 캠페인 없음)은 `GRAY_PIN_MIN_ZOOM` 이상에서만.
+- **뷰포트 컬링**: 화면(+40% 마진, `viewBoundsWithMargin(0.4)`)에 들어오는 매장만 대상. 지도 idle(줌/이동 멈춤)마다 120ms 디바운스로 재렌더. 회색핀(활성 캠페인 없음)은 `GRAY_PIN_MIN_ZOOM` 이상에서만. **회색핀은 지나간 협찬(후기 열람용으로 남겨둠)이라 `opacity 0.5`로 흐리게**(`getGrayPin`이 `.map-pin-ended` 클래스 부여, style.css에서 기본 0.5·호버 0.7·선택 시 또렷 — 2026-09-09. 처음 0.3이었으나 모바일에서 안 보여 0.5로 상향).
 - **자체 격자(grid) 클러스터링(2026-08-30)**: 네이버 `MarkerClustering`(js/MarkerClustering.js, **점마다 DOM 마커를 만든 뒤 뭉침**)이 매장 1.4만+에서 줌아웃 시 병목 → **supercluster류 격자 방식으로 대체**. 화면 **~72px 셀**(`cellDeg = 72*360/(256*2^zoom)`)로 매장을 버킷팅해 **셀 단위로만** 마커 생성: 셀 2개↑ → 클러스터 1개(`.cluster-marker`, **정확한 합계 개수**, 클릭 시 `setZoom(z+3)` 확대) / 1개 → 개별 핀(`.map-pin`). **점마다 DOM을 안 만들어** 저줌 수천 점도 마커 DOM이 "보이는 셀 수(수백)"로 상한(실측: 줌7 전국 1.4만 매장 → 클러스터 DOM 30개). 개별 핀 지터(`getJitteredPositions`)는 단독 셀에만 적용. `markerMap[placeId]`는 개별 핀에만 존재(클러스터 안 매장은 없음 → `setSelectedMarker`/카드 하이라이트는 존재 가드).
 - 네이버 `MarkerClustering`은 미사용(index.html 스크립트는 아직 로드되나 호출 안 함). `markerCluster` 전역은 잔여 정리용.
 
