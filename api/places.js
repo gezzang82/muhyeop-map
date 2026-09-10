@@ -171,6 +171,39 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'visit 파라미터 오류' });
   }
 
+  // ===== 앱스토어 지표(평점·리뷰) — 공개 iTunes API를 서버에서 프록시(CORS 회피). 어드민 대시보드용.
+  // 다운로드(판매량)는 공개 API가 없어 App Store Connect API 키(.p8) 필요 → downloads는 별도(현재 null). =====
+  if (req.query.appstore !== undefined) {
+    if (!requireAdmin(req, res)) return;
+    const APP_ID = '6794363402';
+    try {
+      const [lkRes, rssRes] = await Promise.all([
+        fetch(`https://itunes.apple.com/lookup?id=${APP_ID}&country=kr`).catch(() => null),
+        fetch(`https://itunes.apple.com/kr/rss/customerreviews/id=${APP_ID}/sortBy=mostRecent/json`).catch(() => null),
+      ]);
+      const lk = lkRes && lkRes.ok ? await lkRes.json().catch(() => null) : null;
+      const rss = rssRes && rssRes.ok ? await rssRes.json().catch(() => null) : null;
+      const app = (lk && lk.results && lk.results[0]) || {};
+      const entries = (rss && rss.feed && rss.feed.entry) || [];
+      const reviews = entries.filter(e => e['im:rating']).map(e => ({
+        rating: Number(e['im:rating'].label) || 0,
+        title: (e.title && e.title.label) || '',
+        content: (e.content && e.content.label) || '',
+        author: (e.author && e.author.name && e.author.name.label) || '',
+        version: (e['im:version'] && e['im:version'].label) || '',
+      })).slice(0, 10);
+      return res.status(200).json({
+        rating: Number(app.averageUserRating || 0),
+        ratingCount: Number(app.userRatingCount || 0),
+        version: app.version || '',
+        reviews,
+        downloads: null, // App Store Connect API 키 설정 시 추가 예정
+      });
+    } catch (e) {
+      return res.status(200).json({ rating: 0, ratingCount: 0, reviews: [], downloads: null, _error: String((e && e.message) || e) });
+    }
+  }
+
   // ===== 후기(리뷰) 라우팅 — 함수 12개 제한 때문에 places.js에 합침 (?reviews=...) =====
   if (req.query.reviews !== undefined) {
     const { validateAndExtract, ensureReviewTables, toReview } = require('./_reviews');

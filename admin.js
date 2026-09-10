@@ -559,7 +559,30 @@ function setVisitPeriod(period, btn) {
 }
 
 // ===== 대시보드 =====
+// 앱스토어 평점·리뷰(공개 iTunes API 프록시). 다운로드는 ASC 키 연동 시 채워짐.
+function renderAppStore(d) {
+  const el = document.getElementById('appStoreStats');
+  if (!el) return;
+  if (!d) { el.innerHTML = '<div class="empty-msg">앱스토어 정보를 불러오지 못했어요.</div>'; return; }
+  const stars = (r) => { r = Math.round(Number(r) || 0); return '★'.repeat(Math.max(0, Math.min(5, r))) + '☆'.repeat(Math.max(0, 5 - r)); };
+  const dl = d.downloads != null ? Number(d.downloads).toLocaleString() + '회' : '<span style="color:#8a8a99">ASC 키 연동 시 표시</span>';
+  const reviews = (d.reviews || []).map(rv => `
+    <div class="as-review">
+      <div class="as-review-head"><span class="as-stars">${stars(rv.rating)}</span> <b>${escHtml(rv.title)}</b> <span class="as-author">${escHtml(rv.author)}</span></div>
+      <div class="as-review-body">${escHtml(rv.content)}</div>
+    </div>`).join('') || '<div class="empty-msg">아직 리뷰가 없어요.</div>';
+  el.innerHTML = `
+    <div class="as-summary">
+      <span class="as-rating">★ ${(Number(d.rating) || 0).toFixed(1)}</span>
+      <span class="as-count">평가 ${Number(d.ratingCount || 0).toLocaleString()}개</span>
+      <span class="as-ver">v${escHtml(d.version || '-')}</span>
+      <span class="as-dl">📥 다운로드: ${dl}</span>
+    </div>
+    <div class="as-reviews">${reviews}</div>`;
+}
+
 function renderDashboard() {
+  fetch('/api/places?appstore=1').then(r => r.json()).then(renderAppStore).catch(() => renderAppStore(null));
   // 통계는 서버 집계(?stats=1)로 즉시 렌더 — 캠페인 전량(수만 건)을 클라에서 세지 않아 대시보드가 바로 뜸.
   const setN = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (Number(v) || 0).toLocaleString(); };
   fetch('/api/campaigns?stats=1').then(r => r.json()).then(st => {
