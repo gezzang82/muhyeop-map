@@ -28,7 +28,8 @@
 .splash-sub { width: 80px; height: auto; display: block; }
 .splash-logo { width: 220px; height: auto; display: block; }
 .splash-char {
-  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  /* 스플래시는 lvh(툴바 뒤까지)로 덮지만, 캐릭터 발은 반투명 툴바(lvh-dvh 밴드) 위(dvh 바닥)에 앉혀 안 잘리게 */
+  position: absolute; left: 50%; bottom: calc(100lvh - 100dvh); transform: translateX(-50%);
   width: 74%; max-width: 300px; height: auto; display: block;
 }
 
@@ -49,10 +50,10 @@ body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f5f5f0;
   color: #1a1a1a;
+  /* iOS Chrome/Safari 하단 툴바가 반투명이라 dvh(665)는 툴바 공간을 빼고 보고 → 그만큼 하단 크림 여백.
+     실제 보이는 영역은 lvh(773). 그래서 셸은 lvh로 채워 툴바 뒤까지 지도가 깔리게 함(여백 제거). */
   height: 100vh;
-  height: 100dvh;
-  /* iOS Safari 초기 dvh 오계산(하단 여백) 대응: JS가 innerHeight로 --app-height를 채움(웹 전용, 앱은 미설정→dvh 사용) */
-  height: var(--app-height, 100dvh);
+  height: 100lvh;
   display: flex;
   flex-direction: row;
   overflow: hidden;
