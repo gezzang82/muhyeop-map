@@ -61,5 +61,9 @@
 ## 제보왕(리더보드) 배너 — 현재 숨김
 - `app.js`의 `LEADERBOARD_ENABLED = false` 플래그로 PC/모바일 제보왕 배너 비노출(`renderLeaderboard`가 조기 반환, 60초 폴링도 안 돎). 베타 이벤트 시작 시 `true`로. API(`/api/users?leaderboard=1`)는 살아있음.
 
+## 뷰포트 높이 / iOS Safari 하단 여백(--app-height, 2026-09-11)
+- **증상**: 네이버 블로그 등에서 muhyeop.com을 열면 **하단에 크림색 여백**이 남고 지도가 화면을 꽉 안 채움. **앱을 나갔다 들어오면(재진입) 정상**으로 돌아오나 가만두거나 지도를 움직여도 안 고쳐짐. → iOS Safari가 **초기 뷰포트 높이(`dvh`)를 잘못 계산**하고, 셸(`body height:100dvh`)·바텀시트 높이가 그 값에 묶여서 발생(재진입 시 Safari가 높이 재계산돼 정상화).
+- **해결**: `app.js` 상단 IIFE `setAppHeight()`가 실제 `window.innerHeight`를 `--app-height` CSS 변수에 채움. `resize`/`orientationchange`/`pageshow`/`visibilitychange`/`visualViewport.resize`마다 갱신 + `naver.maps.Event.trigger(map,'resize')`로 지도 리프레시. CSS는 `body { height: var(--app-height, 100dvh) }`, `.sidebar.expanded`(50vh→`calc(var(--app-height)*0.5)`)·`.expanded-full`도 변수 기반(dvh 폴백 유지). **키보드 대응**: `visualViewport.height`가 아니라 `innerHeight`를 써서 입력 포커스로 키보드가 떠도 셸이 튀지 않음. **앱(native-app, Capacitor)은 dvh 정상이라 미설정**(`document.documentElement`에 `native-app` 클래스 있으면 `setAppHeight` early-return)→CSS dvh 폴백 사용, 앱 레이아웃 불변.
+
 ## 전역 텍스트/이미지 드래그 방지 (앱 느낌)
 - `body`에 `user-select: none` + `-webkit-touch-callout: none`, `img/a`에 `user-drag: none`. `dragstart`/`contextmenu`를 전역 차단(길게누름·우클릭 메뉴 방지). **입력 요소(`input/textarea/[contenteditable]/select`)는 예외로 선택·붙여넣기·우클릭 허용**. 지도 패닝(네이버 자체 핸들러)·바텀시트 스와이프는 영향 없음. → "왜 텍스트 선택이 안 되지"는 의도된 동작.
