@@ -70,7 +70,8 @@
   - `calc(100lvh - 100dvh)`는 이 인앱 Chrome에서 **0으로 계산되는 버그**(JS probe로 px 실측해도 밴드필은 예약영역이라 여전히 안 보임).
 - **시도했다가 전부 되돌린 것**(commit 2a1d03b에서 표준 복구): `--app-height=innerHeight`, `body:100lvh`, `.app-splash/.app-loading:100lvh`, `html{background:#fff}`, `body::after` 흰색 밴드필(CSS calc/JS-var 둘 다), `.splash-char bottom:calc(100lvh-100dvh)`. → 모두 무효 또는 상단 회귀 유발.
 - **현재 상태(표준·클린)**: `body{height:100dvh}`, `.app-splash/.app-loading{inset:0}`, `.splash-char{bottom:0}`. `app.js`의 `setAppHeight()`는 `--app-height` 설정 + 화면 복귀 시 네이버 지도 리프레시 용도로 최소만 유지(`.sidebar.expanded`가 `--app-height` 사용).
-- **다음에 시도할 것(보류)**: `index.html`의 `<meta viewport ... viewport-fit=cover>`에서 **`viewport-fit=cover` 제거** 실험 — 인앱 Chrome이 콘텐츠를 안전영역 안에 배치해 여백이 사라질 가능성. **단, Capacitor 앱의 노치 풀블리드에 영향** 가능하니 앱까지 함께 검증 필요. 관련 메모 [[project_ios_inapp_viewport]].
+- **viewport-fit=cover 제거 실험(2026-09-12) → 실패**: 웹에서 `viewport-fit=cover`를 빼도(앱만 JS로 유지) 인앱 Chrome 여백 그대로(실기기 확인). commit 149633e에서 원복. → **CSS/메타로 못 잡는 인앱 Chrome 예약영역으로 최종 확정.**
+- **최종 판단**: "네이버 블로그 → iOS 인앱 Chrome" 경로에서만 나타나고 나머지(Safari·직접·앱·Android·PC) 전부 정상이라 **수용**. 재시도 금지(무한 왕복 방지). 관련 메모 [[project_ios_inapp_viewport]].
 
 ## 전역 텍스트/이미지 드래그 방지 (앱 느낌)
 - `body`에 `user-select: none` + `-webkit-touch-callout: none`, `img/a`에 `user-drag: none`. `dragstart`/`contextmenu`를 전역 차단(길게누름·우클릭 메뉴 방지). **입력 요소(`input/textarea/[contenteditable]/select`)는 예외로 선택·붙여넣기·우클릭 허용**. 지도 패닝(네이버 자체 핸들러)·바텀시트 스와이프는 영향 없음. → "왜 텍스트 선택이 안 되지"는 의도된 동작.
