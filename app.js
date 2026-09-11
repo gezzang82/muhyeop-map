@@ -1525,20 +1525,20 @@ function renderAll() {
 }
 
 // ===== 지역 검색 =====
-function searchRegion() {
+async function searchRegion() {
   const query = document.getElementById('regionSearch').value.trim();
   if (!query) return;
 
-  // 1. 등록된 매장명과 정확히 일치하는 매장 찾기
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(query);
-  // 위치성 검색(역명·지역명·주소접미)이면 매장 검색을 건너뛰고 그 위치로 지도 이동 + 핀.
-  //  - 역(마곡역) / 동·읍·면·리·로·길·가(역삼동·강남구·가로수길) / 주요상권(홍대·강남·성수…).
-  //  - '스타벅스 마곡역점' 같은 매장명은 '점'으로 끝나 제외됨.
   const q2 = query.replace(/\s/g, '');
+  // 지역명·주소접미(동·읍·면·리·로·길·가 / 구·시·군 / 주요상권)면 그 위치로 이동(네이버 geocode/지역검색).
+  //  역명은 아래에서 네이버 지역검색 '카테고리(지하철·전철…)'로 감지 — 패턴 대신 네이버가 진짜 역인지 판단.
   const KNOWN_AREAS = new Set(['홍대', '강남', '성수', '이태원', '건대', '신촌', '잠실', '명동', '연남', '망원', '압구정', '청담', '을지로', '종로', '서면', '동성로', '해운대', '광안리', '판교', '가로수길', '경리단길']);
-  const isLocationLike = q2.length <= 8 && (/역$/.test(q2) || /(동|읍|면|리|로|길|가|거리)$/.test(q2) || (/(구|시|군)$/.test(q2) && q2.length >= 3) || KNOWN_AREAS.has(q2));
-  if (isLocationLike) { clearSearchPin(); geocodeRegion(query); return; }
+  const isRegionLike = q2.length <= 8 && (/(동|읍|면|리|로|길|가|거리)$/.test(q2) || (/(구|시|군)$/.test(q2) && q2.length >= 3) || KNOWN_AREAS.has(q2));
+  if (isRegionLike) { clearSearchPin(); geocodeRegion(query); return; }
+
+  // 등록된 매장명과 정확히 일치하는 매장 찾기
   const placeMatches = places.filter(p => normalize(p.name) === nq);
   if (placeMatches.length === 1) {
     // 정확 일치 1곳 → 상세(캠페인+후기 탭) 오픈 + 핀 선택.
@@ -1555,8 +1555,12 @@ function searchRegion() {
     return;
   }
 
+  // 역명 후보('역'으로 끝남) → 네이버 지역검색 카테고리가 교통(지하철·전철…)이면 진짜 역 → 그 위치로 이동+핀.
+  //   ('종착역' 같은 매장명은 네이버가 음식점 카테고리로 줘서 역으로 오인 안 함 → 아래 매장 검색으로.)
+  if (/역$/.test(q2) && q2.length <= 7 && await tryStationByNaver(query)) return;
+
   // 1-2. 부분 일치 — 이름 일부만 입력해도 후보 매장을 보여줌(2글자 이상). 관련도순 정렬 + 상한 40.
-  //   정렬: 이름이 검색어로 '시작' 우선 → 활성 캠페인 우선 → 이름순. (지역/역명은 아래 geocode가 담당)
+  //   정렬: 이름이 검색어로 '시작' 우선 → 활성 캠페인 우선 → 이름순.
   if (nq.length >= 2) {
     let partial = places.filter(p => normalize(p.name).includes(nq));
     if (partial.length) {
@@ -1581,6 +1585,31 @@ function searchRegion() {
 
   // 2. 지도셋(활성·후기)에 없으면 서버에서 전체 매장 검색(죽은 매장=후기 등록용). 없으면 지역 geocode 폴백.
   searchPlacesOnServer(query);
+}
+
+// 네이버 지역검색 최상위 결과가 교통(역)이면 그 위치로 이동+핀 → true. 아니면 false(→매장 검색 계속).
+async function tryStationByNaver(query) {
+  try {
+    const items = await fetch('/api/search-place?query=' + encodeURIComponent(query)).then(r => (r.ok ? r.json() : []));
+    const top = Array.isArray(items) ? items[0] : null;
+    if (top && /지하철|전철|기차|철도|경전철|버스\s*터미널|공항|고속\s*버스|시외\s*버스/.test(top.category || '')) {
+      const addr = top.roadAddress || top.address;
+      if (addr) {
+        clearSearchPin();
+        await new Promise(res => naver.maps.Service.geocode({ query: addr }, (status, response) => {
+          const it = response?.v2?.addresses?.[0];
+          if (status === naver.maps.Service.Status.OK && it) {
+            map.setCenter(new naver.maps.LatLng(parseFloat(it.y), parseFloat(it.x)));
+            map.setZoom(15);
+            showSearchPin(parseFloat(it.y), parseFloat(it.x));
+          }
+          res();
+        }));
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
 }
 
 // 서버 매장 검색(전체 비숨김) — 지도 경량화 v2로 죽은 매장은 클라 메모리에 없어, 이름 검색을 서버로.
