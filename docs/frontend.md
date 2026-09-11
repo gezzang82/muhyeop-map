@@ -61,10 +61,15 @@
 ## 제보왕(리더보드) 배너 — 현재 숨김
 - `app.js`의 `LEADERBOARD_ENABLED = false` 플래그로 PC/모바일 제보왕 배너 비노출(`renderLeaderboard`가 조기 반환, 60초 폴링도 안 돎). 베타 이벤트 시작 시 `true`로. API(`/api/users?leaderboard=1`)는 살아있음.
 
-## 뷰포트 높이 / iOS Safari 하단 여백(--app-height, 2026-09-11)
-- **증상**: 네이버 블로그 등에서 muhyeop.com을 열면 **하단에 크림색 여백**이 남고 지도가 화면을 꽉 안 채움. **앱을 나갔다 들어오면(재진입) 정상**으로 돌아오나 가만두거나 지도를 움직여도 안 고쳐짐. → iOS Safari가 **초기 뷰포트 높이(`dvh`)를 잘못 계산**하고, 셸(`body height:100dvh`)·바텀시트 높이가 그 값에 묶여서 발생(재진입 시 Safari가 높이 재계산돼 정상화).
-- **로딩 스플래시 여백(같은 뿌리, 별도 수정)**: 실제 "하단 크림 여백"의 정범은 **로딩 스플래시(`.app-splash`)/로딩 오버레이(`.app-loading`)** 였음(스크린 레코딩으로 확정). `position:fixed; inset:0`의 `bottom:0`이 iOS Safari에서 실제 화면보다 짧은 레이아웃 뷰포트에 붙어 스플래시 아래로 body 배경이 노출. → `bottom` 고정 대신 **`height:100vh→100lvh`(큰 뷰포트)로 하단까지 넘치게** 덮어 해결. 전체 앱 셸(지도/시트) 여백은 아래 `--app-height`가 담당.
-- **해결(지도/시트)**: `app.js` 상단 IIFE `setAppHeight()`가 실제 `window.innerHeight`를 `--app-height` CSS 변수에 채움. `resize`/`orientationchange`/`pageshow`/`visibilitychange`/`visualViewport.resize`마다 갱신 + `naver.maps.Event.trigger(map,'resize')`로 지도 리프레시. CSS는 `body { height: var(--app-height, 100dvh) }`, `.sidebar.expanded`(50vh→`calc(var(--app-height)*0.5)`)·`.expanded-full`도 변수 기반(dvh 폴백 유지). **키보드 대응**: `visualViewport.height`가 아니라 `innerHeight`를 써서 입력 포커스로 키보드가 떠도 셸이 튀지 않음. **앱(native-app, Capacitor)은 dvh 정상이라 미설정**(`document.documentElement`에 `native-app` 클래스 있으면 `setAppHeight` early-return)→CSS dvh 폴백 사용, 앱 레이아웃 불변.
+## 뷰포트 높이 / iOS 하단 크림 여백 — dvh vs lvh (2026-09-11)
+- **증상**: 네이버 블로그 등에서 muhyeop.com을 iOS Chrome/Safari로 열면 **하단에 크림색(#f5f5f0) 여백**이 남고 지도/시트가 화면을 꽉 안 채움. 앱을 나갔다 들어오면 잠깐 정상처럼 보이기도 함(뷰포트 재계산). 로딩 스플래시(빨간 화면)도 아래가 크림으로 남았음.
+- **원인(실기기 디버그로 확정)**: iOS Chrome/Safari **하단 툴바가 반투명 오버레이**라, `dvh`(=`innerHeight`=`visualViewport.height`, 실측 665)는 툴바 공간을 **빼고** 보고하지만 **실제 보이는 영역은 `lvh`(실측 773)**. 셸을 `dvh`로 채우니 665~773의 **108px가 크림 여백**으로 드러남. (전에 `--app-height=innerHeight`로 잡은 건 innerHeight 자체가 dvh(665)라 무효였음 — 폐기.)
+- **해결**: 전체를 덮는 요소는 **`lvh`(큰 뷰포트, 툴바 뒤까지)** 로 채움.
+  - `body { height: 100vh; height: 100lvh; }` — 지도(flex:1)가 lvh(773)까지 깔려 여백 제거. (`dvh`/`--app-height` 사용 제거.)
+  - `.app-splash`/`.app-loading`: `height: 100lvh`로 전체 커버.
+  - `.splash-char`(스플래시 캐릭터): 발이 반투명 툴바 뒤로 잘리지 않게 `bottom: calc(100lvh - 100dvh)` = 툴바 밴드(108px) 위(dvh 바닥)에 앉힘.
+  - **바텀시트**(`.sidebar`, `position:fixed; bottom:0`)는 iOS에서 `dvh` 바닥(665)에 붙어 **툴바 위**에 그대로 노출 → 그 뒤를 지도(lvh)가 채워 여백 없음. `.sidebar.expanded`는 `calc(var(--app-height,100dvh)*0.5)` 유지(무해).
+- **앱(native-app, Capacitor WebView)**: 반투명 툴바가 없어 `lvh==dvh` → 위 CSS 그대로 정상(레이아웃 불변). Android/PC도 동일.
 
 ## 전역 텍스트/이미지 드래그 방지 (앱 느낌)
 - `body`에 `user-select: none` + `-webkit-touch-callout: none`, `img/a`에 `user-drag: none`. `dragstart`/`contextmenu`를 전역 차단(길게누름·우클릭 메뉴 방지). **입력 요소(`input/textarea/[contenteditable]/select`)는 예외로 선택·붙여넣기·우클릭 허용**. 지도 패닝(네이버 자체 핸들러)·바텀시트 스와이프는 영향 없음. → "왜 텍스트 선택이 안 되지"는 의도된 동작.
