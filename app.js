@@ -121,8 +121,12 @@ let map;
   setTimeout(setAppHeight, 800);
 })();
 
-// [임시 디버그 v4] localStorage vhdebug=1 이면 표시. 빨강=fixed;bottom0, 주황=visualViewport 바닥, 초록=lvh 바닥, 파랑=시트 바닥.
+// [임시 디버그 v4] ?vhdebug=1 로 켜고(localStorage 저장) ?vhdebug=0 로 끔. 빨강=fixed;bottom0, 주황=vv바닥, 초록=lvh바닥, 파랑=시트바닥.
 (function () {
+  try {
+    if (/[?&]vhdebug=1/.test(location.search)) localStorage.setItem('vhdebug', '1');
+    if (/[?&]vhdebug=0/.test(location.search)) localStorage.removeItem('vhdebug');
+  } catch (e) {}
   var on = false; try { on = localStorage.getItem('vhdebug') === '1'; } catch (e) {}
   if (!on) return;
   function boot() {
