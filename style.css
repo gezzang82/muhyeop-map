@@ -3,7 +3,9 @@
 /* 초기 로딩 오버레이 */
 /* 로딩 오버레이(기존): 지도 위 반투명 dim + 로티. 모바일=스플래시 뒤, PC=바로 노출 */
 .app-loading {
-  position: fixed; inset: 0; z-index: 3000; background: rgba(255,255,255,0.6);
+  /* bottom:0(레이아웃 뷰포트)이 iOS Safari에서 실제 화면보다 짧아 하단 크림 여백 → 큰 뷰포트(lvh)로 넘치게 덮음 */
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  height: 100vh; height: 100lvh; z-index: 3000; background: rgba(255,255,255,0.6);
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.35s ease;
 }
@@ -12,7 +14,9 @@
 
 /* 스플래시(모바일 전용, 부팅 애니메이션): 로딩 위(z 3100). PC는 숨김 */
 .app-splash {
-  position: fixed; inset: 0; z-index: 3100; background: #e82a2d;
+  /* inset:0 대신 큰 뷰포트(lvh)로 하단까지 넘치게 덮어 iOS Safari 로딩 중 하단 크림 여백 방지 */
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  height: 100vh; height: 100lvh; z-index: 3100; background: #e82a2d;
   overflow: hidden; transition: opacity 0.4s ease;
 }
 .app-splash.hide { opacity: 0; pointer-events: none; }
