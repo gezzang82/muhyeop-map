@@ -72,7 +72,7 @@ function loadInitialData() {
         // 첫 화면 캠페인을 매장/배너 로드와 '병렬'로 프리페치 → 지도 뜨자마자 핀 표시(첫 핀 지연 제거).
         const prefetchP = _fetchCampaignTiles(_initialViewBounds());
         const [placesRes, bannersRes, countRes, recentRes] = await Promise.all([
-          fetch('/api/places'), fetch('/api/banners'),
+          fetch('/api/places?map=1'), fetch('/api/banners'),
           fetch('/api/campaigns?count=active'), fetch('/api/campaigns?recent=24')
         ]);
         // 매장 실패는 치명적(부팅 핸들러가 #mapError 노출). count/recent/배너는 비필수(기본값).
@@ -186,11 +186,11 @@ function getCategoryPinSelected(cat) {
     + `</svg>`;
 }
 
-// 캠페인 없는(마감) 매장 핀: 회색(#BABABA) 원 + 흰 아이콘. 지나간 협찬이라 핀 전체를 흐리게(opacity 30%).
-// (선택 시 getGrayPinSelected는 또렷하게 — 후기 보러 들어온 상태라)
+// 활성 캠페인 없지만 지도에 남는 매장 = 후기 있는 매장(지도 경량화 v2). 회색(#BABABA) 핀으로 '진행 협찬 없음+후기 있음'을
+// 구분하되, dim 없이 정상 노출(후기라는 가치가 있으므로). 죽은 매장(활성·후기 둘 다 없음)은 아예 로드 안 됨.
 function getGrayPin(cat) {
   const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
-  return `<svg class="map-pin-svg map-pin-ended" width="34" height="34" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">`
+  return `<svg class="map-pin-svg" width="34" height="34" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">`
     + `<circle cx="15" cy="15" r="14" fill="#fff"/>`
     + `<circle cx="15" cy="15" r="14.5" stroke="#000" stroke-opacity="0.08"/>`
     + `<circle cx="15" cy="15" r="12" fill="#BABABA"/>`
@@ -710,9 +710,9 @@ function renderMarkers() {
   //  - 고줌(zoom≥CAMPAIGN_MIN_ZOOM, 개별핀 구간): 처음부터 활성 핀만 표시(캠페인 로드되면 컬러 핀이 뜸).
   //    로딩 중엔 전체 매장(비활성 포함)을 보였다 숨기지 않는다 → dim으로 시작/종료핀 깜빡임 방지.
   //  - 저줌(전국·광역, 캠페인 미로드): 전체 매장을 클러스터로만 표시(빈 화면 방지, 개별 dim 핀 아님).
-  const campaignsHere = map.getZoom() >= CAMPAIGN_MIN_ZOOM;
-  const visiblePlaces = places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
-    (campaignsHere ? (hasActiveCampaign(place.id) || showGrayPins) : true));
+  // 지도 경량화 v2: places는 이미 '활성 OR 후기' 매장만(죽은 매장 제외 로드)이라, 뷰 안이면 모두 표시.
+  //  - 활성 캠페인 매장 → 컬러핀 / 후기만 있는 매장 → 회색핀(dim 없이 정상 노출). 저줌은 클러스터.
+  const visiblePlaces = places.filter(place => !place.hidden && inView(place.lat, place.lng));
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
   if (!renderMarkers._idleBound) {
@@ -1566,7 +1566,36 @@ function searchRegion() {
     }
   }
 
-  // 2. 주소/지역명 검색 (geocode)
+  // 2. 지도셋(활성·후기)에 없으면 서버에서 전체 매장 검색(죽은 매장=후기 등록용). 없으면 지역 geocode 폴백.
+  searchPlacesOnServer(query);
+}
+
+// 서버 매장 검색(전체 비숨김) — 지도 경량화 v2로 죽은 매장은 클라 메모리에 없어, 이름 검색을 서버로.
+// 결과를 places에 병합해 마커/상세/후기 진입이 되게 함(검색으로 찾은 죽은 매장에 후기 등록 가능).
+async function searchPlacesOnServer(query) {
+  const normalize = s => s.replace(/\s/g, '').toLowerCase();
+  const nq = normalize(query);
+  let rows = [];
+  try { rows = await fetch('/api/places?q=' + encodeURIComponent(query)).then(r => (r.ok ? r.json() : [])); } catch (e) {}
+  rows = Array.isArray(rows) ? rows : [];
+  let added = false;
+  for (const r of rows) if (r && r.id != null && !places.some(p => p.id === r.id)) { places.push(r); added = true; }
+  if (added) { invalidateActiveCache(); if (typeof map !== 'undefined' && map) renderMarkers(); }
+  const matches = rows.filter(p => normalize(p.name).includes(nq));
+  if (matches.length === 1) {
+    clearSearchPin();
+    const p = matches[0];
+    await ensurePlaceCampaigns(p.id);
+    const ended = getActiveCampaigns(p.id).length === 0;
+    focusPlace(p.id, ended ? GRAY_PIN_MIN_ZOOM : 16);
+    return;
+  }
+  if (matches.length > 1) { showPlacePicker(matches, query); return; }
+  geocodeRegion(query); // 등록 매장 아님 → 지역/주소 검색
+}
+
+// 주소/지역명 → 지도 이동(등록 매장이 아닐 때). (구 searchRegion 내부 trySearch 분리)
+function geocodeRegion(query) {
   function trySearch(q, fallback) {
     naver.maps.Service.geocode({ query: q }, function(status, response) {
       const items = response?.v2?.addresses;
@@ -1577,12 +1606,11 @@ function searchRegion() {
       } else if (fallback) {
         trySearch(fallback, null);
       } else {
-        // 3. 역명 등 POI는 geocode로 안 잡히는 경우가 많아 네이버 지역검색으로 폴백
+        // 역명 등 POI는 geocode로 안 잡히는 경우가 많아 네이버 지역검색으로 폴백
         searchRegionViaLocalSearch(query);
       }
     });
   }
-
   const alreadyPrefixed = /^서울|^경기|^인천|^부산|^대구|^광주|^대전/.test(query);
   trySearch(query, alreadyPrefixed ? null : '서울 ' + query);
 }

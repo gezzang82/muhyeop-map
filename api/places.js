@@ -409,8 +409,31 @@ module.exports = async function handler(req, res) {
       const rows = rowsRes.rows.map(r => ({ ...toPlace(r), activeCount: Number(r.active_count || 0) }));
       return res.status(200).json({ rows, total, page, size });
     }
-    // 공개 지도 조회: 숨김 매장 제외 + 이메일(PII) 제외하고 반환
-    // 엣지 캐싱: 매장은 거의 안 바뀜 → 5분 CDN 캐시 + 10분 SWR. 방문자마다 전체 조회(≈4초)를 CDN 히트로.
+    // 지도 경량화 v2(2026-09-11): 지도 마커 = 활성 캠페인 OR 후기 있는 매장만(죽은 매장 제외).
+    // 죽은 매장 ~1.6만 제외로 초기 로드/파싱 40%↓. hasReview 플래그로 클라 핀 상태(후기 매장=정상노출) 구분.
+    if (q.map !== undefined) {
+      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+      const activeSub = "EXISTS(SELECT 1 FROM campaigns c WHERE c.place_id=p.id AND COALESCE(c.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline>=?))";
+      const reviewSub = "EXISTS(SELECT 1 FROM reviews r WHERE r.place_id=p.id AND COALESCE(r.hidden,0)=0)";
+      const rows = (await db.execute({
+        sql: `SELECT p.*, (${reviewSub}) AS has_review FROM places p WHERE COALESCE(p.hidden,0)=0 AND ((${activeSub}) OR (${reviewSub}))`,
+        args: [today],
+      })).rows;
+      return res.status(200).json(rows.map(r => { const p = toPlace(r); delete p.founderEmail; p.hasReview = !!Number(r.has_review); return p; }));
+    }
+    // 매장 검색(서버, 전체 비숨김 대상) — 지도셋에 없는 죽은 매장도 찾아서 후기 등록 가능하게. ?q=이름
+    if (q.q !== undefined) {
+      const term = String(q.q || '').replace(/\s/g, '').slice(0, 60);
+      if (!term) return res.status(200).json([]);
+      const rows = (await db.execute({
+        sql: "SELECT * FROM places WHERE COALESCE(hidden,0)=0 AND REPLACE(name,' ','') LIKE ? ORDER BY (REPLACE(name,' ','') LIKE ?) DESC, id DESC LIMIT 40",
+        args: ['%' + term + '%', term + '%'],
+      })).rows;
+      return res.status(200).json(rows.map(r => { const p = toPlace(r); delete p.founderEmail; return p; }));
+    }
+    // 공개 지도 조회(레거시/폴백): 숨김 매장 제외 + 이메일(PII) 제외하고 전량 반환. (어드민은 여전히 이걸 사용)
+    // 엣지 캐싱: 매장은 거의 안 바뀜 → 5분 CDN 캐시 + 10분 SWR.
     res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     const result = await db.execute('SELECT * FROM places WHERE COALESCE(hidden,0)=0');
     return res.status(200).json(result.rows.map(r => { const p = toPlace(r); delete p.founderEmail; return p; }));
