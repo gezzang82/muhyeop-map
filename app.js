@@ -101,11 +101,26 @@ let map;
 //  증상: 네이버 블로그 등에서 열면 하단에 크림색 여백, '나갔다 들어오면' 정상(=재진입 시 Safari가 높이 재계산).
 //  앱(native-app, Capacitor WebView)은 dvh가 정상이라 미설정(→CSS는 dvh 폴백) — 앱 레이아웃 불변.
 (function () {
+  var probeD, probeL;
+  function ensureProbes() {
+    if (probeD || !document.body) return;
+    probeD = document.createElement('div'); probeD.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100dvh;pointer-events:none;visibility:hidden;';
+    probeL = document.createElement('div'); probeL.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100lvh;pointer-events:none;visibility:hidden;';
+    document.body.appendChild(probeD); document.body.appendChild(probeL);
+  }
   function setAppHeight() {
     if (document.documentElement.classList.contains('native-app')) return; // 앱은 dvh 사용
     // 키보드가 뷰포트를 줄일 때 셸이 튀지 않게 innerHeight 사용(visualViewport.height는 키보드 반영돼 제외)
     var h = window.innerHeight;
     if (h) document.documentElement.style.setProperty('--app-height', Math.round(h) + 'px');
+    // 인앱 Chrome에서 CSS calc(100lvh-100dvh)가 0으로 계산되는 버그 → JS로 probe 실측해 픽셀 변수로 넣음.
+    //  --vp-full=lvh(실제 보이는 최대 높이), --vp-band=lvh-dvh(반투명 툴바 뒤 밴드). 밴드필/스플래시가 이 변수를 씀.
+    ensureProbes();
+    if (probeD && probeL) {
+      var dvh = probeD.getBoundingClientRect().height, lvh = probeL.getBoundingClientRect().height;
+      if (lvh > 0) document.documentElement.style.setProperty('--vp-full', Math.round(lvh) + 'px');
+      document.documentElement.style.setProperty('--vp-band', Math.max(0, Math.round(lvh - dvh)) + 'px');
+    }
     if (map && window.naver && naver.maps && naver.maps.Event) {
       try { naver.maps.Event.trigger(map, 'resize'); } catch (e) {}
     }

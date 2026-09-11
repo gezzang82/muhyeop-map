@@ -3,9 +3,9 @@
 /* 초기 로딩 오버레이 */
 /* 로딩 오버레이(기존): 지도 위 반투명 dim + 로티. 모바일=스플래시 뒤, PC=바로 노출 */
 .app-loading {
-  /* top:0+bottom:0+height를 같이 주면 iOS가 height(lvh) 대신 bottom(dvh)을 써 짧아짐 → bottom 빼고 height:100lvh만 */
+  /* top만 + height. JS 실측 --vp-full(lvh, px)로 채워 인앱 calc버그 회피 */
   position: fixed; top: 0; left: 0; right: 0;
-  height: 100vh; height: 100lvh; z-index: 3000; background: rgba(255,255,255,0.6);
+  height: 100vh; height: 100lvh; height: var(--vp-full, 100lvh); z-index: 3000; background: rgba(255,255,255,0.6);
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.35s ease;
 }
@@ -14,9 +14,9 @@
 
 /* 스플래시(모바일 전용, 부팅 애니메이션): 로딩 위(z 3100). PC는 숨김 */
 .app-splash {
-  /* top:0+bottom:0+height 동시 지정 시 iOS가 height 대신 bottom(dvh)을 써 짧아짐 → bottom 빼고 height만. +6px overscan */
+  /* top만 + height. JS 실측 --vp-full(lvh, px)로 채워 인앱 calc버그 회피. +6px overscan */
   position: fixed; top: 0; left: 0; right: 0;
-  height: 100vh; height: calc(100lvh + 6px); z-index: 3100; background: #e82a2d;
+  height: 100vh; height: calc(100lvh + 6px); height: calc(var(--vp-full, 100lvh) + 6px); z-index: 3100; background: #e82a2d;
   overflow: hidden; transition: opacity 0.4s ease;
 }
 .app-splash.hide { opacity: 0; pointer-events: none; }
@@ -28,8 +28,8 @@
 .splash-sub { width: 80px; height: auto; display: block; }
 .splash-logo { width: 220px; height: auto; display: block; }
 .splash-char {
-  /* 스플래시는 lvh(툴바 뒤까지)로 덮지만, 캐릭터 발은 반투명 툴바(lvh-dvh 밴드) 위(dvh 바닥)에 앉혀 안 잘리게 */
-  position: absolute; left: 50%; bottom: calc(100lvh - 100dvh); transform: translateX(-50%);
+  /* 캐릭터 발은 반투명 툴바(밴드) 위(dvh 바닥)에 앉혀 안 잘리게 — JS 실측 --vp-band(px) 사용 */
+  position: absolute; left: 50%; bottom: var(--vp-band, 0px); transform: translateX(-50%);
   width: 74%; max-width: 300px; height: auto; display: block;
 }
 
@@ -50,8 +50,8 @@ body::after {
   left: 0; right: 0;
   /* 시트(fixed;bottom:0)가 dvh바닥(665)에 붙는 게 검증됨 → 그 아래 밴드를 같은 bottom 기준으로 채움.
      bottom:(dvh-lvh)=-108 → 바닥이 lvh(773)에 닿고, height=(lvh-dvh)=108 → 665~773 커버. */
-  bottom: calc(100dvh - 100lvh);
-  height: calc(100lvh - 100dvh);
+  bottom: calc(-1 * var(--vp-band, 0px));
+  height: var(--vp-band, 0px);
   background: magenta;
   z-index: 150;
   pointer-events: none;
