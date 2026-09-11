@@ -48,7 +48,9 @@ body::after {
   content: '';
   position: fixed;
   left: 0; right: 0;
-  top: 100dvh;
+  /* 시트(fixed;bottom:0)가 dvh바닥(665)에 붙는 게 검증됨 → 그 아래 밴드를 같은 bottom 기준으로 채움.
+     bottom:(dvh-lvh)=-108 → 바닥이 lvh(773)에 닿고, height=(lvh-dvh)=108 → 665~773 커버. */
+  bottom: calc(100dvh - 100lvh);
   height: calc(100lvh - 100dvh);
   background: #fff;
   z-index: 150;
