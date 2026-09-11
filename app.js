@@ -121,6 +121,45 @@ let map;
   setTimeout(setAppHeight, 800);
 })();
 
+// [임시 디버그 v3] ?vhdebug=1 로 한번 켜면 localStorage에 저장→블로그에서 열어도 표시. ?vhdebug=0 로 끔.
+//  빨간줄=fixed;bottom:0 위치(레이아웃 뷰포트 바닥), 주황줄=visualViewport 실제 바닥, 숫자=각종 높이.
+(function () {
+  try {
+    if (/[?&]vhdebug=1/.test(location.search)) localStorage.setItem('vhdebug', '1');
+    if (/[?&]vhdebug=0/.test(location.search)) localStorage.removeItem('vhdebug');
+  } catch (e) {}
+  var on = false; try { on = localStorage.getItem('vhdebug') === '1'; } catch (e) {}
+  if (!on) return;
+  function boot() {
+    var probeD = document.createElement('div'); probeD.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100dvh;'; document.body.appendChild(probeD);
+    var probeL = document.createElement('div'); probeL.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100lvh;'; document.body.appendChild(probeL);
+    var box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:6px;top:120px;z-index:2147483647;background:rgba(0,0,0,.85);color:#0f0;font:10px/1.4 ui-monospace,monospace;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre;';
+    document.body.appendChild(box);
+    var red = document.createElement('div'); red.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:4px;background:red;z-index:2147483647;pointer-events:none;'; document.body.appendChild(red);
+    var org = document.createElement('div'); org.style.cssText = 'position:fixed;left:0;right:0;top:0;height:4px;background:orange;z-index:2147483647;pointer-events:none;'; document.body.appendChild(org);
+    function upd() {
+      var vv = window.visualViewport;
+      if (vv) org.style.transform = 'translateY(' + (vv.offsetTop + vv.height - 4) + 'px)';
+      var sb = document.getElementById('sidebar'), m = document.getElementById('map');
+      box.textContent = [
+        'innerH=' + window.innerHeight,
+        'vv.h=' + (vv ? Math.round(vv.height) : '-') + ' offTop=' + (vv ? Math.round(vv.offsetTop) : '-') + ' scale=' + (vv ? vv.scale.toFixed(2) : '-'),
+        'dvh=' + probeD.getBoundingClientRect().height.toFixed(0) + ' lvh=' + probeL.getBoundingClientRect().height.toFixed(0),
+        'appVar=' + (getComputedStyle(document.documentElement).getPropertyValue('--app-height').trim() || '-'),
+        'bodyBot=' + (document.body ? Math.round(document.body.getBoundingClientRect().bottom) : '-'),
+        'mapBot=' + (m ? Math.round(m.getBoundingClientRect().bottom) : '-'),
+        'sbTop=' + (sb ? Math.round(sb.getBoundingClientRect().top) : '-') + ' sbBot=' + (sb ? Math.round(sb.getBoundingClientRect().bottom) : '-') + ' cls=[' + (sb ? sb.className : '-') + ']',
+        'red=fixed bottom0 / orange=vv bottom',
+      ].join('\n');
+    }
+    upd(); setInterval(upd, 300);
+    if (window.visualViewport) { window.visualViewport.addEventListener('resize', upd); window.visualViewport.addEventListener('scroll', upd); }
+    window.addEventListener('resize', upd);
+  }
+  if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
+})();
+
 
 
 let markers = [];
