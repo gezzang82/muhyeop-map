@@ -1532,6 +1532,13 @@ function searchRegion() {
   // 1. 등록된 매장명과 정확히 일치하는 매장 찾기
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(query);
+  // 위치성 검색(역명·지역명·주소접미)이면 매장 검색을 건너뛰고 그 위치로 지도 이동 + 핀.
+  //  - 역(마곡역) / 동·읍·면·리·로·길·가(역삼동·강남구·가로수길) / 주요상권(홍대·강남·성수…).
+  //  - '스타벅스 마곡역점' 같은 매장명은 '점'으로 끝나 제외됨.
+  const q2 = query.replace(/\s/g, '');
+  const KNOWN_AREAS = new Set(['홍대', '강남', '성수', '이태원', '건대', '신촌', '잠실', '명동', '연남', '망원', '압구정', '청담', '을지로', '종로', '서면', '동성로', '해운대', '광안리', '판교', '가로수길', '경리단길']);
+  const isLocationLike = q2.length <= 8 && (/역$/.test(q2) || /(동|읍|면|리|로|길|가|거리)$/.test(q2) || (/(구|시|군)$/.test(q2) && q2.length >= 3) || KNOWN_AREAS.has(q2));
+  if (isLocationLike) { clearSearchPin(); geocodeRegion(query); return; }
   const placeMatches = places.filter(p => normalize(p.name) === nq);
   if (placeMatches.length === 1) {
     // 정확 일치 1곳 → 상세(캠페인+후기 탭) 오픈 + 핀 선택.
