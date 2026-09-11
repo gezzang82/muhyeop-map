@@ -170,6 +170,12 @@ function openExternal(url) {
 if (isNativeApp()) {
   // 앱에서만 세이프에어리어 대응(지도 풀블리드 + 상단 UI를 노치 아래로). CSS `.native-app`로 분기.
   document.documentElement.classList.add('native-app');
+  // viewport-fit=cover는 앱(Capacitor WKWebView)에서만 켬 — 노치 풀블리드+env(safe-area) 필요.
+  //  웹(특히 네이버 블로그 인앱 Chrome)에선 cover가 콘텐츠를 주소창 뒤부터 그려 상하 여백을 유발하므로 기본값(contain) 유지.
+  try {
+    var vpMeta = document.querySelector('meta[name="viewport"]');
+    if (vpMeta && vpMeta.content.indexOf('viewport-fit') === -1) vpMeta.content += ', viewport-fit=cover';
+  } catch (e) {}
   document.addEventListener('click', function (e) {
     const a = e.target.closest && e.target.closest('a[href]');
     if (!a) return;
