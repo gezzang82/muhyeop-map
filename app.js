@@ -204,9 +204,11 @@ function getGrayPinSelected(cat) {
     + `<g transform="translate(3 1) scale(1.4)" opacity="0.5">${p.icon}</g>`
     + `</svg>`;
 }
-// 매장 상태에 맞는 핀 HTML (활성 캠페인 있으면 카테고리 컬러, 없으면 회색)
+// 매장 상태에 맞는 핀 HTML (활성 캠페인 있으면 카테고리 컬러, 없으면 회색).
+// 지도 경량화 v2: places는 '활성 OR 후기'만이라, 후기 없는 매장(place.hasReview=false)은 정의상 활성.
+// → 캠페인 bbox 로드 전에도 컬러로 그려 '회색→컬러' 깜빡임 제거(화면 이동 시). 후기 매장만 로드 후 컬러 확정.
 function getPlacePin(place, selected) {
-  const active = hasActiveCampaign(place.id);
+  const active = hasActiveCampaign(place.id) || place.hasReview === false;
   if (selected) return active ? getCategoryPinSelected(place.category) : getGrayPinSelected(place.category);
   return active ? getCategoryPin(place.category) : getGrayPin(place.category);
 }
