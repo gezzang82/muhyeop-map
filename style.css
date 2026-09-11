@@ -47,6 +47,8 @@ body {
   color: #1a1a1a;
   height: 100vh;
   height: 100dvh;
+  /* iOS Safari 초기 dvh 오계산(하단 여백) 대응: JS가 innerHeight로 --app-height를 채움(웹 전용, 앱은 미설정→dvh 사용) */
+  height: var(--app-height, 100dvh);
   display: flex;
   flex-direction: row;
   overflow: hidden;
@@ -2762,12 +2764,12 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
     overflow: hidden;
     background: white;
   }
-  .sidebar.expanded { height: 50vh; }
-  .sidebar.expanded-full { height: calc(100dvh - 120px); }
+  .sidebar.expanded { height: calc(var(--app-height, 100dvh) * 0.5); }
+  .sidebar.expanded-full { height: calc(var(--app-height, 100dvh) - 120px); }
   /* 앱: 바텀시트 콘텐츠를 하단 홈 인디케이터(세이프에어리어) 위로 올림 */
   .native-app .sidebar { padding-bottom: env(safe-area-inset-bottom); }
   .native-app .sidebar:not(.expanded):not(.expanded-full) { height: calc(78px + env(safe-area-inset-bottom)); }
-  .native-app .sidebar.expanded { height: calc(50vh + env(safe-area-inset-bottom)); }
+  .native-app .sidebar.expanded { height: calc(50dvh + env(safe-area-inset-bottom)); }
   /* 앱: 최대 확장 시 상단 칩스(검색+필터 오버레이) 바로 아래까지 올라오게 */
   .native-app .sidebar.expanded-full { height: calc(100dvh - 128px - env(safe-area-inset-top)); }
 

@@ -96,6 +96,31 @@ let currentChannelFilter = '전체';
 let pcTabActive = 'campaigns'; // 'campaigns' | 'report'
 
 let map;
+
+// iOS Safari 초기 뷰포트 높이(dvh) 오계산 대응 — 실제 innerHeight를 --app-height에 채워 셸/시트 높이를 화면에 맞춤.
+//  증상: 네이버 블로그 등에서 열면 하단에 크림색 여백, '나갔다 들어오면' 정상(=재진입 시 Safari가 높이 재계산).
+//  앱(native-app, Capacitor WebView)은 dvh가 정상이라 미설정(→CSS는 dvh 폴백) — 앱 레이아웃 불변.
+(function () {
+  function setAppHeight() {
+    if (document.documentElement.classList.contains('native-app')) return; // 앱은 dvh 사용
+    // 키보드가 뷰포트를 줄일 때 셸이 튀지 않게 innerHeight 사용(visualViewport.height는 키보드 반영돼 제외)
+    var h = window.innerHeight;
+    if (h) document.documentElement.style.setProperty('--app-height', Math.round(h) + 'px');
+    if (map && window.naver && naver.maps && naver.maps.Event) {
+      try { naver.maps.Event.trigger(map, 'resize'); } catch (e) {}
+    }
+  }
+  window.__setAppHeight = setAppHeight;
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', function () { setAppHeight(); setTimeout(setAppHeight, 300); });
+  window.addEventListener('pageshow', setAppHeight);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) setAppHeight(); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
+  setAppHeight();
+  setTimeout(setAppHeight, 200);
+  setTimeout(setAppHeight, 800);
+})();
+
 let markers = [];
 let markerCluster = null;
 let openInfoWindow = null;
