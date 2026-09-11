@@ -147,6 +147,7 @@ let map;
   function boot() {
     var probeD = document.createElement('div'); probeD.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100dvh;'; document.body.appendChild(probeD);
     var probeL = document.createElement('div'); probeL.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100lvh;'; document.body.appendChild(probeL);
+    var probeS = document.createElement('div'); probeS.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:1px;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);'; document.body.appendChild(probeS);
     var box = document.createElement('div');
     box.style.cssText = 'position:fixed;left:6px;top:110px;z-index:2147483647;background:rgba(0,0,0,.85);color:#0f0;font:10px/1.4 ui-monospace,monospace;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre;';
     document.body.appendChild(box);
@@ -160,9 +161,13 @@ let map;
       grn.style.transform = 'translateY(' + (lvh - 4) + 'px)';
       var sb = document.getElementById('sidebar');
       if (sb) blu.style.transform = 'translateY(' + (sb.getBoundingClientRect().bottom - 4) + 'px)';
+      var cs = getComputedStyle(probeS);
+      var mo = document.querySelector('.mobile-map-overlay');
       box.textContent = [
         'innerH=' + window.innerHeight + ' vv.h=' + (vv ? Math.round(vv.height) : '-') + ' offT=' + (vv ? Math.round(vv.offsetTop) : '-'),
         'dvh=' + dvh.toFixed(0) + ' lvh=' + lvh.toFixed(0),
+        'SAFE top=' + cs.paddingTop + ' bot=' + cs.paddingBottom,
+        'searchTop=' + (mo ? Math.round(mo.getBoundingClientRect().top) : '-'),
         'sbBot=' + (sb ? Math.round(sb.getBoundingClientRect().bottom) : '-') + ' sbTop=' + (sb ? Math.round(sb.getBoundingClientRect().top) : '-'),
         '🟥fixed bot0 🟧vv 🟩lvh 🟦시트',
       ].join('\n');
