@@ -121,6 +121,40 @@ let map;
   setTimeout(setAppHeight, 800);
 })();
 
+// [임시 디버그 v4] localStorage vhdebug=1 이면 표시. 빨강=fixed;bottom0, 주황=visualViewport 바닥, 초록=lvh 바닥, 파랑=시트 바닥.
+(function () {
+  var on = false; try { on = localStorage.getItem('vhdebug') === '1'; } catch (e) {}
+  if (!on) return;
+  function boot() {
+    var probeD = document.createElement('div'); probeD.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100dvh;'; document.body.appendChild(probeD);
+    var probeL = document.createElement('div'); probeL.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100lvh;'; document.body.appendChild(probeL);
+    var box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:6px;top:110px;z-index:2147483647;background:rgba(0,0,0,.85);color:#0f0;font:10px/1.4 ui-monospace,monospace;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre;';
+    document.body.appendChild(box);
+    function bar(color) { var d = document.createElement('div'); d.style.cssText = 'position:fixed;left:0;right:0;top:0;height:4px;background:' + color + ';z-index:2147483647;pointer-events:none;'; document.body.appendChild(d); return d; }
+    var red = document.createElement('div'); red.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:4px;background:red;z-index:2147483647;pointer-events:none;'; document.body.appendChild(red);
+    var org = bar('orange'), grn = bar('lime'), blu = bar('deepskyblue');
+    function upd() {
+      var vv = window.visualViewport;
+      var lvh = probeL.getBoundingClientRect().height, dvh = probeD.getBoundingClientRect().height;
+      if (vv) org.style.transform = 'translateY(' + (vv.offsetTop + vv.height - 4) + 'px)';
+      grn.style.transform = 'translateY(' + (lvh - 4) + 'px)';
+      var sb = document.getElementById('sidebar');
+      if (sb) blu.style.transform = 'translateY(' + (sb.getBoundingClientRect().bottom - 4) + 'px)';
+      box.textContent = [
+        'innerH=' + window.innerHeight + ' vv.h=' + (vv ? Math.round(vv.height) : '-') + ' offT=' + (vv ? Math.round(vv.offsetTop) : '-'),
+        'dvh=' + dvh.toFixed(0) + ' lvh=' + lvh.toFixed(0),
+        'sbBot=' + (sb ? Math.round(sb.getBoundingClientRect().bottom) : '-') + ' sbTop=' + (sb ? Math.round(sb.getBoundingClientRect().top) : '-'),
+        '🟥fixed bot0 🟧vv 🟩lvh 🟦시트',
+      ].join('\n');
+    }
+    upd(); setInterval(upd, 300);
+    if (window.visualViewport) { window.visualViewport.addEventListener('resize', upd); window.visualViewport.addEventListener('scroll', upd); }
+    window.addEventListener('resize', upd);
+  }
+  if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
+})();
+
 
 
 
