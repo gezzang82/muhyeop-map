@@ -127,7 +127,7 @@ let map;
     if (/[?&]vhdebug=1/.test(location.search)) localStorage.setItem('vhdebug', '1');
     if (/[?&]vhdebug=0/.test(location.search)) localStorage.removeItem('vhdebug');
   } catch (e) {}
-  var on = false; try { on = localStorage.getItem('vhdebug') === '1'; } catch (e) {}
+  var on = true; try { on = localStorage.getItem('vhdebug') !== '0'; } catch (e) {}
   if (!on) return;
   function boot() {
     var probeD = document.createElement('div'); probeD.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100dvh;'; document.body.appendChild(probeD);

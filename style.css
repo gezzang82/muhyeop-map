@@ -52,7 +52,7 @@ body::after {
      bottom:(dvh-lvh)=-108 → 바닥이 lvh(773)에 닿고, height=(lvh-dvh)=108 → 665~773 커버. */
   bottom: calc(100dvh - 100lvh);
   height: calc(100lvh - 100dvh);
-  background: #fff;
+  background: magenta;
   z-index: 150;
   pointer-events: none;
 }
