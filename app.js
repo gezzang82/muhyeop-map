@@ -121,6 +121,33 @@ let map;
   setTimeout(setAppHeight, 800);
 })();
 
+// [임시 디버그] muhyeop.com/?vhdebug=1 로 접속하면 화면 좌하단에 뷰포트/셸 측정값 표시(원인 파악용). 일반 사용자에겐 안 보임.
+(function () {
+  if (!/[?&]vhdebug=1/.test(location.search)) return;
+  function boot() {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:8px;bottom:150px;z-index:2147483647;background:rgba(0,0,0,.82);color:#0f0;font:11px/1.45 ui-monospace,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;max-width:92vw;';
+    document.body.appendChild(d);
+    function upd() {
+      var sb = document.getElementById('sidebar'), m = document.getElementById('map'), vv = window.visualViewport;
+      var mr = m ? m.getBoundingClientRect() : null, sr = sb ? sb.getBoundingClientRect() : null;
+      d.textContent = [
+        'innerH=' + window.innerHeight + '  outerH=' + window.outerHeight,
+        'vv.h=' + (vv ? Math.round(vv.height) : '-') + '  vv.offTop=' + (vv ? Math.round(vv.offsetTop) : '-'),
+        'appVar=' + (getComputedStyle(document.documentElement).getPropertyValue('--app-height').trim() || '(none)'),
+        'bodyH=' + Math.round(document.body.getBoundingClientRect().height) + '  docClientH=' + document.documentElement.clientHeight,
+        'mapH=' + (mr ? Math.round(mr.height) : '-') + '  mapBot=' + (mr ? Math.round(mr.bottom) : '-'),
+        'sbCls=[' + (sb ? sb.className : '-') + ']',
+        'sbTop=' + (sr ? Math.round(sr.top) : '-') + ' sbBot=' + (sr ? Math.round(sr.bottom) : '-') + ' sbH=' + (sr ? Math.round(sr.height) : '-'),
+      ].join('\n');
+    }
+    upd(); setInterval(upd, 400);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', upd);
+    window.addEventListener('resize', upd);
+  }
+  if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
+})();
+
 let markers = [];
 let markerCluster = null;
 let openInfoWindow = null;
