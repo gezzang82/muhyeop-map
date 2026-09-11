@@ -208,7 +208,8 @@ function getGrayPinSelected(cat) {
 // 지도 경량화 v2: places는 '활성 OR 후기'만이라, 후기 없는 매장(place.hasReview=false)은 정의상 활성.
 // → 캠페인 bbox 로드 전에도 컬러로 그려 '회색→컬러' 깜빡임 제거(화면 이동 시). 후기 매장만 로드 후 컬러 확정.
 function getPlacePin(place, selected) {
-  const active = hasActiveCampaign(place.id) || place.hasReview === false;
+  // 채널 필터 중엔 실제 활성(그 채널)만 컬러 — '후기없음=활성' 지름길은 미필터(전체)일 때만(깜빡임 방지용).
+  const active = hasActiveCampaign(place.id) || (currentChannelFilter === '전체' && place.hasReview === false);
   if (selected) return active ? getCategoryPinSelected(place.category) : getGrayPinSelected(place.category);
   return active ? getCategoryPin(place.category) : getGrayPin(place.category);
 }
@@ -714,7 +715,10 @@ function renderMarkers() {
   //  - 저줌(전국·광역, 캠페인 미로드): 전체 매장을 클러스터로만 표시(빈 화면 방지, 개별 dim 핀 아님).
   // 지도 경량화 v2: places는 이미 '활성 OR 후기' 매장만(죽은 매장 제외 로드)이라, 뷰 안이면 모두 표시.
   //  - 활성 캠페인 매장 → 컬러핀 / 후기만 있는 매장 → 회색핀(dim 없이 정상 노출). 저줌은 클러스터.
-  const visiblePlaces = places.filter(place => !place.hidden && inView(place.lat, place.lng));
+  //  - 채널 필터 중(전체 아님)엔 그 채널 활성 매장만 표시(필터로 걸러진 건 숨김).
+  const filtering = currentChannelFilter !== '전체';
+  const visiblePlaces = places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
+    (!filtering || hasActiveCampaign(place.id)));
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
   if (!renderMarkers._idleBound) {
