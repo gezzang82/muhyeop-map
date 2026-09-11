@@ -3,9 +3,7 @@
 /* 초기 로딩 오버레이 */
 /* 로딩 오버레이(기존): 지도 위 반투명 dim + 로티. 모바일=스플래시 뒤, PC=바로 노출 */
 .app-loading {
-  /* top만 + height. JS 실측 --vp-full(lvh, px)로 채워 인앱 calc버그 회피 */
-  position: fixed; top: 0; left: 0; right: 0;
-  height: 100vh; height: 100lvh; height: var(--vp-full, 100lvh); z-index: 3000; background: rgba(255,255,255,0.6);
+  position: fixed; inset: 0; z-index: 3000; background: rgba(255,255,255,0.6);
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.35s ease;
 }
@@ -14,9 +12,7 @@
 
 /* 스플래시(모바일 전용, 부팅 애니메이션): 로딩 위(z 3100). PC는 숨김 */
 .app-splash {
-  /* top만 + height. JS 실측 --vp-full(lvh, px)로 채워 인앱 calc버그 회피. +6px overscan */
-  position: fixed; top: 0; left: 0; right: 0;
-  height: 100vh; height: calc(100lvh + 6px); height: calc(var(--vp-full, 100lvh) + 6px); z-index: 3100; background: #e82a2d;
+  position: fixed; inset: 0; z-index: 3100; background: #e82a2d;
   overflow: hidden; transition: opacity 0.4s ease;
 }
 .app-splash.hide { opacity: 0; pointer-events: none; }
@@ -28,8 +24,7 @@
 .splash-sub { width: 80px; height: auto; display: block; }
 .splash-logo { width: 220px; height: auto; display: block; }
 .splash-char {
-  /* 캐릭터 발은 반투명 툴바(밴드) 위(dvh 바닥)에 앉혀 안 잘리게 — JS 실측 --vp-band(px) 사용 */
-  position: absolute; left: 50%; bottom: var(--vp-band, 0px); transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
   width: 74%; max-width: 300px; height: auto; display: block;
 }
 
@@ -37,24 +32,6 @@ html, body {
   touch-action: pan-x pan-y;
   /* 앱 WebView의 오버스크롤(러버밴드=내려갔다 올라옴) 방지 — 고정 지도 셸이라 당겨서 바운스 불필요 */
   overscroll-behavior: none;
-}
-/* iOS 하단 반투명 툴바 뒤(dvh~lvh 밴드)에 드러나는 캔버스 배경을 시트와 같은 흰색으로 →
-   body(dvh)로 안 채워지는 그 밴드가 크림(#f5f5f0) 대신 흰색이 되어 바텀시트가 바닥까지 이어져 보임. */
-html { background: #fff; }
-/* 네이버 블로그 등 in-app 진입 시: 브라우저가 dvh(665)로 배치하고 lvh(773)로 보여줘서 665~773이 크림 여백으로 뜸.
-   캔버스 배경 전파(html)로 안 덮이는 케이스가 있어, 시트 바닥(dvh)~진짜 바닥(lvh) 밴드를 실제 흰색 요소로 확실히 채움.
-   dvh==lvh(앱/안드로이드/PC)면 height 0이라 무해. 툴바 뒤(직접 열기)에서는 안 보임. */
-body::after {
-  content: '';
-  position: fixed;
-  left: 0; right: 0;
-  /* 시트(fixed;bottom:0)가 dvh바닥(665)에 붙는 게 검증됨 → 그 아래 밴드를 같은 bottom 기준으로 채움.
-     bottom:(dvh-lvh)=-108 → 바닥이 lvh(773)에 닿고, height=(lvh-dvh)=108 → 665~773 커버. */
-  bottom: calc(-1 * var(--vp-band, 0px));
-  height: var(--vp-band, 0px);
-  background: magenta;
-  z-index: 150;
-  pointer-events: none;
 }
 /* 안쪽 스크롤 영역(리스트/모달 바디 등)의 오버스크롤(러버밴드) 방지.
    overscroll-behavior는 상속되지 않아 스크롤 컨테이너마다 직접 지정해야 함(iOS 16+ WebView).
@@ -68,8 +45,6 @@ body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f5f5f0;
   color: #1a1a1a;
-  /* 상단 검색/칩이 주소창(불투명) 뒤로 숨지 않게 셸은 dvh(현재 보이는 영역)로 유지.
-     하단 반투명 툴바 뒤 밴드(dvh~lvh)는 아래 html 배경(흰색)으로 채워 크림 여백을 없앰. */
   height: 100vh;
   height: 100dvh;
   display: flex;

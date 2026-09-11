@@ -101,26 +101,12 @@ let map;
 //  증상: 네이버 블로그 등에서 열면 하단에 크림색 여백, '나갔다 들어오면' 정상(=재진입 시 Safari가 높이 재계산).
 //  앱(native-app, Capacitor WebView)은 dvh가 정상이라 미설정(→CSS는 dvh 폴백) — 앱 레이아웃 불변.
 (function () {
-  var probeD, probeL;
-  function ensureProbes() {
-    if (probeD || !document.body) return;
-    probeD = document.createElement('div'); probeD.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100dvh;pointer-events:none;visibility:hidden;';
-    probeL = document.createElement('div'); probeL.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100lvh;pointer-events:none;visibility:hidden;';
-    document.body.appendChild(probeD); document.body.appendChild(probeL);
-  }
   function setAppHeight() {
     if (document.documentElement.classList.contains('native-app')) return; // 앱은 dvh 사용
     // 키보드가 뷰포트를 줄일 때 셸이 튀지 않게 innerHeight 사용(visualViewport.height는 키보드 반영돼 제외)
     var h = window.innerHeight;
     if (h) document.documentElement.style.setProperty('--app-height', Math.round(h) + 'px');
-    // 인앱 Chrome에서 CSS calc(100lvh-100dvh)가 0으로 계산되는 버그 → JS로 probe 실측해 픽셀 변수로 넣음.
-    //  --vp-full=lvh(실제 보이는 최대 높이), --vp-band=lvh-dvh(반투명 툴바 뒤 밴드). 밴드필/스플래시가 이 변수를 씀.
-    ensureProbes();
-    if (probeD && probeL) {
-      var dvh = probeD.getBoundingClientRect().height, lvh = probeL.getBoundingClientRect().height;
-      if (lvh > 0) document.documentElement.style.setProperty('--vp-full', Math.round(lvh) + 'px');
-      document.documentElement.style.setProperty('--vp-band', Math.max(0, Math.round(lvh - dvh)) + 'px');
-    }
+    // 화면 복귀·회전 시 네이버 지도 리프레시(재진입 시 크기 재계산)
     if (map && window.naver && naver.maps && naver.maps.Event) {
       try { naver.maps.Event.trigger(map, 'resize'); } catch (e) {}
     }
@@ -135,52 +121,6 @@ let map;
   setTimeout(setAppHeight, 200);
   setTimeout(setAppHeight, 800);
 })();
-
-// [임시 디버그 v4] ?vhdebug=1 로 켜고(localStorage 저장) ?vhdebug=0 로 끔. 빨강=fixed;bottom0, 주황=vv바닥, 초록=lvh바닥, 파랑=시트바닥.
-(function () {
-  try {
-    if (/[?&]vhdebug=1/.test(location.search)) localStorage.setItem('vhdebug', '1');
-    if (/[?&]vhdebug=0/.test(location.search)) localStorage.removeItem('vhdebug');
-  } catch (e) {}
-  var on = true; try { on = localStorage.getItem('vhdebug') !== '0'; } catch (e) {}
-  if (!on) return;
-  function boot() {
-    var probeD = document.createElement('div'); probeD.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100dvh;'; document.body.appendChild(probeD);
-    var probeL = document.createElement('div'); probeL.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:100lvh;'; document.body.appendChild(probeL);
-    var probeS = document.createElement('div'); probeS.style.cssText = 'position:fixed;top:0;left:-9999px;width:1px;height:1px;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);'; document.body.appendChild(probeS);
-    var box = document.createElement('div');
-    box.style.cssText = 'position:fixed;left:6px;top:110px;z-index:2147483647;background:rgba(0,0,0,.85);color:#0f0;font:10px/1.4 ui-monospace,monospace;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre;';
-    document.body.appendChild(box);
-    function bar(color) { var d = document.createElement('div'); d.style.cssText = 'position:fixed;left:0;right:0;top:0;height:4px;background:' + color + ';z-index:2147483647;pointer-events:none;'; document.body.appendChild(d); return d; }
-    var red = document.createElement('div'); red.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:4px;background:red;z-index:2147483647;pointer-events:none;'; document.body.appendChild(red);
-    var org = bar('orange'), grn = bar('lime'), blu = bar('deepskyblue');
-    function upd() {
-      var vv = window.visualViewport;
-      var lvh = probeL.getBoundingClientRect().height, dvh = probeD.getBoundingClientRect().height;
-      if (vv) org.style.transform = 'translateY(' + (vv.offsetTop + vv.height - 4) + 'px)';
-      grn.style.transform = 'translateY(' + (lvh - 4) + 'px)';
-      var sb = document.getElementById('sidebar');
-      if (sb) blu.style.transform = 'translateY(' + (sb.getBoundingClientRect().bottom - 4) + 'px)';
-      var cs = getComputedStyle(probeS);
-      var mo = document.querySelector('.mobile-map-overlay');
-      box.textContent = [
-        'innerH=' + window.innerHeight + ' vv.h=' + (vv ? Math.round(vv.height) : '-') + ' offT=' + (vv ? Math.round(vv.offsetTop) : '-'),
-        'dvh=' + dvh.toFixed(0) + ' lvh=' + lvh.toFixed(0),
-        'SAFE top=' + cs.paddingTop + ' bot=' + cs.paddingBottom,
-        'searchTop=' + (mo ? Math.round(mo.getBoundingClientRect().top) : '-'),
-        'sbBot=' + (sb ? Math.round(sb.getBoundingClientRect().bottom) : '-') + ' sbTop=' + (sb ? Math.round(sb.getBoundingClientRect().top) : '-'),
-        '🟥fixed bot0 🟧vv 🟩lvh 🟦시트',
-      ].join('\n');
-    }
-    upd(); setInterval(upd, 300);
-    if (window.visualViewport) { window.visualViewport.addEventListener('resize', upd); window.visualViewport.addEventListener('scroll', upd); }
-    window.addEventListener('resize', upd);
-  }
-  if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
-})();
-
-
-
 
 let markers = [];
 let markerCluster = null;
