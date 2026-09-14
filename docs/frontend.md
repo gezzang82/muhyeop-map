@@ -11,6 +11,8 @@
 - 캠페인에는 `deadline`(마감일, 빈 값 허용 = 마감일 없음), `createdAt`, `source`(`user`/그 외) 등이 있음
 - 지도에 마커를 찍고, 마커 클릭 시 정보창(인포윈도우)에 협찬 내용을 보여줌
 - **활성 캠페인 캐시**: `getActiveCampaigns(placeId)`/`hasActiveCampaign`는 매 호출 `campaigns` 전체를 필터링하지 않고, `getActiveByPlaceMap()`가 만든 `placeId→활성캠페인[]` 맵을 재사용(지도 이동마다 O(매장×캠페인) 반복 스캔 제거). 캐시는 **명시적으로만 무효화**(`invalidateActiveCache()`): 데이터 로드 후, 제보 등록(`campaigns.push`) 후, 채널필터 변경(`filterChannel`) 시. `campaigns`를 직접 건드리면 이 무효화를 같이 호출해야 함. PC "총 협찬수"(`updateStatCount`)도 마감/숨김 제외한 활성만 집계.
+  - **⚠️ 성능(2026-09-14)**: `hasActiveCampaign`는 **활성 맵 O(1) 조회만** 한다. 예전엔 `places.find(2만 선형스캔)`로 `place.hidden`을 확인했는데, 저줌·넓은뷰에서 뷰당 수천 번 호출돼 **O(뷰×2만) 폭증**(완전 아웃/z11 실측 373ms→17ms). 활성 맵은 공개 데이터라 숨김 캠페인/숨김매장 소속을 이미 제외 → `place.hidden` 재조회 불필요. 루프 안에서 매장ID→매장 조회가 필요하면 `places.find` 반복 금지(맵 캐시 사용).
+  - **renderSidebar 저줌 조기반환/디바운스(2026-09-14)**: `map idle`의 사이드바 갱신은 120ms 디바운스. `zoom < CAMPAIGN_MIN_ZOOM`(전국·광역)에선 캠페인 미로드로 목록이 어차피 비어 '확대 안내'만 뜨므로 **2만 매장 뷰포트 필터를 통째로 스킵**. 뷰포트 필터도 `bounds.hasLatLng(new LatLng())`(매장마다 객체 할당) 대신 경계값 숫자 비교. 마감임박 정렬은 장소별 최이른마감을 1회 메모(sort 비교마다 재계산 방지).
 - **캠페인 뷰포트(bbox) 로딩(2026-09-01)**: 접속 시 캠페인 전량(활성 2.2만·10.2MB)을 받던 것을 **화면에 보이는 영역만** 받도록 전환(경량화). `loadInitialData`는 공개 앱에서 **매장(`?map=1`: 활성 캠페인 OR 후기 있는 매장만 — 지도 경량화 v2, 아래) + 배너 + `?count=active`(총수) + `?recent=24`(버블)** 만 받고 `campaigns`는 빈 채 시작. 지도 idle마다 `loadCampaignsForView()`가 뷰(`viewBoundsWithMargin`)를 `CAMPAIGN_TILE`(0.05°) 격자에 스냅해 **아직 안 받은 타일만** `/api/campaigns?active=1&bbox=W,S,E,N` 요청 → `campaigns`에 id 기준 dedupe 병합(`_loadedTiles`/`_loadedCampaignIds`/`_campInFlight` Set) → `invalidateActiveCache`+재렌더. **`CAMPAIGN_MIN_ZOOM`(11) 미만**(전국·광역 뷰)에선 캠페인 로드 안 함(클러스터만; 사이드바는 "확대하면 협찬이 보여요" 힌트). **지도 경량화 v2(2026-09-11)**: 매장 전량(39k) 대신 **`?map=1`(활성 캠페인 OR 후기 매장만, ~20.7k·8.2MB→4.9MB)** 로드 → 죽은 매장 ~1.6만 제외로 모바일 파싱/렌더 경감(방문 69% 모바일웹). 죽은 매장은 지도에서 빠지나 **검색은 서버 전체 대상**: `searchRegion`이 in-memory(map-set) 미스 시 `searchPlacesOnServer`가 `/api/places?q=이름`(전체 비숨김)으로 찾아 `places`에 병합→`focusPlace`(죽은 매장도 검색→후기 등록 가능). 클러스터링·사이드바는 map-set in-memory로 그대로 작동(활성 매장은 전부 포함). `updateStatCount`는 서버 `totalActiveCount` 사용(어드민은 전량 로드라 `campaigns` 집계로 폴백). 라이브버블은 `recentCampaigns`(매장명 조인) 사용. **화면 밖 매장을 focus(버블·검색)로 열 때**는 `ensurePlaceCampaigns(placeId)`가 `?active=1&placeId=`로 그 매장 캠페인을 먼저 확보(빈 상세 방지). 제보 등록 시 `campaigns.push`+`_loadedCampaignIds.add`+`totalActiveCount++`. 효과: 초기 15MB→매장(gzip~1MB)+뷰포트 캠페인 수백건, 메모리 캠페인 객체 2.2만→화면당 수백. 어드민(`/admin`)은 통계용으로 캠페인 전량 로드 유지.
 - **데이터 로드 실패 폴백(`#mapError`)**: `loadInitialData`가 `/api/places`·`/api/campaigns` 응답이 `!res.ok`(예: 서버 장애/DB 읽기한도 500)이거나 배열이 아니면 **에러를 던짐**. 부팅 핸들러(`window load`)가 `try/catch`로 잡아 `showMapError()`(기존 지도 스크립트 실패용 오버레이 재사용) + `hideAppLoading()` 후 중단 → 빈 지도/무한스피너 대신 "지도를 불러오지 못했어요 / 다시 시도"(reload). 실패 시 `_dataLoadPromise=null`로 메모 해제(재시도 가능). `.map-error`는 `position:fixed;z-index:10000`이고 `showMapError`가 오버레이를 `document.body` 최상위로 옮겨(부모 스태킹 컨텍스트 탈출) PC 사이드바·아이콘레일·라이브캐릭터까지 **화면 전체를 덮음**. 배너는 비필수라 실패해도 빈 배열로 넘어감.
 
@@ -61,7 +63,7 @@
 ## 제보왕(리더보드) 배너 — 현재 숨김
 - `app.js`의 `LEADERBOARD_ENABLED = false` 플래그로 PC/모바일 제보왕 배너 비노출(`renderLeaderboard`가 조기 반환, 60초 폴링도 안 돎). 베타 이벤트 시작 시 `true`로. API(`/api/users?leaderboard=1`)는 살아있음.
 
-## ⚠️ 미해결: iOS 네이버-블로그 인앱 Chrome 하단 크림 여백 (2026-09-12, 조사 완료·보류)
+## iOS 네이버-블로그 인앱 Chrome 하단 크림 여백 (2026-09-12, 조사 완료)
 - **증상**: **네이버 블로그 글의 muhyeop.com 링크를 탭 → iOS 인앱 Chrome**으로 열 때만, 하단에 **크림색(#f5f5f0) 108px 여백**(바텀시트 아래~툴바 사이) + 로딩 스플래시 아래도 크림. **일반 Safari·직접 Chrome·Capacitor 앱·Android·PC는 전부 정상**(여백 없음).
 - **실측(온디바이스 디버그로 확정)**: `innerHeight = visualViewport.height = dvh = 665`, **`lvh = 773`**(차이 108px), `env(safe-area-inset-*) = 0`, `visualViewport.offsetTop = 0`, 검색바 `top:16`(정상 위치). 즉 브라우저 API는 전부 665로 보고하는데 실제 보이는 높이는 773.
 - **CSS로 못 잡는 이유(검증됨)**:
@@ -71,7 +73,8 @@
 - **시도했다가 전부 되돌린 것**(commit 2a1d03b에서 표준 복구): `--app-height=innerHeight`, `body:100lvh`, `.app-splash/.app-loading:100lvh`, `html{background:#fff}`, `body::after` 흰색 밴드필(CSS calc/JS-var 둘 다), `.splash-char bottom:calc(100lvh-100dvh)`. → 모두 무효 또는 상단 회귀 유발.
 - **현재 상태(표준·클린)**: `body{height:100dvh}`, `.app-splash/.app-loading{inset:0}`, `.splash-char{bottom:0}`. `app.js`의 `setAppHeight()`는 `--app-height` 설정 + 화면 복귀 시 네이버 지도 리프레시 용도로 최소만 유지(`.sidebar.expanded`가 `--app-height` 사용).
 - **viewport-fit=cover 제거 실험(2026-09-12) → 실패**: 웹에서 `viewport-fit=cover`를 빼도(앱만 JS로 유지) 인앱 Chrome 여백 그대로(실기기 확인). commit 149633e에서 원복. → **CSS/메타로 못 잡는 인앱 Chrome 예약영역으로 최종 확정.**
-- **최종 판단**: "네이버 블로그 → iOS 인앱 Chrome" 경로에서만 나타나고 나머지(Safari·직접·앱·Android·PC) 전부 정상이라 **수용**. 재시도 금지(무한 왕복 방지). 관련 메모 [[project_ios_inapp_viewport]].
+- **최종 확인**: iOS Chrome 업데이트 후 동일 진입 경로에서 하단 여백이 사라짐. 서비스 코드 문제가 아니라 **구버전 iOS Chrome/네이버 인앱 Chrome 조합의 렌더링 버그**로 판단.
+- **운영 메모**: 재발 신고가 들어오면 코드 workaround를 추가하기 전에 사용자의 iOS Chrome/네이버 앱 업데이트 여부를 먼저 확인한다. `dvh/lvh`·`viewport-fit`·밴드필 실험은 상단 검색바 회귀를 만들 수 있으므로 재시도 금지. 관련 메모 [[project_ios_inapp_viewport]].
 
 ## 전역 텍스트/이미지 드래그 방지 (앱 느낌)
 - `body`에 `user-select: none` + `-webkit-touch-callout: none`, `img/a`에 `user-drag: none`. `dragstart`/`contextmenu`를 전역 차단(길게누름·우클릭 메뉴 방지). **입력 요소(`input/textarea/[contenteditable]/select`)는 예외로 선택·붙여넣기·우클릭 허용**. 지도 패닝(네이버 자체 핸들러)·바텀시트 스와이프는 영향 없음. → "왜 텍스트 선택이 안 되지"는 의도된 동작.
