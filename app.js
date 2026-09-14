@@ -333,8 +333,8 @@ function filterChannel(channel) {
 }
 
 function hasActiveCampaign(placeId) {
-  const place = places.find(p => p.id === placeId);
-  if (place && place.hidden) return false;
+  // O(1): 활성 맵만 확인. (예전 places.find(2만 선형스캔)는 저줌·넓은뷰에서 뷰당 수천회 호출돼 큰 병목이었음.
+  //  활성 맵은 공개 데이터라 숨김 캠페인/숨김 매장 소속을 이미 제외 → 별도 place.hidden 조회 불필요.)
   const arr = getActiveByPlaceMap().get(placeId);
   return !!arr && arr.length > 0;
 }
@@ -499,8 +499,9 @@ function initMap() {
     if (window.innerWidth > 640) closePcCard();
   });
 
-  // 지도 이동/줌이 멈추면(idle) 현재 보이는 영역 기준으로 하단 '모집 중인 협찬' 리스트 갱신
-  naver.maps.Event.addListener(map, 'idle', () => { renderSidebar(); });
+  // 지도 이동/줌이 멈추면(idle) 현재 보이는 영역 기준으로 하단 '모집 중인 협찬' 리스트 갱신 (연속 idle은 디바운스)
+  let _sbDebounce;
+  naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_sbDebounce); _sbDebounce = setTimeout(renderSidebar, 120); });
 
   // 지도 밖 영역 클릭 시 PC 카드 닫기
   document.addEventListener('click', (e) => {
@@ -1351,28 +1352,9 @@ function renderSidebar() {
   const list = document.getElementById('campaignList');
   const countEl = document.getElementById('campaignCount');
 
-  const bounds = map ? map.getBounds() : null;
-  const visiblePlaces = bounds
-    ? places.filter(p => bounds.hasLatLng(new naver.maps.LatLng(p.lat, p.lng)))
-    : places;
-
-  // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래).
-  // 마감일 동률이면 세션마다 무작위로 섞어 노출(같은 플랫폼 배치가 뭉치지 않게, 고정 편중 방지).
-  const earliestDeadline = p => getActiveCampaigns(p.id).reduce((min, c) => {
-    const d = deadlineToUTC(c.deadline);
-    return d < min ? d : min;
-  }, Infinity);
-  const activePlaces = visiblePlaces
-    .filter(p => hasActiveCampaign(p.id))
-    .sort((a, b) => {
-      const da = earliestDeadline(a), db = earliestDeadline(b);
-      if (da !== db) return da - db;
-      return placeShuffleKey(a.id) - placeShuffleKey(b.id);
-    });
-  countEl.textContent = activePlaces.length;
-
-  // 저줌(전국·시 단위)에선 캠페인을 안 받으므로(뷰포트 로딩), 빈 목록 대신 확대 안내.
-  if (activePlaces.length === 0 && map && typeof map.getZoom === 'function' && map.getZoom() < CAMPAIGN_MIN_ZOOM) {
+  // 저줌(전국·광역)에선 캠페인을 뷰포트로 안 받아 목록이 어차피 비어 '확대 안내'만 뜬다.
+  //  → 2만+ 매장을 훑는 비싼 뷰포트 필터를 아예 건너뛰어 전국뷰(완전 아웃) 버벅임을 막는다(이 필터가 병목).
+  if (map && typeof map.getZoom === 'function' && map.getZoom() < CAMPAIGN_MIN_ZOOM) {
     countEl.textContent = totalActiveCount ? totalActiveCount.toLocaleString() : '';
     list.innerHTML = `
       <div class="empty-state">
@@ -1381,6 +1363,32 @@ function renderSidebar() {
       </div>`;
     return;
   }
+
+  // 뷰포트 필터: naver hasLatLng + LatLng 객체 할당(매장마다)은 무거워 → 경계값 숫자 비교로 경량화.
+  const b = (map && map.getBounds) ? map.getBounds() : null;
+  let visiblePlaces = places;
+  if (b && b.getSW && b.getNE) {
+    const sw = b.getSW(), ne = b.getNE();
+    const minLat = sw.lat(), maxLat = ne.lat(), minLng = sw.lng(), maxLng = ne.lng();
+    visiblePlaces = places.filter(p => p.lat >= minLat && p.lat <= maxLat && p.lng >= minLng && p.lng <= maxLng);
+  }
+
+  // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래).
+  // 마감일 동률이면 세션마다 무작위로 섞어 노출(같은 플랫폼 배치가 뭉치지 않게, 고정 편중 방지).
+  const earliestDeadline = p => getActiveCampaigns(p.id).reduce((min, c) => {
+    const d = deadlineToUTC(c.deadline);
+    return d < min ? d : min;
+  }, Infinity);
+  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id));
+  // 가장 이른 마감일을 장소별로 1회만 계산(메모) → sort 비교마다 재계산(O(N log N)회) 방지.
+  const _ed = new Map();
+  for (const p of activePlaces) _ed.set(p.id, earliestDeadline(p));
+  activePlaces.sort((a, b) => {
+    const da = _ed.get(a.id), db = _ed.get(b.id);
+    if (da !== db) return da - db;
+    return placeShuffleKey(a.id) - placeShuffleKey(b.id);
+  });
+  countEl.textContent = activePlaces.length;
 
   if (activePlaces.length === 0) {
     list.innerHTML = `
