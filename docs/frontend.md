@@ -35,10 +35,10 @@
 - 신고하기(`renderReportResults()`)는 항목을 선택하면 리스트가 **선택된 1개만** 남도록 축약됨 (스크롤 불편 해소 목적). 다시 선택 해제하면 전체 리스트 복원.
 - **매장 상세 "협찬 없음 → 제보하기"**(`campaignEmptyHtml`의 버튼 → `openReportForPlace(placeId)`)는 제보 모달을 열면서 **그 매장을 step1에서 이미 선택된 상태로 시작**(매장 검색 단계 생략). `openModal()` 후 `inputName`/`lastSearchQuery`를 매장명으로 세팅하고 `selectExistingPlace(placeId)` 호출 — 모바일·PC(report 탭) 공통. 사용자는 바로 "다음"으로 step2 진입.
 
-## 실시간 제보 알림 캐릭터/말풍선 (`#liveBubble`, `.live-character-wrap`)
-- 지도 우측 하단에 떠서 최근 등록된 매장을 랜덤 메시지 풀에서 순환 노출 (`showLiveBubble()`)
-- 메시지 풀은 `withPlace()`로 캠페인에 `placeId`를 매핑해 구성. **마감 지난 캠페인은 풀에서 제외**(`isLive` = `!hidden && deadlineToUTC(deadline) >= 오늘`, 빈 마감일=상시는 포함) — 말풍선이 끝난 협찬을 신규처럼 소개하던 버그 수정
-- 말풍선을 클릭하면 `clickLiveBubble()` → `focusPlace(placeId)`로 해당 매장 핀으로 이동 + 팝업/시트 오픈
+## 실시간 알림 캐릭터/말풍선 (`#liveBubble`, `.live-character-wrap`)
+- 지도 우측 하단에 떠서 최근 활동을 랜덤 메시지 풀에서 순환 노출 (`showLiveBubble()`)
+- **후기 등록 알림으로 전환(2026-09-15)**: 예전엔 캠페인 추가를 `"익명님이 ○○을 추가했어요"`로 알렸는데, 대부분이 크롤링(AI/admin)이라 실제 제보가 아니고 오해 소지(가짜 익명) → **진짜 유저 활동인 '후기 등록'만** 알림. 문구 `"○○님이 <매장명> 후기를 등록했어요!"`. `buildLiveMessagePool`이 **서버 `?reviews=recent`(최근 후기, 매장명·닉네임 조인) = `recentReviews`** 기반으로 구성(캠페인 `recentCampaigns` 폐기). 후기 없으면 빈 풀 → 말풍선 미표시. **왜**: 크롤링 캠페인의 가짜 "추가" 알림 제거 + 후기(공생) 유도. 관련 결정 [[06-decision-log]].
+- 말풍선 클릭 `clickLiveBubble()` → **`_forceReviewTab=true` 설정 후** `focusPlace(placeId)` → 매장 상세를 **후기 탭으로 바로** 오픈(활성 캠페인 있어도 후기 우선). `_defaultDetailTab(place)`가 이 플래그면 `'review'` 반환 → 탭 하이라이트(`detailTabsHtml`)+**패널 display(`rv-pane-*`)** 둘 다 이 기준으로(예전엔 패널 display가 `active.length` 기준이라 탭↔패널 어긋났음). `initDetailTabs`가 1회성 소비 후 `_forceReviewTab=false` 리셋(일반 핀 클릭은 기본탭 유지).
 - 부모 `.live-alert`가 `pointer-events: none`이라 클릭 가능하게 하려면 `.live-bubble.show`에 `pointer-events: auto`를 개별 지정해야 함 (캐릭터 래퍼도 동일 패턴)
 
 ## 정보창(인포윈도우) 뱃지
