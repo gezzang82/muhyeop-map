@@ -51,6 +51,16 @@ function classifyReferrer(ref) {
   return host;
 }
 
+// 명시적 채널 태그(공유 링크 ?ref=kakao / ?utm_source= 등) → 정규화 키. referrer가 안 넘어오는
+//  카톡·앱 인앱브라우저 유입을 정확히 세기 위함(안 붙으면 direct로 뭉뚱그려짐). 사용자 입력이라 소독.
+function normalizeSrc(src) {
+  if (!src) return null;
+  const s = String(src).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '').slice(0, 20);
+  if (!s) return null;
+  const alias = { kko: 'kakao', kakaotalk: 'kakao', 'open-chat': 'kakao', openchat: 'kakao', thread: 'threads', 'threads.com': 'threads', insta: 'instagram', ig: 'instagram', fb: 'facebook', blog: 'naver' };
+  return alias[s] || s;
+}
+
 // 방문 집계 제외 IP(운영자 본인 등) — 자기 접속이 PV/UV/체류시간을 부풀리지 않게.
 // 기본: 확인된 집 IP. 추가/변경은 환경변수 EXCLUDED_VISIT_IPS(콤마 구분)로도 가능(집 IP 바뀔 때).
 const EXCLUDED_VISIT_IPS = new Set(
@@ -85,7 +95,8 @@ module.exports = async function handler(req, res) {
         if (ins.rowsAffected > 0) {
           await db.execute({ sql: "UPDATE site_daily SET uv = uv + 1 WHERE visit_date = ?", args: [day] });
         }
-        const refKey = classifyReferrer(req.body && req.body.ref);
+        // 공유 링크의 명시적 채널(?ref=)이 있으면 우선(카톡 등 referrer 미전달 유입 정확 추적), 없으면 referrer로 분류.
+        const refKey = normalizeSrc(req.body && req.body.src) || classifyReferrer(req.body && req.body.ref);
         if (refKey) {
           await db.execute({ sql: "INSERT INTO site_referrer (ref, cnt) VALUES (?, 1) ON CONFLICT(ref) DO UPDATE SET cnt = cnt + 1", args: [refKey] });
           await db.execute({ sql: "INSERT INTO site_referrer_daily (visit_date, ref, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, ref) DO UPDATE SET cnt = cnt + 1", args: [day, refKey] });

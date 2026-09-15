@@ -32,10 +32,18 @@ function loadInitialData() {
           try { if (window.Capacitor && (window.Capacitor.isNativePlatform ? window.Capacitor.isNativePlatform() : true)) return 'app'; } catch (e) {}
           return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ? 'mweb' : 'pcweb';
         };
+        // 공유 링크 채널 태그: muhyeop.com/?ref=kakao 처럼 붙여 공유하면 그 채널로 정확 집계(카톡 등 referrer 미전달 대응).
+        //  세션에 저장해 내부 이동/재접속에도 유지. utm_source도 인정.
+        let _src = '';
+        try {
+          const _p = new URLSearchParams(location.search);
+          _src = _p.get('ref') || _p.get('utm_source') || sessionStorage.getItem('mh_src') || '';
+          if (_p.get('ref') || _p.get('utm_source')) sessionStorage.setItem('mh_src', _src);
+        } catch (e) {}
         fetch('/api/places?visit=1', {
           method: 'POST', keepalive: true,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ref: document.referrer || '', platform: _detectPlatform() })
+          body: JSON.stringify({ ref: document.referrer || '', src: _src, platform: _detectPlatform() })
         }).catch(() => {});
         // 체류시간 측정: 로드~이탈. 화면이 숨겨지거나(앱 전환·탭 전환) 페이지가 사라질 때 머문 초를 1회 beacon 전송.
         // 근사치(첫 이탈 기준) — 정확한 세션시간보단 "머무는지/튕기는지" 방향 지표용. 서버가 일별 평균으로 집계.
