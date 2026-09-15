@@ -255,6 +255,24 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    // 최근 등록 후기(공개, 라이브버블용): GET ?reviews=recent&limit=N — 매장명·닉네임 조인, 숨김/숨김매장 제외.
+    if (req.method === 'GET' && action === 'recent') {
+      const limit = Math.min(30, Math.max(1, Number(req.query.limit) || 20));
+      const rows = (await db.execute({
+        sql: `SELECT r.place_id AS placeId, p.name AS placeName, r.created_at AS createdAt,
+                     COALESCE(NULLIF(u.nickname,''), NULLIF(r.author,'')) AS nickname
+              FROM reviews r JOIN places p ON p.id = r.place_id
+              LEFT JOIN users u ON u.id = r.user_id
+              WHERE COALESCE(r.hidden,0)=0 AND COALESCE(p.hidden,0)=0
+              ORDER BY r.created_at DESC, r.id DESC LIMIT ?`,
+        args: [limit]
+      })).rows;
+      res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+      return res.status(200).json(rows.map(x => ({
+        placeId: Number(x.placeId), placeName: x.placeName || '', nickname: x.nickname || '익명', createdAt: x.createdAt || ''
+      })));
+    }
+
     // 목록: GET ?reviews=list&placeId=&sort=latest|likes
     if (req.method === 'GET') {
       const placeId = Number(req.query.placeId);

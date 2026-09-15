@@ -8,7 +8,7 @@ let banners = [];
 
 // 지도 경량화(뷰포트 로딩, 2026-09-01): 공개 앱은 캠페인을 화면(bbox)에 보이는 것만 받아 `campaigns`에 누적.
 let totalActiveCount = 0;      // 전역 활성 캠페인 수(서버 count) — 총 협찬수 표시용
-let recentCampaigns = [];      // 최근 활성 캠페인(서버 recent) — 라이브버블용(placeName/placeLat/placeLng 포함)
+let recentReviews = [];        // 최근 등록 후기(서버 ?reviews=recent) — 라이브버블용(placeName/nickname 포함)
 const _loadedTiles = new Set();       // 이미 받은 bbox 타일 키(재요청 방지)
 const _loadedCampaignIds = new Set(); // 이미 담은 캠페인 id(중복 병합 방지)
 const _loadedPlaceCampaigns = new Set(); // ?placeId= 상세 폴백을 이미 시도한 매장(중복 요청 방지)
@@ -81,7 +81,7 @@ function loadInitialData() {
         const prefetchP = _fetchCampaignTiles(_initialViewBounds());
         const [placesRes, bannersRes, countRes, recentRes] = await Promise.all([
           fetch('/api/places?map=1'), fetch('/api/banners'),
-          fetch('/api/campaigns?count=active'), fetch('/api/campaigns?recent=24')
+          fetch('/api/campaigns?count=active'), fetch('/api/places?reviews=recent&limit=24')
         ]);
         // 매장 실패는 치명적(부팅 핸들러가 #mapError 노출). count/recent/배너는 비필수(기본값).
         if (!placesRes.ok) throw new Error(`데이터 로드 실패: places ${placesRes.status}`);
@@ -89,7 +89,7 @@ function loadInitialData() {
         if (!Array.isArray(places)) throw new Error('데이터 형식 오류(배열 아님)');
         banners = bannersRes.ok ? await bannersRes.json().catch(() => []) : [];
         totalActiveCount = countRes.ok ? ((await countRes.json().catch(() => ({}))).count || 0) : 0;
-        recentCampaigns = recentRes.ok ? (await recentRes.json().catch(() => []) || []) : [];
+        recentReviews = recentRes.ok ? (await recentRes.json().catch(() => []) || []) : [];
         await prefetchP; // 캠페인 시딩 완료 보장 후 아래 invalidateActiveCache
       }
       invalidateActiveCache();
@@ -3326,20 +3326,12 @@ function showToast(msg) {
 }
 
 // ===== 실시간 제보 알림 =====
-// 실제 등록된 캠페인 기반: 유저 실제 제보를 우선으로, 부족하면 어드민 등록분을 익명으로 채워 최신 10건 풀을 구성
+// 실시간 활동 알림: 최근 '등록된 후기'(유저 실제 활동) 기반. 캠페인 자동수집분은 '제보'가 아니라 알림에서 제외(진정성).
+//  서버 ?reviews=recent(매장명·닉네임 조인)를 사용. 후기가 없으면 빈 풀 → 말풍선 미표시.
 function buildLiveMessagePool() {
-  // 뷰포트 로딩이라 전역 campaigns는 보이는 것만 → 서버 recent(전역 최근 활성, 매장명 조인)를 사용.
-  // 어드민은 recentCampaigns가 비어 campaigns로 폴백(전량 로드).
-  const src = (recentCampaigns && recentCampaigns.length) ? recentCampaigns : campaigns;
-  const withPlace = (c) => {
-    const name = c.placeName || (places.find(p => p.id === c.placeId) || {}).name;
-    return name ? { nick: c.source === 'user' ? (c.reporterNickname || '익명') : '익명', place: name, placeId: c.placeId, createdAt: c.createdAt || '' } : null;
-  };
-  // 마감 지난 캠페인은 제외 (getActiveCampaigns와 동일 기준, 빈 마감일=마감없음은 포함)
-  const isLive = c => !c.hidden && deadlineToUTC(c.deadline) >= getKSTTodayUTC();
-  const userOnes = src.filter(c => c.source === 'user' && isLive(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  const otherOnes = src.filter(c => c.source !== 'user' && isLive(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  const pool = [...userOnes, ...otherOnes].slice(0, 10).map(withPlace).filter(Boolean);
+  const src = (recentReviews && recentReviews.length) ? recentReviews : [];
+  const pool = src.map(r => (r.placeName ? { nick: r.nickname || '익명', place: r.placeName, placeId: r.placeId, createdAt: r.createdAt || '' } : null))
+    .filter(Boolean).slice(0, 10);
   // 셔플 (Fisher-Yates) — 매번 같은 순서로 도는 느낌 방지
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -3386,11 +3378,9 @@ function showLiveBubble(data) {
   if (_liveBubbleTimer) clearTimeout(_liveBubbleTimer);
   bubble.classList.remove('show');
   setTimeout(() => {
-    // 매장명 16자 초과 시 … 처리 (을/를 조사는 잘린 마지막 실제 글자 기준)
-    const baseName = data.place.length > 16 ? data.place.slice(0, 16) : data.place;
-    const dispName = data.place.length > 16 ? baseName + '…' : data.place;
-    const particle = getEulReul(baseName);
-    text.innerHTML = `${data.nick}님이 <strong>${dispName}</strong>${particle}<br>추가했어요!`;
+    // 매장명 16자 초과 시 … 처리
+    const dispName = data.place.length > 16 ? data.place.slice(0, 16) + '…' : data.place;
+    text.innerHTML = `${data.nick}님이 <strong>${dispName}</strong> 후기를<br>등록했어요!`;
     _liveBubblePlaceId = data.placeId;
     bubble.classList.add('show');
     playCharacterAnim();
