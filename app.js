@@ -933,8 +933,8 @@ function createInfoContent(place) {
       ${detailTabsHtml(place)}
       <div class="rv-line"></div>
       <div class="rv-tab-body" id="rvTabBody">
-        <div class="rv-pane rv-pane-campaign"${active.length ? '' : ' style="display:none"'}>${active.length ? `<div class="iw-campaigns-wrap">${campaignsHtml}</div>` : campaignEmptyHtml(place)}</div>
-        <div class="rv-pane rv-pane-review"${active.length ? ' style="display:none"' : ''}></div>
+        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="iw-campaigns-wrap">${campaignsHtml}</div>` : campaignEmptyHtml(place)}</div>
+        <div class="rv-pane rv-pane-review"${_defaultDetailTab(place) === 'review' ? '' : ' style="display:none"'}></div>
       </div>
     </div>`;
 }
@@ -1047,8 +1047,8 @@ function createMobileDetailContent(place) {
     </div>
     <div class="detail-scroll">
       <div class="rv-tab-body" id="rvTabBody">
-        <div class="rv-pane rv-pane-campaign"${active.length ? '' : ' style="display:none"'}>${active.length ? `<div class="detail-campaigns-wrap">${campaignsHtml}</div>` : campaignEmptyHtml(place)}</div>
-        <div class="rv-pane rv-pane-review"${active.length ? ' style="display:none"' : ''}></div>
+        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="detail-campaigns-wrap">${campaignsHtml}</div>` : campaignEmptyHtml(place)}</div>
+        <div class="rv-pane rv-pane-review"${_defaultDetailTab(place) === 'review' ? '' : ' style="display:none"'}></div>
       </div>
     </div>`;
 }
@@ -1061,8 +1061,13 @@ function rvEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
 function rvHeart() { return '<img class="rv-heart-off" src="image/ic_good_def.svg" width="16" height="14" alt=""><img class="rv-heart-on" src="image/ic_good_sel.svg" width="16" height="14" alt="">'; }
 function fmtReviewDate(s) { const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : ''; }
 
+// 라이브버블(후기 등록 알림) 클릭 등에서 상세를 '후기 탭'으로 강제로 열 때 사용(1회성). initDetailTabs가 소비 후 리셋.
+let _forceReviewTab = false;
+function _defaultDetailTab(place) {
+  return _forceReviewTab ? 'review' : (getActiveCampaigns(place.id).length ? 'campaign' : 'review');
+}
 function detailTabsHtml(place) {
-  const def = getActiveCampaigns(place.id).length ? 'campaign' : 'review';
+  const def = _defaultDetailTab(place);
   return `<div class="rv-tabs-row">
       <div class="rv-tabs">
         <button class="rv-tab${def === 'campaign' ? ' active' : ''}" data-tab="campaign" onclick="switchDetailTab(${place.id},'campaign')">캠페인</button>
@@ -1085,7 +1090,8 @@ function initDetailTabs(place) {
   _detailPlaceId = place.id;
   _reviewLoaded = false;
   _reviewSort = 'latest';
-  const def = getActiveCampaigns(place.id).length ? 'campaign' : 'review';
+  const def = _defaultDetailTab(place);
+  _forceReviewTab = false; // 1회성 소비: 다음 상세 열림엔 다시 기본 로직
   _detailTab = def;
   if (def === 'review') { _reviewLoaded = true; loadReviews(place.id); }
   // PC 인포윈도우: 팝업 내부 휠 스크롤이 지도 줌으로 새는 것 방지 (휠 전파 차단 → 내부 스크롤만)
@@ -3389,7 +3395,8 @@ function showLiveBubble(data) {
 }
 
 function clickLiveBubble() {
-  if (_liveBubblePlaceId != null) focusPlace(_liveBubblePlaceId);
+  // 라이브버블은 '후기 등록' 알림이므로, 매장을 열 때 후기 탭으로 바로 (활성 캠페인 있어도 후기 우선).
+  if (_liveBubblePlaceId != null) { _forceReviewTab = true; focusPlace(_liveBubblePlaceId); }
 }
 
 // 제보왕(리더보드) 배너 노출 여부 — 베타 이벤트 시작 시 true로 변경
