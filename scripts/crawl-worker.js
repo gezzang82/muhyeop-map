@@ -143,6 +143,19 @@ async function pass() {
     remaining = ga.remaining;
     console.log(`  [${ts()}] └ [구구다스] AI검증: 자동등록 ${ga.registered} · 검수 ${ga.review} · 스킵 ${ga.skipped} · 남은대기 ${ga.remaining}`);
   }
+  // 라미라미 (회원전용 로그인 필요=RAMIRAMI_ID/PW, 창업자 허락. 방문형만: 숙박/맛집/뷰티/여행/반려. 상세에서 방문주소→승인 시 지오코딩)
+  if (!stopping) {
+    if (!process.env.RAMIRAMI_ID || !process.env.RAMIRAMI_PW) {
+      console.log(`  [${ts()}] 수집(라미라미): 건너뜀 — RAMIRAMI_ID/RAMIRAMI_PW 미설정(.env.local)`);
+    } else {
+      const rr = await runScrape({ db, platform: '라미라미', limit: 300, dedupe });
+      if ((rr.newCandidates || 0) > (rr.processed || 0)) more = true;
+      console.log(`  [${ts()}] 수집(라미라미): 처리 ${rr.processed} · 적재 ${rr.staged} · 주소없음 ${rr.noAddr} · 중복 ${rr.dupActive} · 제외 ${rr.excluded}${rr.error ? ' · ' + rr.error : ''}`);
+      const ra = await runAutopilot({ db, places: apPlaces });
+      remaining = ra.remaining;
+      console.log(`  [${ts()}] └ [라미라미] AI검증: 자동등록 ${ra.registered} · 검수 ${ra.review} · 스킵 ${ra.skipped} · 남은대기 ${ra.remaining}`);
+    }
+  }
   return { collected, more, remaining };
 }
 

@@ -650,6 +650,7 @@ async function runScrape({ db, platform, mode, limit, region, deadlineTs, dedupe
   if (platform === 'reviewnote' || platform === '리뷰노트') return runReviewnote({ db, limit, deadlineTs, region, dedupe });
   if (platform === 'ohmyblog' || platform === '오마이블로그') return runOhmyblog({ db, limit, deadlineTs, dedupe });
   if (platform === 'gooddas' || platform === '99das' || platform === '구구다스') return runGooddas({ db, limit, deadlineTs, dedupe });
+  if (platform === 'ramirami' || platform === '라미라미') return runRamirami({ db, limit, deadlineTs, dedupe });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs, dedupe });
 }
 
@@ -1583,4 +1584,150 @@ async function runGooddas({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
   return { platform, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut };
 }
 
-module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+// ===== 라미라미(ramirami.kr) =====
+// 로그인 필수(회원 전용). 창업자(ramirami_founder)가 "함께 넣어달라"고 초대 → 허락 기반 수집.
+// 로그인: POST /lib/member/member_ajax_proc.php (mode=login&v1=ID&v2=PW) → PHPSESSID 세션.
+// 목록: POST /lib/campaigns_ajax_proc.php (formmode=campaign_list&page&zone=all&depth1=카테고리) → JSON{html,total_count}.
+// 상세: GET /campaigns_view.html?uid=N → h3.title(이름)·방문주소·신청기간(마감)·체험권정보(제공)·홍보채널·방문형/배송형 badge.
+// 방문형만 수집(배송형은 방문주소 없어 지도에 못 올림). 좌표는 승인/오토파일럿 때 _geocode가 주소로 변환.
+// 계정은 코드에 하드코딩 금지 → 환경변수 RAMIRAMI_ID / RAMIRAMI_PW.
+const RR_BASE = 'https://ramirami.kr';
+const RR_CH = { '블로그': '블로그', '인스타': '인스타그램', '인스타그램': '인스타그램', '클립': '클립', '릴스': '릴스', '유튜브': '유튜브', '틱톡': '틱톡' };
+// 라미라미 depth1(카테고리) → 무협맵 카테고리 기본값(categoryByKeyword 미검출 시 폴백).
+// 시스템 taxonomy: 음식점·카페·뷰티·숙박/여가·문화·의류·안경/잡화·기타 (여행/반려동물 별도 카테고리 없음).
+// 방문형(위치 있음)만 대상.
+const RR_CATS = [
+  { depth1: 2, cat: '숙박/여가' }, // 숙박
+  { depth1: 3, cat: '음식점' },   // 맛집
+  { depth1: 4, cat: '뷰티' },     // 뷰티
+  { depth1: 1, cat: '숙박/여가' }, // 여행(레저)
+  { depth1: 7, cat: '기타' },     // 반려동물
+];
+
+async function rrCookies(res) {
+  const list = res.headers.getSetCookie ? res.headers.getSetCookie() : [res.headers.get('set-cookie')].filter(Boolean);
+  return list.map((c) => String(c).split(';')[0]).filter(Boolean);
+}
+// 로그인 → 세션 쿠키 문자열 반환(실패 시 null)
+async function rrLogin() {
+  const id = process.env.RAMIRAMI_ID, pw = process.env.RAMIRAMI_PW;
+  if (!id || !pw) return null;
+  let r = await fetch(`${RR_BASE}/`, { headers: { 'User-Agent': UA } });
+  let jar = await rrCookies(r);
+  const body = new URLSearchParams({ mode: 'login', v1: id, v2: pw, v4: '', backurl: '/' }).toString();
+  r = await fetch(`${RR_BASE}/lib/member/member_ajax_proc.php`, {
+    method: 'POST',
+    headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest', Cookie: jar.join('; ') },
+    body,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (String(j.code) !== '1') return null;
+  const more = await rrCookies(r);
+  if (more.length) jar = more; // 로그인 후 세션 회전 대응
+  return jar.join('; ');
+}
+// 카테고리(depth1) 목록 페이지 → { uids, total }
+async function rrFetchList(cookie, depth1, page) {
+  const body = new URLSearchParams({ formmode: 'campaign_list', page: String(page), zone: 'all', depth1: String(depth1) }).toString();
+  const r = await fetch(`${RR_BASE}/lib/campaigns_ajax_proc.php`, {
+    method: 'POST',
+    headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest', Cookie: cookie },
+    body,
+  });
+  if (!r.ok) return { uids: [], total: 0 };
+  const j = await r.json().catch(() => ({}));
+  const html = (j && j.html) || '';
+  const uids = [...new Set((html.match(/uid=(\d+)/g) || []).map((s) => s.replace('uid=', '')))];
+  return { uids, total: Number(j && j.total_count) || 0 };
+}
+// 상세 HTML 파싱
+function rrParseDetail(html) {
+  const dd = (label) => {
+    const m = html.match(new RegExp('__label">\\s*' + label + '\\s*</dt>\\s*<dd[^>]*>([\\s\\S]*?)</dd>'));
+    return m ? m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  };
+  const nameM = html.match(/<h3\s+class="title"[^>]*>\s*([^<]+)<\/h3>/);
+  const name = nameM ? nameM[1].trim() : '';
+  const visitType = /badge[^"]*">\s*방문형\s*</.test(html) ? '방문형' : (/badge[^"]*">\s*배송형\s*</.test(html) ? '배송형' : '');
+  // "도로명 (동/리) 매장명" → 지오코딩 정확도 위해 괄호 이후(동/리·매장명) 제거하고 도로명만
+  let address = dd('방문주소').replace(/\s*\([^)]*\).*$/, '').trim();
+  const period = dd('신청기간'); // "2026.09.15 ~ 2026.09.25 (11일)"
+  const dm = period.match(/~\s*(\d{4})\.(\d{2})\.(\d{2})/);
+  const deadline = dm ? `${dm[1]}-${dm[2]}-${dm[3]}` : '';
+  // 협찬 내용은 '체험권 설명'(.exp-desc__text)에 있음(예: "객실+조식 <최대 4인>"). '체험권 정보'(상품만 제공 등)는 유형 요약이라 폴백.
+  // 주의: "<최대 4인>" 처럼 한글 꺾쇠는 실제 태그가 아니므로 ASCII로 시작하는 태그만 제거하고 보존.
+  let content = '';
+  const em = html.match(/<p[^>]*class="[^"]*exp-desc__text[^"]*"[^>]*>([\s\S]*?)<\/p>/);
+  if (em) content = em[1].replace(/<br\s*\/?>/gi, ' ').replace(/<\/?[a-zA-Z][^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  if (!content) content = dd('체험권 정보');
+  const chanRaw = dd('홍보채널');
+  const channel = [...new Set(String(chanRaw).split(/[\s,/]+/).map((s) => RR_CH[s]).filter(Boolean))].join(',');
+  return { name, address, deadline, content, visitType, channel };
+}
+
+async function runRamirami({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = null }) {
+  const platform = '라미라미';
+  const today = new Date().toISOString().slice(0, 10);
+  const cookie = await rrLogin();
+  if (!cookie) {
+    await db.execute({
+      sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note) VALUES ('라미라미', 0, 0, 0, 0, 0, ?)`,
+      args: ['로그인 실패(RAMIRAMI_ID/RAMIRAMI_PW 환경변수 확인)'],
+    });
+    return { platform, error: 'login_failed', staged: 0 };
+  }
+  const dedupe = _dedupe || await loadDedupe(db);
+  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='라미라미'")).rows.map((r) => String(r.source_id)));
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, noAddr = 0, timedOut = false;
+  for (const C of RR_CATS) {
+    if (timedOut) break;
+    let page = 1;
+    while (page <= 60) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      const { uids } = await rrFetchList(cookie, C.depth1, page);
+      if (!uids.length) break;
+      for (const uid of uids) {
+        if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+        if (doneIds.has(uid)) continue;
+        if (processed >= limit) { timedOut = true; break; }
+        processed++;
+        doneIds.add(uid); // 카테고리 간 중복 uid 재처리 방지
+        try {
+          const url = `${RR_BASE}/campaigns_view.html?uid=${uid}`;
+          const dres = await fetch(url, { headers: { 'User-Agent': UA, Cookie: cookie, Referer: `${RR_BASE}/campaigns.html` } });
+          await sleep(150);
+          if (!dres.ok) { failed++; continue; }
+          const d = rrParseDetail(await dres.text());
+          if (d.visitType === '배송형') { excluded++; continue; }
+          if (!d.name) { excluded++; continue; }
+          if (!d.address) { noAddr++; continue; } // 방문주소 없으면 지도에 못 올림 → 스킵
+          const auto = categoryByKeyword((d.content || '') + ' ' + d.name, d.name);
+          const category = auto || C.cat;
+          const channel = d.channel || '블로그';
+          const cls = classify({ name: d.name, channel, address: d.address }, dedupe, today);
+          if (cls.status === 'dup_active') { dupActive++; continue; }
+          const flags = [];
+          if (!auto) flags.push(`카테고리확인(기본값 ${C.cat})`);
+          if (!d.channel) flags.push('채널확인');
+          flags.push('가능요일·시간확인(예약제)'); // 라미라미 상세엔 고정 요일/시간 없음(방문 예약)
+          const ins = await db.execute({
+            sql: `INSERT OR IGNORE INTO scraped_items
+              (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+            args: [platform, uid, url, d.name, d.address, category, channel, d.content || '', d.deadline || '', '', '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+          });
+          if (ins.rowsAffected > 0) staged++;
+        } catch (e) { failed++; }
+      }
+      page++;
+    }
+  }
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('라미라미', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive + noAddr, `방문형 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 주소없음 ${noAddr}, 배송형/제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, noAddr, failed, timedOut };
+}
+
+module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
