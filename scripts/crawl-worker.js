@@ -150,7 +150,7 @@ async function pass() {
     } else {
       const rr = await runScrape({ db, platform: '라미라미', limit: 300, dedupe });
       if ((rr.newCandidates || 0) > (rr.processed || 0)) more = true;
-      console.log(`  [${ts()}] 수집(라미라미): 처리 ${rr.processed} · 적재 ${rr.staged} · 주소없음 ${rr.noAddr} · 중복 ${rr.dupActive} · 제외 ${rr.excluded}${rr.error ? ' · ' + rr.error : ''}`);
+      console.log(`  [${ts()}] 수집(라미라미): 처리 ${rr.processed} · 적재 ${rr.staged} · 마감지남 ${rr.expired} · 주소없음 ${rr.noAddr} · 중복 ${rr.dupActive} · 제외 ${rr.excluded}${rr.error ? ' · ' + rr.error : ''}`);
       const ra = await runAutopilot({ db, places: apPlaces });
       remaining = ra.remaining;
       console.log(`  [${ts()}] └ [라미라미] AI검증: 자동등록 ${ra.registered} · 검수 ${ra.review} · 스킵 ${ra.skipped} · 남은대기 ${ra.remaining}`);

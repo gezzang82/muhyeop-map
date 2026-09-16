@@ -1511,10 +1511,14 @@ function gdHoursDays(raw) {
 }
 function gdParseDetail(html) {
   const h = String(html || '');
-  // 방문 매장 주소: "매장주소 :" 라벨 우선(광고주 사무실 '주소:'와 구분해야 함), 없으면 class="addr" 폴백
-  let am = h.match(/매장\s*주소\s*[:：]\s*(?:&nbsp;|\s)*([^<]+)/);
+  // 방문 매장 주소: 지도 위젯의 class="smallmap_addr"(매장 주소) 우선 — 광고주 사무실 'ft_info_txt > 주소:'와 구분.
+  // (99das 마크업 변경 2026-09: 구 "매장주소 :" 라벨·class="addr" 사라짐 → smallmap_addr로 전환, 구 패턴은 하위호환 폴백)
+  let am = h.match(/class="smallmap_addr"\s*>\s*([^<]+?)\s*</);
+  if (!am) am = h.match(/매장\s*주소\s*[:：]\s*(?:&nbsp;|\s)*([^<]+)/);
   if (!am) am = h.match(/class="addr"\s*>\s*([^<]+?)\s*</);
-  const address = am ? am[1].replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  let address = am ? am[1].replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  // "도로명 (동/리) 매장명" 꼬리(괄호 이후) 제거 → 지오코딩 정확도
+  address = address.replace(/\s*\([^)]*\).*$/, '').trim();
   // 방문가능시간: 라벨 이후 ~400자를 태그제거(시간이 sub-node에 있어도 회수) 후, 다음 섹션 라벨 전까지만.
   // gdHoursDays가 유효시간(HH<=29)만 남기므로 후속 내용의 쓰레기 숫자(48:00 등)는 자동 배제.
   let vt = '';
@@ -1665,6 +1669,19 @@ function rrParseDetail(html) {
   return { name, address, deadline, content, visitType, channel };
 }
 
+// 스테이징 대상이 아닌 항목(만료/배송형/이름없음)을 rejected로 한 번 기록 → 다음 패스에 doneIds가 걸러 재요청 방지.
+// (pending 큐엔 안 뜸. 이게 없으면 만료 캠페인을 매 패스 재fetch해 limit을 소진, 다른 카테고리까지 못 감.)
+async function rrMarkSeen(db, uid, url, name, reason) {
+  try {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO scraped_items
+        (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status, auto_seen, auto_note)
+        VALUES ('라미라미',?,?,?,'','','','','','','',0,?,'',NULL,'rejected',1,?)`,
+      args: [uid, url, name || '', reason, reason],
+    });
+  } catch (e) {}
+}
+
 async function runRamirami({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = null }) {
   const platform = '라미라미';
   const today = new Date().toISOString().slice(0, 10);
@@ -1678,7 +1695,7 @@ async function runRamirami({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = 
   }
   const dedupe = _dedupe || await loadDedupe(db);
   const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='라미라미'")).rows.map((r) => String(r.source_id)));
-  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, noAddr = 0, timedOut = false;
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, noAddr = 0, expired = 0, timedOut = false;
   for (const C of RR_CATS) {
     if (timedOut) break;
     let page = 1;
@@ -1698,9 +1715,10 @@ async function runRamirami({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = 
           await sleep(150);
           if (!dres.ok) { failed++; continue; }
           const d = rrParseDetail(await dres.text());
-          if (d.visitType === '배송형') { excluded++; continue; }
-          if (!d.name) { excluded++; continue; }
-          if (!d.address) { noAddr++; continue; } // 방문주소 없으면 지도에 못 올림 → 스킵
+          if (d.visitType === '배송형') { excluded++; await rrMarkSeen(db, uid, url, d.name, '배송형(주소없음)'); continue; }
+          if (!d.name) { excluded++; await rrMarkSeen(db, uid, url, '', '이름없음'); continue; }
+          if (!d.address) { noAddr++; continue; } // 방문주소 없으면 지도에 못 올림 → 스킵(파싱 실패 가능성 있어 재요청 허용)
+          if (d.deadline && d.deadline < today) { expired++; await rrMarkSeen(db, uid, url, d.name, `마감지남(${d.deadline})`); continue; } // 종료 캠페인은 기록 후 스킵(재요청 방지)
           const auto = categoryByKeyword((d.content || '') + ' ' + d.name, d.name);
           const category = auto || C.cat;
           const channel = d.channel || '블로그';
@@ -1725,9 +1743,9 @@ async function runRamirami({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = 
   await db.execute({
     sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
           VALUES ('라미라미', 0, 0, ?, ?, ?, ?)`,
-    args: [processed, staged, excluded + dupActive + noAddr, `방문형 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 주소없음 ${noAddr}, 배송형/제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+    args: [processed, staged, excluded + dupActive + noAddr + expired, `방문형 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 마감지남 ${expired}, 주소없음 ${noAddr}, 배송형/제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
   });
-  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, noAddr, failed, timedOut };
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, noAddr, expired, failed, timedOut };
 }
 
 module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
