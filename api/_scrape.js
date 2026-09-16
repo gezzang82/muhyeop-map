@@ -1727,7 +1727,7 @@ async function runRamirami({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = 
           const flags = [];
           if (!auto) flags.push(`카테고리확인(기본값 ${C.cat})`);
           if (!d.channel) flags.push('채널확인');
-          flags.push('가능요일·시간확인(예약제)'); // 라미라미 상세엔 고정 요일/시간 없음(방문 예약)
+          // 라미라미는 예약제라 고정 요일/시간이 없는 게 정상 → 경고 플래그로 넣지 않음(오토파일럿이 전건 검수보류하던 원인)
           const ins = await db.execute({
             sql: `INSERT OR IGNORE INTO scraped_items
               (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
