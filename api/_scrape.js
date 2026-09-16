@@ -1103,7 +1103,11 @@ function soName(html) {
   // 채널은 채널키워드 든 대괄호만(지역 대괄호 [판교] 등과 구분). 없으면 빈값.
   const chBracket = (raw.match(/\[[^\]]*\]/g) || []).find((b) => /블로그|클립|인스타|릴스|유튜브|구매평|기자단/.test(b));
   const channel = soChannelNorm(chBracket);
-  const name = raw.replace(/^(?:\s*\[[^\]]*\])+\s*/, '').trim(); // 앞 [채널][지역] 다 제거
+  let name = raw.replace(/^(?:\s*\[[^\]]*\])+\s*/, '').trim(); // 앞 [채널][지역] 다 제거
+  // 캠페인 회차 날짜가 매장명 끝에 붙는 경우 제거(숙박 다회차 등):
+  // "멀왓스테이 (9월 4일 ~ 9월 5일)"·"…9월 11일 ~ 9월 12일"·"…(9월13일)"·"…(9월 8일 방문)" → 매장명만.
+  // 트레일링만 제거하므로 "3월3일 영통점"(브랜드명, 날짜가 앞)은 보존.
+  name = name.replace(/\s*\(?\s*\d{1,2}\s*월\s*\d{1,2}\s*일\s*(?:~\s*\d{1,2}\s*월\s*\d{1,2}\s*일\s*)?(?:방문\s*)?\)?\s*$/, '').trim();
   return { name, channel };
 }
 function soAddress(html) {
