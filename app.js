@@ -178,6 +178,16 @@ function openExternal(url) {
 if (isNativeApp()) {
   // 앱에서만 세이프에어리어 대응(지도 풀블리드 + 상단 UI를 노치 아래로). CSS `.native-app`로 분기.
   document.documentElement.classList.add('native-app');
+  // 안드로이드 전용 분기(마커 그림자 경량화 등). 네이티브 인셋 주입 전에도 첫 렌더부터 적용되게 여기서 선반영.
+  try { if (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() === 'android') document.documentElement.classList.add('native-android'); } catch (e) {}
+  // 안드로이드 WebView는 env(safe-area-inset-*)를 안 채워줌 → 네이티브가 --and-sat/--and-sab(CSS px) 주입.
+  // 초기 로드 타이밍상 네이티브의 첫 주입이 유실될 수 있어 로드 후 재요청(iOS엔 이 인터페이스 없음 → 무영향).
+  try {
+    const reqInsets = () => { try { window.MuhyeopNativeUI && window.MuhyeopNativeUI.requestInsets && window.MuhyeopNativeUI.requestInsets(); } catch (e) {} };
+    reqInsets();
+    window.addEventListener('load', reqInsets);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reqInsets(); });
+  } catch (e) {}
   document.addEventListener('click', function (e) {
     const a = e.target.closest && e.target.closest('a[href]');
     if (!a) return;
@@ -3829,10 +3839,21 @@ function initSplash() {
   const logo = document.getElementById('splashLogo');
   const startAnim = () => {
     requestAnimationFrame(() => requestAnimationFrame(() => { if (logo) logo.classList.add('play'); }));
-    setTimeout(() => {
+    // 스플래시를 '앱 준비됨'과 연동해 내린다: 애니가 어색하지 않게 최소 MIN_MS는 보이되,
+    // 지도+핀이 준비되면(부팅 핸들러가 window.__appReady=true) 그 즉시 내려 초기 로딩 체감을 줄인다.
+    // 준비가 늦어도 SAFETY_MS엔 강제로 내려 스플래시가 무한정 붙지 않게 한다(빈 지도 플래시 방지엔 준비신호 우선).
+    const MIN_MS = 1400, SAFETY_MS = 3000, t0 = Date.now();
+    const doHide = () => {
+      if (splash._hiding) return; splash._hiding = true;
       splash.classList.add('hide');
       setTimeout(() => { if (splash.parentNode) splash.remove(); }, 450);
-    }, 2400);
+    };
+    const hideRespectingMin = () => { setTimeout(doHide, Math.max(0, MIN_MS - (Date.now() - t0))); };
+    if (window.__appReady) hideRespectingMin();
+    else {
+      window.__onAppReady = hideRespectingMin;
+      setTimeout(() => { if (!splash._hiding) hideRespectingMin(); }, SAFETY_MS);
+    }
   };
   if (isNativeApp() && SP) {
     setTimeout(() => SP.hide().catch(() => {}), 4000); // 안전장치: 무슨 일이 있어도 4s 내 네이티브 스플래시 숨김
@@ -3911,14 +3932,6 @@ document.addEventListener('contextmenu', function(e) {
 
 window.addEventListener('load', async function() {
   initAppLoading();
-  try {
-    await loadInitialData();
-  } catch (e) {
-    // 매장/캠페인 데이터를 못 불러옴(서버 일시 장애 등) → 빈 지도 대신 안내 화면 + 다시 시도.
-    if (document.getElementById('map')) showMapError();
-    hideAppLoading();
-    return;
-  }
   if (!document.getElementById('map')) { hideAppLoading(); return; }
   // 네이버 지도 스크립트가 로드되지 않은 경우(차단/네트워크 실패 등) 안내 화면 노출
   if (typeof naver === 'undefined' || !naver.maps) {
@@ -3926,13 +3939,35 @@ window.addEventListener('load', async function() {
     hideAppLoading();
     return;
   }
-  updateStatCount();
-  initMap(); // 지도+핀 먼저(로그인 인증 대기 없이) — 첫 핀 지연 제거
+  // 지도(타일)를 데이터 다운로드/파싱과 '병렬'로 초기화 → 초기 로딩 체감 단축.
+  // (기존엔 loadInitialData 완료 후에야 initMap이 불려 타일 로딩이 5MB 파싱 뒤로 밀렸다: 저사양 Android에서 특히 길었음.)
+  // initMap은 places 데이터가 없어도 지도 생성/타일 로딩이 되며, 핀은 데이터 도착 후 renderAll로 그린다.
+  initMap();
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
-  startLiveAlerts();
-  // 로딩 애니메이션은 첫 핀이 실제로 그려질 때(map idle) 숨김 → 빈 지도로 오해 방지. 안전 타임아웃 병행.
-  naver.maps.Event.addListener(map, 'idle', hideAppLoading);
+  // 데이터가 늦어도 지도는 보이게 하는 안전 타임아웃(스피너 무한대 방지)
   setTimeout(hideAppLoading, 3500);
+  // 첫 핀이 실제로 그려진 뒤(데이터 준비됨 + idle) 스피너 종료 → 빈 지도로 오해 방지.
+  let _dataReady = false;
+  naver.maps.Event.addListener(map, 'idle', function() { if (_dataReady) hideAppLoading(); });
+
+  try {
+    await loadInitialData();
+  } catch (e) {
+    // 매장 데이터를 못 불러옴(서버 일시 장애 등) → 빈 지도 대신 안내 화면 + 다시 시도.
+    showMapError();
+    hideAppLoading();
+    return;
+  }
+  // 데이터 도착: 핀·통계·배너·라이브버블 갱신 + 스피너 종료
+  _dataReady = true;
+  updateStatCount();
+  renderAll();
+  showBannerPopup();
+  startLiveAlerts();
+  hideAppLoading();
+  // 스플래시(브랜드 애니)와 연동: 앱 준비됨을 알려 최소 노출시간만 채우고 즉시 내리게 함(초기 로딩 체감 단축).
+  window.__appReady = true;
+  if (typeof window.__onAppReady === 'function') { window.__onAppReady(); window.__onAppReady = null; }
   // 로그인 상태/가입안내는 지도 표시를 막지 않도록 백그라운드에서 처리(핀 노출 이후 UI만 갱신)
   refreshAuthUI().then(function() {
     const url = new URL(location.href);

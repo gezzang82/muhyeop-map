@@ -18,6 +18,8 @@ public class MainActivity extends BridgeActivity {
 
     private View statusBarBg;
     private WindowInsetsControllerCompat insetsController;
+    private int lastTopCss = 0;
+    private int lastBotCss = 0;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -34,11 +36,18 @@ public class MainActivity extends BridgeActivity {
 
         ViewCompat.setOnApplyWindowInsetsListener(decor, (v, insets) -> {
             int topInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            int botInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
             ViewGroup.LayoutParams lp = statusBarBg.getLayoutParams();
             if (lp.height != topInset) {
                 lp.height = topInset;
                 statusBarBg.setLayoutParams(lp);
             }
+            // 웹(muhyeop.com)은 안드로이드 WebView에서 env(safe-area-inset-*)를 못 받으므로,
+            // 실제 상태바/내비바 높이를 CSS px로 환산해 CSS 변수(--and-sat/--and-sab)로 주입한다.
+            float density = getResources().getDisplayMetrics().density;
+            lastTopCss = Math.round(topInset / density);
+            lastBotCss = Math.round(botInset / density);
+            pushInsetsToWeb();
             return insets;
         });
 
@@ -65,5 +74,22 @@ public class MainActivity extends BridgeActivity {
     @JavascriptInterface
     public void setStatusBar(final boolean white) {
         runOnUiThread(() -> applyStatusBar(white));
+    }
+
+    // 저장된 인셋값(CSS px)을 WebView에 CSS 변수로 밀어넣는다.
+    private void pushInsetsToWeb() {
+        if (getBridge() == null || getBridge().getWebView() == null) return;
+        final String js = "(function(){try{var d=document.documentElement;"
+            + "d.style.setProperty('--and-sat','" + lastTopCss + "px');"
+            + "d.style.setProperty('--and-sab','" + lastBotCss + "px');"
+            + "d.classList.add('native-android');}catch(e){}})();";
+        final android.webkit.WebView wv = getBridge().getWebView();
+        wv.post(() -> wv.evaluateJavascript(js, null));
+    }
+
+    // 웹이 로드 후(app.js)에 다시 인셋 주입을 요청할 수 있게 노출(초기 로드 타이밍 보정).
+    @JavascriptInterface
+    public void requestInsets() {
+        runOnUiThread(this::pushInsetsToWeb);
     }
 }
