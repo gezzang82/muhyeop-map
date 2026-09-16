@@ -267,7 +267,7 @@ module.exports = async function handler(req, res) {
               ORDER BY r.created_at DESC, r.id DESC LIMIT ?`,
         args: [limit]
       })).rows;
-      res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+      res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1200');
       return res.status(200).json(rows.map(x => ({
         placeId: Number(x.placeId), placeName: x.placeName || '', nickname: x.nickname || '익명', createdAt: x.createdAt || ''
       })));
@@ -441,7 +441,7 @@ module.exports = async function handler(req, res) {
     // 지도 경량화 v2(2026-09-11): 지도 마커 = 활성 캠페인 OR 후기 있는 매장만(죽은 매장 제외).
     // 죽은 매장 ~1.6만 제외로 초기 로드/파싱 40%↓. hasReview 플래그로 클라 핀 상태(후기 매장=정상노출) 구분.
     if (q.map !== undefined) {
-      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      res.setHeader('Cache-Control', 'public, s-maxage=1800, stale-while-revalidate=3600');
       const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
       const activeSub = "EXISTS(SELECT 1 FROM campaigns c WHERE c.place_id=p.id AND COALESCE(c.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline>=?))";
       const reviewSub = "EXISTS(SELECT 1 FROM reviews r WHERE r.place_id=p.id AND COALESCE(r.hidden,0)=0)";
@@ -462,8 +462,8 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(rows.map(r => { const p = toPlace(r); delete p.founderEmail; return p; }));
     }
     // 공개 지도 조회(레거시/폴백): 숨김 매장 제외 + 이메일(PII) 제외하고 전량 반환. (어드민은 여전히 이걸 사용)
-    // 엣지 캐싱: 매장은 거의 안 바뀜 → 5분 CDN 캐시 + 10분 SWR.
-    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    // 엣지 캐싱: 매장은 거의 안 바뀜 → 30분 CDN 캐시 + 60분 SWR (Fast Origin Transfer 절감, 2026-09-17).
+    res.setHeader('Cache-Control', 'public, s-maxage=1800, stale-while-revalidate=3600');
     const result = await db.execute('SELECT * FROM places WHERE COALESCE(hidden,0)=0');
     return res.status(200).json(result.rows.map(r => { const p = toPlace(r); delete p.founderEmail; return p; }));
   }
