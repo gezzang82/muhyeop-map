@@ -49,6 +49,19 @@ const ts = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(11, 19); 
 let stopping = false;
 process.on('SIGINT', () => { console.log('\n중단 요청 — 이번 패스 끝나고 종료합니다…'); stopping = true; });
 
+// 크래시 방어: 미처리 프로미스 거부/예외로 프로세스가 죽는 것 방지(루프 try/catch의 사각지대).
+// Node는 unhandledRejection/uncaughtException 시 기본적으로 프로세스를 종료하는데, 이 핸들러가
+// 로그만 남기고 계속 돌게 한다 → 어쩌다 난 오류로 크롤러가 통째로 멈추는 일 없음. 원인은 파일에 기록.
+const LOG_PATH = path.join(__dirname, '..', 'crawl-worker.log');
+function logCrash(tag, e) {
+  const when = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 19).replace('T', ' ');
+  const line = `[${when} KST] ${tag}: ${(e && e.stack) || e}\n`;
+  try { fs.appendFileSync(LOG_PATH, line); } catch (_) {}
+  console.error(`  ⚠️ [${ts()}] ${tag}: ${(e && e.message) || e} — 로그 기록 후 계속 진행`);
+}
+process.on('unhandledRejection', (reason) => logCrash('unhandledRejection', reason));
+process.on('uncaughtException', (err) => logCrash('uncaughtException', err));
+
 async function pass() {
   let collected = 0, more = false, remaining = 0;
   // 이 패스 동안 모든 플랫폼이 공유할 중복확인 데이터(전체 매장/캠페인)를 1번만 읽음(플랫폼·하위지역마다 재조회 방지).
