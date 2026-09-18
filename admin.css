@@ -713,3 +713,52 @@ body {
 .collect-manual[open] > summary::before { content: '▾ '; }
 .collect-manual[open] > summary { border-bottom: 1px solid var(--border); }
 .collect-manual > .form-card { margin: 12px 16px; }
+
+/* 데스크톱 기본: 모바일 전용 브랜드 숨김 */
+.topbar-brand-mobile { display: none; }
+
+/* ===== 모바일 (로그인 + 대시보드만) ===== */
+@media (max-width: 640px) {
+  /* 로그인 화면 */
+  .login-screen { padding: 20px; }
+  .login-box { width: 100%; max-width: 380px; padding: 32px 24px; }
+
+  /* 레이아웃: 좌측 메뉴(사이드바) 숨김, 메인 전체폭 */
+  .admin-app { height: 100dvh; }
+  .admin-sidebar { display: none; }
+  .admin-main { width: 100%; }
+
+  /* 상단바: 모바일 브랜드 표시 + 로그아웃, '어드민' 유저칩은 공간상 숨김 */
+  .admin-topbar { height: 56px; padding: 0 16px; justify-content: space-between; }
+  .topbar-brand-mobile {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 17px; font-weight: 800; color: var(--text); letter-spacing: -0.3px;
+  }
+  .topbar-brand-mobile b { color: var(--brand); font-weight: 800; }
+  .admin-topbar .topbar-user { display: none; }
+  .admin-topbar .topbar-logout { font-size: 14px; padding: 8px 14px; }
+
+  /* 콘텐츠 */
+  .admin-content { padding: 16px; }
+  .page-title { font-size: 22px; margin-bottom: 16px; }
+
+  /* 통계 카드: 2열, 폰트 읽기 좋게 유지 */
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .stat-card { padding: 18px 12px; }
+  .stat-icon .icon { width: 24px; height: 24px; }
+  .stat-value { font-size: 26px; }
+  .stat-label { font-size: 13.5px; }
+
+  /* 대시보드 카드: 무조건 1열(인라인 grid-template-columns도 덮어씀) */
+  .dashboard-row { grid-template-columns: 1fr !important; gap: 12px; }
+  .dashboard-card { padding: 18px 16px; }
+  .card-title { font-size: 16px; margin-bottom: 14px; }
+
+  /* 가로로 긴 콘텐츠는 카드 안에서 가로 스크롤(글자 안 뭉개지게) */
+  .dday-stats { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .dday-cell { min-width: 64px; }
+  .dday-cell .dday-label { font-size: 13px; }
+  .dday-cell .dday-count { font-size: 24px; }
+  .visit-chart { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .app-store-stats, .platform-stats, .channel-stats, .referrer-daily, .referrer-stats { max-width: 100%; }
+}
