@@ -2136,6 +2136,10 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
     max-height: 66dvh;
     display: flex;
     flex-direction: column;
+    /* 안드로이드 웹뷰 초반 버벅임 방지: 시트를 미리 GPU 레이어로 승격 */
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
   .mobile-sheet.show { transform: translateY(0); }
 
