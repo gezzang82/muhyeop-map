@@ -2157,6 +2157,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
     min-height: 0;
     display: flex;
     flex-direction: column;
+    /* 시트 내용 리플로우를 이 영역으로 격리(외부 레이아웃 전파 차단) → 저사양 안드로이드 렌더 경감 */
+    contain: layout paint;
   }
 
   /* ===== 매장 상세 스타일 ===== */
@@ -2426,7 +2428,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   box-shadow: 0 0 8px rgba(0,0,0,0.16);
   height: 56px;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 14px;
   gap: 8px;
   position: relative;
 }
@@ -2450,6 +2452,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   flex: 1; min-width: 0; background: none; border: none; outline: none;
   color: #333;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* 안드로이드는 폰트가 살짝 넓게 렌더돼 긴 placeholder 끝글자가 잘림 → 미세 자간 축소로 확보 */
+  letter-spacing: -0.02em;
 }
 .mobile-header-search input::placeholder { color: #bbb; }
 

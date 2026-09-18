@@ -3511,23 +3511,30 @@ function openMobileSheet(place) {
   content.innerHTML = createMobileDetailContent(place);
   initDetailTabs(place);
   sheet.style.transform = '';
-  sheet.classList.add('show');
   overlay.classList.add('show');
   setSelectedMarker(place.id);
   trackPlaceCampaignViews(place);
-  // 핀을 '보이는 지도 영역(상단 검색+필터 아래 ~ 시트 상단 위)'의 세로 중앙으로 이동.
-  // 시트 높이가 콘텐츠마다 달라(offsetHeight로 반영), 고정 오프셋 대신 동적으로 중앙 계산.
-  const proj = map.getProjection();
-  if (proj) {
-    const vpH = window.innerHeight;
-    const sheetTop = vpH - sheet.offsetHeight;
-    const topUI = document.querySelector('.mobile-map-overlay');
-    const topBound = topUI ? topUI.getBoundingClientRect().bottom : 120;
-    const visibleCenterY = (topBound + sheetTop) / 2;
-    const off = proj.fromCoordToOffset(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
-    off.y += (vpH / 2 - visibleCenterY); // 지도 중앙에서 이만큼 위로 올려 보이는 영역 중앙에 배치
-    map.panTo(proj.fromOffsetToCoord(off));
-  }
+  // 무거운 상세 내용을 먼저 레이아웃/페인트시킨 뒤(시트는 아직 화면 밖 translateY(100%)),
+  // 다음 프레임에 슬라이드를 시작 → 애니메이션 첫 프레임이 innerHTML 렌더/강제리플로우/panTo와
+  // 경합하지 않아 저사양 안드로이드 웹뷰의 초반 버벅임이 줄어듦. iOS는 원래 매끄러워 영향 미미.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      sheet.classList.add('show');
+      // 핀을 '보이는 지도 영역(상단 검색+필터 아래 ~ 시트 상단 위)'의 세로 중앙으로 이동.
+      // offsetHeight 읽기=강제 리플로우이므로 슬라이드 시작 프레임에 몰지 않고 여기서(내용은 이미 레이아웃됨).
+      const proj = map.getProjection();
+      if (proj) {
+        const vpH = window.innerHeight;
+        const sheetTop = vpH - sheet.offsetHeight;
+        const topUI = document.querySelector('.mobile-map-overlay');
+        const topBound = topUI ? topUI.getBoundingClientRect().bottom : 120;
+        const visibleCenterY = (topBound + sheetTop) / 2;
+        const off = proj.fromCoordToOffset(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
+        off.y += (vpH / 2 - visibleCenterY); // 지도 중앙에서 이만큼 위로 올려 보이는 영역 중앙에 배치
+        map.panTo(proj.fromOffsetToCoord(off));
+      }
+    });
+  });
   // 사이드바 오프스크린으로 내리기
   const sidebar = document.getElementById('sidebar');
   if (sidebar) {
