@@ -123,7 +123,16 @@ let map;
   window.addEventListener('resize', setAppHeight);
   window.addEventListener('orientationchange', function () { setAppHeight(); setTimeout(setAppHeight, 300); });
   window.addEventListener('pageshow', setAppHeight);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) setAppHeight(); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    setAppHeight();
+    // 앱을 백그라운드에 뒀다 자정 넘겨 복귀하면 어제 마감 캠페인이 활성으로 남아있음
+    // → 활성 캐시 무효화 + 재렌더로 만료분을 즉시 반영(핀 색·사이드바 갱신).
+    if (typeof map !== 'undefined' && map) {
+      invalidateActiveCache();
+      try { renderMarkers(); renderSidebar(); } catch (e) {}
+    }
+  });
   if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
   setAppHeight();
   setTimeout(setAppHeight, 200);
@@ -320,10 +329,13 @@ function getDeadlineText(deadline) {
 // 렌더(마커/사이드바)마다 매장×캠페인을 반복 스캔하던 것을 캠페인 1회 순회로 줄임.
 // 캐시는 명시적으로만 무효화(데이터 로드/제보/채널필터 변경) — 핫패스에서 날짜 재계산을 피하기 위함.
 let _activeByPlace = null;
+let _activeByPlaceDay = null; // 캐시를 만든 KST 날짜(UTC ms). 자정 넘겨 날짜가 바뀌면 자동 재계산.
 function invalidateActiveCache() { _activeByPlace = null; }
 function getActiveByPlaceMap() {
-  if (_activeByPlace) return _activeByPlace;
   const today = getKSTTodayUTC();
+  // 앱을 켜둔 채 자정을 넘기면 어제 마감 캠페인이 계속 활성으로 남던 문제 → 날짜 바뀌면 캐시 폐기.
+  if (_activeByPlace && _activeByPlaceDay === today) return _activeByPlace;
+  _activeByPlaceDay = today;
   const m = new Map();
   for (const c of campaigns) {
     if (c.hidden) continue;
