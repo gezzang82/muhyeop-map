@@ -1899,8 +1899,12 @@ function initSidebarScrollExpand() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar.classList.contains('expanded')) return;
     // 한번 full 확장되면 닫기 전까지 유지 (scrollTop=0 돼도 축소 안 함)
-    if (list.scrollTop > 10) {
+    if (list.scrollTop > 10 && !sidebar.classList.contains('expanded-full')) {
+      // 스크롤 '도중'이라 CSS height 트랜지션(0.35s)을 돌리면 매 프레임 리스트 재레이아웃+스크롤
+      // 관성이 겹쳐 심하게 버벅임 → 트랜지션을 억제해 즉시 전체높이로(스크롤 위치는 유지).
+      sidebar.style.transition = 'none';
       sidebar.classList.add('expanded-full');
+      requestAnimationFrame(() => { sidebar.style.transition = ''; }); // 닫기 애니메이션용 트랜지션 복원
     }
   }, { passive: true });
 }
