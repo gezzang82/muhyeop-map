@@ -1505,16 +1505,27 @@ function moveToMyLocation() {
   }).catch(() => { showToast('위치 권한을 허용해주세요'); restore(); });
 }
 
+// 백그라운드로 캠페인을 확보한 뒤, 현재 열린 상세(같은 매장)의 '캠페인 pane'만 조용히 교체.
+// 후기 pane/활성 탭/스크롤 위치는 건드리지 않아 후기 탭을 보고 있어도 깜빡임이 없음.
+function refreshOpenDetailCampaignPane(place) {
+  if (_detailPlaceId !== place.id) return;                 // 이미 다른 상세로 넘어감
+  if (!getActiveCampaigns(place.id).length) return;         // 새로 채울 캠페인 없음
+  const livePane = document.querySelector('#rvTabBody .rv-pane-campaign');
+  if (!livePane) return;
+  const html = (window.innerWidth <= 640) ? createMobileDetailContent(place) : createInfoContent(place);
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const freshPane = tmp.querySelector('.rv-pane-campaign');
+  if (freshPane) livePane.innerHTML = freshPane.innerHTML;
+}
+
 async function focusPlace(placeId, zoom) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
 
   map.setCenter(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
   map.setZoom(zoom || 16);
-  // 뷰포트 로딩: 화면 밖 매장이면 이 매장 캠페인이 아직 없을 수 있어 상세 열기 전에 확보(빈 상세 방지).
-  await ensurePlaceCampaigns(placeId);
-  // 종료(비활성) 매장은 이 줌(≥GRAY_PIN_MIN_ZOOM)에서만 회색핀이 뜬다. 현재 마커가 없으면
-  // 새 줌 기준으로 다시 그려 회색핀을 만들어야 아래 상세 오픈에서 setSelectedMarker가 핀을 선택함.
+  // 현재 기준으로 우선 렌더(마커 없으면 회색핀이라도 만들어 아래 상세 오픈의 setSelectedMarker가 선택).
   if (!markerMap[placeId]) renderMarkers();
 
   if (window.innerWidth <= 640) {
@@ -1533,6 +1544,14 @@ async function focusPlace(placeId, zoom) {
     // PC: 팝업 카드 열기
     setTimeout(() => openPcCard(place), 200);
   }
+
+  // 뷰포트 로딩: 화면 밖 매장이면 캠페인이 아직 없을 수 있음. 예전엔 이 네트워크를 await한 뒤에야
+  // 시트를 열어 후기 말풍선 클릭 시 한참 걸렸음 → 시트는 즉시 열고, 캠페인은 백그라운드로 확보 후
+  // 캠페인 pane만 채운다(후기 탭은 캠페인이 필요 없어 즉시 표시됨).
+  ensurePlaceCampaigns(placeId).then(() => {
+    if (!markerMap[placeId]) renderMarkers();      // 확보된 활성 캠페인으로 컬러핀 반영
+    refreshOpenDetailCampaignPane(place);
+  });
 }
 
 function panToCard(place) {
@@ -1800,18 +1819,36 @@ function setNaverLogoVisible(visible) {
 let _sidebarSwipeAt = 0; // 스와이프로 열고/닫은 시각. 직후(~350ms) 따라오는 click만 무시
 
 // 접힘 → 펼침 (스와이프 업 / 필요 시 재사용). 탭 펼치기와 동일 동작
+// 사이드바 높이 확장을 'height 트랜지션' 대신 'transform 슬라이드(FLIP)'로 애니메이션.
+// height 애니메이션은 매 프레임 리스트 전체를 재레이아웃해 저사양 안드로이드에서 심하게 버벅임.
+// 목표 높이로 즉시 점프(transition:none) → 원래 높이처럼 아래로 밀어둔 뒤(translateY) → transform만 0으로 애니메이션.
+function animateSidebarHeightChange(sidebar, applyTarget) {
+  const h0 = sidebar.offsetHeight;          // 변경 전 높이
+  sidebar.style.transition = 'none';
+  applyTarget();                            // 클래스 교체 → height가 목표로 즉시 점프
+  const h1 = sidebar.offsetHeight;          // 목표 높이
+  const delta = h1 - h0;
+  if (delta <= 0) { sidebar.style.transition = ''; sidebar.style.transform = ''; return; }
+  sidebar.style.transform = `translateY(${delta}px)`; // 시각적으로 아직 원래 높이처럼 보이게 아래로 밀어둠
+  // 리플로우 확정 후 다음 프레임에 transform만 애니메이션(GPU 합성, 리스트 재레이아웃 없음)
+  requestAnimationFrame(() => {
+    sidebar.style.transition = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
+    sidebar.style.transform = 'translateY(0)';
+    setTimeout(() => { sidebar.style.transition = ''; sidebar.style.transform = ''; }, 370);
+  });
+}
+
 function expandSidebar() {
   const sidebar = document.getElementById('sidebar');
   if (window.innerWidth > 640 || sidebar.classList.contains('expanded')) return;
   sidebar.style.transform = ''; sidebar.style.transition = '';
-  sidebar.classList.add('expanded');
   // 닫힘 페이드가 도중이었을 수 있으니 리스트 불투명도 복원
   const listEl = document.getElementById('campaignList');
   if (listEl) { listEl.style.transition = ''; listEl.style.opacity = ''; }
   const arrow = document.getElementById('sidebarArrow');
   if (arrow) arrow.textContent = '﹀';
   setNaverLogoVisible(false);
-  renderSidebar();
+  animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); renderSidebar(); });
   setTimeout(updateSidebarListFade, 400);
 }
 
@@ -1822,22 +1859,25 @@ function toggleBottomSheet(e) {
   // 헤더 영역 클릭 시에만 토글 (리스트 스크롤은 방해 안 함)
   if (e.target.closest('.sidebar-list') || e.target.closest('.sidebar-card')) return;
   const willExpand = !sidebar.classList.contains('expanded');
-  // 스와이프 dismiss 후 남아있는 inline transform 초기화
-  if (willExpand) { sidebar.style.transform = ''; sidebar.style.transition = ''; }
-  sidebar.classList.toggle('expanded');
-  if (!willExpand) {
+  const arrow = document.getElementById('sidebarArrow');
+  if (willExpand) {
+    // 스와이프 dismiss 후 남아있는 inline transform 초기화
+    sidebar.style.transform = ''; sidebar.style.transition = '';
+    if (arrow) arrow.textContent = '﹀';
+    setNaverLogoVisible(false);
+    // 여는 애니메이션은 transform 기반(FLIP)으로 — height 트랜지션은 저사양에서 버벅임
+    animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); renderSidebar(); });
+  } else {
+    // 닫기(클릭): 기존 CSS height 트랜지션 유지(빈 시트라 가벼움)
+    sidebar.classList.remove('expanded');
     sidebar.classList.remove('expanded-full');
+    if (arrow) arrow.textContent = '︿';
+    setNaverLogoVisible(true);
     setTimeout(() => {
       const list = document.getElementById('campaignList');
       if (list) list.scrollTop = 0;
     }, 350);
   }
-  const isExpanded = sidebar.classList.contains('expanded');
-  // 화살표 방향 전환 (닫힘: ︿ 위방향 → 열림: ﹀ 아래방향)
-  const arrow = document.getElementById('sidebarArrow');
-  if (arrow) arrow.textContent = isExpanded ? '﹀' : '︿';
-  setNaverLogoVisible(!isExpanded);
-  if (isExpanded) renderSidebar();
   setTimeout(updateSidebarListFade, 400); // 높이 트랜지션(0.35s) 후 페이드 재계산
 }
 
