@@ -1825,17 +1825,25 @@ let _sidebarSwipeAt = 0; // 스와이프로 열고/닫은 시각. 직후(~350ms)
 function animateSidebarHeightChange(sidebar, applyTarget) {
   const h0 = sidebar.offsetHeight;          // 변경 전 높이
   sidebar.style.transition = 'none';
+  sidebar.style.willChange = 'transform';   // 레이어 선승격 → 슬라이드로 드러나는 리스트 리페인트 방지
   applyTarget();                            // 클래스 교체 → height가 목표로 즉시 점프
   const h1 = sidebar.offsetHeight;          // 목표 높이
   const delta = h1 - h0;
-  if (delta <= 0) { sidebar.style.transition = ''; sidebar.style.transform = ''; return; }
+  if (delta <= 0) { sidebar.style.transition = ''; sidebar.style.transform = ''; sidebar.style.willChange = ''; return; }
   sidebar.style.transform = `translateY(${delta}px)`; // 시각적으로 아직 원래 높이처럼 보이게 아래로 밀어둠
   // 리플로우 확정 후 다음 프레임에 transform만 애니메이션(GPU 합성, 리스트 재레이아웃 없음)
   requestAnimationFrame(() => {
     sidebar.style.transition = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
     sidebar.style.transform = 'translateY(0)';
-    setTimeout(() => { sidebar.style.transition = ''; sidebar.style.transform = ''; }, 370);
+    setTimeout(() => { sidebar.style.transition = ''; sidebar.style.transform = ''; sidebar.style.willChange = ''; }, 370);
   });
+}
+
+// 목록은 지도 idle마다 renderSidebar로 최신 유지되므로 확장 시 재빌드 불필요(재빌드가 확장 애니메이션과
+// 겹쳐 버벅임의 주원인이었음). 혹시 아직 한 번도 안 그려졌을 때만(초기 등) 렌더.
+function ensureSidebarList() {
+  const list = document.getElementById('campaignList');
+  if (list && !list.querySelector('.sb-item') && !list.querySelector('.empty-state')) renderSidebar();
 }
 
 function expandSidebar() {
@@ -1848,7 +1856,7 @@ function expandSidebar() {
   const arrow = document.getElementById('sidebarArrow');
   if (arrow) arrow.textContent = '﹀';
   setNaverLogoVisible(false);
-  animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); renderSidebar(); });
+  animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); ensureSidebarList(); });
   setTimeout(updateSidebarListFade, 400);
 }
 
@@ -1866,7 +1874,7 @@ function toggleBottomSheet(e) {
     if (arrow) arrow.textContent = '﹀';
     setNaverLogoVisible(false);
     // 여는 애니메이션은 transform 기반(FLIP)으로 — height 트랜지션은 저사양에서 버벅임
-    animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); renderSidebar(); });
+    animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); ensureSidebarList(); });
   } else {
     // 닫기(클릭): 기존 CSS height 트랜지션 유지(빈 시트라 가벼움)
     sidebar.classList.remove('expanded');
