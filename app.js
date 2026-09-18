@@ -3229,9 +3229,21 @@ async function submitCampaign() {
   }
   if (!content) { showFieldError('inputContent'); valid = false; }
   if (!deadline) {
+    const de = document.getElementById('inputDeadlineError');
+    if (de) de.textContent = '모집 마감일을 선택해주세요.';
     showFieldError('inputDeadline');
     ['inputDeadlineYearTrigger', 'inputDeadlineMonthTrigger', 'inputDeadlineDayTrigger'].forEach(id => document.getElementById(id)?.classList.add('input-error'));
     valid = false;
+  } else {
+    // 과거 마감일 차단: 이미 지난 날짜면 등록 불가(만료 캠페인 제보 방지). KST 기준 문자열 비교.
+    const todayStr = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    if (deadline < todayStr) {
+      const de = document.getElementById('inputDeadlineError');
+      if (de) de.textContent = '마감일이 이미 지났어요. 진행 중인 협찬만 등록할 수 있어요.';
+      showFieldError('inputDeadline');
+      ['inputDeadlineYearTrigger', 'inputDeadlineMonthTrigger', 'inputDeadlineDayTrigger'].forEach(id => document.getElementById(id)?.classList.add('input-error'));
+      valid = false;
+    }
   }
   if (!valid) return;
 

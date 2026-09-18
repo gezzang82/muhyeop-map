@@ -369,6 +369,14 @@ module.exports = async function handler(req, res) {
     if (!placeId || !platform || !content || !channels?.length) {
       return res.status(400).json({ error: 'placeId, platform, content, channels는 필수입니다.' });
     }
+    // 과거 마감일 제보 차단(유저 제보 한정) — 이미 끝난 캠페인 등록 방지. 상시(빈 값)는 허용.
+    // deadline은 'YYYY-MM-DD' 문자열이라 KST 오늘과 문자열 비교 가능.
+    if (source !== 'admin' && deadline) {
+      const todayKST = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+      if (String(deadline) < todayKST) {
+        return res.status(400).json({ error: '마감일이 이미 지났습니다. 진행 중인 협찬만 등록할 수 있어요.' });
+      }
+    }
     // 수집 승인(source='admin') 중복 캠페인 방지: 같은 링크(플랫폼 캠페인 URL은 고유) 캠페인이 이미 있으면 새로 안 만들고 그걸 반환.
     // (동시 승인/처리로 같은 캠페인이 2개 생기던 것 방지)
     if (source === 'admin' && link) {
