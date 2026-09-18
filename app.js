@@ -1462,15 +1462,23 @@ function renderSidebar() {
 
 // 바텀시트 리스트: 스크롤 위치에 따라 위/아래 화이트 페이드(마스크)를 조건부 적용.
 // 맨 위면 위 페이드 없음, 맨 아래면 아래 페이드 없음 → 스크롤 가능한 방향에만 페이드가 생김.
+let _lastFadeGradient = null;
 function updateSidebarListFade() {
   const list = document.getElementById('campaignList');
   if (!list) return;
-  if (window.innerWidth > 640) { list.style.webkitMaskImage = ''; list.style.maskImage = ''; return; }
+  if (window.innerWidth > 640) {
+    if (_lastFadeGradient !== '') { list.style.webkitMaskImage = ''; list.style.maskImage = ''; _lastFadeGradient = ''; }
+    return;
+  }
   const atTop = list.scrollTop <= 4;
   const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
   const topStop = atTop ? '0px' : '16px';
   const botStop = atBottom ? '100%' : 'calc(100% - 20px)';
   const g = `linear-gradient(to bottom, transparent 0, #000 ${topStop}, #000 ${botStop}, transparent 100%)`;
+  // 값이 실제로 바뀔 때만(맨위/맨아래 경계 넘을 때) 설정. 중간 스크롤 중엔 g가 동일 → 마스크 재설정 안 함
+  // → 마스크 걸린 스크롤 컨테이너의 매 프레임 재합성(드르륵) 제거.
+  if (g === _lastFadeGradient) return;
+  _lastFadeGradient = g;
   list.style.webkitMaskImage = g;
   list.style.maskImage = g;
 }
@@ -1893,8 +1901,10 @@ function toggleBottomSheet(e) {
 function initSidebarScrollExpand() {
   const list = document.getElementById('campaignList');
   if (!list) return;
+  let _fadeRaf = 0;
   list.addEventListener('scroll', () => {
-    updateSidebarListFade();
+    // 페이드(mask) 갱신은 프레임당 1회로 스로틀 → scroll 이벤트 폭주 시 과도한 스타일 계산 방지
+    if (!_fadeRaf) _fadeRaf = requestAnimationFrame(() => { _fadeRaf = 0; updateSidebarListFade(); });
     if (window.innerWidth > 640) return;
     const sidebar = document.getElementById('sidebar');
     if (!sidebar.classList.contains('expanded')) return;
