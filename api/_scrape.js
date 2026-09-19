@@ -1804,7 +1804,8 @@ async function runRevu({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = null
       const address = String(v.addressFirst || '').trim();
       if (!name) { excluded++; continue; }
       if (!address) { noAddr++; continue; } // 주소 없음 = 배송형/무매장 → 지도에 못 올림, 스킵
-      const deadline = String(it.endedOn || '').slice(0, 10); // 캠페인 종료일(모집이 살아있는 동안 노출)
+      // 모집 마감 = 신청 마감일(requestEndedOn). endedOn은 포스팅까지 포함한 전체 종료일이라 D-day가 과대(잘못)됨.
+      const deadline = String(it.requestEndedOn || it.endedOn || '').slice(0, 10);
       if (deadline && deadline < today) { expired++; continue; }
       const mediaRaw = String(it.media || '').toLowerCase();
       const channel = REVU_MEDIA[mediaRaw] || '블로그';
