@@ -654,6 +654,7 @@ async function runScrape({ db, platform, mode, limit, region, deadlineTs, dedupe
   if (platform === 'gooddas' || platform === '99das' || platform === '구구다스') return runGooddas({ db, limit, deadlineTs, dedupe });
   if (platform === 'ramirami' || platform === '라미라미') return runRamirami({ db, limit, deadlineTs, dedupe });
   if (platform === 'revu' || platform === '레뷰') return runRevu({ db, limit, deadlineTs, dedupe });
+  if (platform === 'popomon' || platform === '포포몬') return runPopomon({ db, limit, deadlineTs, dedupe });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs, dedupe });
 }
 
@@ -1888,4 +1889,112 @@ async function runRevu({ db, limit = 4000, deadlineTs = 0, dedupe: _dedupe = nul
   return { platform, mode, newCandidates: c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, total, timedOut };
 }
 
-module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+// ===== 포포몬 (popomon.com, Next.js) — 무인증 공개 API =====
+// 목록: POST /api_p/campaign/fetch_getcampaignlist?recruitType=visiting&pageNum=N (방문형 12건/페이지, campCount~3.5천)
+//   → C_title(지역+매장명)·C_provision(제공)·C_regi_end_date(마감)·CS_type(채널)·경쟁률·썸네일 (주소·좌표 없음)
+// 상세: GET /api_p/campaignDetail/fetch_getCampaignData?contentIdx=ID → C_address(주소)·C_address_detail(매장명)·C_visit_time(방문시간)
+//   좌표 없음 → 승인 시 주소로 지오코딩(리뷰노트/구구다스 패턴). 무인증 + 방문시간까지 보유.
+const POP_API = 'https://popomon.com';
+const POP_HEADERS = { 'User-Agent': UA, 'Content-Type': 'application/json', Accept: 'application/json', Referer: 'https://popomon.com/next/campaign', Origin: 'https://popomon.com' };
+const POP_MEDIA = { BLOG: '블로그', CLIP: '클립', INSTA: '인스타그램', INSTAGRAM: '인스타그램', REELS: '릴스', YOUTUBE: '유튜브', SHORTS: '쇼츠', TIKTOK: '틱톡' };
+const POP_CAT = { ROOMS: '숙박/여가', HOTEL: '숙박/여가', TRAVEL: '숙박/여가', PENSION: '숙박/여가', FOOD: '음식점', RESTAURANT: '음식점', CAFE: '카페', BEAUTY: '뷰티', CULTURE: '문화' };
+
+async function popFetchList(pageNum) {
+  try {
+    const r = await fetch(`${POP_API}/api_p/campaign/fetch_getcampaignlist?searchAlign=latest&bigRecruitType=Lvisiting&recruitType=visiting&interestsFilter=ALL&snsSubFilter=&pageNum=${pageNum}`, { method: 'POST', headers: POP_HEADERS, body: '{}' });
+    if (!r.ok) return { items: [], campCount: 0 };
+    const j = await r.json();
+    return { items: (j.data && Array.isArray(j.data.contentsData)) ? j.data.contentsData : [], campCount: Number(j.data && j.data.campCount) || 0 };
+  } catch (e) { return { items: [], campCount: 0 }; }
+}
+async function popFetchDetail(contentIdx) {
+  try {
+    const r = await fetch(`${POP_API}/api_p/campaignDetail/fetch_getCampaignData?contentIdx=${contentIdx}`, { headers: POP_HEADERS });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (j.data && j.data.contentsData) ? j.data.contentsData : null;
+  } catch (e) { return null; }
+}
+// 매장명: C_address_detail(상세주소=매장명) 우선. 단 주소가 섞여오면(시/도+번지) 마지막 숫자토큰 뒤(=매장명)만.
+function popName(title, addrDetail) {
+  let d = String(addrDetail || '').trim();
+  const isFloor = t => /^(지하|지\d|B\d|\d+\s*층|\d+\s*호|\d+F)/i.test(t) || /^\d+$/.test(t);
+  const looksAddr = /(특별자치도|특별시|광역시|[가-힣]{2,}시|[가-힣]{2,}군|[가-힣]{2,}구|[가-힣]{2,}[동리읍면])/.test(d) && /\d/.test(d);
+  if (d && looksAddr) {
+    // "강원 속초시 … 16-1 유진게찜" → 마지막 숫자 포함 토큰 뒤가 매장명
+    const toks = d.split(/\s+/); let last = -1;
+    toks.forEach((t, i) => { if (/\d/.test(t)) last = i; });
+    const tail = toks.slice(last + 1).join(' ').trim();
+    d = tail || '';
+  }
+  if (d && !isFloor(d) && d.length <= 30) return d;
+  // 폴백: C_title에서 [지역] 접두 + 날짜/방문 접미 제거
+  return String(title || '').replace(/^\[[^\]]*\]\s*/, '').replace(/\s*\d{1,2}\/\d{1,2}\s*\([^)]*\).*$/, '').replace(/\s*(방문|예약)\s*$/, '').trim();
+}
+
+async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = null }) {
+  const platform = '포포몬';
+  const today = new Date().toISOString().slice(0, 10);
+  const dedupe = _dedupe || await loadDedupe(db);
+  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='포포몬'")).rows.map((r) => String(r.source_id)));
+  const seenVC = new Set();
+  const c = { staged: 0, excluded: 0, dupActive: 0, expired: 0, noAddr: 0, processed: 0 };
+  let timedOut = false, campCount = 0;
+  for (let page = 0; page <= 400; page++) {
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    if (c.processed >= limit) break;
+    const { items, campCount: cc } = await popFetchList(page);
+    if (cc) campCount = cc;
+    if (!items.length) break;
+    let anyNew = false;
+    for (const it of items) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      if (c.processed >= limit) break;
+      const id = String(it.C_idx || '');
+      if (!id || doneIds.has(id)) continue;
+      anyNew = true;
+      if (String(it.C_state) !== 'ONGOING') { doneIds.add(id); continue; }
+      const deadline = String(it.C_regi_end_date || '').slice(0, 10);
+      if (deadline && deadline < today) { doneIds.add(id); c.expired++; continue; }
+      doneIds.add(id);
+      c.processed++;
+      const d = await popFetchDetail(id); // 주소 확보(상세)
+      await sleep(200); // 레이트리밋
+      if (!d) { c.noAddr++; continue; }
+      const address = String(d.C_address || '').trim();
+      if (!address) { c.noAddr++; continue; } // 주소 없으면 지도에 못 올림
+      const name = popName(d.C_title || it.C_title, d.C_address_detail);
+      if (!name) { c.excluded++; continue; }
+      const channel = POP_MEDIA[String(it.CS_type || '').toUpperCase()] || '블로그';
+      const vcKey = name.replace(/\s+/g, '') + '|' + channel;
+      if (seenVC.has(vcKey)) { c.dupActive++; continue; }
+      seenVC.add(vcKey);
+      const content = String(it.C_provision || d.C_provision || '').trim();
+      const hours = String(d.C_visit_time || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
+      const auto = categoryByKeyword(content + ' ' + name, name);
+      const category = auto || POP_CAT[String(it.CT_type || '').toUpperCase()] || '기타';
+      const url = `https://popomon.com/campaign/${id}`;
+      const cls = classify({ name, channel, address }, dedupe, today);
+      if (cls.status === 'dup_active') { c.dupActive++; continue; }
+      const flags = [];
+      if (!auto && !POP_CAT[String(it.CT_type || '').toUpperCase()]) flags.push('카테고리확인(기본값 기타)');
+      const ins = await db.execute({
+        sql: `INSERT OR IGNORE INTO scraped_items
+          (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+          VALUES ('포포몬',?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+        args: [id, url, name, address, category, channel, content, deadline || '', hours, '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+      });
+      if (ins.rowsAffected > 0) c.staged++;
+    }
+    if (!anyNew && page > 0) break; // 이 페이지에 신규 없음(이미 다 수집) → 조기 종료
+  }
+  const moreLeft = campCount > doneIds.size;
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('포포몬', 0, 0, ?, ?, ?, ?)`,
+    args: [c.processed, c.staged, c.excluded + c.dupActive + c.expired + c.noAddr, `방문형${campCount ? '/' + campCount : ''} 처리 ${c.processed} (적재 ${c.staged}, dup ${c.dupActive}, 마감지남 ${c.expired}, 주소없음 ${c.noAddr}, 제외 ${c.excluded}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: moreLeft ? campCount : c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, campCount, timedOut };
+}
+
+module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };

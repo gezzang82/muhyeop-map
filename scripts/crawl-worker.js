@@ -178,6 +178,15 @@ async function pass() {
     remaining = rva.remaining;
     console.log(`  [${ts()}] └ [레뷰] AI검증: 자동등록 ${rva.registered} · 검수 ${rva.review} · 스킵 ${rva.skipped} · 남은대기 ${rva.remaining}`);
   }
+  // 포포몬 (popomon.com 무인증. 목록 API(방문형 ~3.5천) + 상세 API(주소·방문시간). 좌표는 승인 시 지오코딩)
+  if (!stopping) {
+    const pm = await runScrape({ db, platform: '포포몬', limit: 400, dedupe });
+    if ((pm.newCandidates || 0) > (pm.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(포포몬${pm.campCount ? '/' + pm.campCount : ''}): 처리 ${pm.processed} · 적재 ${pm.staged} · 주소없음 ${pm.noAddr} · 마감지남 ${pm.expired} · 중복 ${pm.dupActive} · 제외 ${pm.excluded}`);
+    const pma = await runAutopilot({ db, places: apPlaces });
+    remaining = pma.remaining;
+    console.log(`  [${ts()}] └ [포포몬] AI검증: 자동등록 ${pma.registered} · 검수 ${pma.review} · 스킵 ${pma.skipped} · 남은대기 ${pma.remaining}`);
+  }
   return { collected, more, remaining };
 }
 
