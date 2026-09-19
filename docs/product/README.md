@@ -22,6 +22,7 @@
 | 14 | [launch-checklist](14-launch-checklist.md) | **8/1 정식 오픈 점검 목록**(베타 없이 오픈, 확인/마무리 항목) |
 | 15 | [operations](15-operations.md) | **데이터 수집·자동등록(오토파일럿) 운영 가이드** — 흐름/실행경로/운영자 할일/안전장치/비용/주의 |
 | 16 | [push-notifications](16-push-notifications.md) | **앱 푸시 알림 설계(재방문 엔진)** — 관심위치 기반, FCM(iOS+안드), 데이터모델/흐름/셋업. 착수: 안드 출시 후 |
+| 17 | [threads-daily](17-threads-daily.md) | **매일 스레드 글 반복 패턴** — 답변 규칙(10줄·쉬운 말·1개), 글 규칙(첫 줄 장면·동료 톤·링크는 첫 댓글), 소재 5종 로테이션 |
 
 ## 관리 규칙
 
