@@ -169,6 +169,15 @@ async function pass() {
       console.log(`  [${ts()}] └ [라미라미] AI검증: 자동등록 ${ra.registered} · 검수 ${ra.review} · 스킵 ${ra.skipped} · 남은대기 ${ra.remaining}`);
     }
   }
+  // 레뷰 (revu.net→api.weble.net 공개 큐레이션 4개 ~40건, 방문형만. 좌표는 승인 시 도로명 지오코딩)
+  if (!stopping) {
+    const rv = await runScrape({ db, platform: '레뷰', limit: 100, dedupe });
+    if ((rv.newCandidates || 0) > (rv.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(레뷰): 처리 ${rv.processed} · 적재 ${rv.staged} · 주소없음 ${rv.noAddr} · 마감지남 ${rv.expired} · 중복 ${rv.dupActive} · 제외 ${rv.excluded}`);
+    const rva = await runAutopilot({ db, places: apPlaces });
+    remaining = rva.remaining;
+    console.log(`  [${ts()}] └ [레뷰] AI검증: 자동등록 ${rva.registered} · 검수 ${rva.review} · 스킵 ${rva.skipped} · 남은대기 ${rva.remaining}`);
+  }
   return { collected, more, remaining };
 }
 
