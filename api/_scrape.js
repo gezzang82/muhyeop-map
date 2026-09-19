@@ -1760,80 +1760,126 @@ async function runRamirami({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = 
 
 // ===== 레뷰 (revu.net → 백엔드 api.weble.net 공개 API) =====
 // revu.net은 AngularJS SPA라 HTML엔 데이터가 없고, 백엔드 api.weble.net에서 JSON을 받는다.
-// 무인증으로 열린 건 '큐레이션' 엔드포인트 4개뿐: /v1/campaigns/{deadline|trending|premier|high-selection}.
-//   → page/limit/지역·카테고리 필터가 전부 무시되고 각 ~10건 고정(중복 제거 후 총 ~40건). 전체 목록
-//     (/v1/campaigns?page=)은 401(로그인 필요, 라미라미식 인증 크롤 필요). 여기선 공개 40건만 수집.
-// 품질은 최상: venue.addressFirst(도로명)·lat/lng·media(채널)·campaignData.reward(제공)·endedOn(마감) 제공.
-//   (scraped_items에 좌표 컬럼이 없어 좌표는 미저장 → 오토파일럿이 도로명으로 지오코딩. 주소가 깨끗해 해석률 높음.)
+// 두 가지 모드:
+//   ① 인증(REVU_ID/REVU_PW 있으면): POST /tokens {username,password,remember}로 JWT 발급 →
+//      GET /v1/campaigns?page=&limit= 로 전체 카탈로그(활성 ~3천건) 페이지 순회. 방문형은 아이템별 venue 유무로 선별.
+//   ② 무인증 폴백(계정 없으면): 공개 큐레이션 4개(/v1/campaigns/{deadline|trending|premier|high-selection})만,
+//      page/limit/필터 무시돼 각 ~10건 고정(중복 제거 ~40, 방문형 ~13).
+// 품질 최상: venue.addressFirst(도로명)·lat/lng·media(채널)·campaignData.reward(제공)·requestEndedOn(신청마감) 제공.
+//   (scraped_items에 좌표 컬럼 없어 좌표 미저장 → 오토파일럿이 도로명으로 지오코딩. 주소 깨끗해 해석률 높음.)
+//   (약관/레이트리밋: 요청 간 200ms 딜레이, 크롤러가 하루 단위로 순회. 신청은 원 플랫폼으로 링크(복제 아님).)
 const REVU_API = 'https://api.weble.net';
 const REVU_LISTS = ['deadline', 'trending', 'premier', 'high-selection'];
 const REVU_MEDIA = { instagram: '인스타그램', blog: '블로그', naverblog: '블로그', youtube: '유튜브', clip: '클립', reels: '릴스', shorts: '쇼츠', tiktok: '틱톡' };
 const REVU_CAT = { food: '음식점', restaurant: '음식점', cafe: '카페', beauty: '뷰티', accommodation: '숙박/여가', travel: '숙박/여가', culture: '문화', digital: '기타', life: '기타', other: '기타' };
 
+const REVU_HEADERS = { 'User-Agent': UA, 'Content-Type': 'application/json', Accept: 'application/json', Origin: 'https://www.revu.net', Referer: 'https://www.revu.net/' };
+
 async function revuFetchList(kind) {
   try {
-    const r = await fetch(`${REVU_API}/v1/campaigns/${kind}?limit=50&page=1`, {
-      headers: { 'User-Agent': UA, Accept: 'application/json', Origin: 'https://www.revu.net', Referer: 'https://www.revu.net/' },
-    });
+    const r = await fetch(`${REVU_API}/v1/campaigns/${kind}?limit=50&page=1`, { headers: REVU_HEADERS });
     if (!r.ok) return [];
     const j = await r.json();
     return Array.isArray(j && j.items) ? j.items : [];
   } catch (e) { return []; }
 }
 
-async function runRevu({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = null }) {
+// 로그인(REVU_ID/REVU_PW) → JWT 토큰. 계정 없거나 실패 시 null(무인증 폴백).
+async function revuLogin() {
+  const id = process.env.REVU_ID, pw = process.env.REVU_PW;
+  if (!id || !pw) return null;
+  try {
+    const r = await fetch(`${REVU_API}/tokens`, { method: 'POST', headers: REVU_HEADERS, body: JSON.stringify({ username: id, password: pw, remember: true }) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j && j.token ? j.token : null;
+  } catch (e) { return null; }
+}
+
+// 인증 상태 전체 캠페인 목록(page/limit). {items, total}
+async function revuFetchAuthed(token, page, limit = 50) {
+  try {
+    const r = await fetch(`${REVU_API}/v1/campaigns?limit=${limit}&page=${page}`, { headers: { ...REVU_HEADERS, Authorization: `Bearer ${token}` } });
+    if (!r.ok) return { items: [], total: 0 };
+    const j = await r.json();
+    return { items: Array.isArray(j.items) ? j.items : [], total: Number(j.total) || 0 };
+  } catch (e) { return { items: [], total: 0 }; }
+}
+
+// 레뷰 캠페인 1건 → 스테이징(공개/인증 공용). 배송형(주소없음)·만료·중복은 스킵.
+async function revuStageItem(db, it, dedupe, today, seen, doneIds, c) {
+  const id = String((it && (it.id || it.hash)) || '');
+  if (!id || seen.has(id)) return;
+  seen.add(id);
+  if (doneIds.has(id)) return;
+  c.processed++;
+  const v = it.venue || {};
+  const name = String(v.name || '').trim();
+  const address = String(v.addressFirst || '').trim();
+  if (!name) { c.excluded++; return; }
+  if (!address) { c.noAddr++; return; } // 주소 없음 = 배송형/무매장 → 지도에 못 올림, 스킵
+  // 모집 마감 = 신청 마감일(requestEndedOn). endedOn은 포스팅 포함 전체 종료일이라 D-day 과대.
+  const deadline = String(it.requestEndedOn || it.endedOn || '').slice(0, 10);
+  if (deadline && deadline < today) { c.expired++; return; }
+  const mediaRaw = String(it.media || '').toLowerCase();
+  const channel = REVU_MEDIA[mediaRaw] || '블로그';
+  const content = (it.campaignData && it.campaignData.reward) ? String(it.campaignData.reward).trim() : '';
+  const auto = categoryByKeyword(content + ' ' + name, name);
+  const category = auto || REVU_CAT[String(v.category || '').toLowerCase()] || '기타';
+  const url = `https://www.revu.net/campaign/${id}`;
+  const cls = classify({ name, channel, address }, dedupe, today);
+  if (cls.status === 'dup_active') { c.dupActive++; return; }
+  const flags = [];
+  if (!auto && !REVU_CAT[String(v.category || '').toLowerCase()]) flags.push('카테고리확인(기본값 기타)');
+  if (!REVU_MEDIA[mediaRaw]) flags.push('채널확인');
+  if (!content) flags.push('내용확인');
+  const ins = await db.execute({
+    sql: `INSERT OR IGNORE INTO scraped_items
+      (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+      VALUES ('레뷰',?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+    args: [id, url, name, address, category, channel, content, deadline || '', '', '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+  });
+  if (ins.rowsAffected > 0) c.staged++;
+}
+
+async function runRevu({ db, limit = 4000, deadlineTs = 0, dedupe: _dedupe = null }) {
   const platform = '레뷰';
   const today = new Date().toISOString().slice(0, 10);
   const dedupe = _dedupe || await loadDedupe(db);
   const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='레뷰'")).rows.map((r) => String(r.source_id)));
-  let staged = 0, excluded = 0, dupActive = 0, expired = 0, noAddr = 0, processed = 0;
   const seen = new Set();
-  for (const kind of REVU_LISTS) {
-    if (deadlineTs && Date.now() > deadlineTs) break;
-    const items = await revuFetchList(kind);
-    await sleep(150);
-    for (const it of items) {
-      const id = String((it && (it.id || it.hash)) || '');
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      if (doneIds.has(id)) continue;
-      if (processed >= limit) break;
-      processed++;
-      const v = it.venue || {};
-      const name = String(v.name || '').trim();
-      const address = String(v.addressFirst || '').trim();
-      if (!name) { excluded++; continue; }
-      if (!address) { noAddr++; continue; } // 주소 없음 = 배송형/무매장 → 지도에 못 올림, 스킵
-      // 모집 마감 = 신청 마감일(requestEndedOn). endedOn은 포스팅까지 포함한 전체 종료일이라 D-day가 과대(잘못)됨.
-      const deadline = String(it.requestEndedOn || it.endedOn || '').slice(0, 10);
-      if (deadline && deadline < today) { expired++; continue; }
-      const mediaRaw = String(it.media || '').toLowerCase();
-      const channel = REVU_MEDIA[mediaRaw] || '블로그';
-      const content = (it.campaignData && it.campaignData.reward) ? String(it.campaignData.reward).trim() : '';
-      const auto = categoryByKeyword(content + ' ' + name, name);
-      const category = auto || REVU_CAT[String(v.category || '').toLowerCase()] || '기타';
-      const url = `https://www.revu.net/campaign/${id}`;
-      const cls = classify({ name, channel, address }, dedupe, today);
-      if (cls.status === 'dup_active') { dupActive++; continue; }
-      const flags = [];
-      if (!auto && !REVU_CAT[String(v.category || '').toLowerCase()]) flags.push('카테고리확인(기본값 기타)');
-      if (!REVU_MEDIA[mediaRaw]) flags.push('채널확인');
-      if (!content) flags.push('내용확인');
-      const ins = await db.execute({
-        sql: `INSERT OR IGNORE INTO scraped_items
-          (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
-        args: [platform, id, url, name, address, category, channel, content, deadline || '', '', '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
-      });
-      if (ins.rowsAffected > 0) staged++;
+  const c = { staged: 0, excluded: 0, dupActive: 0, expired: 0, noAddr: 0, processed: 0 };
+  let timedOut = false, total = 0;
+  const token = await revuLogin();
+  const mode = token ? 'authed' : 'public';
+  if (token) {
+    // 인증: 전체 카탈로그 page 순회(방문형만 아이템별로 걸러 적재)
+    const PER = 50;
+    for (let page = 1; page <= 200; page++) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      if (c.processed >= limit) break;
+      const { items, total: tot } = await revuFetchAuthed(token, page, PER);
+      if (tot) total = tot;
+      if (!items.length) break;
+      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, c);
+      await sleep(200); // 레이트리밋(얌전하게)
+      if (total && page >= Math.ceil(total / PER)) break;
+    }
+  } else {
+    // 무인증 폴백: 공개 큐레이션 4개(~40건)
+    for (const kind of REVU_LISTS) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      const items = await revuFetchList(kind);
+      await sleep(150);
+      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, c);
     }
   }
   await db.execute({
     sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
           VALUES ('레뷰', 0, 0, ?, ?, ?, ?)`,
-    args: [processed, staged, excluded + dupActive + expired + noAddr, `공개 ${processed} (적재 ${staged}, dup_active ${dupActive}, 마감지남 ${expired}, 주소없음 ${noAddr}, 제외 ${excluded})`],
+    args: [c.processed, c.staged, c.excluded + c.dupActive + c.expired + c.noAddr, `${mode}${total ? '/' + total : ''} 처리 ${c.processed} (적재 ${c.staged}, dup_active ${c.dupActive}, 마감지남 ${c.expired}, 주소없음/배송형 ${c.noAddr}, 제외 ${c.excluded}${timedOut ? ', 중단' : ''})`],
   });
-  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, expired, noAddr };
+  return { platform, mode, newCandidates: c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, total, timedOut };
 }
 
-module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
