@@ -1881,6 +1881,8 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
   if (token) {
     const alt = await revuFetchDetail(token, id);
     await sleep(180); // 상세 fetch 레이트리밋
+    // 공휴일 불가는 altVisitInfo 원문에서 직접 판정(★공휴일 체험불가처럼 rbHoursDays가 ★에서 잘려 놓치는 것 방지)
+    const altHol = /공휴일[\s\S]{0,15}?(?:불가|휴무|제외|안됨|불가능)/.test(String(alt || '')) ? 1 : 0;
     const raw = revuVisitHours(alt);
     if (raw) {
       const hd = rbHoursDays('방문가능시간: ' + raw); // 라벨 붙여 공용 파서 재활용
@@ -1888,6 +1890,7 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
       else hours = raw; // 파싱 실패 시 원문이라도 시간칸에
       const sh = revuStripHoliday(hours); hours = sh.hours; if (sh.ex) excludeHoliday = 1; // 공휴일 불가문구 제거+플래그
     }
+    if (altHol) excludeHoliday = 1;
   }
   const ins = await db.execute({
     sql: `INSERT OR IGNORE INTO scraped_items
@@ -2020,7 +2023,16 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
       if (seenVC.has(vcKey)) { c.dupActive++; continue; }
       seenVC.add(vcKey);
       const content = String(it.C_provision || d.C_provision || '').trim();
-      const hours = String(d.C_visit_time || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
+      // 방문시간(C_visit_time) → 레뷰처럼 요일·시간 분리(rbHoursDays) + 공휴일 처리
+      const vt = String(d.C_visit_time || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
+      let hours = '', days = '', excludeHoliday = 0;
+      if (vt) {
+        const altHol = /공휴일[\s\S]{0,15}?(?:불가|휴무|제외|안됨|불가능)/.test(vt) ? 1 : 0;
+        const hd = rbHoursDays('방문가능시간: ' + vt);
+        if (hd.days || hd.hours) { days = hd.days; hours = hd.hours || vt.slice(0, 100); excludeHoliday = hd.excludeHoliday || 0; }
+        else hours = vt.slice(0, 100);
+        const sh = revuStripHoliday(hours); hours = sh.hours; if (sh.ex || altHol) excludeHoliday = 1;
+      }
       const auto = categoryByKeyword(content + ' ' + name, name);
       const category = auto || POP_CAT[String(it.CT_type || '').toUpperCase()] || '기타';
       const url = `https://popomon.com/campaign/${id}`;
@@ -2032,7 +2044,7 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
         sql: `INSERT OR IGNORE INTO scraped_items
           (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
           VALUES ('포포몬',?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
-        args: [id, url, name, address, category, channel, content, deadline || '', hours, '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+        args: [id, url, name, address, category, channel, content, deadline || '', hours, days, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
       });
       if (ins.rowsAffected > 0) c.staged++;
     }
