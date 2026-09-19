@@ -2341,41 +2341,18 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   }
   .live-bubble-tail-pc { display: none; }
   .live-bubble-tail-mob { display: block; right: 24px; height: 8px; bottom: -8px; }
+  /* 캐릭터: PC와 동일하게 회색 원+그림자(기본 .live-character-wrap 상속). 크기만 64x64로 */
   .live-character-wrap {
     width: 64px;
     height: 64px;
     flex-shrink: 0;
-    background: transparent;
-    border-radius: 0;
-    overflow: visible;
-    box-shadow: none;
   }
   .live-character {
     width: 64px;
     height: 64px;
-    object-fit: contain;
+    object-fit: cover;
   }
-  .live-cta-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: auto;
-    cursor: pointer;
-    border: none;
-    padding: 4px 6px;
-    border-radius: 8px;
-    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-weight: 500;
-    font-size: 14px;
-    line-height: 16px;
-    color: #fff;
-    white-space: nowrap;
-    background: linear-gradient(270deg, #e82a2d, #ff7173, #e82a2d);
-    background-size: 200% 100%;
-    box-shadow: 0 4px 10px rgba(232,42,45,0.35);
-    animation: liveCtaGradient 3s ease infinite;
-    transform: translate(-2px, -3px);
-  }
+  .live-cta-btn { display: none; } /* 제보하기 버튼 제거 — 캐릭터만 노출(PC와 동일) */
 }
 
 @keyframes liveCtaGradient {

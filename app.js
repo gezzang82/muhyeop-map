@@ -3446,7 +3446,8 @@ let _liveIdx = 0;
 let _liveBubbleTimer = null;
 const _chFramesPC = ['image/img_ch_01.png','image/img_ch_02.png','image/img_ch_03.png','image/img_ch_04.png','image/img_ch_05.png'];
 const _chFramesMobile = ['image/img_ch_m_01.png','image/img_ch_m_02.png','image/img_ch_m_03.png','image/img_ch_m_04.png','image/img_ch_m_05.png'];
-function getChFrames() { return window.innerWidth <= 640 ? _chFramesMobile : _chFramesPC; }
+// 캐릭터는 PC/모바일 동일 이미지(img_ch_01~05) 사용. (모바일 전용 프레임 _chFramesMobile은 미사용)
+function getChFrames() { return _chFramesPC; }
 
 function playCharacterAnim() {
   const el = document.getElementById('liveCharacter');
