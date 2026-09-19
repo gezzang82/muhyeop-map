@@ -47,6 +47,7 @@ function classifyReferrer(ref) {
   if (host.includes('kakao') || host.includes('kko')) return 'kakao';
   if (host.includes('youtube') || host.includes('youtu.be')) return 'youtube';
   if (host.includes('facebook') || host === 'fb.com') return 'facebook';
+  if (host.includes('threads')) return 'threads'; // threads.com·threads.net 등 → 스레드로 통합
   if (host.includes('daangn') || host.includes('karrot')) return 'daangn';
   return host;
 }
@@ -57,7 +58,7 @@ function normalizeSrc(src) {
   if (!src) return null;
   const s = String(src).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '').slice(0, 20);
   if (!s) return null;
-  const alias = { kko: 'kakao', kakaotalk: 'kakao', 'open-chat': 'kakao', openchat: 'kakao', thread: 'threads', 'threads.com': 'threads', insta: 'instagram', ig: 'instagram', fb: 'facebook', blog: 'naver' };
+  const alias = { kko: 'kakao', kakaotalk: 'kakao', 'open-chat': 'kakao', openchat: 'kakao', thread: 'threads', threadscom: 'threads', insta: 'instagram', ig: 'instagram', fb: 'facebook', blog: 'naver' };
   return alias[s] || s;
 }
 
