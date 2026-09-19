@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS campaigns (
   source TEXT DEFAULT 'user',
   hidden INTEGER DEFAULT 0,
   user_id INTEGER REFERENCES users(id),
+  -- 경쟁률/썸네일 공간(2026-09-19): 컬럼만 만들어둠, 아직 수집·표시 안 함. 레뷰 등에서 나중에 채울 예정.
+  apply_count INTEGER,     -- 신청 인원(경쟁률 분자)
+  recruit_limit INTEGER,   -- 모집 인원(경쟁률 분모)
+  thumbnail TEXT,          -- 캠페인 대표 이미지 URL
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -114,6 +118,10 @@ CREATE TABLE IF NOT EXISTS scraped_items (
   matched_place_id INTEGER,          -- 기존 매장 매칭 시 place.id
   status TEXT NOT NULL DEFAULT 'pending', -- pending | approved | rejected | registered
   created_campaign_id INTEGER,       -- 등록완료 시 생성된 campaign.id
+  -- 경쟁률/썸네일 공간(2026-09-19): 컬럼만 만들어둠, 아직 수집 안 함(나중에 채워 campaigns로 넘길 예정)
+  apply_count INTEGER,               -- 신청 인원(경쟁률 분자)
+  recruit_limit INTEGER,             -- 모집 인원(경쟁률 분모)
+  thumbnail TEXT,                    -- 캠페인 대표 이미지 URL
   created_at TEXT DEFAULT (datetime('now','+9 hours')),
   reviewed_at TEXT,
   UNIQUE(platform, source_id)
