@@ -1867,18 +1867,23 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
   if (!auto && !REVU_CAT[String(v.category || '').toLowerCase()]) flags.push('카테고리확인(기본값 기타)');
   if (!REVU_MEDIA[mediaRaw]) flags.push('채널확인');
   if (!content) flags.push('내용확인');
-  // 인증이면 상세에서 방문/영업시간 확보(altVisitInfo). 요일은 시간 텍스트에 함께 담겨(월~토 등) days는 비움.
-  let hours = '';
+  // 인증이면 상세에서 방문/영업시간 확보(altVisitInfo) → 서울오빠/링블 파서(rbHoursDays)로 요일·시간 분리.
+  let hours = '', days = '', excludeHoliday = 0;
   if (token) {
     const alt = await revuFetchDetail(token, id);
     await sleep(180); // 상세 fetch 레이트리밋
-    hours = revuVisitHours(alt);
+    const raw = revuVisitHours(alt);
+    if (raw) {
+      const hd = rbHoursDays('방문가능시간: ' + raw); // 라벨 붙여 공용 파서 재활용
+      if (hd.days || hd.hours) { days = hd.days; hours = hd.hours || raw; excludeHoliday = hd.excludeHoliday || 0; }
+      else hours = raw; // 파싱 실패 시 원문이라도 시간칸에
+    }
   }
   const ins = await db.execute({
     sql: `INSERT OR IGNORE INTO scraped_items
       (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
       VALUES ('레뷰',?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
-    args: [id, url, name, address, category, channel, content, deadline || '', hours, '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+    args: [id, url, name, address, category, channel, content, deadline || '', hours, days, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
   });
   if (ins.rowsAffected > 0) c.staged++;
 }
