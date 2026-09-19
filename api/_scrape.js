@@ -1823,11 +1823,13 @@ async function revuFetchDetail(token, id) {
 function revuVisitHours(alt) {
   let t = String(alt || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/[\r\n]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!t) return '';
-  const m = t.match(/(?:인플루언서\s*)?방문\s*가능\s*시간\s*[\]:：]?\s*(.+)/) || t.match(/영업\s*시간\s*[\]:：]?\s*(.+)/);
+  const m = t.match(/(?:인플루언서\s*)?방문\s*가능\s*한?\s*시간\s*대?\s*[\]:：]?\s*(.+)/) || t.match(/영업\s*시간\s*대?\s*[\]:：]?\s*(.+)/);
   let seg = m ? m[1] : t;
   seg = seg.replace(/^[\s\-*ㄴ▶■●◆:：]+/, ''); // 앞머리 불릿/기호 제거
   // 첫 '안내문' 마커 전까지만(=시간 부분)
   seg = seg.split(/\s*(?:[-*ㄴ▶■●◆]\s|주의사항|선정\s*후|최소\s*방문|예약\s*필수|당일\s*예약|매장\s*방문|콘텐츠\s*기재|쿠폰\s*발송|유선\s*예약|체험권\s*내)/)[0].trim();
+  // 필러 제거: '영업시간 내/內 방문'·'영업시간 내/內' 같은 군말과 시간 감싼 괄호 → 요일·시간이 붙어 파서가 인식하게
+  seg = seg.replace(/영업\s*시간\s*(?:내|內)\s*방문/g, '').replace(/영업\s*시간\s*(?:내|內)/g, '').replace(/[()（）]/g, ' ').replace(/\s+/g, ' ').trim();
   // 유효 신호: 시계시간(00:00) 또는 정확한 요일 토큰(매일/평일/주말/공휴일/휴무/월~토/월,화/월요일 등). '일정'의 '일' 같은 오탐 방지.
   const valid = /\d{1,2}\s*:\s*\d{2}/.test(seg) || /(매일|평일|주말|공휴일|휴무|[월화수목금토일]\s*[~\-]|[월화수목금토일]\s*,|[월화수목금토일]요일)/.test(seg);
   if (!valid) return '';
