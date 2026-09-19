@@ -1834,6 +1834,15 @@ function revuVisitHours(alt) {
   return seg.replace(/[\s/·,]+$/, '').slice(0, 90);
 }
 
+// 시간 텍스트에서 '공휴일 (방문/체험) 불가/휴무/제외' 절 제거 + 공휴일제외 플래그. (요일칩/시간에 공휴일 문구가 섞이는 것 방지)
+function revuStripHoliday(h) {
+  let t = String(h || ''), ex = 0;
+  if (/(?:주말\s*[,·]?\s*)?공휴일[^가-힣0-9]{0,6}(?:전날[^가-힣]{0,4})?(?:방문|체험|이용|예약)?\s*(?:절대\s*)?(?:불가|휴무|제외|안됨|불가능)/.test(t)) ex = 1;
+  t = t.split(/\s*[/,]\s*/).filter((seg) => !(/공휴일/.test(seg) && /(불가|휴무|제외|절대|안됨)/.test(seg))).join(' / ');
+  t = t.replace(/※?\s*공휴일[^가-힣]{0,6}(?:불가|휴무|제외|절대[^/,]*|안됨)/g, '').replace(/\s*[/,]\s*$/, '').replace(/^\s*[/,]\s*/, '').replace(/\s{2,}/g, ' ').replace(/※\s*$/, '').trim();
+  return { hours: t, ex };
+}
+
 // 레뷰 캠페인 1건 → 스테이징(공개/인증 공용). 배송형(주소없음)·만료·중복은 스킵.
 // seenVC: 같은 실행 내 '매장명+채널' 중복 제거(레뷰는 같은 매장·채널 캠페인을 여러 건 올림 → 지도엔 1개만).
 // token: 있으면(인증) 상세 fetch로 방문시간(hours)까지 채움. 없으면 hours 빈값.
@@ -1877,6 +1886,7 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
       const hd = rbHoursDays('방문가능시간: ' + raw); // 라벨 붙여 공용 파서 재활용
       if (hd.days || hd.hours) { days = hd.days; hours = hd.hours || raw; excludeHoliday = hd.excludeHoliday || 0; }
       else hours = raw; // 파싱 실패 시 원문이라도 시간칸에
+      const sh = revuStripHoliday(hours); hours = sh.hours; if (sh.ex) excludeHoliday = 1; // 공휴일 불가문구 제거+플래그
     }
   }
   const ins = await db.execute({
