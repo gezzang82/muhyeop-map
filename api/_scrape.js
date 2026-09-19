@@ -1807,7 +1807,8 @@ async function revuFetchAuthed(token, page, limit = 50) {
 }
 
 // 레뷰 캠페인 1건 → 스테이징(공개/인증 공용). 배송형(주소없음)·만료·중복은 스킵.
-async function revuStageItem(db, it, dedupe, today, seen, doneIds, c) {
+// seenVC: 같은 실행 내 '매장명+채널' 중복 제거(레뷰는 같은 매장·채널 캠페인을 여러 건 올림 → 지도엔 1개만).
+async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, c) {
   const id = String((it && (it.id || it.hash)) || '');
   if (!id || seen.has(id)) return;
   seen.add(id);
@@ -1823,6 +1824,10 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, c) {
   if (deadline && deadline < today) { c.expired++; return; }
   const mediaRaw = String(it.media || '').toLowerCase();
   const channel = REVU_MEDIA[mediaRaw] || '블로그';
+  // 같은 매장+채널이 이 실행에서 이미 나왔으면 중복(레뷰 다건 등록) → 스킵
+  const vcKey = name.replace(/\s+/g, '') + '|' + channel;
+  if (seenVC.has(vcKey)) { c.dupActive++; return; }
+  seenVC.add(vcKey);
   const content = (it.campaignData && it.campaignData.reward) ? String(it.campaignData.reward).trim() : '';
   const auto = categoryByKeyword(content + ' ' + name, name);
   const category = auto || REVU_CAT[String(v.category || '').toLowerCase()] || '기타';
@@ -1847,7 +1852,8 @@ async function runRevu({ db, limit = 4000, deadlineTs = 0, dedupe: _dedupe = nul
   const today = new Date().toISOString().slice(0, 10);
   const dedupe = _dedupe || await loadDedupe(db);
   const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='레뷰'")).rows.map((r) => String(r.source_id)));
-  const seen = new Set();
+  const seen = new Set();       // 같은 실행 내 source_id 중복 방지
+  const seenVC = new Set();     // 같은 실행 내 매장명+채널 중복 방지(레뷰 다건 등록 제거)
   const c = { staged: 0, excluded: 0, dupActive: 0, expired: 0, noAddr: 0, processed: 0 };
   let timedOut = false, total = 0;
   const token = await revuLogin();
@@ -1861,7 +1867,7 @@ async function runRevu({ db, limit = 4000, deadlineTs = 0, dedupe: _dedupe = nul
       const { items, total: tot } = await revuFetchAuthed(token, page, PER);
       if (tot) total = tot;
       if (!items.length) break;
-      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, c);
+      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, c);
       await sleep(200); // 레이트리밋(얌전하게)
       if (total && page >= Math.ceil(total / PER)) break;
     }
@@ -1871,7 +1877,7 @@ async function runRevu({ db, limit = 4000, deadlineTs = 0, dedupe: _dedupe = nul
       if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
       const items = await revuFetchList(kind);
       await sleep(150);
-      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, c);
+      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, c);
     }
   }
   await db.execute({
