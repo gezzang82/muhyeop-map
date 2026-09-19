@@ -1807,9 +1807,37 @@ async function revuFetchAuthed(token, page, limit = 50) {
   } catch (e) { return { items: [], total: 0 }; }
 }
 
+// 인증 상세: GET /campaigns/{id} → campaignOptions.altVisitInfo(방문/영업시간 자유텍스트) 확보용
+async function revuFetchDetail(token, id) {
+  try {
+    const r = await fetch(`${REVU_API}/campaigns/${id}`, { headers: { ...REVU_HEADERS, Authorization: `Bearer ${token}` } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const d = j && (j.data || j);
+    const co = d && (d.campaignOptions || (d.data && d.data.campaignOptions));
+    return co && co.altVisitInfo ? String(co.altVisitInfo) : '';
+  } catch (e) { return null; }
+}
+// altVisitInfo(자유텍스트)에서 방문/영업시간만 추출. 포맷 다양: "영업시간: 평일 …", "월~토 11:00~21:00 / 일 휴무",
+// "매일 10:30~20:30", "09:30~19:00 / 월,화 정기휴무", "[방문 가능 시간] …", "인플루언서 방문가능시간 - 평일 …"
+function revuVisitHours(alt) {
+  let t = String(alt || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/[\r\n]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const m = t.match(/(?:인플루언서\s*)?방문\s*가능\s*시간\s*[\]:：]?\s*(.+)/) || t.match(/영업\s*시간\s*[\]:：]?\s*(.+)/);
+  let seg = m ? m[1] : t;
+  seg = seg.replace(/^[\s\-*ㄴ▶■●◆:：]+/, ''); // 앞머리 불릿/기호 제거
+  // 첫 '안내문' 마커 전까지만(=시간 부분)
+  seg = seg.split(/\s*(?:[-*ㄴ▶■●◆]\s|주의사항|선정\s*후|최소\s*방문|예약\s*필수|당일\s*예약|매장\s*방문|콘텐츠\s*기재|쿠폰\s*발송|유선\s*예약|체험권\s*내)/)[0].trim();
+  // 유효 신호: 시계시간(00:00) 또는 정확한 요일 토큰(매일/평일/주말/공휴일/휴무/월~토/월,화/월요일 등). '일정'의 '일' 같은 오탐 방지.
+  const valid = /\d{1,2}\s*:\s*\d{2}/.test(seg) || /(매일|평일|주말|공휴일|휴무|[월화수목금토일]\s*[~\-]|[월화수목금토일]\s*,|[월화수목금토일]요일)/.test(seg);
+  if (!valid) return '';
+  return seg.replace(/[\s/·,]+$/, '').slice(0, 90);
+}
+
 // 레뷰 캠페인 1건 → 스테이징(공개/인증 공용). 배송형(주소없음)·만료·중복은 스킵.
 // seenVC: 같은 실행 내 '매장명+채널' 중복 제거(레뷰는 같은 매장·채널 캠페인을 여러 건 올림 → 지도엔 1개만).
-async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, c) {
+// token: 있으면(인증) 상세 fetch로 방문시간(hours)까지 채움. 없으면 hours 빈값.
+async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token, c) {
   const id = String((it && (it.id || it.hash)) || '');
   if (!id || seen.has(id)) return;
   seen.add(id);
@@ -1839,11 +1867,18 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, c) {
   if (!auto && !REVU_CAT[String(v.category || '').toLowerCase()]) flags.push('카테고리확인(기본값 기타)');
   if (!REVU_MEDIA[mediaRaw]) flags.push('채널확인');
   if (!content) flags.push('내용확인');
+  // 인증이면 상세에서 방문/영업시간 확보(altVisitInfo). 요일은 시간 텍스트에 함께 담겨(월~토 등) days는 비움.
+  let hours = '';
+  if (token) {
+    const alt = await revuFetchDetail(token, id);
+    await sleep(180); // 상세 fetch 레이트리밋
+    hours = revuVisitHours(alt);
+  }
   const ins = await db.execute({
     sql: `INSERT OR IGNORE INTO scraped_items
       (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
       VALUES ('레뷰',?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
-    args: [id, url, name, address, category, channel, content, deadline || '', '', '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+    args: [id, url, name, address, category, channel, content, deadline || '', hours, '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
   });
   if (ins.rowsAffected > 0) c.staged++;
 }
@@ -1868,7 +1903,7 @@ async function runRevu({ db, limit = 4000, deadlineTs = 0, dedupe: _dedupe = nul
       const { items, total: tot } = await revuFetchAuthed(token, page, PER);
       if (tot) total = tot;
       if (!items.length) break;
-      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, c);
+      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token, c);
       await sleep(200); // 레이트리밋(얌전하게)
       if (total && page >= Math.ceil(total / PER)) break;
     }
@@ -1878,7 +1913,7 @@ async function runRevu({ db, limit = 4000, deadlineTs = 0, dedupe: _dedupe = nul
       if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
       const items = await revuFetchList(kind);
       await sleep(150);
-      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, c);
+      for (const it of items) await revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, null, c);
     }
   }
   await db.execute({
@@ -1997,4 +2032,4 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
   return { platform, newCandidates: moreLeft ? campCount : c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, campCount, timedOut };
 }
 
-module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
