@@ -293,9 +293,16 @@ module.exports = async function handler(req, res) {
       const placeCount = Number((await db.execute("SELECT COUNT(*) AS n FROM places WHERE COALESCE(hidden,0)=0")).rows[0]?.n || 0);
       const channels = chNames.map((ch, i) => ({ channel: ch, n: Number(agg['ch' + i] || 0) })).filter(x => x.n > 0);
       const dday = {}; for (let d = 0; d <= 7; d++) dday[d] = Number(agg['d' + d] || 0);
+      // 후기(리뷰) 집계 — 전체/오늘(KST). reviews 테이블 없거나 컬럼 이슈 시 0으로 폴백.
+      let reviewCount = 0, reviewTodayCount = 0;
+      try {
+        const rv = (await db.execute(`SELECT COUNT(*) AS total, SUM(CASE WHEN date(created_at,'+9 hours')='${today}' THEN 1 ELSE 0 END) AS today FROM reviews WHERE COALESCE(hidden,0)=0`)).rows[0] || {};
+        reviewCount = Number(rv.total || 0); reviewTodayCount = Number(rv.today || 0);
+      } catch (e) {}
       return res.status(200).json({
         placeCount, total: Number(agg.total || 0), active: Number(agg.active || 0),
         userReported: Number(agg.userReported || 0), userReportedToday: Number(agg.userToday || 0),
+        reviewCount, reviewTodayCount,
         platforms: plat, channels, dday,
       });
     }

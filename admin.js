@@ -589,8 +589,8 @@ function renderDashboard() {
     setN('statPlaces', st.placeCount);
     setN('statCampaigns', st.total);
     setN('statActive', st.active);
-    setN('statUserReported', st.userReported);
-    setN('statUserReportedToday', st.userReportedToday);
+    setN('statReviewTotal', st.reviewCount);
+    setN('statReviewToday', st.reviewTodayCount);
     const activeN = Math.max(1, Number(st.active) || 0); // 막대 분모(원본과 동일: 활성수 기준)
 
     // 마감 임박 (D-DAY ~ D-7): 서버가 남은일수별 집계 제공(상시=마감없음 제외)
