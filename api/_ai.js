@@ -13,7 +13,7 @@
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-const VALID_CATEGORIES = ['음식점', '카페', '뷰티', '숙박/여가', '문화', '의류', '안경/잡화', '기타'];
+const VALID_CATEGORIES = ['음식점', '카페', '뷰티', '숙박/여가', '문화', '의류', '안경/잡화', '운동', '기타'];
 
 function fail(reason) {
   return { approve: false, category: null, duplicateOf: null, confidence: 0, reason };
