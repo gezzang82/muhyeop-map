@@ -15,11 +15,12 @@ const { createClient } = require('@libsql/client');
 for (const l of fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf8').split('\n')) {
   const m = l.match(/^([A-Z_]+)=(.*)$/); if (m) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
 }
+const { categoryByKeyword } = require('../api/_scrape');
 const db = createClient({ url: process.env.TURSO_DATABASE_URL, authToken: process.env.TURSO_AUTH_TOKEN });
 const APPLY = process.argv.includes('--apply');
 
-// _scrape.js categoryByKeyword의 '운동' 클러스터와 동일(gym/fitness만; 여가 스포츠 제외).
-const GYM = /헬스|피트니스|필라테스|요가|골프|스크린골프|클라이밍|크로스핏|복싱|주짓수|테니스|스쿼시|\bPT\b|퍼스널\s*트레이닝|무에타이|킥복싱|펜싱|스피닝|점핑\s*다이어트/;
+// 신규 수집과 동일 규칙(categoryByKeyword)이 '운동'으로 판정하는 매장만 대상 → 규칙 드리프트 방지.
+const isGym = (s, name) => categoryByKeyword(s, name) === '운동';
 
 (async () => {
   // 기타 매장 + 캠페인 content 집계
@@ -33,7 +34,7 @@ const GYM = /헬스|피트니스|필라테스|요가|골프|스크린골프|클�
   const hits = [];
   for (const r of rows) {
     const s = String(r.name || '') + ' ' + String(r.contents || '');
-    if (GYM.test(s)) hits.push({ id: r.id, name: r.name });
+    if (isGym(s, String(r.name || ''))) hits.push({ id: r.id, name: r.name });
   }
 
   console.log(`기타 매장: ${rows.length}건`);

@@ -206,7 +206,8 @@ function categoryByKeyword(content, name) {
   if (/(?<![가-힣])사주|(?<![가-힣])타로|운세|점집|(?<![가-힣])신점|철학관|작명|무속|명리|손금|관상|점사/.test(s)) return '기타'; // 사주·타로·신점: '유타로'·'혁신점' 등 상호/지점명 오매치 방지(앞 글자 한글이면 제외)
   // 운동/피트니스(헬스·필라테스·요가·골프·크로스핏·PT·복싱·주짓수·테니스 등) → '운동' 카테고리(2026-09-20).
   //  낚시·승마·다이빙·서핑·수영·볼링·당구·크루즈 등 여가성 활동은 '운동' 아님 → 아래에서 '기타' 유지.
-  if (/헬스|피트니스|필라테스|요가|골프|스크린골프|클라이밍|크로스핏|복싱|주짓수|테니스|스쿼시|\bPT\b|퍼스널\s*트레이닝|무에타이|킥복싱|펜싱|스피닝|점핑\s*다이어트/.test(s)) return '운동';
+  //  '다이어트짐/○○짐'은 뷰티(다이어트)보다 먼저 운동으로. 짐(gym)은 이삿짐/화물짐 등 오검출 방지 위해 앞뒤 조건 부여.
+  if (/헬스|피트니스|휘트니스|운동\s*센터|운동\s*클럽|필라테스|요가|골프|스크린골프|클라이밍|크로스핏|복싱|주짓수|테니스|스쿼시|\bPT\b|퍼스널\s*트레이닝|무에타이|킥복싱|펜싱|스피닝|점핑\s*다이어트|웨이트\s*트레이닝|축구|풋살|농구|배드민턴|탁구|(?<!이삿)(?<!이사)(?<!화물)짐(?![가-힣])/.test(s)) return '운동';
   if (/볼링|당구|다이빙|서핑|스케이트|양궁|크루즈|유람선|요트|배낚시|선상낚시|실내낚시|좌대낚시|바다낚시|낚시터|밤낚시|키즈수영|수영강습|수영\s*특강|수영교실|유아수영|아기수영|생존수영|승마클럽|승마체험|승마장|승마공원|롤러장|롤러스케이트|트램폴린/.test(s)) return '기타';
   if (/세차|세차장|손세차|셀프세차|디테일링|광택|세탁|빨래|드라이클리닝|코인빨래|코인워시|애견|반려동물|반려견|반려묘|퍼피|펫샵|펫호텔|펫카페|펫막스|펫스토어|반려용품|\b펫\b|강아지|고양이|동물병원|파충류|파충류샵|게코샵|렙타일|수선|열쇠|철물|프린트|인쇄|택배|무인점포|무인매장|키즈카페|베이비카페|영유아카페|놀이방|피로연|예식장|웨딩홀/.test(s)) return '기타';
   if (/약손|안마|마사지|지압|경락|스웨디시|발마사지|타이마사지|풋마사지|스포츠마사지|림프|테라피|족욕|디톡스\s*족욕|웰리스|웰니스|상담센터|심리상담|전화상담|방문상담|발달센터|치유센터|금거래소|금은방|귀금속|결혼정보|소개팅|컨설팅|신당(?!동|점|본|역)|(?<![가-힣])신점|보살|운전면허/.test(s)) return '기타'; // 신당: '신당동'·'○○신당점'(지점) 제외, '천신당'(점집)은 유지
@@ -231,7 +232,7 @@ function mapCategory(platformCat, content, name) {
   const s = content + ' ' + name;
   // 운동/스포츠는 플랫폼 카테고리(뷰티·맛집 등) 지름길보다 먼저 판정. 필라테스/요가/골프 등이 뷰티·음식점으로 새던 것 방지(2026-09-01)
   //  gym/fitness는 '운동'(2026-09-20), 여가성(볼링·당구·다이빙·서핑·크루즈)·족욕·점사는 '기타' 유지.
-  if (/헬스|피트니스|필라테스|요가|골프|스크린골프|클라이밍|크로스핏|복싱|주짓수|테니스|스쿼시|\bPT\b|퍼스널\s*트레이닝|무에타이|킥복싱|펜싱|스피닝/i.test(s)) return { cat: '운동', flag: false };
+  if (/헬스|피트니스|휘트니스|운동\s*센터|운동\s*클럽|필라테스|요가|골프|스크린골프|클라이밍|크로스핏|복싱|주짓수|테니스|스쿼시|\bPT\b|퍼스널\s*트레이닝|무에타이|킥복싱|펜싱|스피닝|웨이트\s*트레이닝|축구|풋살|농구|배드민턴|탁구|(?<!이삿)(?<!이사)(?<!화물)짐(?![가-힣])/i.test(s)) return { cat: '운동', flag: false };
   if (/볼링|당구|다이빙|서핑|크루즈|유람선|요트|족욕|점사/i.test(s)) return { cat: '기타', flag: false };
   if (platformCat === '뷰티') return { cat: '뷰티', flag: false };
   if (platformCat === '맛집') {
@@ -240,7 +241,7 @@ function mapCategory(platformCat, content, name) {
   }
   if (platformCat === '여가') {
     if (/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|캠핑|리조트|게스트하우스|한옥스테이|독채|\b스테이\b/.test(s)) return { cat: '숙박/여가', flag: false };
-    if (/헬스|피트니스|필라테스|요가|골프|클라이밍|스크린골프|퍼스널트레이닝|\bPT\b/i.test(s)) return { cat: '운동', flag: false };
+    if (/헬스|피트니스|휘트니스|운동\s*센터|운동\s*클럽|필라테스|요가|골프|클라이밍|스크린골프|퍼스널트레이닝|\bPT\b/i.test(s)) return { cat: '운동', flag: false };
     if (/사주|타로|운세|점집|신점|철학관|작명/.test(s)) return { cat: '기타', flag: false };
     if (/파티룸|루프탑\s*파티|모임\s*공간|공간\s*대여/.test(s)) return { cat: '기타', flag: false };
     return { cat: '문화', flag: true };
@@ -1778,6 +1779,16 @@ const REVU_API = 'https://api.weble.net';
 const REVU_LISTS = ['deadline', 'trending', 'premier', 'high-selection'];
 const REVU_MEDIA = { instagram: '인스타그램', blog: '블로그', naverblog: '블로그', youtube: '유튜브', clip: '클립', reels: '릴스', shorts: '쇼츠', tiktok: '틱톡' };
 const REVU_CAT = { food: '음식점', restaurant: '음식점', cafe: '카페', beauty: '뷰티', accommodation: '숙박/여가', travel: '숙박/여가', culture: '문화', digital: '기타', life: '기타', other: '기타' };
+// 레뷰 목록 아이템의 `category` 배열(예: ["맛집","방문형"])에 담긴 실제 업종 태그 → 우리 카테고리.
+// venue.category는 대부분 'other'라 쓸모없고, 이 태그가 신뢰 가능한 업종 신호(2026-09-20).
+const REVU_TAG_CAT = {
+  '맛집': '음식점', '카페': '카페', '디저트': '카페',
+  '뷰티샵': '뷰티', '뷰티': '뷰티', '스킨케어': '뷰티', '메이크업': '뷰티', '바디': '뷰티', '헤어': '뷰티',
+  '숙박': '숙박/여가', '여행': '숙박/여가',
+  '문화': '문화',
+  '잡화': '안경/잡화', '안경': '안경/잡화',
+  '지역_기타': '기타', '지역-기타': '기타', '기타': '기타',
+};
 
 const REVU_HEADERS = { 'User-Agent': UA, 'Content-Type': 'application/json', Accept: 'application/json', Origin: 'https://www.revu.net', Referer: 'https://www.revu.net/' };
 
@@ -1875,12 +1886,15 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
   seenVC.add(vcKey);
   const content = (it.campaignData && it.campaignData.reward) ? String(it.campaignData.reward).trim() : '';
   const auto = categoryByKeyword(content + ' ' + name, name);
-  const category = auto || REVU_CAT[String(v.category || '').toLowerCase()] || '기타';
+  // 레뷰 업종은 it.category 배열의 업종 태그(맛집/뷰티샵/숙박/문화 등)가 신뢰 가능. venue.category는 대부분 'other'.
+  //  우선순위: 내용 키워드(운동·카페 등 세부 구분) → 레뷰 업종태그 → venue.category → 기타.
+  const revuTag = Array.isArray(it.category) ? it.category.map(x => REVU_TAG_CAT[String(x).trim()]).find(Boolean) : null;
+  const category = auto || revuTag || REVU_CAT[String(v.category || '').toLowerCase()] || '기타';
   const url = `https://www.revu.net/campaign/${id}`;
   const cls = classify({ name, channel, address }, dedupe, today);
   if (cls.status === 'dup_active') { c.dupActive++; return; }
   const flags = [];
-  if (!auto && !REVU_CAT[String(v.category || '').toLowerCase()]) flags.push('카테고리확인(기본값 기타)');
+  if (!auto && !revuTag && !REVU_CAT[String(v.category || '').toLowerCase()]) flags.push('카테고리확인(기본값 기타)');
   if (!REVU_MEDIA[mediaRaw]) flags.push('채널확인');
   if (!content) flags.push('내용확인');
   // 인증이면 상세에서 방문/영업시간 확보(altVisitInfo) → 서울오빠/링블 파서(rbHoursDays)로 요일·시간 분리.
