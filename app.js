@@ -1086,6 +1086,9 @@ function fmtReviewDate(s) { const m = String(s || '').match(/(\d{4})-(\d{2})-(\d
 
 // 라이브버블(후기 등록 알림) 클릭 등에서 상세를 '후기 탭'으로 강제로 열 때 사용(1회성). initDetailTabs가 소비 후 리셋.
 let _forceReviewTab = false;
+// 검색·버블로 캠페인 로드 전 상세가 열려 '활성 캠페인 0'으로 판단돼 후기가 기본 탭이 된 경우 true.
+// (버블 강제 후기와 구분) 캠페인이 백그라운드로 도착하면 refreshOpenDetailCampaignPane가 캠페인 탭으로 되돌린다.
+let _detailReviewByAbsence = false;
 function _defaultDetailTab(place) {
   return _forceReviewTab ? 'review' : (getActiveCampaigns(place.id).length ? 'campaign' : 'review');
 }
@@ -1113,8 +1116,11 @@ function initDetailTabs(place) {
   _detailPlaceId = place.id;
   _reviewLoaded = false;
   _reviewSort = 'latest';
+  const forced = _forceReviewTab;
   const def = _defaultDetailTab(place);
   _forceReviewTab = false; // 1회성 소비: 다음 상세 열림엔 다시 기본 로직
+  // 후기가 기본이 된 이유가 '버블 강제'가 아니라 '아직 캠페인 미로드(활성 0)'였는지 기록.
+  _detailReviewByAbsence = (def === 'review' && !forced);
   _detailTab = def;
   if (def === 'review') { _reviewLoaded = true; loadReviews(place.id); }
   // PC 인포윈도우: 팝업 내부 휠 스크롤이 지도 줌으로 새는 것 방지 (휠 전파 차단 → 내부 스크롤만)
@@ -1538,6 +1544,10 @@ function refreshOpenDetailCampaignPane(place) {
   tmp.innerHTML = html;
   const freshPane = tmp.querySelector('.rv-pane-campaign');
   if (freshPane) livePane.innerHTML = freshPane.innerHTML;
+  // 캠페인 로드 전에 열려 후기가 기본이 됐던 상세라면(버블 강제 아님), 사용자가 아직 캠페인 탭으로
+  // 바꾸지 않았을 때만 캠페인 탭으로 되돌린다(검색으로 화면 밖 매장을 열면 후기부터 뜨던 문제).
+  if (_detailReviewByAbsence && _detailTab === 'review') switchDetailTab(place.id, 'campaign');
+  _detailReviewByAbsence = false;
 }
 
 async function focusPlace(placeId, zoom) {
