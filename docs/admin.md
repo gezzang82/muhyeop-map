@@ -5,11 +5,15 @@
 - `admin.js` — 어드민 로직
 - `admin.css` — 어드민 전용 스타일
 
+## 모바일 반응형 (로그인 + 대시보드만, 2026-09-18)
+- 어드민은 기본 PC 전용이나 **로그인 화면과 대시보드만** 폰에서 보이게 `admin.css`에 `@media (max-width:640px)` 블록 추가. 좌측 사이드바 숨김, 상단바에 `.topbar-brand-mobile`('무협맵 관리자') 노출, 통계 그리드 2열(값 26px/라벨 13.5px), 대시보드 행 1열, 마감임박/방문추이 등 넓은 카드는 `overflow-x:auto`. 로그인 박스도 반응형. 폰트는 너무 작지 않게. **나머지 관리 탭(장소/캠페인/수집 등)은 PC에서 사용**(모바일 미대응).
+
 ## 날짜/시간 표시 (KST 변환)
 - DB의 `created_at`은 `datetime('now')`로 **UTC 저장**(스키마 대부분. `scraped_items`만 `+9 hours`). 어드민 목록의 **일시 표시는 `fmtKST()`로 KST 변환** 후 출력(회원목록 가입일시 `u.createdAt`, 신고목록 신고일시 `r.createdAt`). `fmtKST`는 SQLite UTC 문자열을 `Asia/Seoul` 기준 `YYYY-MM-DD HH:MM`으로. 대시보드 "오늘 가입" 집계(`isCreatedToday`)도 KST 기준. (후기 목록의 게시일은 `postDate` 날짜값이라 변환 대상 아님)
 
 ## 대시보드 통계
-- `statPlaces`(장소 수), `statCampaigns`(전체 캠페인 수), `statActive`(마감일이 오늘 이후인 캠페인 수), `statUserReported`(사용자 제보 수), `statMembers`(가입 회원 수, `/api/users` 응답 길이) 카드로 구성
+- `statPlaces`(장소 수), `statCampaigns`(전체 캠페인 수), `statActive`(마감일이 오늘 이후인 캠페인 수), `statReviewTotal`/`statReviewToday`(후기 전체/오늘, KST), `statMembers`(가입 회원 수, `/api/users` 응답 길이) 카드로 구성
+- **'유저 제보' 카드 → '후기' 카드 교체(2026-09-20)**: 예전엔 `statUserReported`(사용자 제보 수/오늘)를 표시했는데 유저 제보 지표 중요도가 낮아지고 후기(공생 활동)가 더 의미 있어 → `statReviewTotal`/`statReviewToday`로 교체. 값은 `?stats=1`의 `reviewCount`/`reviewTodayCount`(`reviews` 테이블, [[api-db]]).
 - **방문 카드**(2026-07-31): `statVisitTodayPv`(오늘 PV)·`statVisitTodayUv`(오늘 UV=IP+일 중복제거)·`statVisitTotalPv`(누적 PV). `GET /api/places?visit=stats`로 조회(비로그인 포함 전체 방문). 집계는 공개 페이지 로드 시 `POST ?visit=1`(app.js). 기존 회원목록 "접속수"는 로그인 회원 한정이라 별개. **오늘 평균 체류시간 카드**(`statVisitTodayDwell`, `fmtDwell`, 2026-09-09): `dwell_sum/dwell_count`. **운영자 집 IP는 방문 집계에서 제외**(`EXCLUDED_VISIT_IPS`, api/places.js — 기본 집IP + 환경변수 추가)라 자기 접속이 PV/UV/체류를 부풀리지 않음. 방문추이 그래프 툴팁에도 일별 평균 체류 표시.
 - **유입경로 카드(누적)**(`#referrerStats`, `renderReferrers`): `?visit=stats`의 `referrers`(누적 top8, `site_referrer`)로 채널별(네이버/인스타/구글/당근/직접·앱/기타 호스트) 막대 표시. 방문 핑에 `document.referrer`를 실어 보내 채널 분류(`classifyReferrer`) 누적. 내부이동(muhyeop.com)은 제외, referrer 빈 값(다이렉트·앱·일부 인앱브라우저)은 '직접·앱'. 검색어까진 안 보임.
 - **일별 유입경로 카드**(`#referrerDaily`, `renderReferrerDaily`, 2026-09-09): 최근 14일 **날짜별 채널 분포**(예 "09-09 · 직접·앱 6 · 네이버 3", 외부채널은 브랜드컬러 칩). `?visit=stats`의 `referrerDaily`(날짜×채널 매트릭스)로 렌더. 별도 `site_referrer_daily` 테이블에 `?visit=1`이 일자별 누적. **블로그·카톡 등 채널 효과를 "올린 날 대비 유입"으로 측정**하려고 신설(누적 카드만으론 "오늘 어디서 왔나"를 못 봤음). 배포(2026-09-09) 이후 방문부터 집계.
@@ -35,7 +39,7 @@
 - 캠페인 등록 폼의 "참여 가능 요일"은 기본 전체 ON. **`참여 가능 요일 확인 안됨`(`#addDaysUnknown`) 체크 시 요일 전체 해제 + 비활성** → 저장 시 빈 값이라 공개 화면에 요일 미노출(`toggleDaysUnknown`). 캠페인 수정 진입 시 요일이 비어있으면 이 체크박스가 자동 체크됨. 어드민은 마감일이 **선택(현행 유지)**, 공개 제보 폼은 필수화 방향(논의됨).
 
 ## 데이터 수집 / AI 자동등록 (매장/캠페인 등록 → 데이터 수집 서브탭)
-- **수집**: 플랫폼(디너의여왕/포블로그)·지역·범위·최대건수 선택 후 `collectScrape()`(`POST ?action=scrape`). 결과가 `scraped_items`(승인 대기)에 쌓임. 승인 대기/등록 완료/반려/수집 이력 서브탭.
+- **수집**: 플랫폼(디너의여왕/강남맛집/링블/서울오빠/포블로그/오마이블로그/구구다스/리뷰노트/라미라미/레뷰/포포몬)·지역·범위·최대건수 선택 후 `collectScrape()`(`POST ?action=scrape`). 결과가 `scraped_items`(승인 대기)에 쌓임. 승인 대기/등록 완료/반려/수집 이력 서브탭. 수집/조회/등록 폼의 플랫폼 드롭다운(`#cvPlatform`/`#addPlatform`/`#inputPlatform` 등)에 **레뷰·포포몬**도 포함(2026-09-19~20).
 - **승인 대기 검수**: 행별 [승인][수정(인라인)][반려], 일괄 반려. `approveStaged`가 매장 없으면 좌표변환 후 `POST /api/places`(**`source:'admin'` 전송 → 최초 제보자에 운영자 세션 안 붙음**, 2026-08-23 수정)+`POST /api/campaigns`(`source:'admin'`)→`review` status=registered. 검수(`auto_note`)열에 오토파일럿 라우팅 사유 표시.
 - **중복 매장 방지**(2026-08-27): 디너의여왕은 채널(블로그/클립/인스타)마다 별도 캠페인이라 **한 매장이 여러 행으로 승인**됨. `POST /api/places`(`source:'admin'`)와 `_autopilot.insertPlace`는 **같은 이름(공백무시)+같은 좌표(±0.0007≈50m) 매장이 있으면 새로 안 만들고 그 매장 재사용** → 매장 1개·캠페인만 여러 개. (이전엔 빠른 연속 승인 시 클라 메모리 dedup 경합으로 같은 매장 2~3개 생성되던 버그. 기존 57개는 병합 정리함)
 - **AI 자동등록(오토파일럿) 카드**(2026-08): `execAutopilot(dry)` — [미리보기(등록 안 함, `?dry=1`)]/[지금 실행](`POST ?action=autopilot`). 결정 표(🟢자동등록/🟡검수대기/🔴스킵)+요약 노출. **로컬 크롤러(`scripts/crawl-worker.js`)가 상시 자동 실행**하며(Vercel 크론 폐지 2026-08-30) 버튼은 즉시 실행/미리보기용. 자동등록분은 `campaigns.source='ai'` → **조회>캠페인 출처 라디오 'AI'**로 모아보고 해당 행에서 회수. 라우팅/처리량 상세: `docs/product/03-platform-analysis.md` 8절, 엔진 `api/_autopilot.js`.

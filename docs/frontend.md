@@ -11,6 +11,7 @@
 - 캠페인에는 `deadline`(마감일, 빈 값 허용 = 마감일 없음), `createdAt`, `source`(`user`/그 외) 등이 있음
 - 지도에 마커를 찍고, 마커 클릭 시 정보창(인포윈도우)에 협찬 내용을 보여줌
 - **활성 캠페인 캐시**: `getActiveCampaigns(placeId)`/`hasActiveCampaign`는 매 호출 `campaigns` 전체를 필터링하지 않고, `getActiveByPlaceMap()`가 만든 `placeId→활성캠페인[]` 맵을 재사용(지도 이동마다 O(매장×캠페인) 반복 스캔 제거). 캐시는 **명시적으로만 무효화**(`invalidateActiveCache()`): 데이터 로드 후, 제보 등록(`campaigns.push`) 후, 채널필터 변경(`filterChannel`) 시. `campaigns`를 직접 건드리면 이 무효화를 같이 호출해야 함. PC "총 협찬수"(`updateStatCount`)도 마감/숨김 제외한 활성만 집계.
+  - **자정 롤오버 수정(2026-09-19)**: 활성 판정은 KST '오늘' 기준인데, 앱을 켜둔 채 자정을 넘기면 캐시가 어제 기준으로 굳어 **어제 마감된 캠페인이 계속 활성으로 뜨던** 문제. `getActiveByPlaceMap`이 KST 날짜 스탬프(`_activeByPlaceDay`)를 들고 있다가 날짜가 바뀌면 맵을 자동 재계산하고, `visibilitychange`로 화면 복귀 시에도 `invalidateActiveCache`+재렌더 → 날짜 경계에서 목록/핀이 갱신됨.
   - **⚠️ 성능(2026-09-14)**: `hasActiveCampaign`는 **활성 맵 O(1) 조회만** 한다. 예전엔 `places.find(2만 선형스캔)`로 `place.hidden`을 확인했는데, 저줌·넓은뷰에서 뷰당 수천 번 호출돼 **O(뷰×2만) 폭증**(완전 아웃/z11 실측 373ms→17ms). 활성 맵은 공개 데이터라 숨김 캠페인/숨김매장 소속을 이미 제외 → `place.hidden` 재조회 불필요. 루프 안에서 매장ID→매장 조회가 필요하면 `places.find` 반복 금지(맵 캐시 사용).
   - **renderSidebar 저줌 조기반환/디바운스(2026-09-14)**: `map idle`의 사이드바 갱신은 120ms 디바운스. `zoom < CAMPAIGN_MIN_ZOOM`(전국·광역)에선 캠페인 미로드로 목록이 어차피 비어 '확대 안내'만 뜨므로 **2만 매장 뷰포트 필터를 통째로 스킵**. 뷰포트 필터도 `bounds.hasLatLng(new LatLng())`(매장마다 객체 할당) 대신 경계값 숫자 비교. 마감임박 정렬은 장소별 최이른마감을 1회 메모(sort 비교마다 재계산 방지).
 - **캠페인 뷰포트(bbox) 로딩(2026-09-01)**: 접속 시 캠페인 전량(활성 2.2만·10.2MB)을 받던 것을 **화면에 보이는 영역만** 받도록 전환(경량화). `loadInitialData`는 공개 앱에서 **매장(`?map=1`: 활성 캠페인 OR 후기 있는 매장만 — 지도 경량화 v2, 아래) + 배너 + `?count=active`(총수) + `?recent=24`(버블)** 만 받고 `campaigns`는 빈 채 시작. 지도 idle마다 `loadCampaignsForView()`가 뷰(`viewBoundsWithMargin`)를 `CAMPAIGN_TILE`(0.05°) 격자에 스냅해 **아직 안 받은 타일만** `/api/campaigns?active=1&bbox=W,S,E,N` 요청 → `campaigns`에 id 기준 dedupe 병합(`_loadedTiles`/`_loadedCampaignIds`/`_campInFlight` Set) → `invalidateActiveCache`+재렌더. **`CAMPAIGN_MIN_ZOOM`(11) 미만**(전국·광역 뷰)에선 캠페인 로드 안 함(클러스터만; 사이드바는 "확대하면 협찬이 보여요" 힌트). **지도 경량화 v2(2026-09-11)**: 매장 전량(39k) 대신 **`?map=1`(활성 캠페인 OR 후기 매장만, ~20.7k·8.2MB→4.9MB)** 로드 → 죽은 매장 ~1.6만 제외로 모바일 파싱/렌더 경감(방문 69% 모바일웹). 죽은 매장은 지도에서 빠지나 **검색은 서버 전체 대상**: `searchRegion`이 in-memory(map-set) 미스 시 `searchPlacesOnServer`가 `/api/places?q=이름`(전체 비숨김)으로 찾아 `places`에 병합→`focusPlace`(죽은 매장도 검색→후기 등록 가능). 클러스터링·사이드바는 map-set in-memory로 그대로 작동(활성 매장은 전부 포함). `updateStatCount`는 서버 `totalActiveCount` 사용(어드민은 전량 로드라 `campaigns` 집계로 폴백). 라이브버블은 `recentCampaigns`(매장명 조인) 사용. **화면 밖 매장을 focus(버블·검색)로 열 때**는 `ensurePlaceCampaigns(placeId)`가 `?active=1&placeId=`로 그 매장 캠페인을 먼저 확보(빈 상세 방지). 제보 등록 시 `campaigns.push`+`_loadedCampaignIds.add`+`totalActiveCount++`. 효과: 초기 15MB→매장(gzip~1MB)+뷰포트 캠페인 수백건, 메모리 캠페인 객체 2.2만→화면당 수백. 어드민(`/admin`)은 통계용으로 캠페인 전량 로드 유지.
@@ -40,6 +41,7 @@
 - **후기 등록 알림으로 전환(2026-09-15)**: 예전엔 캠페인 추가를 `"익명님이 ○○을 추가했어요"`로 알렸는데, 대부분이 크롤링(AI/admin)이라 실제 제보가 아니고 오해 소지(가짜 익명) → **진짜 유저 활동인 '후기 등록'만** 알림. 문구 `"○○님이 <매장명> 후기를 등록했어요!"`. `buildLiveMessagePool`이 **서버 `?reviews=recent`(최근 후기, 매장명·닉네임 조인) = `recentReviews`** 기반으로 구성(캠페인 `recentCampaigns` 폐기). 후기 없으면 빈 풀 → 말풍선 미표시. **왜**: 크롤링 캠페인의 가짜 "추가" 알림 제거 + 후기(공생) 유도. 관련 결정 [[06-decision-log]].
 - 말풍선 클릭 `clickLiveBubble()` → **`_forceReviewTab=true` 설정 후** `focusPlace(placeId)` → 매장 상세를 **후기 탭으로 바로** 오픈(활성 캠페인 있어도 후기 우선). `_defaultDetailTab(place)`가 이 플래그면 `'review'` 반환 → 탭 하이라이트(`detailTabsHtml`)+**패널 display(`rv-pane-*`)** 둘 다 이 기준으로(예전엔 패널 display가 `active.length` 기준이라 탭↔패널 어긋났음). `initDetailTabs`가 1회성 소비 후 `_forceReviewTab=false` 리셋(일반 핀 클릭은 기본탭 유지).
 - 부모 `.live-alert`가 `pointer-events: none`이라 클릭 가능하게 하려면 `.live-bubble.show`에 `pointer-events: auto`를 개별 지정해야 함 (캐릭터 래퍼도 동일 패턴)
+- **캐릭터 UI/클릭 통일(2026-09-19)**: 예전엔 캐릭터 아래 '제보하기' 버튼(`.live-cta-btn`)이 붙고 클릭 시 `openModal`(제보)이었으나 → **버튼 제거**, 모바일도 PC 이미지 사용(`getChFrames`가 항상 PC 프레임 `img_ch_01~05` 반환) 64x64 회색원+그림자, **캐릭터 클릭 동작을 말풍선과 동일하게 `clickLiveBubble()`(=후기)** 로 변경. 제보 진입은 PC 상단탭/모바일 사이드메뉴에 유지. **왜**: 제보 중요도가 낮아지고 후기(공생)로 무게 이동 → 클릭 동작 통일. 관련 결정 [[06-decision-log]].
 
 ## 정보창(인포윈도우) 뱃지
 - "공휴일 불가" 뱃지: `excludeHoliday`가 true일 때 노출, 폰트 컬러 `#000`
@@ -48,6 +50,7 @@
 - `#modalOverlay` 제보 폼에는 이메일 입력란이 없음(완전히 삭제됨, 숨김 아님). 로그인 사용자는 세션의 OAuth 이메일이 서버에서 조용히 `founder_email`/`reporter_email`에 채워지고, 비로그인 사용자는 이메일을 전혀 수집하지 않음(닉네임 + 블로그/인스타 링크만).
 - 로그인 상태에서 `resetModal()`은 `inputNickname`을 계정 닉네임으로 채우고 `readOnly`로 잠금. 프로필에 블로그/인스타(`currentUser.urlPlatform`/`urlId`)가 미리 등록돼 있으면 `inputUrlPlatformTrigger`에 `.locked` 클래스를 추가하고 `inputUrlId`도 `readOnly`로 잠가 수정 불가능하게 함 — 변경하려면 `#inputLockedHint` 안내 문구의 링크로 프로필 설정(`openProfileSheet()`)으로 이동해야 함.
 - 프로필에 링크를 등록하지 않은 로그인 사용자나 비로그인 사용자는 평소처럼 직접 입력 가능(잠금 없음).
+- **과거 마감일 제보 차단(2026-09-18)**: `submitCampaign`이 마감일(`deadline`)이 오늘(KST)보다 과거면 인라인 에러('마감일이 이미 지났어요…')로 막고, 서버(`api/campaigns.js` POST)도 `source!=='admin'`이면 400으로 재차 차단(이미 지난 캠페인 등록 방지, [[api-db]]).
 
 ## 이메일 선택 수취 (추가정보입력 / 내 정보)
 - 카카오는 OAuth 이메일을 못 받는 경우가 많아(비즈앱 검수 필요), **이메일을 '추가 정보 입력'(`#signupEmail`)·'내 정보'(`#profileEmail`) 시트에서 선택 입력**받음. **네이버는 OAuth로 받은 이메일을 prefill**(`currentUser.email`), 카카오는 빈 칸. `confirmSignupInfo`/`saveProfile`이 `email`을 `/api/auth/profile`로 전송, 형식 검증 `isValidEmail`. 제보 폼 자체엔 여전히 이메일 입력란 없음(닉네임+링크만).
@@ -62,6 +65,13 @@
 
 ## 제보왕(리더보드) 배너 — 현재 숨김
 - `app.js`의 `LEADERBOARD_ENABLED = false` 플래그로 PC/모바일 제보왕 배너 비노출(`renderLeaderboard`가 조기 반환, 60초 폴링도 안 돎). 베타 이벤트 시작 시 `true`로. API(`/api/users?leaderboard=1`)는 살아있음.
+
+## 안드로이드 바텀시트/사이드바 부드럽게 (2026-09-18)
+- iOS 대비 안드로이드 웹뷰에서 바텀시트 열림·확장이 버벅였음(저사양 기기 GPU 합성 부담). **바텀시트**(`.mobile-sheet`)에 `will-change: transform`+`backface-visibility: hidden`으로 GPU 승격, 내용(`.mobile-sheet-content`)은 `contain: layout paint`. `openMobileSheet`는 내용을 먼저 채우고 `.show`+`panTo`를 더블 rAF로 미뤄 첫 프레임 부담 분산.
+- **사이드바 확장 FLIP**: 확장 시 `height` 트랜지션 대신 목표 높이로 즉시 점프 후 `translateY(delta)`→0 애니메이션(`animateSidebarHeightChange`), 확장할 때 리스트 재빌드 제거(`ensureSidebarList`, 비어있을 때만 렌더). 스크롤로 완전확장(`expanded-full`)은 스크롤 중이라 `transition:none`로 즉시 적용. 스크롤 페이드 마스크(`updateSidebarListFade`)는 rAF 스로틀+그래디언트 변경 시에만 재설정(`_lastFadeGradient`).
+- **후기 말풍선 클릭 지연 제거**: `focusPlace`가 캠페인 네트워크(`ensurePlaceCampaigns`) 응답을 기다렸다 시트를 열어 한참 뒤 뜨던 것을 → **즉시 시트 오픈** 후 백그라운드 `.then`에서 캠페인 pane(`refreshOpenDetailCampaignPane`, `.rv-pane-campaign`만 교체)을 채움.
+- 검색창(`.mobile-header-search`) placeholder 끝글자('색') 잘림 → 좌우 패딩 축소(20px→14px)+`letter-spacing:-0.02em`.
+- **⚠️ iOS는 완벽 동작이라 위 변경이 iOS 거동을 바꾸지 않게 주의**(GPU 힌트/`contain`은 양쪽 무해 확인).
 
 ## iOS 네이버-블로그 인앱 Chrome 하단 크림 여백 (2026-09-12, 조사 완료)
 - **증상**: **네이버 블로그 글의 muhyeop.com 링크를 탭 → iOS 인앱 Chrome**으로 열 때만, 하단에 **크림색(#f5f5f0) 108px 여백**(바텀시트 아래~툴바 사이) + 로딩 스플래시 아래도 크림. **일반 Safari·직접 Chrome·Capacitor 앱·Android·PC는 전부 정상**(여백 없음).
