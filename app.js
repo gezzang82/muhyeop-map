@@ -1505,9 +1505,12 @@ function updateSidebarListFade() {
 // 현재위치 조회 통합: 앱은 Capacitor Geolocation(네이티브), 웹은 navigator.geolocation.
 // 둘 다 {lat, lng}로 resolve → 이후 지도 이동 동작은 웹/앱 동일.
 function getGeoPosition() {
+  // enableHighAccuracy:true → 안드로이드가 GPS(FINE)를 사용해 정확도↑(아이폰 수준). false면 네트워크(WiFi·기지국)
+  //  위치라 안드로이드에서 수백 m~km 오차가 났음. maximumAge를 짧게 둬 오래된 저정밀 캐시 재사용도 방지.
+  const geoOpts = { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 };
   const G = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation;
   if (isNativeApp() && G) {
-    return G.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 })
+    return G.getCurrentPosition(geoOpts)
       .then(p => ({ lat: p.coords.latitude, lng: p.coords.longitude }));
   }
   return new Promise((resolve, reject) => {
@@ -1515,7 +1518,7 @@ function getGeoPosition() {
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       err => reject(err),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      geoOpts
     );
   });
 }
