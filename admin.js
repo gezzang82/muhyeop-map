@@ -568,21 +568,24 @@ function renderCampaignClicks(data) {
         </div>`;
       }).join('');
   }
-  const rEl = document.getElementById('campaignClickRegion');
-  if (rEl) {
-    const regs = (data && data.regions) || [];
-    if (!regs.length) { rEl.innerHTML = '<div class="empty-msg">아직 데이터가 없어요.</div>'; return; }
-    const max = Math.max(1, ...regs.map(r => r.views || 0));
-    rEl.innerHTML = regs.map(r => {
+  // 지역/카테고리 공용 막대 렌더
+  const barList = (elId, list, key) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!list || !list.length) { el.innerHTML = '<div class="empty-msg">아직 데이터가 없어요.</div>'; return; }
+    const max = Math.max(1, ...list.map(r => r.views || 0));
+    el.innerHTML = list.map(r => {
       const rate = r.views > 0 ? Math.round(r.clicks / r.views * 100) : 0;
       return `
         <div class="stat-row">
-          <span class="stat-badge" style="background:#39395c1a;color:#39395c;min-width:56px">${escHtml(r.region)}</span>
+          <span class="stat-badge" style="background:#39395c1a;color:#39395c;min-width:56px">${escHtml(r[key])}</span>
           <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round((r.views || 0) / max * 100)}%;background:#39395c"></div></div>
           <span class="stat-num">조회 ${r.views} · 클릭 ${r.clicks} · 전환 ${rate}%</span>
         </div>`;
     }).join('');
-  }
+  };
+  barList('campaignClickRegion', (data && data.regions) || [], 'region');
+  barList('campaignClickCategory', (data && data.categories) || [], 'category');
 }
 
 // 방문 추이 기간 토글(일별/주별/월별)

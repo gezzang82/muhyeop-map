@@ -305,21 +305,24 @@ module.exports = async function handler(req, res) {
         .map(r => ({ date: r.d, views: Number(r.views || 0), clicks: Number(r.clicks || 0) }));
       const SIDO = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
       const per = (await db.execute(`
-        SELECT p.address AS addr,
+        SELECT p.address AS addr, p.category AS category,
           SUM(CASE WHEN e.kind='view' THEN 1 ELSE 0 END) AS views,
           SUM(CASE WHEN e.kind='click' THEN 1 ELSE 0 END) AS clicks
         FROM campaign_events e JOIN campaigns c ON c.id=e.campaign_id JOIN places p ON p.id=c.place_id
         GROUP BY p.id`)).rows;
-      const byS = {};
+      const byS = {}, byC = {};
       for (const r of per) {
-        const a = String(r.addr || '').trim();
-        const s = SIDO.find(k => a.startsWith(k)) || '기타';
+        const v = Number(r.views || 0), ck = Number(r.clicks || 0);
+        const s = SIDO.find(k => String(r.addr || '').trim().startsWith(k)) || '기타';
         if (!byS[s]) byS[s] = { views: 0, clicks: 0 };
-        byS[s].views += Number(r.views || 0); byS[s].clicks += Number(r.clicks || 0);
+        byS[s].views += v; byS[s].clicks += ck;
+        const cat = String(r.category || '기타').trim() || '기타';
+        if (!byC[cat]) byC[cat] = { views: 0, clicks: 0 };
+        byC[cat].views += v; byC[cat].clicks += ck;
       }
-      const regions = Object.entries(byS).map(([region, v]) => ({ region, views: v.views, clicks: v.clicks }))
+      const toSorted = (obj, key) => Object.entries(obj).map(([k, val]) => ({ [key]: k, views: val.views, clicks: val.clicks }))
         .sort((a, b) => (b.views + b.clicks) - (a.views + a.clicks));
-      return res.status(200).json({ daily, regions });
+      return res.status(200).json({ daily, regions: toSorted(byS, 'region'), categories: toSorted(byC, 'category') });
     }
     // ── 지도 경량화(뷰포트 로딩) 공개 분기 — 2026-09-01 ──
     const kstDay = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
