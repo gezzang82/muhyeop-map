@@ -80,35 +80,62 @@ function haversineKm(aLat, aLng, bLat, bLng) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
 
-// 새 협찬(매장 좌표·카테고리)에 대해 관심위치 매칭 기기로 발송.
-// campaign: { placeId, lat, lng, category, placeName }
-async function notifyNewCampaign(db, campaign) {
-  if (!serviceAccount()) return { matched: 0, sent: 0 };
-  if (campaign.lat == null || campaign.lng == null) return { matched: 0, sent: 0 };
-  const prefs = (await db.execute("SELECT device_id, lat, lng, radius_km, categories FROM push_prefs WHERE enabled=1 AND lat IS NOT NULL AND lng IS NOT NULL")).rows;
-  const targetDevices = [];
-  for (const p of prefs) {
-    const dist = haversineKm(Number(p.lat), Number(p.lng), Number(campaign.lat), Number(campaign.lng));
-    if (dist > Number(p.radius_km || 5)) continue;
-    if (p.categories && String(p.categories).trim()) {
-      const cats = String(p.categories).split(',').map(s => s.trim());
-      if (campaign.category && !cats.includes(campaign.category)) continue;
-    }
-    targetDevices.push(p.device_id);
-  }
-  if (!targetDevices.length) return { matched: 0, sent: 0 };
-  // 기기의 활성 토큰 조회
-  const ph = targetDevices.map(() => '?').join(',');
-  const toks = (await db.execute({ sql: `SELECT token FROM push_tokens WHERE enabled=1 AND device_id IN (${ph})`, args: targetDevices })).rows.map(r => r.token).filter(Boolean);
-  if (!toks.length) return { matched: targetDevices.length, sent: 0 };
-  const title = '내 동네 새 협찬 🔔';
-  const body = campaign.placeName ? `${campaign.placeName} 협찬이 떴어요` : '관심 지역에 새 협찬이 등록됐어요';
-  const r = await sendToTokens(toks, { title, body, data: { placeId: String(campaign.placeId || '') } });
-  if (r.invalid.length) {
-    const iph = r.invalid.map(() => '?').join(',');
-    try { await db.execute({ sql: `UPDATE push_tokens SET enabled=0 WHERE token IN (${iph})`, args: r.invalid }); } catch (e) {}
-  }
-  return { matched: targetDevices.length, sent: r.sent };
+async function disableInvalid(db, invalid) {
+  if (!invalid || !invalid.length) return;
+  const ph = invalid.map(() => '?').join(',');
+  try { await db.execute({ sql: `UPDATE push_tokens SET enabled=0 WHERE token IN (${ph})`, args: invalid }); } catch (e) {}
 }
 
-module.exports = { getAccessToken, sendToTokens, notifyNewCampaign, serviceAccount };
+// 하루 1회 요약 발송(스팸 방지). PUSH_DIGEST_HOUR(KST, 기본 12시) 이후 그날 아직 안 보냈으면,
+// 각 기기의 관심위치 반경(+카테고리) 안에 '지난 24h 새로 뜬 활성 협찬 수'를 세어 1건으로 발송.
+// 홍대처럼 협찬이 쏟아지는 동네도 하루 알림 1개("근처 새 협찬 N개")로 끝 → 알림 피로 없음.
+async function notifyDailyDigest(db) {
+  if (!serviceAccount()) return { devices: 0, reason: 'no-service-account' };
+  const digestHour = Number(process.env.PUSH_DIGEST_HOUR || 12);
+  const nowKst = new Date(Date.now() + 9 * 3600 * 1000);
+  const hourKst = nowKst.getUTCHours();                                   // KST로 시프트했으므로 UTC시 = KST시
+  const todayInt = Number(nowKst.toISOString().slice(0, 10).replace(/-/g, '')); // YYYYMMDD
+  if (hourKst < digestHour) return { devices: 0, reason: 'before-hour' };
+  // 하루 1회 가드: scrape_state 'push_digest'.last_max_id = 마지막 발송 YYYYMMDD
+  const st = (await db.execute("SELECT last_max_id FROM scrape_state WHERE platform='push_digest'")).rows[0];
+  if (Number((st && st.last_max_id) || 0) >= todayInt) return { devices: 0, reason: 'already-sent' };
+
+  const todayStr = nowKst.toISOString().slice(0, 10);
+  const news = (await db.execute({
+    sql: `SELECT p.lat AS lat, p.lng AS lng, p.category AS category
+          FROM campaigns c JOIN places p ON p.id=c.place_id
+          WHERE COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0
+            AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)
+            AND c.created_at >= datetime('now','-1 day')
+            AND p.lat IS NOT NULL AND p.lng IS NOT NULL`,
+    args: [todayStr],
+  })).rows;
+  const prefs = (await db.execute("SELECT device_id, lat, lng, radius_km, categories FROM push_prefs WHERE enabled=1 AND lat IS NOT NULL AND lng IS NOT NULL")).rows;
+
+  let devices = 0;
+  for (const pf of prefs) {
+    const radius = Number(pf.radius_km || 5);
+    const cats = (pf.categories && String(pf.categories).trim()) ? String(pf.categories).split(',').map(s => s.trim()) : null;
+    let n = 0;
+    for (const c of news) {
+      if (haversineKm(Number(pf.lat), Number(pf.lng), Number(c.lat), Number(c.lng)) > radius) continue;
+      if (cats && c.category && !cats.includes(c.category)) continue;
+      n++;
+    }
+    if (n <= 0) continue;
+    const toks = (await db.execute({ sql: "SELECT token FROM push_tokens WHERE enabled=1 AND device_id=?", args: [pf.device_id] })).rows.map(r => r.token).filter(Boolean);
+    if (!toks.length) continue;
+    const r = await sendToTokens(toks, {
+      title: '오늘의 새 협찬 🔔',
+      body: `관심 지역 근처에 새 협찬 ${n}개가 올라왔어요`,
+      data: { lat: String(pf.lat), lng: String(pf.lng) }, // 탭 시 그 위치로 지도 이동
+    });
+    await disableInvalid(db, r.invalid);
+    if (r.sent > 0) devices++;
+  }
+  // 오늘 발송 완료 표시(0건이어도 오늘은 다시 안 돎)
+  await db.execute({ sql: "INSERT OR REPLACE INTO scrape_state (platform, last_max_id, last_run_at) VALUES ('push_digest', ?, datetime('now'))", args: [todayInt] });
+  return { devices, candidates: news.length };
+}
+
+module.exports = { getAccessToken, sendToTokens, notifyDailyDigest, serviceAccount };

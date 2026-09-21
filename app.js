@@ -4063,8 +4063,11 @@ async function initPush() {
     P.addListener('registration', function (t) { if (t && t.value) registerPushToken(t.value); });
     P.addListener('registrationError', function () {});
     P.addListener('pushNotificationActionPerformed', function (a) {
-      const pid = a && a.notification && a.notification.data && a.notification.data.placeId;
-      if (pid != null) { try { focusPlace(Number(pid)); } catch (e) {} }
+      const d = (a && a.notification && a.notification.data) || {};
+      if (d.placeId != null && d.placeId !== '') { try { focusPlace(Number(d.placeId)); } catch (e) {} return; }
+      // 하루요약: 특정 매장이 아니라 관심 지역으로 지도 이동
+      const la = Number(d.lat), ln = Number(d.lng);
+      if (isFinite(la) && isFinite(ln)) { try { map.setCenter(new naver.maps.LatLng(la, ln)); map.setZoom(15); } catch (e) {} }
     });
     // 앱에서만 보이는 '이 지역 알림' 메뉴 노출
     const item = document.getElementById('sideMenuAlertItem'); if (item) item.style.display = '';

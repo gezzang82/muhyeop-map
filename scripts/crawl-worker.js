@@ -30,7 +30,7 @@ for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
 const { runScrape, loadDedupe, SEOUL_AREA2, AREA2_BY_REGION } = require('../api/_scrape');
 const { runAutopilot } = require('../api/_autopilot');
 const { refreshStatsCache } = require('../api/_stats');
-const { notifyNewCampaign, serviceAccount } = require('../api/_push');
+const { notifyDailyDigest, serviceAccount } = require('../api/_push');
 
 // 지역별 수집 단위(하위지역). '전체' 목록은 하위지역을 다 담지 않아 누락되므로 하위지역별로 순회한다.
 //  서울=17개 하위지역, 경기=7개, 인천=경기>인천/부천/부평(collectIds가 매핑, mode=jeonche), 부산=전체(하위지역 미정의).
@@ -192,37 +192,6 @@ async function pass() {
   return { collected, more, remaining };
 }
 
-// 새 협찬 → 관심위치 매칭 기기 푸시. PUSH_SEND_ENABLED=1 + FIREBASE_SERVICE_ACCOUNT 있을 때만.
-// 커서(scrape_state 'push_cursor')로 마지막 발송 campaign id를 추적. 최초엔 현재 MAX로 초기화해 기존 백로그는 안 보냄.
-async function pushNewCampaigns(db) {
-  if (process.env.PUSH_SEND_ENABLED !== '1' || !serviceAccount()) return;
-  const row = (await db.execute("SELECT last_max_id FROM scrape_state WHERE platform='push_cursor'")).rows[0];
-  if (!row) {
-    const maxId = Number((await db.execute("SELECT COALESCE(MAX(id),0) AS m FROM campaigns")).rows[0]?.m || 0);
-    await db.execute({ sql: "INSERT OR REPLACE INTO scrape_state (platform, last_max_id, last_run_at) VALUES ('push_cursor', ?, datetime('now'))", args: [maxId] });
-    console.log(`  [${ts()}] 푸시 커서 초기화(id=${maxId}) — 이후 신규 협찬부터 발송`);
-    return;
-  }
-  const cursor = Number(row.last_max_id || 0);
-  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-  const rows = (await db.execute({
-    sql: `SELECT c.id AS id, c.place_id AS place_id, p.lat AS lat, p.lng AS lng, p.category AS category, p.name AS name
-          FROM campaigns c JOIN places p ON p.id=c.place_id
-          WHERE c.id > ? AND COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0
-            AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)
-          ORDER BY c.id ASC LIMIT 100`,
-    args: [cursor, today],
-  })).rows;
-  if (!rows.length) return;
-  let sentTotal = 0;
-  for (const r of rows) {
-    const res = await notifyNewCampaign(db, { placeId: r.place_id, lat: r.lat, lng: r.lng, category: r.category, placeName: r.name });
-    sentTotal += res.sent || 0;
-  }
-  await db.execute({ sql: "INSERT OR REPLACE INTO scrape_state (platform, last_max_id, last_run_at) VALUES ('push_cursor', ?, datetime('now'))", args: [Number(rows[rows.length - 1].id)] });
-  if (sentTotal > 0) console.log(`  [${ts()}] 푸시 발송: ${sentTotal}건 (신규 캠페인 ${rows.length}건 확인)`);
-}
-
 (async () => {
   console.log(`크롤 워커 시작 — 지역: ${regions.join(', ')} · 최소대기 ${minWaitSec}s (Ctrl+C로 종료)`);
   if (!process.env.OPENAI_API_KEY) console.log('⚠️  OPENAI_API_KEY 없음 → 신규매장은 자동등록 대신 검수큐로 갑니다(.env.local에 추가 권장).');
@@ -232,8 +201,10 @@ async function pushNewCampaigns(db) {
       if (stopping) break;
       // 어드민 대시보드 통계를 미리 계산해 DB 캐시에 저장(콜드스타트에도 대시보드 즉시). 실패해도 무시.
       try { await refreshStatsCache(db); } catch (e) {}
-      // 새 협찬 → 관심위치 매칭 기기 푸시(FIREBASE_SERVICE_ACCOUNT + PUSH_SEND_ENABLED=1일 때만). 실패해도 무시.
-      try { await pushNewCampaigns(db); } catch (e) { console.error(`  [${ts()}] 푸시 오류: ${e.message}`); }
+      // 하루 1회 요약 푸시(PUSH_SEND_ENABLED=1 + 서비스계정 있을 때만). 매 패스 체크하되 발송 시각/1일1회는 내부 가드. 실패해도 무시.
+      if (process.env.PUSH_SEND_ENABLED === '1') {
+        try { const dg = await notifyDailyDigest(db); if (dg.devices) console.log(`  [${ts()}] 하루요약 푸시: ${dg.devices}개 기기 (신규 후보 ${dg.candidates})`); } catch (e) { console.error(`  [${ts()}] 푸시 오류: ${e.message}`); }
+      }
       // 아직 긁을 게 남았으면 짧게, 다 따라잡았으면 길게 대기(불필요한 요청 방지)
       const wait = (r.more || r.remaining > 0) ? minWaitSec : IDLE_WAIT_SEC;
       console.log(`  다음 패스까지 ${wait}s 대기…\n`);
