@@ -5,6 +5,11 @@ const { runScrape, reparsePending, AREA2_BY_REGION } = require('./_scrape');
 const { enforceRateLimit } = require('./_ratelimit');
 const { runAutopilot } = require('./_autopilot');
 
+// 어드민 대시보드 통계(?stats=1) 서버 캐시. Fluid Compute가 웜 인스턴스를 재사용하므로
+// 같은 인스턴스로 오는 재요청은 즉시 응답(크롤이 하루 단위라 3분 지연 무해). 콜드스타트 때만 재계산.
+const STATS_CACHE_TTL = 180000; // 3분
+let _statsCache = null; // { at:number, data:object }
+
 function toCampaign(row) {
   return {
     id: row.id,
@@ -273,6 +278,9 @@ module.exports = async function handler(req, res) {
     // 어드민 대시보드 통계: 캠페인 전량을 클라로 내리지 않고 서버에서 집계(COUNT/GROUP BY)만 반환 → 대시보드 즉시 렌더.
     if (q.stats) {
       if (!requireAdmin(req, res)) return;
+      if (_statsCache && Date.now() - _statsCache.at < STATS_CACHE_TTL) {
+        return res.status(200).json(_statsCache.data);
+      }
       const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
       const nh = "COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0"; // 공개 GET과 동일(숨김 제외)
       const act = `(c.deadline='' OR c.deadline IS NULL OR c.deadline >= '${today}')`;
@@ -301,12 +309,14 @@ module.exports = async function handler(req, res) {
         const rv = (await db.execute(`SELECT COUNT(*) AS total, SUM(CASE WHEN date(created_at,'+9 hours')='${today}' THEN 1 ELSE 0 END) AS today FROM reviews WHERE COALESCE(hidden,0)=0`)).rows[0] || {};
         reviewCount = Number(rv.total || 0); reviewTodayCount = Number(rv.today || 0);
       } catch (e) {}
-      return res.status(200).json({
+      const payload = {
         placeCount, total: Number(agg.total || 0), active: Number(agg.active || 0),
         userReported: Number(agg.userReported || 0), userReportedToday: Number(agg.userToday || 0),
         reviewCount, reviewTodayCount,
         platforms: plat, channels, dday,
-      });
+      };
+      _statsCache = { at: Date.now(), data: payload };
+      return res.status(200).json(payload);
     }
     // ── 지도 경량화(뷰포트 로딩) 공개 분기 — 2026-09-01 ──
     const kstDay = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
