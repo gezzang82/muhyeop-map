@@ -23,6 +23,8 @@ async function handlePushPost(req, res, db, kind) {
       sql: "INSERT INTO push_tokens (user_id, device_id, platform, token, enabled, updated_at) VALUES (?, ?, ?, ?, 1, datetime('now')) ON CONFLICT(token) DO UPDATE SET user_id=COALESCE(excluded.user_id, user_id), device_id=excluded.device_id, platform=excluded.platform, enabled=1, updated_at=datetime('now')",
       args: [userId, deviceId, platform, token],
     });
+    // 같은 기기의 옛 토큰(FCM 갱신으로 남은 것)은 비활성화 → 기기당 최신 1개만 유지(중복 알림 방지)
+    await db.execute({ sql: "UPDATE push_tokens SET enabled=0 WHERE device_id=? AND token!=?", args: [deviceId, token] });
     return res.status(200).json({ ok: true });
   }
   if (kind === 'prefs') {
