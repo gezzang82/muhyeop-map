@@ -4,10 +4,14 @@ const { requireAdmin, isAdmin } = require('./auth/_admin');
 const { runScrape, reparsePending, AREA2_BY_REGION } = require('./_scrape');
 const { enforceRateLimit } = require('./_ratelimit');
 const { runAutopilot } = require('./_autopilot');
+const { getCachedStats, refreshStatsCache } = require('./_stats');
 
-// 어드민 대시보드 통계(?stats=1) 서버 캐시. Fluid Compute가 웜 인스턴스를 재사용하므로
-// 같은 인스턴스로 오는 재요청은 즉시 응답(크롤이 하루 단위라 3분 지연 무해). 콜드스타트 때만 재계산.
-const STATS_CACHE_TTL = 180000; // 3분
+// 어드민 대시보드 통계(?stats=1) 캐시 3단.
+//  1) 인메모리: 같은 웜 인스턴스 재요청 즉시.
+//  2) DB(stats_cache 1행): 콜드스타트·인스턴스 교체에도 유지 — 로컬 크롤러가 매 사이클 갱신해 대개 여기서 히트(~130ms).
+//  3) 미스(크롤러 꺼져 오래됨): 1회 재계산 후 DB 기록.
+const STATS_CACHE_TTL = 180000;    // 인메모리 3분
+const STATS_CACHE_DB_TTL = 900000; // DB 15분(크롤러가 더 자주 갱신하므로 사실상 항상 신선)
 let _statsCache = null; // { at:number, data:object }
 
 function toCampaign(row) {
@@ -278,43 +282,14 @@ module.exports = async function handler(req, res) {
     // 어드민 대시보드 통계: 캠페인 전량을 클라로 내리지 않고 서버에서 집계(COUNT/GROUP BY)만 반환 → 대시보드 즉시 렌더.
     if (q.stats) {
       if (!requireAdmin(req, res)) return;
+      // 1) 인메모리(같은 웜 인스턴스 재요청 즉시)
       if (_statsCache && Date.now() - _statsCache.at < STATS_CACHE_TTL) {
         return res.status(200).json(_statsCache.data);
       }
-      const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-      const nh = "COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0"; // 공개 GET과 동일(숨김 제외)
-      const act = `(c.deadline='' OR c.deadline IS NULL OR c.deadline >= '${today}')`;
-      const chNames = ['블로그', '클립', '인스타그램', '릴스', '유튜브'];
-      const chSel = chNames.map((ch, i) => `SUM(CASE WHEN ${act} AND c.channels LIKE '%"${ch}"%' THEN 1 ELSE 0 END) AS ch${i}`).join(', ');
-      // D-day: julianday 계산(행마다 비쌈) 대신 오늘~+7일 8개 날짜 문자열과 동등비교(deadline은 'YYYY-MM-DD'). ~400ms 단축.
-      const ddDates = Array.from({ length: 8 }, (_, d) => new Date(Date.now() + 9 * 3600 * 1000 + d * 86400000).toISOString().slice(0, 10));
-      const ddSel = ddDates.map((ds, d) => `SUM(CASE WHEN c.deadline='${ds}' THEN 1 ELSE 0 END) AS d${d}`).join(', ');
-      const agg = (await db.execute(
-        `SELECT COUNT(*) AS total,
-          SUM(CASE WHEN ${act} THEN 1 ELSE 0 END) AS active,
-          SUM(CASE WHEN c.source='user' THEN 1 ELSE 0 END) AS userReported,
-          SUM(CASE WHEN c.source='user' AND date(c.created_at,'+9 hours')='${today}' THEN 1 ELSE 0 END) AS userToday,
-          ${chSel}, ${ddSel}
-        FROM campaigns c JOIN places p ON p.id=c.place_id WHERE ${nh}`
-      )).rows[0] || {};
-      const plat = (await db.execute(
-        `SELECT c.platform AS k, COUNT(*) AS n FROM campaigns c JOIN places p ON p.id=c.place_id WHERE ${nh} AND ${act} GROUP BY c.platform ORDER BY n DESC`
-      )).rows.map(r => ({ platform: r.k || '', n: Number(r.n || 0) }));
-      const placeCount = Number((await db.execute("SELECT COUNT(*) AS n FROM places WHERE COALESCE(hidden,0)=0")).rows[0]?.n || 0);
-      const channels = chNames.map((ch, i) => ({ channel: ch, n: Number(agg['ch' + i] || 0) })).filter(x => x.n > 0);
-      const dday = {}; for (let d = 0; d <= 7; d++) dday[d] = Number(agg['d' + d] || 0);
-      // 후기(리뷰) 집계 — 전체/오늘(KST). reviews 테이블 없거나 컬럼 이슈 시 0으로 폴백.
-      let reviewCount = 0, reviewTodayCount = 0;
-      try {
-        const rv = (await db.execute(`SELECT COUNT(*) AS total, SUM(CASE WHEN date(created_at,'+9 hours')='${today}' THEN 1 ELSE 0 END) AS today FROM reviews WHERE COALESCE(hidden,0)=0`)).rows[0] || {};
-        reviewCount = Number(rv.total || 0); reviewTodayCount = Number(rv.today || 0);
-      } catch (e) {}
-      const payload = {
-        placeCount, total: Number(agg.total || 0), active: Number(agg.active || 0),
-        userReported: Number(agg.userReported || 0), userReportedToday: Number(agg.userToday || 0),
-        reviewCount, reviewTodayCount,
-        platforms: plat, channels, dday,
-      };
+      // 2) DB 캐시(콜드스타트·인스턴스 교체에도 유지). 크롤러가 매 사이클 갱신 → 대개 여기서 즉시 히트.
+      // 3) 미스(오래됨)면 1회 재계산 + DB 기록. 계산 로직은 api/_stats.js(크롤러와 공용).
+      let payload = await getCachedStats(db, STATS_CACHE_DB_TTL);
+      if (!payload) payload = await refreshStatsCache(db);
       _statsCache = { at: Date.now(), data: payload };
       return res.status(200).json(payload);
     }

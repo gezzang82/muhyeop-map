@@ -147,3 +147,11 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   count INTEGER NOT NULL,
   expires_at INTEGER NOT NULL    -- epoch초, 지난 버킷은 opportunistic 삭제
 );
+
+-- 어드민 대시보드 통계 DB 캐시 (api/_stats.js). 10만 캠페인 집계(~2s)를 매 요청 대신
+-- 미리 계산해 1행에 저장 → 엔드포인트는 이 행만 읽음(~190ms, 콜드스타트에도). 로컬 크롤러가 매 패스 갱신.
+CREATE TABLE IF NOT EXISTS stats_cache (
+  cache_key TEXT PRIMARY KEY,    -- 'dashboard'
+  data TEXT NOT NULL,            -- 집계 결과 JSON
+  updated_at INTEGER NOT NULL    -- epoch ms
+);

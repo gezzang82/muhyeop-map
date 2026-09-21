@@ -29,6 +29,7 @@ for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
 
 const { runScrape, loadDedupe, SEOUL_AREA2, AREA2_BY_REGION } = require('../api/_scrape');
 const { runAutopilot } = require('../api/_autopilot');
+const { refreshStatsCache } = require('../api/_stats');
 
 // 지역별 수집 단위(하위지역). '전체' 목록은 하위지역을 다 담지 않아 누락되므로 하위지역별로 순회한다.
 //  서울=17개 하위지역, 경기=7개, 인천=경기>인천/부천/부평(collectIds가 매핑, mode=jeonche), 부산=전체(하위지역 미정의).
@@ -197,6 +198,8 @@ async function pass() {
     try {
       const r = await pass();
       if (stopping) break;
+      // 어드민 대시보드 통계를 미리 계산해 DB 캐시에 저장(콜드스타트에도 대시보드 즉시). 실패해도 무시.
+      try { await refreshStatsCache(db); } catch (e) {}
       // 아직 긁을 게 남았으면 짧게, 다 따라잡았으면 길게 대기(불필요한 요청 방지)
       const wait = (r.more || r.remaining > 0) ? minWaitSec : IDLE_WAIT_SEC;
       console.log(`  다음 패스까지 ${wait}s 대기…\n`);
