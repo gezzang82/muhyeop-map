@@ -155,3 +155,26 @@ CREATE TABLE IF NOT EXISTS stats_cache (
   data TEXT NOT NULL,            -- 집계 결과 JSON
   updated_at INTEGER NOT NULL    -- epoch ms
 );
+
+-- 앱 푸시(FCM) — api/users.js ?push=register/?push=prefs가 런타임 생성. 설계: docs/product/16-push-notifications.md
+CREATE TABLE IF NOT EXISTS push_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,               -- 로그인 사용자면 users.id(nullable)
+  device_id TEXT,
+  platform TEXT,                 -- 'ios' | 'android'
+  token TEXT UNIQUE,             -- FCM 토큰
+  enabled INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS push_prefs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  device_id TEXT UNIQUE,
+  user_id INTEGER,
+  lat REAL, lng REAL,
+  radius_km REAL DEFAULT 5,       -- 관심위치 반경
+  categories TEXT,               -- 예 '숙박/여가,뷰티' (비우면 전체)
+  digest TEXT DEFAULT 'instant', -- 'instant' | 'daily'
+  enabled INTEGER DEFAULT 1,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
