@@ -626,7 +626,7 @@ function renderDashboard() {
 
   // 회원 수
   const statMembersEl = document.getElementById('statMembers');
-  if (statMembersEl) fetch('/api/users').then(r => r.json()).then(users => { statMembersEl.textContent = users.length; }).catch(() => {});
+  if (statMembersEl) fetch('/api/users?count=1').then(r => r.json()).then(d => { statMembersEl.textContent = (Number(d.count) || 0).toLocaleString(); }).catch(() => {});
 
   // 사이트 방문 집계(오늘 PV/UV·체류·추이·유입경로·접속환경)
   fetch(`/api/places?visit=stats&period=${_visitPeriod}`).then(r => r.json()).then(s => {

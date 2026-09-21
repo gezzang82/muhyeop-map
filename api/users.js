@@ -26,6 +26,13 @@ module.exports = async function handler(req, res) {
 
   const db = getDb();
 
+  // 대시보드 회원 '수'만 필요할 때: 전체 목록(상관 서브쿼리로 수 초) 대신 COUNT 1줄 → 즉시.
+  if (req.query.count) {
+    if (!requireAdmin(req, res)) return;
+    const c = (await db.execute("SELECT COUNT(*) AS n FROM users")).rows[0] || {};
+    return res.status(200).json({ count: Number(c.n || 0) });
+  }
+
   if (req.query.leaderboard) {
     const result = await db.execute(`
       SELECT u.nickname AS nickname, COUNT(*) AS count
@@ -46,6 +53,9 @@ module.exports = async function handler(req, res) {
   // 집계용 테이블 보장(후기/접속 테이블이 아직 없을 수 있음)
   try { await db.execute("CREATE TABLE IF NOT EXISTS user_visits (user_id INTEGER NOT NULL, visit_date TEXT NOT NULL, UNIQUE(user_id, visit_date))"); } catch (e) {}
   try { await db.execute("ALTER TABLE users ADD COLUMN last_seen_at TEXT"); } catch (e) {}
+  // 회원별 제보수/후기수 상관 서브쿼리(회원마다 campaigns/reviews 스캔)가 인덱스 없이 수 초 걸림 → 인덱스로 seek.
+  try { await db.execute("CREATE INDEX IF NOT EXISTS idx_campaigns_user_id ON campaigns(user_id)"); } catch (e) {}
+  try { await db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id)"); } catch (e) {}
   const result = await db.execute(`
     SELECT u.*,
       (SELECT COUNT(*) FROM campaigns c WHERE c.user_id = u.id) AS report_count,
