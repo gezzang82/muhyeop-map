@@ -555,26 +555,33 @@ function renderCampaignClicks(data) {
   if (dEl) {
     const rows = (data && data.daily) || [];
     dEl.innerHTML = !rows.length ? '<div class="empty-msg">아직 조회/클릭 데이터가 없어요.</div>' :
-      rows.slice(0, 14).map(r => `
+      rows.slice(0, 14).map(r => {
+        const rate = r.views > 0 ? Math.round(r.clicks / r.views * 100) : 0;
+        return `
         <div class="rd-row">
           <span class="rd-date">${escHtml(String(r.date).slice(5))}</span>
           <span class="rd-chs">
             <span class="rd-chip">상세보기 <b>${r.views}</b></span>
             <span class="rd-chip rd-chip--ext">링크클릭 <b>${r.clicks}</b></span>
+            <span class="rd-chip">전환 <b>${rate}%</b></span>
           </span>
-        </div>`).join('');
+        </div>`;
+      }).join('');
   }
   const rEl = document.getElementById('campaignClickRegion');
   if (rEl) {
     const regs = (data && data.regions) || [];
     if (!regs.length) { rEl.innerHTML = '<div class="empty-msg">아직 데이터가 없어요.</div>'; return; }
     const max = Math.max(1, ...regs.map(r => r.views || 0));
-    rEl.innerHTML = regs.map(r => `
+    rEl.innerHTML = regs.map(r => {
+      const rate = r.views > 0 ? Math.round(r.clicks / r.views * 100) : 0;
+      return `
         <div class="stat-row">
           <span class="stat-badge" style="background:#39395c1a;color:#39395c;min-width:56px">${escHtml(r.region)}</span>
           <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round((r.views || 0) / max * 100)}%;background:#39395c"></div></div>
-          <span class="stat-num">조회 ${r.views} · 클릭 ${r.clicks}</span>
-        </div>`).join('');
+          <span class="stat-num">조회 ${r.views} · 클릭 ${r.clicks} · 전환 ${rate}%</span>
+        </div>`;
+    }).join('');
   }
 }
 
