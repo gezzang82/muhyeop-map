@@ -549,6 +549,35 @@ function renderReferrers(refs) {
       </div>`).join('');
 }
 
+// 캠페인 조회(상세보기)/클릭 — 일별 리스트 + 지역별 막대
+function renderCampaignClicks(data) {
+  const dEl = document.getElementById('campaignClickDaily');
+  if (dEl) {
+    const rows = (data && data.daily) || [];
+    dEl.innerHTML = !rows.length ? '<div class="empty-msg">아직 조회/클릭 데이터가 없어요.</div>' :
+      rows.slice(0, 14).map(r => `
+        <div class="rd-row">
+          <span class="rd-date">${escHtml(String(r.date).slice(5))}</span>
+          <span class="rd-chs">
+            <span class="rd-chip">상세보기 <b>${r.views}</b></span>
+            <span class="rd-chip rd-chip--ext">링크클릭 <b>${r.clicks}</b></span>
+          </span>
+        </div>`).join('');
+  }
+  const rEl = document.getElementById('campaignClickRegion');
+  if (rEl) {
+    const regs = (data && data.regions) || [];
+    if (!regs.length) { rEl.innerHTML = '<div class="empty-msg">아직 데이터가 없어요.</div>'; return; }
+    const max = Math.max(1, ...regs.map(r => r.views || 0));
+    rEl.innerHTML = regs.map(r => `
+        <div class="stat-row">
+          <span class="stat-badge" style="background:#39395c1a;color:#39395c;min-width:56px">${escHtml(r.region)}</span>
+          <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round((r.views || 0) / max * 100)}%;background:#39395c"></div></div>
+          <span class="stat-num">조회 ${r.views} · 클릭 ${r.clicks}</span>
+        </div>`).join('');
+  }
+}
+
 // 방문 추이 기간 토글(일별/주별/월별)
 let _visitPeriod = 'day';
 function setVisitPeriod(period, btn) {
@@ -627,6 +656,9 @@ function renderDashboard() {
   // 회원 수
   const statMembersEl = document.getElementById('statMembers');
   if (statMembersEl) fetch('/api/users?count=1').then(r => r.json()).then(d => { statMembersEl.textContent = (Number(d.count) || 0).toLocaleString(); }).catch(() => {});
+
+  // 캠페인 조회(상세보기)/클릭 — 일별 + 지역별
+  fetch('/api/campaigns?clickstats=1').then(r => r.json()).then(renderCampaignClicks).catch(() => {});
 
   // 사이트 방문 집계(오늘 PV/UV·체류·추이·유입경로·접속환경)
   fetch(`/api/places?visit=stats&period=${_visitPeriod}`).then(r => r.json()).then(s => {

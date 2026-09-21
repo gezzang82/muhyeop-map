@@ -293,6 +293,34 @@ module.exports = async function handler(req, res) {
       _statsCache = { at: Date.now(), data: payload };
       return res.status(200).json(payload);
     }
+
+    // 어드민: 캠페인 상세보기(view)/링크클릭(click) — 일별 + 지역(시/도)별. campaign_events 집계.
+    if (q.clickstats) {
+      if (!requireAdmin(req, res)) return;
+      const daily = (await db.execute(`
+        SELECT date(created_at,'+9 hours') AS d,
+          SUM(CASE WHEN kind='view' THEN 1 ELSE 0 END) AS views,
+          SUM(CASE WHEN kind='click' THEN 1 ELSE 0 END) AS clicks
+        FROM campaign_events GROUP BY d ORDER BY d DESC LIMIT 30`)).rows
+        .map(r => ({ date: r.d, views: Number(r.views || 0), clicks: Number(r.clicks || 0) }));
+      const SIDO = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
+      const per = (await db.execute(`
+        SELECT p.address AS addr,
+          SUM(CASE WHEN e.kind='view' THEN 1 ELSE 0 END) AS views,
+          SUM(CASE WHEN e.kind='click' THEN 1 ELSE 0 END) AS clicks
+        FROM campaign_events e JOIN campaigns c ON c.id=e.campaign_id JOIN places p ON p.id=c.place_id
+        GROUP BY p.id`)).rows;
+      const byS = {};
+      for (const r of per) {
+        const a = String(r.addr || '').trim();
+        const s = SIDO.find(k => a.startsWith(k)) || '기타';
+        if (!byS[s]) byS[s] = { views: 0, clicks: 0 };
+        byS[s].views += Number(r.views || 0); byS[s].clicks += Number(r.clicks || 0);
+      }
+      const regions = Object.entries(byS).map(([region, v]) => ({ region, views: v.views, clicks: v.clicks }))
+        .sort((a, b) => (b.views + b.clicks) - (a.views + a.clicks));
+      return res.status(200).json({ daily, regions });
+    }
     // ── 지도 경량화(뷰포트 로딩) 공개 분기 — 2026-09-01 ──
     const kstDay = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const activeSql = "COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)";
