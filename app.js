@@ -2321,19 +2321,26 @@ function providerIconSrc(provider) {
 }
 
 function openLoginSheet() {
-  // Apple 로그인 버튼은 네이티브 iOS 앱(+플러그인)에서만 노출. 웹은 카카오/네이버만.
+  // Apple 로그인: 네이티브 앱(플러그인)에선 플러그인, 웹(PC/모바일웹)에선 서버 OAuth로 노출.
+  //  네이티브인데 플러그인이 없는 구버전 앱에서만 숨김(그 앱은 애플 로그인 수단이 없음).
   const appleBtn = document.getElementById('loginAppleBtn');
   if (appleBtn) {
-    const canApple = isNativeApp() && !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SignInWithApple);
+    const hasPlugin = !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SignInWithApple);
+    const canApple = hasPlugin || !isNativeApp();
     appleBtn.style.display = canApple ? 'flex' : 'none';
   }
   document.getElementById('loginOverlay').classList.add('open');
 }
 
-// Apple 네이티브 로그인: 플러그인으로 identityToken 받아 서버 검증 → 로그인
+// Apple 로그인: 앱=플러그인(identityToken), 웹=서버 OAuth 리다이렉트
 async function appleSignIn() {
   const plugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SignInWithApple;
-  if (!plugin) { showAlert('Apple 로그인', '앱에서만 사용할 수 있어요.'); return; }
+  if (!plugin) {
+    // 웹: 서버 Apple OAuth로 이동(login.js가 authorize로 302). 로그인 후 원래 위치로 복귀.
+    const redirectTo = encodeURIComponent(location.pathname + location.search);
+    location.href = '/api/auth/login?provider=apple&redirectTo=' + redirectTo;
+    return;
+  }
   try {
     const result = await plugin.authorize({
       clientId: 'com.muhyeop.app',

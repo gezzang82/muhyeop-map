@@ -28,6 +28,25 @@ module.exports = async function handler(req, res) {
   let redirectTo = req.query.redirectTo || '/';
   if (!/^\/(?!\/)/.test(redirectTo)) redirectTo = '/';
 
+  // ===== Apple 웹 로그인(PC/모바일웹): Services ID로 authorize → form_post로 id_token 회신 =====
+  if (provider === 'apple') {
+    const servicesId = process.env.APPLE_WEB_SERVICES_ID;
+    if (!servicesId) { res.status(503).send('Apple 로그인이 아직 설정되지 않았습니다.'); return; }
+    const { state, cookie } = createStateCookie({ provider: 'apple', redirectTo, sameSiteNone: true });
+    const redirectUri = `${getBaseUrl(req)}/api/auth/callback`;
+    const url = new URL('https://appleid.apple.com/auth/authorize');
+    url.searchParams.set('client_id', servicesId);
+    url.searchParams.set('redirect_uri', redirectUri);
+    url.searchParams.set('response_type', 'code id_token');
+    url.searchParams.set('response_mode', 'form_post'); // 이름/이메일 scope엔 form_post 필수
+    url.searchParams.set('scope', 'name email');
+    url.searchParams.set('state', state);
+    res.setHeader('Set-Cookie', cookie);
+    res.writeHead(302, { Location: url.toString() });
+    res.end();
+    return;
+  }
+
   let p;
   try {
     p = getProvider(provider);
