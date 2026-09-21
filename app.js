@@ -4038,6 +4038,61 @@ document.addEventListener('contextmenu', function(e) {
   if (!e.target.closest('input, textarea, [contenteditable="true"]')) e.preventDefault();
 });
 
+// ===== 앱 푸시 알림 (FCM via @capacitor/push-notifications) =====
+// 기기 FCM 토큰을 서버에 등록(?push=register)하고, 알림 탭 시 해당 매장을 연다.
+// 관심위치는 enableAreaAlert()로 저장(?push=prefs). 네이티브 앱(플러그인 포함 APK)에서만 동작 — 웹/구버전 앱은 no-op.
+function pushPlugin() { return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications) || null; }
+function getPushDeviceId() {
+  let id = null;
+  try { id = localStorage.getItem('mh_device_id'); } catch (e) {}
+  if (!id) { id = 'dev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); try { localStorage.setItem('mh_device_id', id); } catch (e) {} }
+  return id;
+}
+function pushPlatform() { try { return (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || 'android'; } catch (e) { return 'android'; } }
+async function registerPushToken(token) {
+  try {
+    await fetch('/api/users?push=register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token, platform: pushPlatform(), deviceId: getPushDeviceId() }) });
+  } catch (e) {}
+}
+let _pushInited = false;
+async function initPush() {
+  if (!isNativeApp() || _pushInited) return;
+  const P = pushPlugin(); if (!P) return; // 플러그인 없는 구버전 앱: no-op
+  _pushInited = true;
+  try {
+    P.addListener('registration', function (t) { if (t && t.value) registerPushToken(t.value); });
+    P.addListener('registrationError', function () {});
+    P.addListener('pushNotificationActionPerformed', function (a) {
+      const pid = a && a.notification && a.notification.data && a.notification.data.placeId;
+      if (pid != null) { try { focusPlace(Number(pid)); } catch (e) {} }
+    });
+    // 앱에서만 보이는 '이 지역 알림' 메뉴 노출
+    const item = document.getElementById('sideMenuAlertItem'); if (item) item.style.display = '';
+    // 이미 권한 허용된 기기면 조용히 토큰 갱신 등록(맥락 요청은 enableAreaAlert에서)
+    const perm = await P.checkPermissions();
+    if (perm && perm.receive === 'granted') await P.register();
+  } catch (e) {}
+}
+// 맥락에서 권한 요청 + 현재 지도 중심을 관심위치로 저장
+async function enableAreaAlert(radiusKm) {
+  const P = pushPlugin();
+  if (!isNativeApp() || !P) { alert('알림은 무협맵 앱에서만 받을 수 있어요.'); return false; }
+  try {
+    let perm = await P.checkPermissions();
+    if (perm.receive !== 'granted') perm = await P.requestPermissions();
+    if (!perm || perm.receive !== 'granted') { alert('알림 권한이 꺼져 있어요. 휴대폰 설정에서 무협맵 알림을 켜주세요.'); return false; }
+    await P.register(); // 토큰 발급 → registration 리스너가 서버 등록
+    const c = map.getCenter();
+    await fetch('/api/users?push=prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: getPushDeviceId(), lat: c.lat(), lng: c.lng(), radiusKm: radiusKm || 5 }) });
+    return true;
+  } catch (e) { return false; }
+}
+// 사이드메뉴 '이 지역 알림' 클릭
+async function enableAreaAlertUI() {
+  const ok = await enableAreaAlert(5);
+  if (ok) alert('이 지역에 새 협찬이 뜨면 알림으로 알려드릴게요 🔔\n(지도를 관심 동네로 옮긴 뒤 다시 누르면 그 지역으로 바뀝니다)');
+}
+
 window.addEventListener('load', async function() {
   initAppLoading();
   if (!document.getElementById('map')) { hideAppLoading(); return; }
@@ -4091,6 +4146,7 @@ window.addEventListener('load', async function() {
   }).catch(function() {});
   renderLeaderboard();
   if (LEADERBOARD_ENABLED) setInterval(renderLeaderboard, 60000);
+  initPush(); // 앱 푸시 초기화(네이티브만, 백그라운드)
 });
 
 let _prevIsMobile = window.innerWidth <= 640;
