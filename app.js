@@ -4093,11 +4093,19 @@ function attachPushActionListener() {
   if (_pushActionAttached) return;
   const P = pushPlugin(); if (!P) return; // 네이티브 아님/구버전: no-op
   _pushActionAttached = true;
+  // 트레이 알림 탭(백그라운드/종료 상태에서 켜짐)
   P.addListener('pushNotificationActionPerformed', function (a) {
     const d = (a && a.notification && a.notification.data) || {};
     const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng };
     if (_pushNavReady && typeof map !== 'undefined' && map) applyPushNav(nav);
     else _pendingPushNav = nav; // 지도 준비 전 → 대기
+  });
+  // 앱을 켜놓은 상태(포그라운드) 도착 → OS 트레이에 안 남아 탭할 게 없으므로 바로 이동
+  P.addListener('pushNotificationReceived', function (n) {
+    const d = (n && n.data) || {};
+    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng };
+    if (_pushNavReady && typeof map !== 'undefined' && map) applyPushNav(nav);
+    else _pendingPushNav = nav;
   });
 }
 
