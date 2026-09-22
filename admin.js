@@ -586,6 +586,24 @@ function renderCampaignClicks(data) {
   };
   barList('campaignClickRegion', (data && data.regions) || [], 'region');
   barList('campaignClickCategory', (data && data.categories) || [], 'category');
+  // 플랫폼별: 오늘 + 누적 (상세보기 / 페이지이동)
+  const pEl = document.getElementById('campaignClickPlatform');
+  if (pEl) {
+    const list = (data && data.platforms) || [];
+    if (!list.length) { pEl.innerHTML = '<div class="empty-msg">아직 데이터가 없어요.</div>'; }
+    else {
+      const max = Math.max(1, ...list.map(r => r.views || 0));
+      pEl.innerHTML = list.map(r => {
+        const rate = r.views > 0 ? Math.round(r.clicks / r.views * 100) : 0;
+        return `
+        <div class="stat-row">
+          <span class="stat-badge" style="background:#39395c1a;color:#39395c;min-width:70px">${escHtml(r.platform)}</span>
+          <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round((r.views || 0) / max * 100)}%;background:#39395c"></div></div>
+          <span class="stat-num">오늘 상세 ${r.viewsToday}·이동 ${r.clicksToday} <span style="color:#8a8a99">/ 누적 상세 ${r.views}·이동 ${r.clicks}·전환 ${rate}%</span></span>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
 // 방문 추이 기간 토글(일별/주별/월별)

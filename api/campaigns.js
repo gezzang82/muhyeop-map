@@ -322,7 +322,18 @@ module.exports = async function handler(req, res) {
       }
       const toSorted = (obj, key) => Object.entries(obj).map(([k, val]) => ({ [key]: k, views: val.views, clicks: val.clicks }))
         .sort((a, b) => (b.views + b.clicks) - (a.views + a.clicks));
-      return res.status(200).json({ daily, regions: toSorted(byS, 'region'), categories: toSorted(byC, 'category') });
+      // 플랫폼(리뷰노트/디너의여왕/강남맛집/…)별 상세보기(view)/페이지이동(click): 누적 + 오늘(KST)
+      const platforms = (await db.execute(`
+        SELECT COALESCE(NULLIF(TRIM(c.platform),''),'기타') AS platform,
+          SUM(CASE WHEN e.kind='view' THEN 1 ELSE 0 END) AS views,
+          SUM(CASE WHEN e.kind='click' THEN 1 ELSE 0 END) AS clicks,
+          SUM(CASE WHEN e.kind='view'  AND date(e.created_at,'+9 hours')=date('now','+9 hours') THEN 1 ELSE 0 END) AS viewsToday,
+          SUM(CASE WHEN e.kind='click' AND date(e.created_at,'+9 hours')=date('now','+9 hours') THEN 1 ELSE 0 END) AS clicksToday
+        FROM campaign_events e JOIN campaigns c ON c.id=e.campaign_id
+        GROUP BY platform`)).rows
+        .map(r => ({ platform: r.platform, views: Number(r.views || 0), clicks: Number(r.clicks || 0), viewsToday: Number(r.viewsToday || 0), clicksToday: Number(r.clicksToday || 0) }))
+        .sort((a, b) => (b.views + b.clicks) - (a.views + a.clicks));
+      return res.status(200).json({ daily, regions: toSorted(byS, 'region'), categories: toSorted(byC, 'category'), platforms });
     }
     // ── 지도 경량화(뷰포트 로딩) 공개 분기 — 2026-09-01 ──
     const kstDay = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
