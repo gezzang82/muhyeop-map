@@ -389,14 +389,14 @@ function categoryChipIcon(cat) {
     const bb = g.getBBox();
     _iconMeasureSvg.removeChild(g);
     if (bb && bb.width > 0 && bb.height > 0) {
-      const TARGET = 18, BOX = 20;
+      const TARGET = 16, BOX = 16;
       const s = TARGET / Math.max(bb.width, bb.height);
       const tx = (BOX - bb.width * s) / 2 - bb.x * s;
       const ty = (BOX - bb.height * s) / 2 - bb.y * s;
-      return `<svg width="20" height="20" viewBox="0 0 ${BOX} ${BOX}" fill="none" style="flex:0 0 auto"><g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(3)})">${icon}</g></svg>`;
+      return `<svg width="16" height="16" viewBox="0 0 ${BOX} ${BOX}" fill="none" style="flex:0 0 auto"><g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(3)})">${icon}</g></svg>`;
     }
   } catch (e) {}
-  return `<svg width="20" height="20" viewBox="0 0 30 30" fill="none" style="flex:0 0 auto">${icon}</svg>`; // 폴백
+  return `<svg width="16" height="16" viewBox="0 0 30 30" fill="none" style="flex:0 0 auto">${icon}</svg>`; // 폴백
 }
 // PC/모바일 카테고리 칩 라벨·아이콘·활성상태 갱신
 function updateCategoryChip() {
