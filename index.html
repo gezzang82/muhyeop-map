@@ -431,6 +431,11 @@
         <span class="leaderboard-text">제보왕 <strong id="leaderboardNicknamePC"></strong>님이 매장 <strong id="leaderboardCountPC"></strong>개로 1위예요!</span>
       </div>
       <div class="pc-chips-row">
+        <button class="filter-chip filter-chip--category" data-category-chip onclick="openCategoryFilter()">
+          <span class="cat-chip-icon"></span>
+          <span class="cat-chip-label">카테고리</span>
+          <svg class="cat-chip-caret" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7 10l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <button class="filter-chip active" data-channel="전체" onclick="filterChannel('전체')">전체</button>
         <button class="filter-chip" data-channel="블로그" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="20" height="20">블로그</button>
         <button class="filter-chip" data-channel="클립" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="20" height="20">클립</button>
@@ -456,6 +461,11 @@
         <button class="mobile-icon-btn mobile-icon-add" onclick="openSideMenu()" title="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 14C9.5523 14 10 14.4477 10 15V23C10 23.5523 9.5523 24 9 24H1C0.4477 24 0 23.5523 0 23V15C0 14.4477 0.4477 14 1 14H9ZM23 14C23.5523 14 24 14.4477 24 15V23C24 23.5523 23.5523 24 23 24H15C14.4477 24 14 23.5523 14 23V15C14 14.4477 14.4477 14 15 14H23ZM9 0C9.5523 0 10 0.4477 10 1V9C10 9.5523 9.5523 10 9 10H1C0.4477 10 0 9.5523 0 9V1C0 0.4477 0.4477 0 1 0H9ZM23 0C23.5523 0 24 0.4477 24 1V9C24 9.5523 23.5523 10 23 10H15C14.4477 10 14 9.5523 14 9V1C14 0.4477 14.4477 0 15 0H23Z" fill="#E82A2D"/></svg></button>
       </div>
       <div class="mobile-chips-row">
+        <button class="filter-chip filter-chip--category" data-category-chip onclick="openCategoryFilter()">
+          <span class="cat-chip-icon"></span>
+          <span class="cat-chip-label">카테고리</span>
+          <svg class="cat-chip-caret" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 10l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <button class="filter-chip active" data-channel="전체" onclick="filterChannel('전체')">전체</button>
         <button class="filter-chip" data-channel="블로그" onclick="filterChannel('블로그')"><img src="image/ic_naver_blog_20.png" width="16" height="16">블로그</button>
         <button class="filter-chip" data-channel="클립" onclick="filterChannel('클립')"><img src="image/ic_clip_20.png" width="16" height="16">클립</button>
@@ -955,6 +965,20 @@
       </div>
     </div>
   </div>
+
+  <!-- 지도 카테고리 필터용 숨은 select(제보폼 카테고리 바텀시트 재사용) -->
+  <select id="filterCategory" style="display:none">
+    <option value="전체">전체 카테고리</option>
+    <option value="음식점">음식점</option>
+    <option value="카페">카페</option>
+    <option value="뷰티">뷰티</option>
+    <option value="숙박/여가">숙박/여가</option>
+    <option value="문화">문화</option>
+    <option value="의류">의류</option>
+    <option value="안경/잡화">안경/잡화</option>
+    <option value="운동">운동</option>
+    <option value="기타">기타</option>
+  </select>
 
   <!-- 모바일 바텀시트 -->
   <div id="mobileSheet" class="mobile-sheet">

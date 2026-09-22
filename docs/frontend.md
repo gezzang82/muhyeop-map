@@ -22,6 +22,12 @@
 - **자체 격자(grid) 클러스터링(2026-08-30)**: 네이버 `MarkerClustering`(js/MarkerClustering.js, **점마다 DOM 마커를 만든 뒤 뭉침**)이 매장 1.4만+에서 줌아웃 시 병목 → **supercluster류 격자 방식으로 대체**. 화면 **~72px 셀**(`cellDeg = 72*360/(256*2^zoom)`)로 매장을 버킷팅해 **셀 단위로만** 마커 생성: 셀 2개↑ → 클러스터 1개(`.cluster-marker`, **정확한 합계 개수**, 클릭 시 `setZoom(z+3)` 확대) / 1개 → 개별 핀(`.map-pin`). **점마다 DOM을 안 만들어** 저줌 수천 점도 마커 DOM이 "보이는 셀 수(수백)"로 상한(실측: 줌7 전국 1.4만 매장 → 클러스터 DOM 30개). 개별 핀 지터(`getJitteredPositions`)는 단독 셀에만 적용. `markerMap[placeId]`는 개별 핀에만 존재(클러스터 안 매장은 없음 → `setSelectedMarker`/카드 하이라이트는 존재 가드).
 - 네이버 `MarkerClustering`은 미사용(index.html 스크립트는 아직 로드되나 호출 안 함). `markerCluster` 전역은 잔여 정리용.
 
+## 카테고리 필터 (칩 → 바텀시트, 2026-09-22)
+- 칩 줄(PC `.pc-chips-row`/모바일 `.mobile-chips-row`) 맨 앞에 **카테고리 칩**(`data-category-chip`) 추가. 탭 → `openCategoryFilter()` → 숨은 `<select id="filterCategory">`로 **제보폼 카테고리 바텀시트(`openSelectSheet`) 재사용**. 선택 시 `pickSelectItem`이 `filterCategory` 분기로 `applyCategoryFilter(value)`(값 '전체'=필터 해제) → 칩 라벨·아이콘 갱신(`updateCategoryChip`, `categoryChipIcon`=핀 색 미니 아이콘) → `renderAll`.
+- **필터 적용 지점**: `renderMarkers`의 `visiblePlaces`와 `renderSidebar`의 `activePlaces`에 `matchesCategoryFilter(place)` AND 조합(`place.category`, 빈값=기타). **채널 필터와 독립적으로 AND**(채널=캠페인 속성/`hasActiveCampaign` 경유, 카테고리=매장 속성).
+- **칩 디자인**: 채움(fill) → **아웃라인**으로 변경(Figma 1156-1905). 선택 상태 = 흰 배경 + 진한 테두리(`#383838`, 1.5px) + 볼드. `filterChannel`의 active 토글은 `.filter-chip[data-channel]`만 대상(카테고리 칩 제외).
+- **셀렉트시트 위치**: `#selectSheetPanel`은 원래 제보 모달 안에 있어, 모달 밖(지도 필터)에서 열 땐 `openSelectSheet`가 패널을 `document.body`로 되돌림(안 그러면 숨은 모달 안에 갇혀 안 보임). 모달 셀렉트를 다시 열면 그 모달로 재이동(자기교정).
+
 ## 사이드바 "모집 중인 협찬" 정렬
 - **마감임박순**으로 정렬(2026-07-27). 장소별 `getActiveCampaigns(p.id)`의 마감일 중 **가장 이른 것**(`deadlineToUTC`)을 오름차순. 마감일 빈 값(상시)은 `Infinity`라 **맨 아래**로 감.
 - 마감일 **동률이면 세션마다 무작위로 셔플**(`placeShuffleKey`, 2026-07-28). 배치 등록(강남맛집 N건→디너의여왕 N건)으로 같은 마감일·같은 플랫폼이 뭉텅이로 붙는 걸 방지. 난수는 **페이지 로드마다 새로 생성**(방문할 때마다 순서 변화) + **세션 중엔 장소ID별로 고정**(지도 이동·리렌더에도 안 튐). 과거 tie-break였던 "최근 등록 먼저"는 이 셔플로 대체됨.

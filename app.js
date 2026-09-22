@@ -101,6 +101,7 @@ function loadInitialData() {
 }
 
 let currentChannelFilter = '전체';
+let currentCategoryFilter = ''; // '' = 전체 카테고리, 그 외 = 해당 카테고리만
 let pcTabActive = 'campaigns'; // 'campaigns' | 'report'
 
 let map;
@@ -356,10 +357,46 @@ function getActiveCampaigns(placeId) {
 function filterChannel(channel) {
   currentChannelFilter = channel;
   invalidateActiveCache();
-  document.querySelectorAll('.filter-chip').forEach(btn => {
+  document.querySelectorAll('.filter-chip[data-channel]').forEach(btn => {
     const ch = btn.dataset.channel || btn.textContent.replace(/\s/g, '');
     btn.classList.toggle('active', ch === channel);
   });
+  renderAll();
+}
+
+// ===== 카테고리 필터 (칩 → 바텀시트, 제보폼 카테고리 시트 재사용) =====
+function matchesCategoryFilter(place) {
+  if (!currentCategoryFilter) return true;
+  return (place.category || '기타') === currentCategoryFilter;
+}
+// 칩 안에 넣을 작은 카테고리 아이콘: 원(배경 서클) 없이 글리프만, 칩 글자색과 동일 색(currentColor).
+function categoryChipIcon(cat) {
+  const p = CATEGORY_PINS[cat];
+  if (!p) return '';
+  const icon = p.icon.replace(/#fff/gi, 'currentColor'); // 핀용 흰 글리프 → 칩 글자색 따라가게
+  return `<svg width="20" height="20" viewBox="0 0 30 30" fill="none" style="flex:0 0 auto">${icon}</svg>`;
+}
+// PC/모바일 카테고리 칩 라벨·아이콘·활성상태 갱신
+function updateCategoryChip() {
+  const cat = currentCategoryFilter;
+  document.querySelectorAll('.filter-chip[data-category-chip]').forEach(btn => {
+    const iconEl = btn.querySelector('.cat-chip-icon');
+    const labelEl = btn.querySelector('.cat-chip-label');
+    if (iconEl) iconEl.innerHTML = cat ? categoryChipIcon(cat) : '';
+    if (labelEl) labelEl.textContent = cat || '카테고리';
+    btn.classList.toggle('active', !!cat);
+  });
+}
+// 카테고리 칩 클릭 → 바텀시트 오픈(숨은 select #filterCategory 재사용)
+function openCategoryFilter() {
+  const sel = document.getElementById('filterCategory');
+  if (sel) sel.value = currentCategoryFilter || '전체';
+  openSelectSheet('filterCategory', '카테고리');
+}
+// 바텀시트에서 카테고리 선택됨(pickSelectItem에서 호출)
+function applyCategoryFilter(value) {
+  currentCategoryFilter = (value === '전체') ? '' : value;
+  updateCategoryChip();
   renderAll();
 }
 
@@ -776,6 +813,7 @@ function renderMarkers() {
   //  - 채널 필터 중(전체 아님)엔 그 채널 활성 매장만 표시(필터로 걸러진 건 숨김).
   const filtering = currentChannelFilter !== '전체';
   const visiblePlaces = places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
+    matchesCategoryFilter(place) &&
     (!filtering || hasActiveCampaign(place.id)));
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
@@ -1422,7 +1460,7 @@ function renderSidebar() {
     const d = deadlineToUTC(c.deadline);
     return d < min ? d : min;
   }, Infinity);
-  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id));
+  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id) && matchesCategoryFilter(p));
   // 가장 이른 마감일을 장소별로 1회만 계산(메모) → sort 비교마다 재계산(O(N log N)회) 방지.
   const _ed = new Map();
   for (const p of activePlaces) _ed.set(p.id, earliestDeadline(p));
@@ -4307,6 +4345,10 @@ function openSelectSheet(selectId, title) {
   if (hostModal && !hostModal.contains(sheetPanel)) {
     hostModal.appendChild(sheetOverlay);
     hostModal.appendChild(sheetPanel);
+  } else if (!hostModal && sheetPanel.parentElement !== document.body) {
+    // 모달 밖(예: 지도 카테고리 필터)에서 열 때: 이전에 모달로 옮겨졌던 패널을 body로 되돌려 화면에 보이게 함
+    document.body.appendChild(sheetOverlay);
+    document.body.appendChild(sheetPanel);
   }
 
   document.getElementById('selectSheetTitle').textContent = title;
@@ -4340,6 +4382,13 @@ function closeSelectSheet() {
 function pickSelectItem(selectId, value, label) {
   const sel = document.getElementById(selectId);
   if (sel) sel.value = value;
+
+  // 지도 카테고리 필터: 값 세팅 후 필터 적용하고 시트 닫기(이 select는 트리거 Value 엘리먼트가 없음)
+  if (selectId === 'filterCategory') {
+    applyCategoryFilter(value);
+    closeSelectSheet();
+    return;
+  }
 
   const valueEl = document.getElementById(selectId + 'Value');
   if (valueEl) {
