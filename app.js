@@ -370,11 +370,33 @@ function matchesCategoryFilter(place) {
   return (place.category || '기타') === currentCategoryFilter;
 }
 // 칩 안에 넣을 작은 카테고리 아이콘: 원(배경 서클) 없이 글리프만, 칩 글자색과 동일 색(currentColor).
+// 글리프마다 viewBox 점유 영역이 달라 크기가 들쭉날쭉 → 실제 bbox를 재서 18px 박스에 맞춰 정규화.
+let _iconMeasureSvg = null;
 function categoryChipIcon(cat) {
   const p = CATEGORY_PINS[cat];
   if (!p) return '';
   const icon = p.icon.replace(/#fff/gi, 'currentColor'); // 핀용 흰 글리프 → 칩 글자색 따라가게
-  return `<svg width="20" height="20" viewBox="0 0 30 30" fill="none" style="flex:0 0 auto">${icon}</svg>`;
+  try {
+    if (!_iconMeasureSvg) {
+      _iconMeasureSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      _iconMeasureSvg.setAttribute('viewBox', '0 0 30 30');
+      _iconMeasureSvg.setAttribute('style', 'position:absolute;left:-9999px;top:0;width:30px;height:30px;overflow:hidden');
+      document.body.appendChild(_iconMeasureSvg);
+    }
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.innerHTML = icon;
+    _iconMeasureSvg.appendChild(g);
+    const bb = g.getBBox();
+    _iconMeasureSvg.removeChild(g);
+    if (bb && bb.width > 0 && bb.height > 0) {
+      const TARGET = 18, BOX = 20;
+      const s = TARGET / Math.max(bb.width, bb.height);
+      const tx = (BOX - bb.width * s) / 2 - bb.x * s;
+      const ty = (BOX - bb.height * s) / 2 - bb.y * s;
+      return `<svg width="20" height="20" viewBox="0 0 ${BOX} ${BOX}" fill="none" style="flex:0 0 auto"><g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(3)})">${icon}</g></svg>`;
+    }
+  } catch (e) {}
+  return `<svg width="20" height="20" viewBox="0 0 30 30" fill="none" style="flex:0 0 auto">${icon}</svg>`; // 폴백
 }
 // PC/모바일 카테고리 칩 라벨·아이콘·활성상태 갱신
 function updateCategoryChip() {
