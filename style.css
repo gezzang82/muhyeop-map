@@ -2685,8 +2685,6 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   color: #111;
   font-weight: 700;
 }
-/* 카테고리 칩 우측 간격 -4px */
-.mobile-chips-row .filter-chip--category { margin-right: -4px; }
 
 /* ===== 모바일 ===== */
 @media (max-width: 640px) {
