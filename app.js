@@ -369,42 +369,11 @@ function matchesCategoryFilter(place) {
   if (!currentCategoryFilter) return true;
   return (place.category || '기타') === currentCategoryFilter;
 }
-// 칩 안에 넣을 작은 카테고리 아이콘: 원(배경 서클) 없이 글리프만, 칩 글자색과 동일 색(currentColor).
-// 글리프마다 viewBox 점유 영역이 달라 크기가 들쭉날쭉 → 실제 bbox를 재서 18px 박스에 맞춰 정규화.
-let _iconMeasureSvg = null;
-function categoryChipIcon(cat) {
-  const p = CATEGORY_PINS[cat];
-  if (!p) return '';
-  const icon = p.icon.replace(/#fff/gi, 'currentColor'); // 핀용 흰 글리프 → 칩 글자색 따라가게
-  try {
-    if (!_iconMeasureSvg) {
-      _iconMeasureSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      _iconMeasureSvg.setAttribute('viewBox', '0 0 30 30');
-      _iconMeasureSvg.setAttribute('style', 'position:absolute;left:-9999px;top:0;width:30px;height:30px;overflow:hidden');
-      document.body.appendChild(_iconMeasureSvg);
-    }
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.innerHTML = icon;
-    _iconMeasureSvg.appendChild(g);
-    const bb = g.getBBox();
-    _iconMeasureSvg.removeChild(g);
-    if (bb && bb.width > 0 && bb.height > 0) {
-      const TARGET = 16, BOX = 16;
-      const s = TARGET / Math.max(bb.width, bb.height);
-      const tx = (BOX - bb.width * s) / 2 - bb.x * s;
-      const ty = (BOX - bb.height * s) / 2 - bb.y * s;
-      return `<svg width="16" height="16" viewBox="0 0 ${BOX} ${BOX}" fill="none" style="flex:0 0 auto"><g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(3)})">${icon}</g></svg>`;
-    }
-  } catch (e) {}
-  return `<svg width="16" height="16" viewBox="0 0 30 30" fill="none" style="flex:0 0 auto">${icon}</svg>`; // 폴백
-}
-// PC/모바일 카테고리 칩 라벨·아이콘·활성상태 갱신
+// PC/모바일 카테고리 칩 라벨·활성상태 갱신(아이콘 없이 텍스트만)
 function updateCategoryChip() {
   const cat = currentCategoryFilter;
   document.querySelectorAll('.filter-chip[data-category-chip]').forEach(btn => {
-    const iconEl = btn.querySelector('.cat-chip-icon');
     const labelEl = btn.querySelector('.cat-chip-label');
-    if (iconEl) iconEl.innerHTML = cat ? categoryChipIcon(cat) : '';
     if (labelEl) labelEl.textContent = cat || '카테고리';
     btn.classList.toggle('active', !!cat);
   });
@@ -420,6 +389,39 @@ function applyCategoryFilter(value) {
   currentCategoryFilter = (value === '전체') ? '' : value;
   updateCategoryChip();
   renderAll();
+}
+
+// ===== PC: 카테고리 칩 아래 드롭다운(모바일은 openCategoryFilter=바텀시트) =====
+function toggleCategoryDropdown(e) {
+  if (e) e.stopPropagation();
+  const dd = document.getElementById('catDropdown');
+  if (!dd) return;
+  if (dd.hidden) {
+    const cur = currentCategoryFilter || '전체';
+    dd.querySelectorAll('.cat-dropdown-item').forEach(it => it.classList.toggle('active', it.dataset.cat === cur));
+    // position:fixed라 칩 위치를 재서 top/left 지정(오버플로우 클립 회피)
+    const chip = document.querySelector('.pc-chips-row .filter-chip--category');
+    if (chip) { const r = chip.getBoundingClientRect(); dd.style.top = (r.bottom + 8) + 'px'; dd.style.left = r.left + 'px'; }
+    dd.hidden = false;
+    document.querySelector('.pc-chips-row .filter-chip--category')?.classList.add('dropdown-open');
+    setTimeout(() => document.addEventListener('click', _closeCatDropdownOutside), 0);
+  } else {
+    closeCategoryDropdown();
+  }
+}
+function closeCategoryDropdown() {
+  const dd = document.getElementById('catDropdown');
+  if (dd) dd.hidden = true;
+  document.querySelector('.pc-chips-row .filter-chip--category')?.classList.remove('dropdown-open');
+  document.removeEventListener('click', _closeCatDropdownOutside);
+}
+function _closeCatDropdownOutside(e) {
+  if (e.target.closest && e.target.closest('.cat-chip-wrap')) return;
+  closeCategoryDropdown();
+}
+function pickCategoryDropdown(cat) {
+  applyCategoryFilter(cat === '전체' ? '' : cat);
+  closeCategoryDropdown();
 }
 
 function hasActiveCampaign(placeId) {

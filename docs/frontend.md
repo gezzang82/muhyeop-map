@@ -23,7 +23,10 @@
 - 네이버 `MarkerClustering`은 미사용(index.html 스크립트는 아직 로드되나 호출 안 함). `markerCluster` 전역은 잔여 정리용.
 
 ## 카테고리 필터 (칩 → 바텀시트, 2026-09-22)
-- 칩 줄(PC `.pc-chips-row`/모바일 `.mobile-chips-row`) 맨 앞에 **카테고리 칩**(`data-category-chip`) 추가. 탭 → `openCategoryFilter()` → 숨은 `<select id="filterCategory">`로 **제보폼 카테고리 바텀시트(`openSelectSheet`) 재사용**. 선택 시 `pickSelectItem`이 `filterCategory` 분기로 `applyCategoryFilter(value)`(값 '전체'=필터 해제) → 칩 라벨·아이콘 갱신(`updateCategoryChip`, `categoryChipIcon`=핀 색 미니 아이콘) → `renderAll`.
+- 칩 줄(PC `.pc-chips-row`/모바일 `.mobile-chips-row`) 맨 앞에 **카테고리 칩**(`data-category-chip`) 추가. 공통 진입은 `applyCategoryFilter(value)`(값 '전체'=필터 해제) → 칩 라벨·아이콘 갱신(`updateCategoryChip`, `categoryChipIcon`) → `renderAll`.
+  - **모바일**: 칩 탭 → `openCategoryFilter()` → 숨은 `<select id="filterCategory">`로 **제보폼 카테고리 바텀시트(`openSelectSheet`) 재사용**(`pickSelectItem`의 `filterCategory` 분기가 `applyCategoryFilter`).
+  - **PC(Figma 1105-2)**: 칩 탭 → `toggleCategoryDropdown` → 칩 **바로 아래 드롭다운**(`#catDropdown`, `.cat-dropdown-item`). `.pc-chips-row`가 `overflow:auto`(칩 가로스크롤)라 드롭다운을 잘라먹어 → 드롭다운은 `position:fixed`로 오버플로우 탈출 + 열 때 칩 `getBoundingClientRect`로 top/left 지정. 바깥 클릭 시 닫힘(`_closeCatDropdownOutside`), 열림 시 캐럿 180° 회전(`.dropdown-open`).
+  - **칩 표기**: 아이콘 없이 텍스트만. 기본 "카테고리", 선택 시 카테고리명. 선택 상태 = `.active`(연한 테두리 `#aaa` + 볼드).
 - **필터 적용 지점**: `renderMarkers`의 `visiblePlaces`와 `renderSidebar`의 `activePlaces`에 `matchesCategoryFilter(place)` AND 조합(`place.category`, 빈값=기타). **채널 필터와 독립적으로 AND**(채널=캠페인 속성/`hasActiveCampaign` 경유, 카테고리=매장 속성).
 - **칩 디자인**: 채움(fill) → **아웃라인**으로 변경(Figma 1156-1905). 선택 상태 = 흰 배경 + 연한 테두리(`#aaa`, 1.5px) + 볼드(선택 표시는 주로 볼드 텍스트). 칩 아이콘은 배경 서클 없이 글리프만 `currentColor`. `filterChannel`의 active 토글은 `.filter-chip[data-channel]`만 대상(카테고리 칩 제외).
 - **셀렉트시트 위치**: `#selectSheetPanel`은 원래 제보 모달 안에 있어, 모달 밖(지도 필터)에서 열 땐 `openSelectSheet`가 패널을 `document.body`로 되돌림(안 그러면 숨은 모달 안에 갇혀 안 보임). 모달 셀렉트를 다시 열면 그 모달로 재이동(자기교정).
