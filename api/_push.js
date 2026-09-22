@@ -86,9 +86,17 @@ async function disableInvalid(db, invalid) {
   try { await db.execute({ sql: `UPDATE push_tokens SET enabled=0 WHERE token IN (${ph})`, args: invalid }); } catch (e) {}
 }
 
-// 하루 1회 요약 발송(스팸 방지). PUSH_DIGEST_HOUR(KST, 기본 12시) 이후 그날 아직 안 보냈으면,
-// 각 기기의 관심위치 반경(+카테고리) 안에 '지난 24h 새로 뜬 활성 협찬 수'를 세어 1건으로 발송.
-// 홍대처럼 협찬이 쏟아지는 동네도 하루 알림 1개("근처 새 협찬 N개")로 끝 → 알림 피로 없음.
+// 가중 랜덤 선택: weightMap 비중대로 하나 고름(후보 있는 항목만 넘어옴).
+function weightedPick(items, weightMap) {
+  const total = items.reduce((s, it) => s + (weightMap[it] || 1), 0);
+  let r = Math.random() * total;
+  for (const it of items) { r -= (weightMap[it] || 1); if (r < 0) return it; }
+  return items[items.length - 1];
+}
+
+// 하루 1회 발송(스팸 방지). PUSH_DIGEST_HOUR(KST, 기본 12시) 이후 그날 아직 안 보냈으면,
+// 각 기기의 관심위치 반경 안 '지난 24h 신규 활성 협찬' 중 카테고리 가중 랜덤(음식점>뷰티>카페)으로
+// 캠페인 1개를 콕 집어 발송(재방문 유도). 셋 다 없으면 그 기기는 스킵. 탭 시 그 매장 상세로 이동(placeId).
 async function notifyDailyDigest(db) {
   if (!serviceAccount()) return { devices: 0, reason: 'no-service-account' };
   const digestHour = Number(process.env.PUSH_DIGEST_HOUR || 12);
@@ -101,13 +109,18 @@ async function notifyDailyDigest(db) {
   if (Number((st && st.last_max_id) || 0) >= todayInt) return { devices: 0, reason: 'already-sent' };
 
   const todayStr = nowKst.toISOString().slice(0, 10);
-  const news = (await db.execute({
-    sql: `SELECT p.lat AS lat, p.lng AS lng, p.category AS category
+  const PUSH_CATS = ['음식점', '뷰티', '카페'];         // 이 3개만 대상
+  const CAT_WEIGHT = { '음식점': 5, '뷰티': 3, '카페': 2 }; // 음식점 비중 높게
+  // 지난 24h 신규 활성 협찬(대상 카테고리만) — 매장명/제공내용/좌표/카테고리 조인
+  const cands = (await db.execute({
+    sql: `SELECT c.id AS id, c.place_id AS placeId, c.content AS content,
+                 p.name AS name, p.lat AS lat, p.lng AS lng, p.category AS category
           FROM campaigns c JOIN places p ON p.id=c.place_id
           WHERE COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0
             AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)
             AND c.created_at >= datetime('now','-1 day')
-            AND p.lat IS NOT NULL AND p.lng IS NOT NULL`,
+            AND p.lat IS NOT NULL AND p.lng IS NOT NULL
+            AND p.category IN ('음식점','뷰티','카페')`,
     args: [todayStr],
   })).rows;
   const prefs = (await db.execute("SELECT device_id, lat, lng, radius_km, categories FROM push_prefs WHERE enabled=1 AND lat IS NOT NULL AND lng IS NOT NULL")).rows;
@@ -115,27 +128,34 @@ async function notifyDailyDigest(db) {
   let devices = 0;
   for (const pf of prefs) {
     const radius = Number(pf.radius_km || 5);
-    const cats = (pf.categories && String(pf.categories).trim()) ? String(pf.categories).split(',').map(s => s.trim()) : null;
-    let n = 0;
-    for (const c of news) {
+    const userCats = (pf.categories && String(pf.categories).trim()) ? String(pf.categories).split(',').map(s => s.trim()) : null;
+    // 반경 안(+사용자 카테고리 필터 있으면 교집합) 후보를 카테고리별로 분류
+    const byCat = { '음식점': [], '뷰티': [], '카페': [] };
+    for (const c of cands) {
+      if (userCats && !userCats.includes(c.category)) continue;
       if (haversineKm(Number(pf.lat), Number(pf.lng), Number(c.lat), Number(c.lng)) > radius) continue;
-      if (cats && c.category && !cats.includes(c.category)) continue;
-      n++;
+      if (byCat[c.category]) byCat[c.category].push(c);
     }
-    if (n <= 0) continue;
+    // 후보 있는 카테고리만 대상으로 가중 랜덤 → 그 안에서 1건 랜덤
+    const avail = PUSH_CATS.filter(cat => byCat[cat].length > 0);
+    if (!avail.length) continue; // 셋 다 없으면 이 기기 스킵
+    const cat = weightedPick(avail, CAT_WEIGHT);
+    const pool = byCat[cat];
+    const pick = pool[Math.floor(Math.random() * pool.length)];
     const toks = (await db.execute({ sql: "SELECT token FROM push_tokens WHERE enabled=1 AND device_id=?", args: [pf.device_id] })).rows.map(r => r.token).filter(Boolean);
     if (!toks.length) continue;
+    const desc = String(pick.content || '').replace(/\s+/g, ' ').trim().slice(0, 40);
     const r = await sendToTokens(toks, {
-      title: '오늘의 새 협찬 🔔',
-      body: `관심 지역 근처에 새 협찬 ${n}개가 올라왔어요`,
-      data: { lat: String(pf.lat), lng: String(pf.lng) }, // 탭 시 그 위치로 지도 이동
+      title: '🔔 내 동네 새 협찬',
+      body: desc ? `${pick.name} · ${desc}` : `${pick.name} 협찬이 새로 떴어요`,
+      data: { placeId: String(pick.placeId), lat: String(pf.lat), lng: String(pf.lng) }, // 탭 → 매장 상세
     });
     await disableInvalid(db, r.invalid);
     if (r.sent > 0) devices++;
   }
   // 오늘 발송 완료 표시(0건이어도 오늘은 다시 안 돎)
   await db.execute({ sql: "INSERT OR REPLACE INTO scrape_state (platform, last_max_id, last_run_at) VALUES ('push_digest', ?, datetime('now'))", args: [todayInt] });
-  return { devices, candidates: news.length };
+  return { devices, candidates: cands.length };
 }
 
 module.exports = { getAccessToken, sendToTokens, notifyDailyDigest, serviceAccount };
