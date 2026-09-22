@@ -1216,7 +1216,26 @@ const RN_CAT = { 맛집: '음식점', 식품: '음식점', 뷰티: '뷰티', 여
 // 쇼츠/틱톡은 앱에 없어 제외(매핑 없음 → '' → 스킵). BLOG_CLIP은 블로그+클립.
 const RN_CH = { BLOG: '블로그', BLOG_CLIP: '블로그,클립', BLOGCLIP: '블로그,클립', INSTAGRAM: '인스타그램', INSTA: '인스타그램', REELS: '릴스', CLIP: '클립', YOUTUBE: '유튜브' };
 const rnMapCh = (c) => RN_CH[String(c || '').toUpperCase()] || '';
-const rnCleanName = (t) => String(t || '').replace(/^\s*(?:\[[^\]]*\]\s*)+/, '').replace(/\s*[/·]\s*$/, '').trim();
+// 매장명 앞쪽 평수/층수 접두 + 뒤쪽 안내 괄호 제거(여러 플랫폼 공용). 다 지워지면 원본 유지(안전).
+function cleanStoreName(name) {
+  let n = String(name || '').trim();
+  let prev;
+  // 접두 토큰은 '뒤에 공백이 있을 때만' 제거(붙어있는 실제 이름 '3층집'·'지하수'·'1943점' 오인 방지)
+  do {
+    prev = n;
+    n = n
+      .replace(/^\s*(?:지상|지하)?\s*\d+\s*평(?:대|형)?(?=\s)\s*/, '')  // "지상 200평대 …"
+      .replace(/^\s*지하\s*\d+\s*층(?=\s)\s*/, '')                       // "지하 1층 …"
+      .replace(/^\s*[Bb]\s*\d+\s*(?:호|층)(?=\s)\s*/, '')                // "B01호 …" / "B1층 …"
+      .replace(/^\s*\d+\s*층(?=\s)\s*/, '')                              // "1층 …"
+      .replace(/^\s*\d+\s*호(?=\s)\s*/, '')                              // "101호 …"
+      .replace(/^\s*지층(?=\s)\s*/, '')                                  // "지층 …"
+      .trim();
+  } while (n && n !== prev);
+  n = n.replace(/\s*\((?:[^)]*(?:테이크아웃|포장|예약|주차|가능|필수|불가)[^)]*)\)\s*$/, '').trim();
+  return n || String(name || '').trim();
+}
+const rnCleanName = (t) => cleanStoreName(String(t || '').replace(/^\s*(?:\[[^\]]*\]\s*)+/, '').replace(/\s*[/·]\s*$/, '').trim());
 function rnDeadline(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; return new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10); }
 // 매장이 아닌 캠페인(이벤트·전문서비스·온라인/재택)은 지오코딩 대상이 아니라 제외(geoFail로 세지 않음)
 const RN_NONSTORE = /소개팅|세미나|법무법인|변호사|노무사|세무사|보험|대출|투자|코인|주식|온라인클래스|재택|택배|무료나눔|설문|앱테크|구독서비스/;
@@ -2005,9 +2024,9 @@ function popName(title, addrDetail) {
   }
   // C_address_detail이 '건물명+호수'(예: 금강벤처텔 405호)면 매장명이 아니라 위치라 C_title로 폴백.
   const isBuilding = /(벤처텔|오피스텔|지식산업센터|빌딩|타워|프라자|플라자|아파트|상가|오피스)/.test(d) && /\d+\s*(호|층|F)/i.test(d);
-  if (d && !isFloor(d) && !isBuilding && d.length <= 30) return d;
+  if (d && !isFloor(d) && !isBuilding && d.length <= 30) return cleanStoreName(d);
   // 폴백: C_title에서 [지역] 접두 + 날짜/방문 접미 제거
-  return String(title || '').replace(/^\[[^\]]*\]\s*/, '').replace(/\s*\d{1,2}\/\d{1,2}\s*\([^)]*\).*$/, '').replace(/\s*(방문|예약)\s*$/, '').trim();
+  return cleanStoreName(String(title || '').replace(/^\[[^\]]*\]\s*/, '').replace(/\s*\d{1,2}\/\d{1,2}\s*\([^)]*\).*$/, '').replace(/\s*(방문|예약)\s*$/, '').trim());
 }
 
 async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = null }) {
@@ -2089,4 +2108,4 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
   return { platform, newCandidates: moreLeft ? campCount : c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, campCount, timedOut };
 }
 
-module.exports = { categoryByKeyword, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, cleanStoreName, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
