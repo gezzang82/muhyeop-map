@@ -43,6 +43,12 @@
 - 부모 `.live-alert`가 `pointer-events: none`이라 클릭 가능하게 하려면 `.live-bubble.show`에 `pointer-events: auto`를 개별 지정해야 함 (캐릭터 래퍼도 동일 패턴)
 - **캐릭터 UI/클릭 통일(2026-09-19)**: 예전엔 캐릭터 아래 '제보하기' 버튼(`.live-cta-btn`)이 붙고 클릭 시 `openModal`(제보)이었으나 → **버튼 제거**, 모바일도 PC 이미지 사용(`getChFrames`가 항상 PC 프레임 `img_ch_01~05` 반환) 64x64 회색원+그림자, **캐릭터 클릭 동작을 말풍선과 동일하게 `clickLiveBubble()`(=후기)** 로 변경. 제보 진입은 PC 상단탭/모바일 사이드메뉴에 유지. **왜**: 제보 중요도가 낮아지고 후기(공생)로 무게 이동 → 클릭 동작 통일. 관련 결정 [[06-decision-log]].
 
+## 앱 푸시 탭 처리 (`initPush`/`attachPushActionListener`/`applyPushNav`, 네이티브 전용, 2026-09-22)
+- 네이티브 앱(Capacitor)만. 하루요약 푸시에 `data.placeId`(+폴백 `lat/lng`)가 실려오고, 탭 시 **`applyPushNav`** 가 `placeId`면 `focusPlace`(매장 바텀시트 상세), 없으면 관심좌표로 이동+토스트.
+- **콜드스타트 레이스 해소**: 앱이 종료된 상태에서 푸시 탭으로 켜지면 `map`이 준비되기 전 탭 이벤트가 와 `map.setCenter`가 조용히 실패(무반응)하던 문제 → 리스너를 데이터 로드 전 **일찍 등록**(`attachPushActionListener`, load 핸들러 `initMap` 직후), 지도 준비 전 탭은 `_pendingPushNav`에 큐잉 → `renderAll` 뒤 **`drainPendingPushNav`** 로 처리.
+- **포그라운드 자동이동**: 앱을 켜둔 채 푸시가 오면 안드로이드는 트레이에 안 남기고 배너만 잠깐 떠 탭할 게 없음 → `pushNotificationReceived`로 포그라운드 도착을 잡아 `applyPushNav`를 바로 실행(탭 없이 이동).
+- `app.js`는 서버(server.url)에서 로드돼 **배포만으로 앱에 반영**(플러그인은 이미 APK). 서버 발송 로직·문구는 [[api-db]]·[[16-push-notifications]].
+
 ## 정보창(인포윈도우) 뱃지
 - "공휴일 불가" 뱃지: `excludeHoliday`가 true일 때 노출, 폰트 컬러 `#000`
 
