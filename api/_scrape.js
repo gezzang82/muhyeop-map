@@ -1852,12 +1852,13 @@ async function revuFetchAuthed(token, page, limit = 50) {
 async function revuFetchDetail(token, id) {
   try {
     const r = await fetch(`${REVU_API}/campaigns/${id}`, { headers: { ...REVU_HEADERS, Authorization: `Bearer ${token}` } });
-    if (!r.ok) return null;
+    if (!r.ok) return { alt: '', shortForm: '' };
     const j = await r.json();
     const d = j && (j.data || j);
     const co = d && (d.campaignOptions || (d.data && d.data.campaignOptions));
-    return co && co.altVisitInfo ? String(co.altVisitInfo) : '';
-  } catch (e) { return null; }
+    // shortForm='reels_only'면 인스타그램이 아니라 릴스 캠페인(목록 media엔 안 드러나고 상세에만 있음)
+    return { alt: (co && co.altVisitInfo) ? String(co.altVisitInfo) : '', shortForm: (co && co.shortForm) ? String(co.shortForm) : '' };
+  } catch (e) { return { alt: '', shortForm: '' }; }
 }
 // altVisitInfo(자유텍스트)에서 방문/영업시간만 추출. 포맷 다양: "영업시간: 평일 …", "월~토 11:00~21:00 / 일 휴무",
 // "매일 10:30~20:30", "09:30~19:00 / 월,화 정기휴무", "[방문 가능 시간] …", "인플루언서 방문가능시간 - 평일 …"
@@ -1904,7 +1905,7 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
   const deadline = String(it.requestEndedOn || it.endedOn || '').slice(0, 10);
   if (deadline && deadline < today) { c.expired++; return; }
   const mediaRaw = String(it.media || '').toLowerCase();
-  const channel = REVU_MEDIA[mediaRaw] || '블로그';
+  let channel = REVU_MEDIA[mediaRaw] || '블로그';
   // 같은 매장+채널이 이 실행에서 이미 나왔으면 중복(레뷰 다건 등록) → 스킵
   const vcKey = name.replace(/\s+/g, '') + '|' + channel;
   if (seenVC.has(vcKey)) { c.dupActive++; return; }
@@ -1923,9 +1924,11 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
   if (!REVU_MEDIA[mediaRaw]) flags.push('채널확인');
   if (!content) flags.push('내용확인');
   // 인증이면 상세에서 방문/영업시간 확보(altVisitInfo) → 서울오빠/링블 파서(rbHoursDays)로 요일·시간 분리.
-  let hours = '', days = '', excludeHoliday = 0;
+  let hours = '', days = '', excludeHoliday = 0, shortForm = '';
   if (token) {
-    const alt = await revuFetchDetail(token, id);
+    const detail = await revuFetchDetail(token, id);
+    const alt = detail.alt || '';
+    shortForm = detail.shortForm || '';
     await sleep(180); // 상세 fetch 레이트리밋
     // 공휴일 불가는 altVisitInfo 원문에서 직접 판정(★공휴일 체험불가처럼 rbHoursDays가 ★에서 잘려 놓치는 것 방지)
     const altHol = /공휴일[\s\S]{0,15}?(?:불가|휴무|제외|안됨|불가능)/.test(String(alt || '')) ? 1 : 0;
@@ -1938,6 +1941,8 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
     }
     if (altHol) excludeHoliday = 1;
   }
+  // 인스타그램으로 잡혔지만 상세가 릴스 전용(reels_only)이면 릴스로 교정(레뷰는 목록 media에 릴스 구분 없음)
+  if (channel === '인스타그램' && /reels/i.test(shortForm)) channel = '릴스';
   const ins = await db.execute({
     sql: `INSERT OR IGNORE INTO scraped_items
       (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
