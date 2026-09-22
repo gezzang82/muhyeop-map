@@ -2047,7 +2047,12 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
       const vcKey = name.replace(/\s+/g, '') + '|' + channel;
       if (seenVC.has(vcKey)) { c.dupActive++; continue; }
       seenVC.add(vcKey);
-      const content = String(it.C_provision || d.C_provision || '').trim();
+      // 제공내용 = C_provision + 금액(C_provision_price). 상세(d) 우선(목록 it.C_provision은 잘려 오는 경우가 있음).
+      // 금액 빠지면 '자유'만 남아 빈약해지므로 금액을 붙임.
+      const provision = String((d && d.C_provision) || it.C_provision || '').trim();
+      const provPrice = Number((d && d.C_provision_price) || it.C_provision_price || 0);
+      let content = provision;
+      if (provPrice > 0) content = provision ? `${provision} (${provPrice.toLocaleString()}원 상당)` : `${provPrice.toLocaleString()}원 상당`;
       // 방문시간(C_visit_time) → 레뷰처럼 요일·시간 분리(rbHoursDays) + 공휴일 처리
       const vt = String(d.C_visit_time || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
       let hours = '', days = '', excludeHoliday = 0;
