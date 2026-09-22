@@ -4387,8 +4387,9 @@ function openSelectSheet(selectId, title) {
 
   const panel = document.getElementById('selectSheetPanel');
   panel.style.display = '';
+  list.scrollTop = 0; // 열 때 항상 맨 위로(이전 스크롤 위치 남아 '전체'가 안 보이던 문제)
   document.getElementById('selectSheetOverlay').classList.add('show');
-  requestAnimationFrame(() => panel.classList.add('show'));
+  requestAnimationFrame(() => { panel.classList.add('show'); list.scrollTop = 0; });
 }
 
 function closeSelectSheet() {
