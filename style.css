@@ -554,8 +554,7 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 /* 선택 상태: 채움 → 아웃라인(진한 테두리 + 볼드) */
 .filter-chip.active { background: white; border-color: #aaa; border-width: 1.5px; color: #111; font-weight: 700; }
 /* 카테고리 칩(맨 앞, 바텀시트 트리거) */
-.filter-chip--category .cat-chip-caret { flex: 0 0 auto; color: #888; margin-left: -1px; transition: transform 0.15s; }
-.filter-chip--category.active .cat-chip-caret { color: #111; }
+.filter-chip--category .cat-chip-caret { flex: 0 0 auto; color: #aaa; margin-left: -1px; transition: transform 0.15s; }
 .filter-chip--category.dropdown-open .cat-chip-caret { transform: rotate(180deg); }
 /* PC 카테고리 드롭다운(칩 아래 박스) */
 .cat-chip-wrap { position: relative; display: inline-flex; }
