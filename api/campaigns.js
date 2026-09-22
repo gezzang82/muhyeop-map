@@ -267,7 +267,7 @@ module.exports = async function handler(req, res) {
       else if (q.source === 'admin') where.push("c.source = 'admin'");
       else if (q.source === 'ai') where.push("c.source = 'ai'");
       const today = new Date().toISOString().slice(0, 10);
-      if (q.status === 'active') { where.push("(c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)"); args.push(today); }
+      if (q.status === 'active') { where.push("(((c.deadline='' OR c.deadline IS NULL) AND c.created_at >= datetime('now','-45 days')) OR c.deadline >= ?)"); args.push(today); }
       else if (q.status === 'expired') { where.push("(c.deadline != '' AND c.deadline IS NOT NULL AND c.deadline < ?)"); args.push(today); }
       const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
       const totalRes = await db.execute({ sql: `SELECT COUNT(*) AS n FROM campaigns c LEFT JOIN places pl ON pl.id = c.place_id ${whereSql}`, args });
@@ -337,7 +337,7 @@ module.exports = async function handler(req, res) {
     }
     // ── 지도 경량화(뷰포트 로딩) 공개 분기 — 2026-09-01 ──
     const kstDay = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-    const activeSql = "COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)";
+    const activeSql = "COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0 AND (((c.deadline='' OR c.deadline IS NULL) AND c.created_at >= datetime('now','-45 days')) OR c.deadline >= ?)";
     // 전역 활성 캠페인 수(총 협찬수). 페이로드 소량.
     if (q.count === 'active') {
       res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
@@ -384,7 +384,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
     const activeOnly = q.active === '1';
     const kstToday = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-    const extra = activeOnly ? " AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)" : '';
+    const extra = activeOnly ? " AND (((c.deadline='' OR c.deadline IS NULL) AND c.created_at >= datetime('now','-45 days')) OR c.deadline >= ?)" : '';
     const result = await db.execute({
       sql: `SELECT c.* FROM campaigns c
       LEFT JOIN places p ON p.id = c.place_id

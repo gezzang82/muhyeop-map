@@ -86,7 +86,13 @@ module.exports = async function handler(req, res) {
       args: [type, cid, pid, rid, reason, detail || '', userId]
     });
     const id = Number(result.lastInsertRowid);
-    return res.status(201).json({ id, targetType: type, campaignId: cid, placeId: pid, reviewId: rid, reason, detail: detail || '' });
+    // 재발방지: '협찬 종료'로 신고된 캠페인은 즉시 자동 숨김(조기마감을 이용자 신고로 바로 반영).
+    //  오작동/악용 대비 되돌리기는 어드민 신고목록의 '노출' 토글로 가능. 신고 기록도 남아 관리자가 확인.
+    let autoHidden = false;
+    if (type === 'campaign' && cid && String(reason).trim() === '협찬 종료') {
+      try { await db.execute({ sql: 'UPDATE campaigns SET hidden=1 WHERE id=?', args: [cid] }); autoHidden = true; } catch (e) {}
+    }
+    return res.status(201).json({ id, targetType: type, campaignId: cid, placeId: pid, reviewId: rid, reason, detail: detail || '', autoHidden });
   }
 
   if (req.method === 'DELETE') {
