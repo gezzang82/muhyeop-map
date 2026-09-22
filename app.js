@@ -4064,20 +4064,51 @@ async function registerPushToken(token) {
   } catch (e) {}
 }
 let _pushInited = false;
+let _pushActionAttached = false;
+let _pendingPushNav = null;   // 지도 준비 전에 들어온 탭 의도 보관(콜드스타트)
+let _pushNavReady = false;    // 지도+데이터 준비 완료 여부
+
+// 푸시 탭 1건을 실제로 처리: placeId 있으면 매장 상세, 없으면 관심지역으로 이동 + 안내.
+function applyPushNav(nav) {
+  if (!nav) return;
+  try {
+    if (nav.placeId != null && nav.placeId !== '') { focusPlace(Number(nav.placeId)); return; }
+    const la = Number(nav.lat), ln = Number(nav.lng);
+    if (isFinite(la) && isFinite(ln)) {
+      map.setCenter(new naver.maps.LatLng(la, ln));
+      map.setZoom(15);
+      if (typeof loadCampaignsForView === 'function') loadCampaignsForView();
+      showToast('이 근처에 새로 올라온 협찬을 확인해보세요 🔔');
+    }
+  } catch (e) {}
+}
+// 지도/데이터 준비 완료 시 호출 → 대기 중이던 탭 의도가 있으면 그때 처리(콜드스타트 레이스 해소).
+function drainPendingPushNav() {
+  _pushNavReady = true;
+  if (_pendingPushNav) { const n = _pendingPushNav; _pendingPushNav = null; applyPushNav(n); }
+}
+// 탭 리스너는 가능한 한 일찍 등록(앱이 죽은 상태에서 푸시 탭으로 켜질 때의 런치 액션도 잡기 위해).
+// 지도가 아직 준비 전이면 의도만 큐에 담아두고 drainPendingPushNav에서 처리한다.
+function attachPushActionListener() {
+  if (_pushActionAttached) return;
+  const P = pushPlugin(); if (!P) return; // 네이티브 아님/구버전: no-op
+  _pushActionAttached = true;
+  P.addListener('pushNotificationActionPerformed', function (a) {
+    const d = (a && a.notification && a.notification.data) || {};
+    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng };
+    if (_pushNavReady && typeof map !== 'undefined' && map) applyPushNav(nav);
+    else _pendingPushNav = nav; // 지도 준비 전 → 대기
+  });
+}
+
 async function initPush() {
   if (!isNativeApp() || _pushInited) return;
   const P = pushPlugin(); if (!P) return; // 플러그인 없는 구버전 앱: no-op
   _pushInited = true;
   try {
+    attachPushActionListener(); // (이미 일찍 등록됐으면 no-op)
     P.addListener('registration', function (t) { if (t && t.value) registerPushToken(t.value); });
     P.addListener('registrationError', function () {});
-    P.addListener('pushNotificationActionPerformed', function (a) {
-      const d = (a && a.notification && a.notification.data) || {};
-      if (d.placeId != null && d.placeId !== '') { try { focusPlace(Number(d.placeId)); } catch (e) {} return; }
-      // 하루요약: 특정 매장이 아니라 관심 지역으로 지도 이동
-      const la = Number(d.lat), ln = Number(d.lng);
-      if (isFinite(la) && isFinite(ln)) { try { map.setCenter(new naver.maps.LatLng(la, ln)); map.setZoom(15); } catch (e) {} }
-    });
     // 앱에서만 보이는 '이 지역 알림' 메뉴 노출
     const item = document.getElementById('sideMenuAlertItem'); if (item) item.style.display = '';
     // 이미 권한 허용된 기기면 조용히 토큰 갱신 등록(맥락 요청은 enableAreaAlert에서)
@@ -4118,6 +4149,7 @@ window.addEventListener('load', async function() {
   // (기존엔 loadInitialData 완료 후에야 initMap이 불려 타일 로딩이 5MB 파싱 뒤로 밀렸다: 저사양 Android에서 특히 길었음.)
   // initMap은 places 데이터가 없어도 지도 생성/타일 로딩이 되며, 핀은 데이터 도착 후 renderAll로 그린다.
   initMap();
+  attachPushActionListener(); // 콜드스타트 런치 탭을 놓치지 않게 최대한 일찍 등록(데이터 로드 전)
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   // 데이터가 늦어도 지도는 보이게 하는 안전 타임아웃(스피너 무한대 방지)
   setTimeout(hideAppLoading, 3500);
@@ -4137,6 +4169,7 @@ window.addEventListener('load', async function() {
   _dataReady = true;
   updateStatCount();
   renderAll();
+  drainPendingPushNav(); // 지도+데이터 준비 완료 → 대기 중이던 푸시 탭 처리(콜드스타트)
   showBannerPopup();
   startLiveAlerts();
   hideAppLoading();
