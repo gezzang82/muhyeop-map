@@ -552,7 +552,7 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 .filter-chip img { border-radius: 4px; display: block; flex-shrink: 0; }
 .filter-chip:hover { border-color: #bbb; }
 /* 선택 상태: 채움 → 아웃라인(진한 테두리 + 볼드) */
-.filter-chip.active { background: white; border-color: #383838; border-width: 1.5px; color: #111; font-weight: 700; }
+.filter-chip.active { background: white; border-color: #aaa; border-width: 1.5px; color: #111; font-weight: 700; }
 /* 카테고리 칩(맨 앞, 바텀시트 트리거) */
 .filter-chip--category .cat-chip-icon { display: inline-flex; align-items: center; }
 .filter-chip--category .cat-chip-icon:empty { display: none; }
@@ -2668,7 +2668,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 }
 .mobile-chips-row .filter-chip.active {
   background: white;
-  border-color: #383838;
+  border-color: #aaa;
   color: #111;
   font-weight: 700;
 }

@@ -25,7 +25,7 @@
 ## 카테고리 필터 (칩 → 바텀시트, 2026-09-22)
 - 칩 줄(PC `.pc-chips-row`/모바일 `.mobile-chips-row`) 맨 앞에 **카테고리 칩**(`data-category-chip`) 추가. 탭 → `openCategoryFilter()` → 숨은 `<select id="filterCategory">`로 **제보폼 카테고리 바텀시트(`openSelectSheet`) 재사용**. 선택 시 `pickSelectItem`이 `filterCategory` 분기로 `applyCategoryFilter(value)`(값 '전체'=필터 해제) → 칩 라벨·아이콘 갱신(`updateCategoryChip`, `categoryChipIcon`=핀 색 미니 아이콘) → `renderAll`.
 - **필터 적용 지점**: `renderMarkers`의 `visiblePlaces`와 `renderSidebar`의 `activePlaces`에 `matchesCategoryFilter(place)` AND 조합(`place.category`, 빈값=기타). **채널 필터와 독립적으로 AND**(채널=캠페인 속성/`hasActiveCampaign` 경유, 카테고리=매장 속성).
-- **칩 디자인**: 채움(fill) → **아웃라인**으로 변경(Figma 1156-1905). 선택 상태 = 흰 배경 + 진한 테두리(`#383838`, 1.5px) + 볼드. `filterChannel`의 active 토글은 `.filter-chip[data-channel]`만 대상(카테고리 칩 제외).
+- **칩 디자인**: 채움(fill) → **아웃라인**으로 변경(Figma 1156-1905). 선택 상태 = 흰 배경 + 연한 테두리(`#aaa`, 1.5px) + 볼드(선택 표시는 주로 볼드 텍스트). 칩 아이콘은 배경 서클 없이 글리프만 `currentColor`. `filterChannel`의 active 토글은 `.filter-chip[data-channel]`만 대상(카테고리 칩 제외).
 - **셀렉트시트 위치**: `#selectSheetPanel`은 원래 제보 모달 안에 있어, 모달 밖(지도 필터)에서 열 땐 `openSelectSheet`가 패널을 `document.body`로 되돌림(안 그러면 숨은 모달 안에 갇혀 안 보임). 모달 셀렉트를 다시 열면 그 모달로 재이동(자기교정).
 
 ## 사이드바 "모집 중인 협찬" 정렬
