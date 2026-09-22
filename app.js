@@ -1682,6 +1682,12 @@ function openPcCard(place) {
   setSelectedMarker(place.id);
   panToCard(place);
   trackPlaceCampaignViews(place);
+  // 팬 직후 이 매장 타일 캠페인이 아직 로드 안 됐을 수 있음(활성 0 → 후기 우선/캠페인 없음).
+  // 확보되면 캠페인 pane 채우고 캠페인 탭으로 되돌림(focusPlace와 동일 처리).
+  ensurePlaceCampaigns(place.id).then(() => {
+    if (!markerMap[place.id]) renderMarkers();
+    refreshOpenDetailCampaignPane(place);
+  });
 }
 
 function closePcCard() {
@@ -3674,6 +3680,11 @@ function openMobileSheet(place) {
   overlay.classList.add('show');
   setSelectedMarker(place.id);
   trackPlaceCampaignViews(place);
+  // 팬 직후 이 매장 타일 캠페인이 아직 로드 안 됐을 수 있음 → 확보 후 캠페인 pane 채우고 캠페인 탭으로.
+  ensurePlaceCampaigns(place.id).then(() => {
+    if (!markerMap[place.id]) renderMarkers();
+    refreshOpenDetailCampaignPane(place);
+  });
   // 무거운 상세 내용을 먼저 레이아웃/페인트시킨 뒤(시트는 아직 화면 밖 translateY(100%)),
   // 다음 프레임에 슬라이드를 시작 → 애니메이션 첫 프레임이 innerHTML 렌더/강제리플로우/panTo와
   // 경합하지 않아 저사양 안드로이드 웹뷰의 초반 버벅임이 줄어듦. iOS는 원래 매끄러워 영향 미미.
