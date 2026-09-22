@@ -144,10 +144,11 @@ async function notifyDailyDigest(db) {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     const toks = (await db.execute({ sql: "SELECT token FROM push_tokens WHERE enabled=1 AND device_id=?", args: [pf.device_id] })).rows.map(r => r.token).filter(Boolean);
     if (!toks.length) continue;
-    const desc = String(pick.content || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    // 매장명을 title에 올려 OS가 볼드로 렌더(본문은 서식 불가). 본문엔 훅+제공내용.
+    const desc = String(pick.content || '').replace(/\s+/g, ' ').trim().slice(0, 50);
     const r = await sendToTokens(toks, {
-      title: '🔔 내 동네 새 협찬',
-      body: desc ? `${pick.name} · ${desc}` : `${pick.name} 협찬이 새로 떴어요`,
+      title: `🔔 ${pick.name}`,
+      body: desc ? `내 동네 새 협찬 · ${desc}` : '내 동네에 새 협찬이 떴어요',
       data: { placeId: String(pick.placeId), lat: String(pf.lat), lng: String(pf.lng) }, // 탭 → 매장 상세
     });
     await disableInvalid(db, r.invalid);
