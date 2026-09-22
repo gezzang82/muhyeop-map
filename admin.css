@@ -738,8 +738,12 @@ body {
   .admin-topbar .topbar-user { display: none; }
   .admin-topbar .topbar-logout { font-size: 14px; padding: 8px 14px; }
 
-  /* 콘텐츠 */
-  .admin-content { padding: 16px; }
+  /* 콘텐츠: 페이지 가로 스크롤 차단(넓은 차트/표는 각자 overflow-x:auto로 내부 스크롤).
+     .admin-content가 overflow-y:auto라 가로축이 auto로 계산돼 내용이 넘치면 페이지가 좌우로 밀리던 문제 해결. */
+  .admin-content { padding: 16px; overflow-x: hidden; }
+  .admin-content .dashboard-card { max-width: 100%; box-sizing: border-box; overflow: hidden; }
+  /* 관리 탭 표(모바일 비대응)도 넘칠 때 페이지 대신 표 안에서 스크롤 */
+  .admin-content .admin-table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .page-title { font-size: 22px; margin-bottom: 16px; }
 
   /* 통계 카드: 2열, 폰트 읽기 좋게 유지 */
