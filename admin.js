@@ -1888,7 +1888,7 @@ function processExcelFile(file) {
   reader.readAsBinaryString(file);
 }
 
-const EXCEL_CATEGORY_OPTIONS = ['음식점','카페','뷰티','헤어','숙박/여가','문화','의류','안경/잡화','운동','기타'];
+const EXCEL_CATEGORY_OPTIONS = ['음식점','카페','뷰티','헤어','숙박/여가','문화','사진관','의류','안경/잡화','운동','기타'];
 const EXCEL_PLATFORM_OPTIONS = ['레뷰','리뷰노트','디너의여왕','서울오빠','리뷰플레이스','포블로그','링블','미블','강남맛집체험단','체험뷰','오마이블로그','구구다스'];
 const EXCEL_CHANNEL_OPTIONS = ['블로그','클립','인스타그램','릴스','유튜브'];
 const EXCEL_DAY_OPTIONS = ['월','화','수','목','금','토','일'];

@@ -214,6 +214,8 @@ function isHair(s) {
   if (HAIR_NOT.test(s)) return false;      // 속눈썹펌·천연염색 등은 뷰티/공예
   return HAIR_WEAK.test(s);
 }
+// 사진관/포토스튜디오/셀프사진/포토부스 → '사진관'(문화에서 분리, 2026-09-23).
+const PHOTO_RE = /사진관|셀프\s*사진|포토\s*부스|증명\s*사진|여권\s*사진|프로필\s*(?:사진|촬영|스튜디오)|바디\s*프로필|사진\s*스튜디오|셀프\s*스튜디오|스냅\s*사진|포토\s*그래피|인생네컷|즉석\s*사진|흑백\s*사진|포토이즘|포토시그니처|하루필름|포토그레이|셀픽스|포토매틱|모노맨션/;
 function categoryByKeyword(content, name) {
   const s = content + ' ' + name;
   if (/(?<![가-힣])사주|(?<![가-힣])타로|운세|점집|(?<![가-힣])신점|철학관|작명|무속|명리|손금|관상|점사/.test(s)) return '기타'; // 사주·타로·신점: '유타로'·'혁신점' 등 상호/지점명 오매치 방지(앞 글자 한글이면 제외)
@@ -233,7 +235,9 @@ function categoryByKeyword(content, name) {
   if (isHair(s)) return '헤어';
   // 눈썹·왁싱·SMP 등 명백한 뷰티는 이름에 '스튜디오/공방'이 있어도 뷰티 — 문화 규칙보다 먼저 판정
   if (/뷰티|눈썹|브로우|왁싱|반영구|[Ss][Mm][Pp]\b|두피채움|속눈썹|네일/.test(s)) return '뷰티';
-  if (/원데이\s*클래스|클래스\s*체험|보컬|레슨|트레이닝|학원|공방|드로잉|플라워|캔들|공예|만들기|전시|관람|원데이클래스|대관|스튜디오|셀프사진|포토부스|방탈출|보드게임|사진관|증명사진|프로필\s*촬영|사진\s*스튜디오|갤러리|공연|영화|VR|브이알|테마파크|미술관|박물관|아쿠아리움|수족관|만화카페|만화방|북카페/.test(s)) return '문화';
+  // 사진관/포토스튜디오는 문화보다 먼저 분리(2026-09-23)
+  if (PHOTO_RE.test(s)) return '사진관';
+  if (/원데이\s*클래스|클래스\s*체험|보컬|레슨|트레이닝|학원|공방|드로잉|플라워|캔들|공예|만들기|전시|관람|원데이클래스|대관|스튜디오|방탈출|보드게임|갤러리|공연|영화|VR|브이알|테마파크|미술관|박물관|아쿠아리움|수족관|만화카페|만화방|북카페/.test(s)) return '문화';
   if (/케이크|디저트|베이커리|빵집|제과점|제과|식빵|바게트|소금빵|카스테라|카스텔라|빵\s*(?:종류|무제한|맛집|가게)|커피|브런치|룸카페|스터디카페|카페|도넛|도너츠|donut|마카롱|와플|타르트|베이글|크로플|크루아상|휘낭시에|쿠키|스콘|푸딩|빙수|젤라또|아이스크림|스무디|밀크티|버블티|에스프레소|라떼|티라미수|롤케익|생과일|카눌레|팬케이크|프레첼|츄러스|약과|양갱|앙버터/.test(s)) return '카페';
   // '펌(?![프킨])': 클리닉펌·셋팅펌·다운펌 등은 잡되 펌프킨/펌프는 제외(\b펌\b는 한글에서 클리닉펌 등을 못 잡았음).
   //  추가(2026-09-14, 강남맛집 등 짧은 내용 대응): 바버샵·이발·커트·샴푸·스타일링(이발/헤어), 여드름·아로마·헤드스파(피부/스파).
@@ -255,6 +259,8 @@ function mapCategory(platformCat, content, name) {
   if (!/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|리조트|게스트하우스|한옥스테이|캠핑/.test(s) && /찜질방|사우나/.test(s)) return { cat: '기타', flag: false };
   // 헤어/미용실은 플랫폼 '뷰티' 지름길보다 먼저 → '헤어'(뷰티에서 분리, 2026-09-23)
   if (isHair(s)) return { cat: '헤어', flag: false };
+  // 사진관/포토스튜디오는 플랫폼 지름길보다 먼저 → '사진관'(문화에서 분리, 2026-09-23)
+  if (PHOTO_RE.test(s)) return { cat: '사진관', flag: false };
   if (platformCat === '뷰티') return { cat: '뷰티', flag: false };
   if (platformCat === '맛집') {
     if (/카페|디저트|케이크|베이커리|커피|브런치|빙수|마카롱|도넛|와플|타르트|아이스크림|젤라또|스무디|밀크티|버블티|베이글|크로플|휘낭시에|쿠키/.test(s)) return { cat: '카페', flag: false };
@@ -2134,4 +2140,4 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
   return { platform, newCandidates: moreLeft ? campCount : c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, campCount, timedOut };
 }
 
-module.exports = { categoryByKeyword, cleanStoreName, isHair, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
