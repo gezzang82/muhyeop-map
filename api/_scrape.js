@@ -201,6 +201,19 @@ function cleanContent(c) {
   if (!c) return '';
   return c.replace(/qz-[a-z-]+/gi, ' ').replace(/해당 캠페인은[^.]*합니다\.?/g, ' ').replace(/(\s*\+\s*){2,}/g, ' + ').replace(/\s+/g, ' ').trim();
 }
+// 헤어/미용실 계열 → '헤어'(뷰티에서 분리, 2026-09-23). 피부·네일·에스테틱 등은 뷰티 유지.
+//  강한신호(헤어/미용실/바버/이발)는 즉시 헤어. 약한신호(펌/염색/커트/샴푸/스타일링)는
+//  속눈썹펌·래쉬·천연염색(공예)·네일 같은 뷰티/공예 지표가 없을 때만. 펫미용/이발은 제외(기타).
+const HAIR_PET = /반려|강아지|고양이|멍멍|애견|펫/;
+const HAIR_STRONG = /헤어|미용실|바버샵|바버|이발/;
+const HAIR_WEAK = /펌(?![프킨])|염색|커트|컷트|헤어컷|샴푸|스타일링/;
+const HAIR_NOT = /속눈썹|래쉬|천연염색|네일/;
+function isHair(s) {
+  if (HAIR_PET.test(s)) return false;      // 고양이미용실·멍멍이발소 등 동물미용 → 헤어 아님
+  if (HAIR_STRONG.test(s)) return true;    // 헤어/미용실/바버/이발 = 확실
+  if (HAIR_NOT.test(s)) return false;      // 속눈썹펌·천연염색 등은 뷰티/공예
+  return HAIR_WEAK.test(s);
+}
 function categoryByKeyword(content, name) {
   const s = content + ' ' + name;
   if (/(?<![가-힣])사주|(?<![가-힣])타로|운세|점집|(?<![가-힣])신점|철학관|작명|무속|명리|손금|관상|점사/.test(s)) return '기타'; // 사주·타로·신점: '유타로'·'혁신점' 등 상호/지점명 오매치 방지(앞 글자 한글이면 제외)
@@ -216,13 +229,15 @@ function categoryByKeyword(content, name) {
   if (/안경|선글라스|콘택트\s*렌즈|안경원|아이웨어|가죽벨트|넥타이|지갑|파우치/.test(s)) return '안경/잡화';
   // 파티룸·공간대여는 문화가 아닌 기타(문화 규칙보다 먼저 판정). 단 숙박(게스트하우스·펜션 등)이면 숙박/여가 우선. 결정: 2026-08-31
   if (!/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|리조트|게스트하우스|한옥스테이|캠핑/.test(s) && /파티룸|루프탑\s*파티|모임\s*공간|공간\s*대여|창고\s*(대여|제공)|공유창고|셀프\s*스토리지/.test(s)) return '기타';
+  // 헤어/미용실은 뷰티보다 먼저 판정(뷰티에서 분리, 2026-09-23)
+  if (isHair(s)) return '헤어';
   // 눈썹·왁싱·SMP 등 명백한 뷰티는 이름에 '스튜디오/공방'이 있어도 뷰티 — 문화 규칙보다 먼저 판정
   if (/뷰티|눈썹|브로우|왁싱|반영구|[Ss][Mm][Pp]\b|두피채움|속눈썹|네일/.test(s)) return '뷰티';
   if (/원데이\s*클래스|클래스\s*체험|보컬|레슨|트레이닝|학원|공방|드로잉|플라워|캔들|공예|만들기|전시|관람|원데이클래스|대관|스튜디오|셀프사진|포토부스|방탈출|보드게임|사진관|증명사진|프로필\s*촬영|사진\s*스튜디오|갤러리|공연|영화|VR|브이알|테마파크|미술관|박물관|아쿠아리움|수족관|만화카페|만화방|북카페/.test(s)) return '문화';
   if (/케이크|디저트|베이커리|빵집|제과점|제과|식빵|바게트|소금빵|카스테라|카스텔라|빵\s*(?:종류|무제한|맛집|가게)|커피|브런치|룸카페|스터디카페|카페|도넛|도너츠|donut|마카롱|와플|타르트|베이글|크로플|크루아상|휘낭시에|쿠키|스콘|푸딩|빙수|젤라또|아이스크림|스무디|밀크티|버블티|에스프레소|라떼|티라미수|롤케익|생과일|카눌레|팬케이크|프레첼|츄러스|약과|양갱|앙버터/.test(s)) return '카페';
   // '펌(?![프킨])': 클리닉펌·셋팅펌·다운펌 등은 잡되 펌프킨/펌프는 제외(\b펌\b는 한글에서 클리닉펌 등을 못 잡았음).
   //  추가(2026-09-14, 강남맛집 등 짧은 내용 대응): 바버샵·이발·커트·샴푸·스타일링(이발/헤어), 여드름·아로마·헤드스파(피부/스파).
-  if (/네일|피부|왁싱|헤어|미용|에스테틱|태닝|속눈썹|반영구|필러|보톡스|두피|체형|튼살|셀룰라이트|다이어트|펌(?![프킨])|염색|풋앤바디|바디케어|스킨케어|피부관리|메이크업|브로우|눈썹|슈가링|제모|타투|\bSMP\b|두피채움|페디큐어|풋케어|발각질|내성발톱|발톱무좀|바버샵|이발|커트|컷트|헤어컷|샴푸|스타일링|여드름|아로마|헤드스파/.test(s)) return '뷰티';
+  if (/네일|피부|왁싱|미용|에스테틱|태닝|속눈썹|반영구|필러|보톡스|두피|체형|튼살|셀룰라이트|다이어트|풋앤바디|바디케어|스킨케어|피부관리|메이크업|브로우|눈썹|슈가링|제모|타투|\bSMP\b|두피채움|페디큐어|풋케어|발각질|내성발톱|발톱무좀|여드름|아로마|헤드스파/.test(s)) return '뷰티';
   // 술집이 이름에 '호텔'을 브랜드로 쓰는 경우(맥주호텔 등)는 숙박 아닌 음식점 → 맥주/호프류 있으면 숙박 규칙 제외.
   if (!/맥주|호프|생맥|치맥|이자카야|\b펍\b/.test(s) && /숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|리조트|게스트하우스|한옥스테이|캠핑/.test(s)) return '숙박/여가';
   // 의류/패션: 정장·셔츠·실내복·구제 등(강남맛집/포블로그/구구다스 등에서 '음식점' 기본값으로 오분류되던 케이스, 2026-09-16)
@@ -238,6 +253,8 @@ function mapCategory(platformCat, content, name) {
   if (/볼링|당구|다이빙|서핑|크루즈|유람선|요트|족욕|점사/i.test(s)) return { cat: '기타', flag: false };
   // 찜질방·사우나 → 기타(운동 이후, 숙박 키워드 있으면 제외해 숙박/여가로)
   if (!/숙박|호텔|모텔|펜션|글램핑|카라반|풀빌라|리조트|게스트하우스|한옥스테이|캠핑/.test(s) && /찜질방|사우나/.test(s)) return { cat: '기타', flag: false };
+  // 헤어/미용실은 플랫폼 '뷰티' 지름길보다 먼저 → '헤어'(뷰티에서 분리, 2026-09-23)
+  if (isHair(s)) return { cat: '헤어', flag: false };
   if (platformCat === '뷰티') return { cat: '뷰티', flag: false };
   if (platformCat === '맛집') {
     if (/카페|디저트|케이크|베이커리|커피|브런치|빙수|마카롱|도넛|와플|타르트|아이스크림|젤라또|스무디|밀크티|버블티|베이글|크로플|휘낭시에|쿠키/.test(s)) return { cat: '카페', flag: false };
@@ -2117,4 +2134,4 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
   return { platform, newCandidates: moreLeft ? campCount : c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, campCount, timedOut };
 }
 
-module.exports = { categoryByKeyword, cleanStoreName, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, cleanStoreName, isHair, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
