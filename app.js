@@ -4147,6 +4147,7 @@ let _pushNavReady = false;    // 지도+데이터 준비 완료 여부
 function applyPushNav(nav) {
   if (!nav) return;
   try {
+    if (nav.url && /^https?:\/\//.test(nav.url)) { openExternal(nav.url); return; } // 이벤트 푸시 외부링크
     if (nav.placeId != null && nav.placeId !== '') { focusPlace(Number(nav.placeId)); return; }
     const la = Number(nav.lat), ln = Number(nav.lng);
     if (isFinite(la) && isFinite(ln)) {
@@ -4171,14 +4172,14 @@ function attachPushActionListener() {
   // 트레이 알림 탭(백그라운드/종료 상태에서 켜짐)
   P.addListener('pushNotificationActionPerformed', function (a) {
     const d = (a && a.notification && a.notification.data) || {};
-    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng };
+    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng, url: d.url };
     if (_pushNavReady && typeof map !== 'undefined' && map) applyPushNav(nav);
     else _pendingPushNav = nav; // 지도 준비 전 → 대기
   });
   // 앱을 켜놓은 상태(포그라운드) 도착 → OS 트레이에 안 남아 탭할 게 없으므로 바로 이동
   P.addListener('pushNotificationReceived', function (n) {
     const d = (n && n.data) || {};
-    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng };
+    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng, url: d.url };
     if (_pushNavReady && typeof map !== 'undefined' && map) applyPushNav(nav);
     else _pendingPushNav = nav;
   });

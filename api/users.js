@@ -40,6 +40,26 @@ async function handlePushPost(req, res, db, kind) {
     });
     return res.status(200).json({ ok: true });
   }
+  if (kind === 'broadcast') {
+    // 이벤트/공지 전체 발송(관리자 전용)
+    if (!requireAdmin(req, res)) return;
+    const { serviceAccount, sendToTokens } = require('./_push');
+    if (!serviceAccount()) return res.status(400).json({ error: 'FIREBASE_SERVICE_ACCOUNT 미설정' });
+    const title = String(body.title || '').trim();
+    const bd = String(body.body || '').trim();
+    if (!title || !bd) return res.status(400).json({ error: '제목·내용은 필수' });
+    const data = {};
+    if (body.placeId != null && String(body.placeId).trim() !== '') data.placeId = String(body.placeId).trim();
+    if (body.url && String(body.url).trim()) data.url = String(body.url).trim();
+    const toks = (await db.execute("SELECT token FROM push_tokens WHERE enabled=1")).rows.map(r => r.token).filter(Boolean);
+    if (!toks.length) return res.status(200).json({ sent: 0, failed: 0, devices: 0 });
+    const r = await sendToTokens(toks, { title, body: bd, data });
+    if (r.invalid && r.invalid.length) { // 무효 토큰 비활성화
+      const ph = r.invalid.map(() => '?').join(',');
+      try { await db.execute({ sql: `UPDATE push_tokens SET enabled=0 WHERE token IN (${ph})`, args: r.invalid }); } catch (e) {}
+    }
+    return res.status(200).json({ sent: r.sent, failed: r.failed, devices: toks.length });
+  }
   return res.status(400).json({ error: 'unknown push action' });
 }
 
@@ -71,6 +91,14 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  // 이벤트 푸시 대상 기기수(관리자) — 발송 전 미리보기용
+  if (req.query.push === 'count') {
+    if (!requireAdmin(req, res)) return;
+    await ensurePushTables(db);
+    const c = (await db.execute("SELECT COUNT(*) AS n FROM push_tokens WHERE enabled=1")).rows[0] || {};
+    return res.status(200).json({ devices: Number(c.n || 0) });
   }
 
   // 대시보드 회원 '수'만 필요할 때: 전체 목록(상관 서브쿼리로 수 초) 대신 COUNT 1줄 → 즉시.

@@ -221,6 +221,13 @@ body {
 .dashboard-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 .dashboard-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm); }
 .card-title { font-size: 15px; font-weight: 700; margin-bottom: 18px; color: var(--text); }
+/* 이벤트 푸시 폼 */
+.event-push-form { display: flex; flex-direction: column; gap: 10px; }
+.epush-input { width: 100%; box-sizing: border-box; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text); }
+.epush-input:focus { outline: none; border-color: var(--brand); }
+.epush-textarea { min-height: 72px; resize: vertical; line-height: 1.5; }
+.epush-row { display: flex; align-items: center; gap: 12px; }
+.epush-result { font-size: 13px; color: var(--muted); margin-right: auto; }
 .dday-stats { display: flex; gap: 12px; }
 .dday-cell { flex: 1; text-align: center; padding: 16px 8px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); }
 .dday-cell .dday-label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }

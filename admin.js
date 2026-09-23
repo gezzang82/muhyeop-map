@@ -550,6 +550,27 @@ function renderReferrers(refs) {
 }
 
 // 캠페인 조회(상세보기)/클릭 — 일별 리스트 + 지역별 막대
+// 이벤트 푸시 전체 발송
+async function sendEventPush() {
+  const title = (document.getElementById('eventPushTitle').value || '').trim();
+  const body = (document.getElementById('eventPushBody').value || '').trim();
+  const link = (document.getElementById('eventPushLink').value || '').trim();
+  const resEl = document.getElementById('eventPushResult');
+  if (!title || !body) { resEl.textContent = '제목·내용을 입력하세요.'; resEl.style.color = '#e14'; return; }
+  const payload = { title, body };
+  if (link) { if (/^https?:\/\//.test(link)) payload.url = link; else if (/^\d+$/.test(link)) payload.placeId = link; else { resEl.textContent = '이동 대상은 매장ID(숫자) 또는 https:// 링크만 가능.'; resEl.style.color = '#e14'; return; } }
+  const cnt = document.getElementById('pushDeviceCount').textContent;
+  if (!confirm(`전체 ${cnt}기기에 푸시를 발송할까요?\n\n제목: ${title}\n내용: ${body}`)) return;
+  resEl.textContent = '발송 중…'; resEl.style.color = '#8a8a99';
+  try {
+    const r = await fetch('/api/users?push=broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (!r.ok) { resEl.textContent = '발송 실패: ' + (d.error || r.status); resEl.style.color = '#e14'; return; }
+    resEl.textContent = `✅ 발송 ${d.sent}건 성공${d.failed ? ` / 실패 ${d.failed}` : ''} (대상 ${d.devices}기기)`; resEl.style.color = '#1a9e4b';
+    document.getElementById('eventPushTitle').value = ''; document.getElementById('eventPushBody').value = ''; document.getElementById('eventPushLink').value = '';
+  } catch (e) { resEl.textContent = '발송 오류: ' + e.message; resEl.style.color = '#e14'; }
+}
+
 function renderCampaignClicks(data) {
   const dEl = document.getElementById('campaignClickDaily');
   if (dEl) {
@@ -684,6 +705,9 @@ function renderDashboard() {
   // 회원 수
   const statMembersEl = document.getElementById('statMembers');
   if (statMembersEl) fetch('/api/users?count=1').then(r => r.json()).then(d => { statMembersEl.textContent = (Number(d.count) || 0).toLocaleString(); }).catch(() => {});
+
+  // 이벤트 푸시 대상 기기수
+  fetch('/api/users?push=count').then(r => r.json()).then(d => { const el = document.getElementById('pushDeviceCount'); if (el) el.textContent = (Number(d.devices) || 0).toLocaleString(); }).catch(() => {});
 
   // 캠페인 조회(상세보기)/클릭 — 일별 + 지역별
   fetch('/api/campaigns?clickstats=1').then(r => r.json()).then(renderCampaignClicks).catch(() => {});
