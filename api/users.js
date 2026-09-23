@@ -71,6 +71,7 @@ function toUser(row) {
     email: row.email || '',
     urlPlatform: row.url_platform || '',
     urlId: row.url_id || '',
+    signupSource: row.signup_source || '',   // 가입 유입경로
     createdAt: row.created_at,
     lastSeenAt: row.last_seen_at || '',           // 최종접속 시각(UTC, 어드민에서 KST 변환) — 신규 접속부터
     lastVisitDate: row.last_visit_date || '',     // 최종접속 날짜(시각 없음) — last_seen_at 없는 기존 회원 폴백

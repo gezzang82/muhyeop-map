@@ -4,9 +4,10 @@ const { sign, timingSafeEqualStr, parseCookies } = require('./_session');
 const COOKIE_NAME = 'mhm_oauth_state';
 const MAX_AGE_SECONDS = 10 * 60;
 
-function createStateCookie({ provider, redirectTo, sameSiteNone }) {
+function createStateCookie({ provider, redirectTo, sameSiteNone, src }) {
   const nonce = crypto.randomBytes(16).toString('base64url');
-  const payload = { nonce, provider, redirectTo: redirectTo || '/' };
+  const cleanSrc = src ? String(src).toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 24) : '';
+  const payload = { nonce, provider, redirectTo: redirectTo || '/', src: cleanSrc };
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const sig = sign(payloadB64);
   // Apple 웹 로그인은 form_post로 다른 도메인(appleid.apple.com)에서 POST로 돌아와 SameSite=Lax 쿠키가

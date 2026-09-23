@@ -27,12 +27,13 @@ module.exports = async function handler(req, res) {
   // 오픈 리다이렉트 방지: state에 저장하기 전에 같은 출처 상대경로('/...')로 정규화 (callback에서도 재차 차단)
   let redirectTo = req.query.redirectTo || '/';
   if (!/^\/(?!\/)/.test(redirectTo)) redirectTo = '/';
+  const src = req.query.src || ''; // 가입 유입경로 태그(신규 가입 시 users.signup_source에 기록)
 
   // ===== Apple 웹 로그인(PC/모바일웹): Services ID로 authorize → form_post로 id_token 회신 =====
   if (provider === 'apple') {
     const servicesId = process.env.APPLE_WEB_SERVICES_ID;
     if (!servicesId) { res.status(503).send('Apple 로그인이 아직 설정되지 않았습니다.'); return; }
-    const { state, cookie } = createStateCookie({ provider: 'apple', redirectTo, sameSiteNone: true });
+    const { state, cookie } = createStateCookie({ provider: 'apple', redirectTo, sameSiteNone: true, src });
     const redirectUri = `${getBaseUrl(req)}/api/auth/callback`;
     const url = new URL('https://appleid.apple.com/auth/authorize');
     url.searchParams.set('client_id', servicesId);
@@ -61,7 +62,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { state, cookie } = createStateCookie({ provider, redirectTo });
+    const { state, cookie } = createStateCookie({ provider, redirectTo, src });
     const redirectUri = `${getBaseUrl(req)}/api/auth/callback`;
 
     const url = new URL(p.authorizeUrl);

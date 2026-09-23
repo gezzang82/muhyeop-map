@@ -47,10 +47,13 @@ async function ensureUsersTable(db) {
   try {
     await db.execute("ALTER TABLE users ADD COLUMN url_id TEXT DEFAULT ''");
   } catch (e) {}
+  try {
+    await db.execute("ALTER TABLE users ADD COLUMN signup_source TEXT DEFAULT ''"); // 가입 유입경로
+  } catch (e) {}
 }
 
 // Apple 사용자 upsert(네이티브·웹 공용). provider='apple', sub 동일 → 같은 계정.
-async function upsertAppleUser(db, providerUserId, email, nickname) {
+async function upsertAppleUser(db, providerUserId, email, nickname, src) {
   await ensureUsersTable(db);
   const existing = await db.execute({
     sql: 'SELECT id, nickname FROM users WHERE provider = ? AND provider_user_id = ?',
@@ -63,8 +66,8 @@ async function upsertAppleUser(db, providerUserId, email, nickname) {
     return { userId, finalNick, isNewUser: false };
   }
   const inserted = await db.execute({
-    sql: 'INSERT INTO users (provider, provider_user_id, nickname, email) VALUES (?, ?, ?, ?)',
-    args: ['apple', providerUserId, nickname, email],
+    sql: 'INSERT INTO users (provider, provider_user_id, nickname, email, signup_source) VALUES (?, ?, ?, ?, ?)',
+    args: ['apple', providerUserId, nickname, email, src || ''],
   });
   return { userId: Number(inserted.lastInsertRowid), finalNick: nickname, isNewUser: true };
 }
@@ -85,7 +88,7 @@ async function handleAppleWebCallback(req, res, body) {
       if (u && u.name) nickname = `${u.name.lastName || ''}${u.name.firstName || ''}`.trim() || nickname;
     } catch (e) {}
     const db = getDb();
-    const { userId, finalNick } = await upsertAppleUser(db, providerUserId, email, nickname);
+    const { userId, finalNick } = await upsertAppleUser(db, providerUserId, email, nickname, (stateData && stateData.src) || '');
     const sessionCookie = createSessionCookie({ userId, nickname: finalNick, provider: 'apple' });
     res.setHeader('Set-Cookie', [clearStateCookie(), sessionCookie]);
     res.writeHead(302, { Location: redirectTo });
@@ -130,8 +133,8 @@ module.exports = async function handler(req, res) {
         isNewUser = true;
         finalNick = nickname;
         const inserted = await db.execute({
-          sql: 'INSERT INTO users (provider, provider_user_id, nickname, email) VALUES (?, ?, ?, ?)',
-          args: ['apple', providerUserId, nickname, email]
+          sql: 'INSERT INTO users (provider, provider_user_id, nickname, email, signup_source) VALUES (?, ?, ?, ?, ?)',
+          args: ['apple', providerUserId, nickname, email, 'app'] // 네이티브 앱 가입
         });
         userId = Number(inserted.lastInsertRowid);
       }
@@ -204,8 +207,8 @@ module.exports = async function handler(req, res) {
       });
     } else {
       const inserted = await db.execute({
-        sql: 'INSERT INTO users (provider, provider_user_id, nickname, email) VALUES (?, ?, ?, ?)',
-        args: [stateData.provider, profile.providerUserId, profile.nickname, profile.email]
+        sql: 'INSERT INTO users (provider, provider_user_id, nickname, email, signup_source) VALUES (?, ?, ?, ?, ?)',
+        args: [stateData.provider, profile.providerUserId, profile.nickname, profile.email, stateData.src || '']
       });
       userId = Number(inserted.lastInsertRowid);
     }

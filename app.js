@@ -38,7 +38,9 @@ function loadInitialData() {
         try {
           const _p = new URLSearchParams(location.search);
           _src = _p.get('ref') || _p.get('utm_source') || sessionStorage.getItem('mh_src') || '';
-          if (_p.get('ref') || _p.get('utm_source')) sessionStorage.setItem('mh_src', _src);
+          // 태그 없이 들어온 경우: 최초 referrer를 채널로 분류해 세션에 저장(가입 유입경로 추적용)
+          if (!_src && document.referrer) _src = classifyRefClient(document.referrer);
+          if (_src) sessionStorage.setItem('mh_src', _src);
         } catch (e) {}
         fetch('/api/places?visit=1', {
           method: 'POST', keepalive: true,
@@ -172,6 +174,32 @@ const CATEGORY_PINS = {
   '기타':      { color: '#8E8E8E', icon: '<circle cx="10" cy="15" r="1.5" fill="#fff"/><circle cx="15" cy="15" r="1.5" fill="#fff"/><circle cx="20" cy="15" r="1.5" fill="#fff"/>' }
 };
 const DEFAULT_PIN = { color: '#8E8E8E', icon: '<circle cx="15" cy="15" r="2.2" fill="#fff"/>' };
+
+// referrer URL → 유입 채널(가입 유입경로용, 서버 classifyReferrer와 동일 계열)
+function classifyRefClient(ref) {
+  try {
+    const h = new URL(ref).hostname.toLowerCase();
+    if (!h || h.includes('muhyeop')) return ''; // 내부이동/빈값
+    if (h.includes('naver')) return 'naver';
+    if (h.includes('kakao') || h.includes('kko')) return 'kakao';
+    if (h.includes('instagram')) return 'instagram';
+    if (h.includes('threads')) return 'threads';
+    if (h.includes('google')) return 'google';
+    if (h.includes('facebook') || h.startsWith('fb.') || h.includes('.fb.')) return 'facebook';
+    if (h.includes('daangn') || h.includes('karrot')) return 'daangn';
+    if (h.includes('youtube') || h.includes('youtu.be')) return 'youtube';
+    if (h.includes('tiktok')) return 'tiktok';
+    return h.replace(/^www\./, '').slice(0, 24);
+  } catch (e) { return ''; }
+}
+// 가입 유입경로: 세션에 저장된 최초 유입소스(?ref 태그 또는 분류된 referrer)
+function getSignupSrc() { try { return sessionStorage.getItem('mh_src') || ''; } catch (e) { return ''; } }
+// 카카오/네이버 로그인: 유입소스(src)를 실어 이동(신규 가입 시 users.signup_source에 기록)
+function oauthLogin(provider) {
+  const redirectTo = encodeURIComponent(location.pathname + location.search);
+  location.href = `/api/auth/login?provider=${provider}&redirectTo=${redirectTo}&src=${encodeURIComponent(getSignupSrc())}`;
+  return false;
+}
 
 // ===== 앱(Capacitor WebView) 인앱 브라우저 =====
 // 앱에서는 외부 링크를 시스템 Safari로 튕기지 않고 앱 내부(iOS SFSafariViewController)에서 연다.
@@ -2408,7 +2436,7 @@ async function appleSignIn() {
   if (!plugin) {
     // 웹: 서버 Apple OAuth로 이동(login.js가 authorize로 302). 로그인 후 원래 위치로 복귀.
     const redirectTo = encodeURIComponent(location.pathname + location.search);
-    location.href = '/api/auth/login?provider=apple&redirectTo=' + redirectTo;
+    location.href = '/api/auth/login?provider=apple&redirectTo=' + redirectTo + '&src=' + encodeURIComponent(getSignupSrc());
     return;
   }
   try {

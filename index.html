@@ -169,12 +169,12 @@
         <button class="modal-close" onclick="closeLoginSheet()"><img src="image/ic_popup_close_16.svg" alt="닫기" width="16" height="16"></button>
       </div>
       <div class="modal-body login-modal-body">
-        <a class="login-provider-btn login-provider-kakao" href="/api/auth/login?provider=kakao">
+        <a class="login-provider-btn login-provider-kakao" href="/api/auth/login?provider=kakao" onclick="return oauthLogin('kakao')">
           <img src="image/ic_login_kakao_24.svg" alt="" width="24" height="24">
           <span>카카오로 로그인</span>
           <span class="login-provider-spacer"></span>
         </a>
-        <a class="login-provider-btn login-provider-naver" href="/api/auth/login?provider=naver">
+        <a class="login-provider-btn login-provider-naver" href="/api/auth/login?provider=naver" onclick="return oauthLogin('naver')">
           <img src="image/ic_login_naver_24.svg" alt="" width="24" height="24">
           <span>네이버로 로그인</span>
           <span class="login-provider-spacer"></span>

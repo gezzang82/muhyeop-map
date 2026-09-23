@@ -1220,6 +1220,11 @@ function applyUserFilter() {
   userView.page = 1;
   renderUserRows();
 }
+const SIGNUP_SRC_LABELS = { naver: '네이버', kakao: '카카오', instagram: '인스타', threads: '스레드', google: '구글', facebook: '페북', daangn: '당근', youtube: '유튜브', tiktok: '틱톡', app: '앱' };
+function signupSrcLabel(src) {
+  if (!src) return '<span style="color:#bbb">-</span>';
+  return escHtml(SIGNUP_SRC_LABELS[src] || src);
+}
 function getFilteredUsers() {
   const { field, keyword } = userView;
   if (!keyword) return allUsers;
@@ -1252,7 +1257,8 @@ function renderUserRows() {
       <td>${u.visitCount != null ? u.visitCount : 0}</td>
       <td>${u.lastSeenAt ? fmtKST(u.lastSeenAt) : (u.lastVisitDate || '-')}</td>
       <td>${fmtKST(u.createdAt)}</td>
-    </tr>`).join('') || `<tr><td colspan="10" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
+      <td>${signupSrcLabel(u.signupSource)}</td>
+    </tr>`).join('') || `<tr><td colspan="11" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
   renderUserPager(totalPages);
 }
 function renderUserPager(totalPages) {
