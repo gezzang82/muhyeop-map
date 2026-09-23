@@ -22,3 +22,8 @@ mobile-app/android/keystore.properties
 
 # Turso 사용량 일일 로그(로컬 전용)
 scripts/.db-usage-log.tsv
+crawl-worker.log
+
+# 로컬 dev DB(vercel dev용, 커밋 금지)
+dev.db
+dev.db-*
