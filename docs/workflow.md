@@ -1,14 +1,18 @@
 # 작업/배포 워크플로우
 
 ## ⚠️ DB 안전 규칙 (가장 중요)
-`vercel dev --listen 3000 --yes`는 로컬 mock이 아니라 **실제 운영 Turso DB**에 직결된다.
-- 등록/삭제/수정 등 쓰기 동작을 로컬에서 테스트할 때는 **반드시 `window.fetch`를 mock**한 뒤에 실행한다. mock 없이 실제 POST/PUT/DELETE를 실행하지 않는다.
-- 안전장치(safety classifier)가 직접적인 쓰기성 호출을 막으면 절대 우회하지 않는다.
+**로컬 dev DB 분리(2026-09-24)**: 이제 `vercel dev`는 운영 Turso가 아니라 **로컬 `dev.db`(SQLite file)** 를 본다 → 로컬 쓰기 테스트(제보·신고·후기·어드민 승인 등)에 **더 이상 `fetch` mock 불필요**(dev.db라 운영과 완전 분리).
+- **설정**: `.env.local`의 `TURSO_DATABASE_URL=file:./dev.db` + **Vercel의 Development 스코프** `TURSO_DATABASE_URL`도 `file:./dev.db`. ⚠️ **Development 스코프가 핵심** — Vercel 환경변수가 `.env.local`보다 우선이라, 이걸 안 바꾸면 `vercel dev`가 계속 운영을 본다. 운영 URL/토큰은 `.env.local`에 `TURSO_PROD_URL`/`TURSO_PROD_AUTH_TOKEN`로 백업.
+- **배포는 영향 없음**: `vercel --prod`는 Vercel **Production 스코프(운영 DB)** 를 쓰므로 배포는 운영 그대로.
+- **유지보수 스크립트가 운영을 대상으로 해야 하면** `TURSO_PROD_*`를 읽어야 한다(그냥 `TURSO_DATABASE_URL`을 쓰면 `dev.db`를 건드림).
+- `scripts/seed-dev-db.js`: 운영에서 샘플(매장 6천·캠페인·배너·후기 일부) 복사해 `dev.db` 생성. 스키마 드리프트 자동보정(누락 컬럼 `ALTER`), 소스는 `TURSO_PROD_*` 우선. dev 데이터 새로고침 시 재실행.
+- `dev.db`는 gitignore(커밋 금지). dev.db엔 `users`/`site_daily`/`campaign_events`/`reports`/`scraped_items`/`push_tokens`는 비어있음(그 어드민 화면 테스트하려면 시드에 추가 필요).
+- **여전히 유효**: `.env.local` 보호 훅(쓰기 차단), 안전장치가 막으면 **우회 금지**, 운영을 직접 건드리는 스크립트(`TURSO_PROD_*` 사용분)는 항상 주의.
 
 ## 표준 작업 순서
 1. 코드 수정 (app.js / admin.js / api / style.css 등)
 2. `vercel dev --listen 3000 --yes`를 백그라운드로 실행 + Playwright MCP로 동작 확인
-   - 쓰기 동작 테스트 시 위 DB 안전 규칙에 따라 `fetch` mock 필수
+   - `vercel dev`는 로컬 `dev.db`를 보므로 쓰기 테스트도 자유롭게(운영 무관). `fetch` mock 불필요. (`/admin`은 로컬에서 404 → `/admin.html`로 접속)
 3. 테스트 산출물 정리: 스크린샷 삭제, `.playwright-mcp` 디렉토리 삭제, `lsof -ti:3000 | xargs -r kill -9`로 dev 서버 종료
 4. `git add <구체적 파일명>` — **`git add -A`/`git add .` 금지**, 항상 파일을 지정해서 add
 5. 커밋 메시지는 한국어로, 마지막 줄에 아래를 포함:

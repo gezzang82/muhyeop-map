@@ -7,6 +7,7 @@
 
 ## 모바일 반응형 (로그인 + 대시보드만, 2026-09-18)
 - 어드민은 기본 PC 전용이나 **로그인 화면과 대시보드만** 폰에서 보이게 `admin.css`에 `@media (max-width:640px)` 블록 추가. 좌측 사이드바 숨김, 상단바에 `.topbar-brand-mobile`('무협맵 관리자') 노출, 통계 그리드 2열(값 26px/라벨 13.5px), 대시보드 행 1열, 마감임박/방문추이 등 넓은 카드는 `overflow-x:auto`. 로그인 박스도 반응형. 폰트는 너무 작지 않게. **나머지 관리 탭(장소/캠페인/수집 등)은 PC에서 사용**(모바일 미대응).
+- **가로 스크롤/바운스 수정(2026-09-23)**: `.admin-content`가 `overflow-y:auto`라 가로축이 `auto`로 계산돼, 넓은 카드/차트가 조금만 넘쳐도 페이지 전체가 좌우로 밀리던 문제 → 모바일에서 `.admin-content { overflow-x: hidden }`(넓은 차트는 자체 `overflow-x:auto`로 내부 스크롤 유지, 관리탭 표는 `display:block`+`overflow-x:auto`). 당길 때 밀리는 오버스크롤 바운스는 `overscroll-behavior:none`(html/body/.admin-content)로 차단.
 
 ## 날짜/시간 표시 (KST 변환)
 - DB의 `created_at`은 `datetime('now')`로 **UTC 저장**(스키마 대부분. `scraped_items`만 `+9 hours`). 어드민 목록의 **일시 표시는 `fmtKST()`로 KST 변환** 후 출력(회원목록 가입일시 `u.createdAt`, 신고목록 신고일시 `r.createdAt`). `fmtKST`는 SQLite UTC 문자열을 `Asia/Seoul` 기준 `YYYY-MM-DD HH:MM`으로. 대시보드 "오늘 가입" 집계(`isCreatedToday`)도 KST 기준. (후기 목록의 게시일은 `postDate` 날짜값이라 변환 대상 아님)
@@ -20,6 +21,12 @@
 - **방문 추이 그래프**(`#visitChart`, `renderVisitChart`): 순수 CSS 막대그래프(차트 라이브러리 없음). **일별/주별/월별 토글**(`setVisitPeriod`) — `?visit=stats&period=day|week|month`. PV=SUM, UV는 기간 내 **진짜 고유**(`COUNT(DISTINCT visitor_key)` from `site_visitor`)라 일별 UV 단순합보다 정확. PV 막대 안에 UV를 브랜드컬러로 채워 비중 표시. day=최근 14일, week/month=최근 12구간.
 - **마감 임박 카드**(`#ddayStats`, 2026-07-31): 활성 캠페인을 마감까지 남은 일수별로 **D-DAY(오늘 마감)~D-7** 8칸으로 집계 표시(2026-08-02 D-4→D-7 확장). `deadlineToUTC(c.deadline) - today === n*86400000`(KST 기준), 상시(마감일 빈 값=Infinity)는 제외. D-DAY 칸은 브랜드컬러 강조. 체험단 마감이 ~5일이라 매일 얼마나 갱신해야 하는지 파악용.
 - "마감 완료" 통계 카드는 D-day/마감 시스템 제거 후 함께 삭제됨 (`expired` 필터, `statExpired` 더 이상 없음)
+- **캠페인 조회·클릭 카드**(`renderCampaignClicks`, `GET /api/campaigns?clickstats=1`): `campaign_events`(view=상세보기 / click=페이지이동) 집계를 **일별**(`#campaignClickDaily`)·**지역별**(`#campaignClickRegion`)·**카테고리별**(`#campaignClickCategory`)로 표시(전환율=click/view). **플랫폼별 카드 추가(2026-09-23)**: `#campaignClickPlatform` — `?clickstats=1`의 `platforms`(리뷰노트·디너의여왕 등 플랫폼별 상세보기/페이지이동, **오늘+누적**, [[api-db]]).
+
+## 이벤트 푸시 (전체 발송, 2026-09-23)
+- 대시보드 상단 **"📣 이벤트 푸시"** 카드(`sendEventPush`): 제목/내용/(선택)이동대상(매장ID 숫자 또는 `https://` 링크) → 확인창 후 **`POST /api/users?push=broadcast`**(requireAdmin, 활성 `push_tokens` 전체에 FCM 발송, 무효 토큰 자동 비활성화). 대상 기기수는 **`GET /api/users?push=count`**(활성 토큰 수)로 카드에 표시.
+- 탭 동작: `placeId`면 매장 상세(`focusPlace`), `url`이면 외부링크(`openExternal`), 없으면 앱만 열림([[frontend]] applyPushNav).
+- **대상 구분**: 이벤트 푸시(브로드캐스트)는 알림 켠 기기 **전부**, 하루요약(`notifyDailyDigest`)은 **관심지역 저장(`push_prefs`)한 기기만**. 상세 [[api-db]]·`docs/product/16-push-notifications.md`.
 
 ## Excel 업로드
 - 장소/캠페인 일괄 등록 시 사용. 마감일 컬럼은 `YYYY-MM-DD` 형식이며 **비워두면 마감일 없이 등록**됨 (가이드 문구에 명시되어 있음)
@@ -45,5 +52,6 @@
 - **AI 자동등록(오토파일럿) 카드**(2026-08): `execAutopilot(dry)` — [미리보기(등록 안 함, `?dry=1`)]/[지금 실행](`POST ?action=autopilot`). 결정 표(🟢자동등록/🟡검수대기/🔴스킵)+요약 노출. **로컬 크롤러(`scripts/crawl-worker.js`)가 상시 자동 실행**하며(Vercel 크론 폐지 2026-08-30) 버튼은 즉시 실행/미리보기용. 자동등록분은 `campaigns.source='ai'` → **조회>캠페인 출처 라디오 'AI'**로 모아보고 해당 행에서 회수. 라우팅/처리량 상세: `docs/product/03-platform-analysis.md` 8절, 엔진 `api/_autopilot.js`.
 
 ## 회원 목록 (`tab-users`)
-- `api/users.js`(`GET`만 지원)로 `users` 테이블 전체를 가입일 역순 조회. ID/로그인 방식/닉네임/이메일/블로그·인스타/가입일시 표시
+- `api/users.js` GET으로 `users` 테이블 전체를 가입일 역순 조회. ID/로그인 방식/닉네임/이메일/블로그·인스타/제보수/후기수/접속수/최종접속/가입일시/**가입경로** 표시. (POST `?push=` 분기는 별개 — [[api-db]])
 - 이메일은 로그인 사용자만 OAuth로 자동 수집되며(비로그인 사용자는 이메일을 수집하지 않음), 블로그·인스타는 사용자가 프로필 설정에서 등록한 경우에만 채워짐
+- **가입경로 컬럼(2026-09-23)**: `signupSource`(`users.signup_source`)를 `SIGNUP_SRC_LABELS`(네이버/카카오/스레드/앱 등)로 표시, 빈값은 '-'. 신규 가입 시점의 유입소스를 기록(추적 흐름 [[api-db]] `api/auth/`). **소급 불가** — 배포(2026-09-23) 이후 신규 가입부터.

@@ -15,6 +15,7 @@
   - **⚠️ 성능(2026-09-14)**: `hasActiveCampaign`는 **활성 맵 O(1) 조회만** 한다. 예전엔 `places.find(2만 선형스캔)`로 `place.hidden`을 확인했는데, 저줌·넓은뷰에서 뷰당 수천 번 호출돼 **O(뷰×2만) 폭증**(완전 아웃/z11 실측 373ms→17ms). 활성 맵은 공개 데이터라 숨김 캠페인/숨김매장 소속을 이미 제외 → `place.hidden` 재조회 불필요. 루프 안에서 매장ID→매장 조회가 필요하면 `places.find` 반복 금지(맵 캐시 사용).
   - **renderSidebar 저줌 조기반환/디바운스(2026-09-14)**: `map idle`의 사이드바 갱신은 120ms 디바운스. `zoom < CAMPAIGN_MIN_ZOOM`(전국·광역)에선 캠페인 미로드로 목록이 어차피 비어 '확대 안내'만 뜨므로 **2만 매장 뷰포트 필터를 통째로 스킵**. 뷰포트 필터도 `bounds.hasLatLng(new LatLng())`(매장마다 객체 할당) 대신 경계값 숫자 비교. 마감임박 정렬은 장소별 최이른마감을 1회 메모(sort 비교마다 재계산 방지).
 - **캠페인 뷰포트(bbox) 로딩(2026-09-01)**: 접속 시 캠페인 전량(활성 2.2만·10.2MB)을 받던 것을 **화면에 보이는 영역만** 받도록 전환(경량화). `loadInitialData`는 공개 앱에서 **매장(`?map=1`: 활성 캠페인 OR 후기 있는 매장만 — 지도 경량화 v2, 아래) + 배너 + `?count=active`(총수) + `?recent=24`(버블)** 만 받고 `campaigns`는 빈 채 시작. 지도 idle마다 `loadCampaignsForView()`가 뷰(`viewBoundsWithMargin`)를 `CAMPAIGN_TILE`(0.05°) 격자에 스냅해 **아직 안 받은 타일만** `/api/campaigns?active=1&bbox=W,S,E,N` 요청 → `campaigns`에 id 기준 dedupe 병합(`_loadedTiles`/`_loadedCampaignIds`/`_campInFlight` Set) → `invalidateActiveCache`+재렌더. **`CAMPAIGN_MIN_ZOOM`(11) 미만**(전국·광역 뷰)에선 캠페인 로드 안 함(클러스터만; 사이드바는 "확대하면 협찬이 보여요" 힌트). **지도 경량화 v2(2026-09-11)**: 매장 전량(39k) 대신 **`?map=1`(활성 캠페인 OR 후기 매장만, ~20.7k·8.2MB→4.9MB)** 로드 → 죽은 매장 ~1.6만 제외로 모바일 파싱/렌더 경감(방문 69% 모바일웹). 죽은 매장은 지도에서 빠지나 **검색은 서버 전체 대상**: `searchRegion`이 in-memory(map-set) 미스 시 `searchPlacesOnServer`가 `/api/places?q=이름`(전체 비숨김)으로 찾아 `places`에 병합→`focusPlace`(죽은 매장도 검색→후기 등록 가능). 클러스터링·사이드바는 map-set in-memory로 그대로 작동(활성 매장은 전부 포함). `updateStatCount`는 서버 `totalActiveCount` 사용(어드민은 전량 로드라 `campaigns` 집계로 폴백). 라이브버블은 `recentCampaigns`(매장명 조인) 사용. **화면 밖 매장을 focus(버블·검색)로 열 때**는 `ensurePlaceCampaigns(placeId)`가 `?active=1&placeId=`로 그 매장 캠페인을 먼저 확보(빈 상세 방지). 제보 등록 시 `campaigns.push`+`_loadedCampaignIds.add`+`totalActiveCount++`. 효과: 초기 15MB→매장(gzip~1MB)+뷰포트 캠페인 수백건, 메모리 캠페인 객체 2.2만→화면당 수백. 어드민(`/admin`)은 통계용으로 캠페인 전량 로드 유지.
+  - **핀 직접 클릭도 캠페인 확보(2026-09-23)**: 예전엔 `focusPlace`(버블·검색)만 `ensurePlaceCampaigns`를 불러, **팬 직후 새 핀을 직접 클릭**하면 그 타일 캠페인이 아직 로드 전이라 상세가 "캠페인 없음"+후기탭 우선으로 떴음 → `openMobileSheet`/`openPcCard`도 즉시 오픈 후 `ensurePlaceCampaigns(place.id).then(refreshOpenDetailCampaignPane)`로 캠페인 pane을 채우고 캠페인 탭으로 되돌림(`ensurePlaceCampaigns`는 멱등이라 focusPlace 경로 이중호출 무해).
 - **데이터 로드 실패 폴백(`#mapError`)**: `loadInitialData`가 `/api/places`·`/api/campaigns` 응답이 `!res.ok`(예: 서버 장애/DB 읽기한도 500)이거나 배열이 아니면 **에러를 던짐**. 부팅 핸들러(`window load`)가 `try/catch`로 잡아 `showMapError()`(기존 지도 스크립트 실패용 오버레이 재사용) + `hideAppLoading()` 후 중단 → 빈 지도/무한스피너 대신 "지도를 불러오지 못했어요 / 다시 시도"(reload). 실패 시 `_dataLoadPromise=null`로 메모 해제(재시도 가능). `.map-error`는 `position:fixed;z-index:10000`이고 `showMapError`가 오버레이를 `document.body` 최상위로 옮겨(부모 스태킹 컨텍스트 탈출) PC 사이드바·아이콘레일·라이브캐릭터까지 **화면 전체를 덮음**. 배너는 비필수라 실패해도 빈 배열로 넘어감.
 
 ## 지도 마커 렌더링 / 격자 클러스터링 (`renderMarkers`)
@@ -28,6 +29,7 @@
   - **PC(Figma 1105-2)**: 칩 탭 → `toggleCategoryDropdown` → 칩 **바로 아래 드롭다운**(`#catDropdown`, `.cat-dropdown-item`). `.pc-chips-row`가 `overflow:auto`(칩 가로스크롤)라 드롭다운을 잘라먹어 → 드롭다운은 `position:fixed`로 오버플로우 탈출 + 열 때 칩 `getBoundingClientRect`로 top/left 지정. 바깥 클릭 시 닫힘(`_closeCatDropdownOutside`), 열림 시 캐럿 180° 회전(`.dropdown-open`).
   - **칩 표기**: 아이콘 없이 텍스트만. 기본 "카테고리", 선택 시 카테고리명. 선택 상태 = `.active`(연한 테두리 `#aaa` + 볼드).
 - **필터 적용 지점**: `renderMarkers`의 `visiblePlaces`와 `renderSidebar`의 `activePlaces`에 `matchesCategoryFilter(place)` AND 조합(`place.category`, 빈값=기타). **채널 필터와 독립적으로 AND**(채널=캠페인 속성/`hasActiveCampaign` 경유, 카테고리=매장 속성).
+- **카테고리 11종 + 핀(`CATEGORY_PINS`)**: 음식점·카페·뷰티·**헤어**·**사진관**·숙박/여가·문화·의류·안경/잡화·운동·기타. 각 색+화이트 아이콘(`getCategoryPin`). 신설: **헤어**(`#45C04D` 가위, Figma 1040-9167, 뷰티에서 분리)·**사진관**(`#1AA0E3` 카메라, Figma 1658-59044, 문화에서 분리)·운동(`#E77844`). 서버 분류/스윕은 [[api-db]]·[[06-decision-log]].
 - **칩 디자인**: 채움(fill) → **아웃라인**으로 변경(Figma 1156-1905). 선택 상태 = 흰 배경 + 연한 테두리(`#aaa`, 1.5px) + 볼드(선택 표시는 주로 볼드 텍스트). 칩 아이콘은 배경 서클 없이 글리프만 `currentColor`. `filterChannel`의 active 토글은 `.filter-chip[data-channel]`만 대상(카테고리 칩 제외).
 - **셀렉트시트 위치**: `#selectSheetPanel`은 원래 제보 모달 안에 있어, 모달 밖(지도 필터)에서 열 땐 `openSelectSheet`가 패널을 `document.body`로 되돌림(안 그러면 숨은 모달 안에 갇혀 안 보임). 모달 셀렉트를 다시 열면 그 모달로 재이동(자기교정).
 
@@ -57,6 +59,10 @@
 - **콜드스타트 레이스 해소**: 앱이 종료된 상태에서 푸시 탭으로 켜지면 `map`이 준비되기 전 탭 이벤트가 와 `map.setCenter`가 조용히 실패(무반응)하던 문제 → 리스너를 데이터 로드 전 **일찍 등록**(`attachPushActionListener`, load 핸들러 `initMap` 직후), 지도 준비 전 탭은 `_pendingPushNav`에 큐잉 → `renderAll` 뒤 **`drainPendingPushNav`** 로 처리.
 - **포그라운드 자동이동**: 앱을 켜둔 채 푸시가 오면 안드로이드는 트레이에 안 남기고 배너만 잠깐 떠 탭할 게 없음 → `pushNotificationReceived`로 포그라운드 도착을 잡아 `applyPushNav`를 바로 실행(탭 없이 이동).
 - `app.js`는 서버(server.url)에서 로드돼 **배포만으로 앱에 반영**(플러그인은 이미 APK). 서버 발송 로직·문구는 [[api-db]]·[[16-push-notifications]].
+
+## 가입 유입경로(클라, 2026-09-23)
+- 방문 시 유입소스를 세션(`sessionStorage mh_src`)에 저장: `?ref`/`utm_source` 태그가 있으면 그 값, 없으면 최초 `document.referrer`를 채널로 분류(`classifyRefClient` — 네이버/카카오/인스타/스레드/구글/페북/당근/유튜브/틱톡, 그 외 host, 내부/빈값 제외).
+- 로그인 시 그 소스를 로그인 URL `src`로 실어보냄: 카카오/네이버는 `oauthLogin(provider)`(index.html 로그인 버튼 `onclick`), 애플은 `appleSignIn`. `getSignupSrc()`가 `mh_src` 반환. 서버가 신규 가입 시 `users.signup_source`에 기록 → 어드민 회원목록 가입경로 [[api-db]]·[[admin]]. (방문 집계의 `?ref`와 같은 소스, 여기선 회원 단위 귀속)
 
 ## 정보창(인포윈도우) 뱃지
 - "공휴일 불가" 뱃지: `excludeHoliday`가 true일 때 노출, 폰트 컬러 `#000`
