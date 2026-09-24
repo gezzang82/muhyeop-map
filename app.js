@@ -793,6 +793,16 @@ function getActiveBanners() {
 let _bannerSlides = [];   // 현재 표시 중인 활성 배너 목록
 let _bannerIdx = 0;       // 현재 슬라이드 인덱스
 let _bannerShown = false; // 이번 로드에서 이미 노출했는지(중복 호출 가드 — 조기 노출 후 재호출 방지)
+let _bannerAuto = null;   // 자동 스와이프 타이머(5초)
+
+// 5초마다 다음 슬라이드로 자동 이동, 마지막이면 처음(1번)으로 순환. 배너 2개 이상일 때만.
+// 수동 조작(점 클릭/스와이프) 시 재호출해 5초 카운트다운을 리셋한다.
+function startBannerAuto() {
+  clearInterval(_bannerAuto); _bannerAuto = null;
+  const n = _bannerSlides.length;
+  if (n < 2) return;
+  _bannerAuto = setInterval(() => { setBannerSlide((_bannerIdx + 1) % n); }, 5000);
+}
 
 function showBannerPopup() {
   if (_bannerShown) return; // 이미 띄웠으면(조기 노출 등) 중복 렌더/슬라이드 리셋 방지
@@ -829,6 +839,7 @@ function showBannerPopup() {
   }
   setBannerSlide(0);
   attachBannerSwipe();
+  startBannerAuto(); // 5초 자동 스와이프 시작
   overlay.classList.add('show');
 }
 
@@ -840,7 +851,7 @@ function setBannerSlide(i) {
   track.style.transform = `translateX(${-_bannerIdx * 100}%)`;
   if (dots) Array.from(dots.querySelectorAll('.banner-dot')).forEach((d, di) => d.classList.toggle('active', di === _bannerIdx));
 }
-function goBannerSlide(i) { setBannerSlide(i); }
+function goBannerSlide(i) { setBannerSlide(i); startBannerAuto(); } // 수동 이동 후 5초 타이머 리셋
 
 // 스와이프(터치·드래그)로 슬라이드 이동
 let _bannerDragged = false;
@@ -854,7 +865,7 @@ function attachBannerSwipe() {
   const onUp = (x) => {
     if (!dragging) return; dragging = false;
     const dx = x - startX;
-    if (Math.abs(dx) > 40) setBannerSlide(_bannerIdx + (dx < 0 ? 1 : -1));
+    if (Math.abs(dx) > 40) { setBannerSlide(_bannerIdx + (dx < 0 ? 1 : -1)); startBannerAuto(); } // 스와이프 후 타이머 리셋
     setTimeout(() => { _bannerDragged = false; }, 0);
   };
   carousel.addEventListener('touchstart', e => onDown(e.touches[0].clientX), { passive: true });
@@ -866,6 +877,7 @@ function attachBannerSwipe() {
 }
 
 function closeBannerPopup() {
+  clearInterval(_bannerAuto); _bannerAuto = null; // 자동 스와이프 정지
   document.getElementById('bannerPopupOverlay').classList.remove('show');
 }
 
