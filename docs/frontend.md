@@ -88,6 +88,7 @@
 - 접속 시 `#bannerPopupOverlay`에 **활성 배너 전체**를 캐러셀로 노출(예전엔 `getActiveBanner`가 1개만 반환 → `getActiveBanners`로 전부). 활성=숨김 아님 + 오늘이 `startDate~endDate` 안. 순서는 서버 정렬(`sort_order ASC`, [[api-db]]).
 - **점 인디케이터는 우상단**(`#bannerDots`, 반투명 pill 안 흰 점, 현재 슬라이드 `.active`). 배너 **1개면 점 숨김**. **스와이프**(터치·마우스 드래그, `attachBannerSwipe`) + **점 클릭**으로 이동(`setBannerSlide`가 `translateX(-i*100%)`). 드래그 판정 시 이미지 링크 클릭 억제(`_bannerDragged`).
 - "오늘 그만 보기"는 세트 전체 1회(`localStorage.bannerDismissedDate`, 기존 유지). 어드민 순서 설정은 [[admin]].
+- **조기 노출(2026-09-24)**: 예전엔 `showBannerPopup`이 `await loadInitialData()`(매장 ~5MB 파싱+캠페인 타일 프리페치) **완료 뒤**에야 불려 팝업이 늦게 떴음 → **부팅 핸들러가 `initMap` 직후 작은 `/api/banners`만 독립적으로 먼저 fetch해 즉시 노출**(loadInitialData도 배너를 다시 채우지만 `_bannerShown` 가드로 중복 노출 안 함). 배너 GET은 payload가 큼(이미지 data URI, 2건 ~364KB)이라 공개 GET에 짧은 엣지캐시(60s)로 CDN 히트([[api-db]]).
 
 ## 제보왕(리더보드) 배너 — 현재 숨김
 - `app.js`의 `LEADERBOARD_ENABLED = false` 플래그로 PC/모바일 제보왕 배너 비노출(`renderLeaderboard`가 조기 반환, 60초 폴링도 안 돎). 베타 이벤트 시작 시 `true`로. API(`/api/users?leaderboard=1`)는 살아있음.

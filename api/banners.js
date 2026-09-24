@@ -28,10 +28,14 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     // 공개는 숨김 배너 제외, 관리자(mh_admin)만 전체 조회(숨김 관리용). 순서: sort_order 오름차순(작을수록 먼저)
-    const sql = isAdmin(req)
+    const admin = isAdmin(req);
+    const sql = admin
       ? 'SELECT * FROM banners ORDER BY sort_order ASC, id DESC'
       : 'SELECT * FROM banners WHERE COALESCE(hidden,0)=0 ORDER BY sort_order ASC, id DESC';
     const result = await db.execute(sql);
+    // 공개 GET만 짧은 엣지 캐시: 배너는 자주 안 바뀌고 payload가 큼(이미지 data URI). 이벤트 팝업이
+    // 빨리 뜨게 CDN 히트(~0.3s)로. 어드민 편집은 최대 60s 내 반영(재배포 시 즉시 플러시). 어드민 조회는 캐시 안 함.
+    if (!admin) res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
     return res.status(200).json(result.rows.map(toBanner));
   }
 
