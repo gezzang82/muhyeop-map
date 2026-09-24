@@ -951,6 +951,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 @media (prefers-reduced-motion: reduce) {
   .autumn-leaves { display: none; }
 }
+/* 안드로이드 앱: 성능 보호 — 낙엽을 '가볍게'(개수는 JS 8개). 3D flutter(rotateX/Y/Z 합성)와
+   drop-shadow filter는 저사양 기기에서 무거우므로 끄고, 낙하+살랑(2D transform)만 유지 */
+.native-android .autumn-leaf-sprite { animation: none; }
+.native-android .autumn-leaf-sprite svg { filter: none; }
 /* 지도 로딩 실패 안내 (지도 영역만 덮음) */
 .map-error {
   /* 지도 영역만이 아니라 화면 전체(PC 사이드바·헤더 포함)를 덮는다. 데이터/지도 로드 실패 공용. */

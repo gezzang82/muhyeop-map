@@ -538,8 +538,9 @@ function initAutumnLeaves() {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const isMobile = window.innerWidth <= 640;
+  // 안드로이드 앱은 저사양 기기 대비 '가볍게'(개수 축소 + CSS로 그림자/3D flutter 비활성, style.css .native-android)
   const isAndroidApp = document.documentElement.classList.contains('native-android');
-  const leafCount = isAndroidApp ? 0 : (isMobile ? 12 : 20);
+  const leafCount = isAndroidApp ? 8 : (isMobile ? 12 : 20);
   if (!leafCount) return;
 
   const palettes = [
