@@ -717,6 +717,7 @@ function renderDashboard() {
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (v || 0).toLocaleString(); };
     set('statVisitTodayPv', s.todayPv);
     set('statVisitTodayUv', s.todayUv);
+    set('statVisitTodayMember', s.todayMemberReturning);
     set('statVisitTotalPv', s.totalPv);
     const dwEl = document.getElementById('statVisitTodayDwell');
     if (dwEl) dwEl.textContent = s.todayDwellCount ? fmtDwell(s.todayDwell) : '-';

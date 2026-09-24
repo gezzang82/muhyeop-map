@@ -133,6 +133,18 @@ module.exports = async function handler(req, res) {
       const total = (await db.execute("SELECT COALESCE(SUM(pv),0) AS pv, COALESCE(SUM(uv),0) AS uv FROM site_daily")).rows[0] || {};
       const dwellAvg = (r) => { const c = Number(r.dwell_count || 0); return c > 0 ? Math.round(Number(r.dwell_sum || 0) / c) : 0; };
 
+      // 당일 재방문 회원 수 = 오늘(KST) 방문한 '기존' 회원 수(당일 가입자 제외).
+      // user_visits.visit_date=KST 날짜, users.created_at=UTC → date(created_at,'+9 hours')로 KST 가입일 비교.
+      let todayMemberReturning = 0;
+      try {
+        await db.execute("CREATE TABLE IF NOT EXISTS user_visits (user_id INTEGER NOT NULL, visit_date TEXT NOT NULL, UNIQUE(user_id, visit_date))");
+        const mr = (await db.execute({
+          sql: "SELECT COUNT(*) AS n FROM user_visits uv JOIN users u ON u.id = uv.user_id WHERE uv.visit_date = ? AND date(u.created_at, '+9 hours') <> ?",
+          args: [day, day]
+        })).rows[0] || {};
+        todayMemberReturning = Number(mr.n || 0);
+      } catch (e) {}
+
       // 기간별 시계열: PV=SUM(pv)(site_daily), UV=COUNT(DISTINCT visitor_key)(site_visitor, 기간 내 진짜 고유)
       const period = req.query.period === 'week' ? 'week' : req.query.period === 'month' ? 'month' : 'day';
       let series;
@@ -168,6 +180,7 @@ module.exports = async function handler(req, res) {
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
         todayDwell: dwellAvg(today), todayDwellCount: Number(today.dwell_count || 0),
+        todayMemberReturning,
         period, series,
         referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
         todayReferrers: todayRefRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
