@@ -29,13 +29,15 @@ module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
     // 공개는 숨김 배너 제외, 관리자(mh_admin)만 전체 조회(숨김 관리용). 순서: sort_order 오름차순(작을수록 먼저)
     const admin = isAdmin(req);
+    const wantAdmin = req.query.admin === '1'; // 어드민은 ?admin=1 별도 URL로 조회 → CDN 캐시키 분리(캐시 미적용)
     const sql = admin
       ? 'SELECT * FROM banners ORDER BY sort_order ASC, id DESC'
       : 'SELECT * FROM banners WHERE COALESCE(hidden,0)=0 ORDER BY sort_order ASC, id DESC';
     const result = await db.execute(sql);
     // 공개 GET만 짧은 엣지 캐시: 배너는 자주 안 바뀌고 payload가 큼(이미지 data URI). 이벤트 팝업이
-    // 빨리 뜨게 CDN 히트(~0.3s)로. 어드민 편집은 최대 60s 내 반영(재배포 시 즉시 플러시). 어드민 조회는 캐시 안 함.
-    if (!admin) res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
+    // 빨리 뜨게 CDN 히트(~0.3s)로. ⚠️ Vercel CDN은 쿠키를 구분 안 해 같은 URL은 어드민에게도 캐시된 공개응답을
+    // 주므로, 어드민은 반드시 ?admin=1(별도 캐시키)로 조회하고 그 응답은 캐시하지 않는다(항상 라이브·숨김 포함).
+    if (!admin && !wantAdmin) res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
     return res.status(200).json(result.rows.map(toBanner));
   }
 

@@ -66,8 +66,10 @@ function loadInitialData() {
       }
       if (isAdminPage) {
         // 어드민: 통계용으로 매장·캠페인 전체 필요(뷰포트 로딩 미적용).
+        // 배너는 ?admin=1(별도 캐시키·미캐시)로 조회 — 공개 GET은 CDN 캐시라 쿠키 무관하게 캐시된 공개응답을
+        // 주므로 어드민 목록에서 숨김 배너 누락/편집 직후 stale이 생김([[api-db]] banners 캐시 주의).
         const [placesRes, campaignsRes, bannersRes] = await Promise.all([
-          fetch('/api/places'), fetch('/api/campaigns'), fetch('/api/banners')
+          fetch('/api/places'), fetch('/api/campaigns'), fetch('/api/banners?admin=1')
         ]);
         if (!placesRes.ok || !campaignsRes.ok) {
           throw new Error(`데이터 로드 실패: places ${placesRes.status}, campaigns ${campaignsRes.status}`);
