@@ -893,7 +893,64 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 
 /* ===== 레이아웃 ===== */
-#map { flex: 1; min-width: 0; z-index: 1; position: relative; touch-action: none; }
+#map { flex: 1; min-width: 0; z-index: 1; position: relative; touch-action: none; overflow: hidden; }
+
+/* ===== 계절 지도 효과: 가을 낙엽 ===== */
+.autumn-leaves {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+}
+.autumn-leaf {
+  position: absolute;
+  top: -56px;
+  left: var(--leaf-left, 50%);
+  width: var(--leaf-size, 30px);
+  height: var(--leaf-size, 30px);
+  opacity: var(--leaf-opacity, 0.8);
+  transform-origin: 48% 18%;
+  animation:
+    autumn-leaf-fall var(--leaf-duration, 12s) linear var(--leaf-delay, 0s) infinite,
+    autumn-leaf-sway var(--leaf-sway-duration, 3.8s) ease-in-out var(--leaf-delay, 0s) infinite alternate;
+  will-change: transform;
+  perspective: 80px;
+}
+.autumn-leaf-sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 56%;
+  animation: autumn-leaf-flutter var(--leaf-flutter-duration, 2.6s) ease-in-out var(--leaf-delay, 0s) infinite alternate;
+}
+.autumn-leaf-sprite svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 5px 4px rgba(83, 42, 15, 0.2));
+}
+@keyframes autumn-leaf-fall {
+  from {
+    transform: translate3d(0, -10vh, 0) rotate(var(--leaf-rotate-start, -12deg)) scale(var(--leaf-scale, 1));
+  }
+  to {
+    transform: translate3d(var(--leaf-drift, 40px), 112vh, 0) rotate(var(--leaf-rotate-end, 380deg)) scale(var(--leaf-scale, 1));
+  }
+}
+@keyframes autumn-leaf-sway {
+  from { margin-left: calc(var(--leaf-sway, 28px) * -1); }
+  to { margin-left: var(--leaf-sway, 28px); }
+}
+@keyframes autumn-leaf-flutter {
+  from { transform: rotateX(0deg) rotateY(-38deg) rotateZ(-8deg); }
+  to { transform: rotateX(24deg) rotateY(36deg) rotateZ(14deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .autumn-leaves { display: none; }
+}
 /* 지도 로딩 실패 안내 (지도 영역만 덮음) */
 .map-error {
   /* 지도 영역만이 아니라 화면 전체(PC 사이드바·헤더 포함)를 덮는다. 데이터/지도 로드 실패 공용. */

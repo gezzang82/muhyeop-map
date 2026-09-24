@@ -528,6 +528,89 @@ function getSavedMapCenter() {
 function saveMapCenter(lat, lng) {
   try { localStorage.setItem(MAP_CENTER_KEY, JSON.stringify({ lat, lng })); } catch (e) {}
 }
+
+function initAutumnLeaves() {
+  // 가을 낙엽 시즌 이벤트: 2026-09-27 23:59(KST=UTC+9, 즉 14:59 UTC)까지만 노출.
+  // 이후엔 스크립트가 남아 있어도 자동으로 실행을 멈춘다(재배포 불필요). 완전 제거는 별도 요청 시.
+  if (Date.now() > Date.UTC(2026, 8, 27, 14, 59, 59, 999)) return;
+  const mapEl = document.getElementById('map');
+  if (!mapEl || mapEl.querySelector('.autumn-leaves')) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const isMobile = window.innerWidth <= 640;
+  const isAndroidApp = document.documentElement.classList.contains('native-android');
+  const leafCount = isAndroidApp ? 0 : (isMobile ? 12 : 20);
+  if (!leafCount) return;
+
+  const palettes = [
+    ['#f7b733', '#d96b18', '#873515'],
+    ['#e85d2a', '#a5361b', '#f4a13a'],
+    ['#f2c94c', '#d08b1e', '#8a5a10'],
+    ['#c85b2c', '#7d3219', '#e09b3d'],
+    ['#e26f33', '#b74324', '#6e3218']
+  ];
+  function leafSvg(type, id, palette) {
+    const [a, b, c] = palette;
+    const defs = `<defs>
+      <linearGradient id="leafGrad${id}" x1="18%" y1="6%" x2="76%" y2="92%">
+        <stop offset="0" stop-color="${a}"/><stop offset="0.54" stop-color="${b}"/><stop offset="1" stop-color="${c}"/>
+      </linearGradient>
+      <radialGradient id="leafSpot${id}" cx="35%" cy="30%" r="65%">
+        <stop offset="0" stop-color="#fff3b0" stop-opacity=".34"/><stop offset=".52" stop-color="#fff3b0" stop-opacity=".08"/><stop offset="1" stop-color="#5a260d" stop-opacity=".18"/>
+      </radialGradient>
+    </defs>`;
+    if (type === 1) {
+      return `<svg viewBox="0 0 48 54" aria-hidden="true">${defs}
+        <path d="M24 3.5l4.2 12.1 9.9-8.3-1.2 12.6 9.4-1.8-7.4 8.6 7.8 5.2-11.2 2.7 2.4 10.7-9.8-5.6-4.1 11.6-3.8-11.8-10 5.3 2.6-10.4-11.1-3.1 7.8-5-7.3-8.8 9.5 2-1.4-12.4 10 8.1L24 3.5z" fill="url(#leafGrad${id})"/>
+        <path d="M24 3.5l4.2 12.1 9.9-8.3-1.2 12.6 9.4-1.8-7.4 8.6 7.8 5.2-11.2 2.7 2.4 10.7-13.3-7.5L24 3.5z" fill="url(#leafSpot${id})"/>
+        <path d="M24 11v34M24 25l-11-11M24 26.6l12.6-13M24 32.2L10.5 39M24 32.2l13.8 6.7M23.8 44.2l-3 7.1" fill="none" stroke="#673313" stroke-opacity=".48" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    }
+    if (type === 2) {
+      return `<svg viewBox="0 0 48 54" aria-hidden="true">${defs}
+        <path d="M24 49c-2.1-10.2-8.7-13.8-15.4-18.9C3.4 26.1 1.8 20.3 5 15.6c4-5.9 12.9-4.5 19 5.1 6.1-9.6 15-11 19-5.1 3.2 4.7 1.6 10.5-3.6 14.5C32.7 35.2 26.1 38.8 24 49z" fill="url(#leafGrad${id})"/>
+        <path d="M24 49c2.1-10.2 8.7-13.8 15.4-18.9 5.2-4 6.8-9.8 3.6-14.5-4-5.9-12.9-4.5-19 5.1V49z" fill="url(#leafSpot${id})"/>
+        <path d="M24 21.8v27M24 28.2L8.5 17.5M24 28.2l15.5-10.7M24 34.7l-13.6-2M24 34.7l13.6-2M24 39.8l-7.9 3.2M24 39.8l7.9 3.2" fill="none" stroke="#704116" stroke-opacity=".42" stroke-width="1.35" stroke-linecap="round"/>
+      </svg>`;
+    }
+    return `<svg viewBox="0 0 46 56" aria-hidden="true">${defs}
+      <path d="M23 3.6c5.8 4 8.7 8.8 7.7 13.4 5.7-.7 10.2 2.6 9.7 7.8-.3 3.3-3.2 5.8-7.3 6 3.3 4.4 2.1 9.7-2.8 11.8-2.7 1.2-5.2.7-7.3-1.2-2.1 1.9-4.6 2.4-7.3 1.2-4.9-2.1-6.1-7.4-2.8-11.8-4.1-.2-7-2.7-7.3-6-.5-5.2 4-8.5 9.7-7.8-1-4.6 1.9-9.4 7.7-13.4z" fill="url(#leafGrad${id})"/>
+      <path d="M23 3.6c5.8 4 8.7 8.8 7.7 13.4 5.7-.7 10.2 2.6 9.7 7.8-.3 3.3-3.2 5.8-7.3 6 3.3 4.4 2.1 9.7-2.8 11.8-2.7 1.2-5.2.7-7.3-1.2V3.6z" fill="url(#leafSpot${id})"/>
+      <path d="M23 11v38M23 23l-9.2-6.7M23 23.7l9.2-6.7M23 31.6l-12.8.8M23 31.6l12.8.8M23 38.8l-7.3 6M23 38.8l7.3 6" fill="none" stroke="#5f3216" stroke-opacity=".48" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  }
+  const layer = document.createElement('div');
+  layer.className = 'autumn-leaves';
+  layer.setAttribute('aria-hidden', 'true');
+
+  for (let i = 0; i < leafCount; i += 1) {
+    const leaf = document.createElement('span');
+    const palette = palettes[i % palettes.length];
+    const size = 22 + Math.round(Math.random() * (isMobile ? 12 : 18));
+    const duration = 10 + Math.random() * 10;
+    const delay = -Math.random() * duration;
+    const drift = Math.round((Math.random() - 0.5) * (isMobile ? 170 : 280));
+    const sway = 18 + Math.round(Math.random() * (isMobile ? 34 : 56));
+    leaf.className = 'autumn-leaf';
+    leaf.style.setProperty('--leaf-left', `${Math.round(Math.random() * 100)}%`);
+    leaf.style.setProperty('--leaf-size', `${size}px`);
+    leaf.style.setProperty('--leaf-duration', `${duration.toFixed(2)}s`);
+    leaf.style.setProperty('--leaf-delay', `${delay.toFixed(2)}s`);
+    leaf.style.setProperty('--leaf-sway-duration', `${(2.5 + Math.random() * 2.2).toFixed(2)}s`);
+    leaf.style.setProperty('--leaf-flutter-duration', `${(1.7 + Math.random() * 1.5).toFixed(2)}s`);
+    leaf.style.setProperty('--leaf-drift', `${drift}px`);
+    leaf.style.setProperty('--leaf-sway', `${sway}px`);
+    leaf.style.setProperty('--leaf-opacity', `${(0.5 + Math.random() * 0.34).toFixed(2)}`);
+    leaf.style.setProperty('--leaf-scale', `${(0.82 + Math.random() * 0.32).toFixed(2)}`);
+    leaf.style.setProperty('--leaf-rotate-start', `${Math.round(Math.random() * 120 - 60)}deg`);
+    leaf.style.setProperty('--leaf-rotate-end', `${Math.round(220 + Math.random() * 360)}deg`);
+    leaf.innerHTML = `<span class="autumn-leaf-sprite">${leafSvg(i % 3, i, palette)}</span>`;
+    layer.appendChild(leaf);
+  }
+
+  mapEl.appendChild(layer);
+}
+
 function initMap() {
   const saved = getSavedMapCenter(); // 재방문이면 마지막 내 위치, 첫 방문이면 null(→서울)
   map = new naver.maps.Map('map', {
@@ -540,6 +623,7 @@ function initMap() {
     mapDataControl: false,
     scrollWheel: false
   });
+  initAutumnLeaves();
 
   // 마우스휠 줌 속도 조절: SDK 기본값(1 notch = 1 zoom)이 너무 빠르므로
   // ~2 notch당 1 zoom으로 조절 (naver.com 지도와 유사한 감도)
