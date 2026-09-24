@@ -1038,12 +1038,15 @@ function renderBannerList() {
   const tbody = document.getElementById('bannerTableBody');
   const sizeEl = document.getElementById('bvSize');
   if (sizeEl) bannerView.size = parseInt(sizeEl.value, 10) || 100;
-  const total = banners.length;
+  // 노출 순서(sort_order 오름차순, 공개/캐러셀과 동일)로 정렬해 표시
+  const ordered = [...banners].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || b.id - a.id);
+  const total = ordered.length;
   const totalPages = Math.max(1, Math.ceil(total / bannerView.size));
   if (bannerView.page > totalPages) bannerView.page = totalPages;
   const start = (bannerView.page - 1) * bannerView.size;
-  const pageRows = banners.slice(start, start + bannerView.size);
-  tbody.innerHTML = pageRows.map(b => {
+  const pageRows = ordered.slice(start, start + bannerView.size);
+  tbody.innerHTML = pageRows.map((b, ri) => {
+    const gi = start + ri; // 전체 순서상 인덱스
     const inPeriod = deadlineToUTC(b.startDate) <= today && today <= deadlineToUTC(b.endDate);
     const statusHtml = b.hidden
       ? '<span class="badge-status expired">숨김</span>'
@@ -1057,6 +1060,8 @@ function renderBannerList() {
       <td>${statusHtml}</td>
       <td>
         <div class="row-actions">
+          <button class="btn-edit-sm" onclick="moveBanner(${b.id},-1)" ${gi === 0 ? 'disabled' : ''} title="위로">▲</button>
+          <button class="btn-edit-sm" onclick="moveBanner(${b.id},1)" ${gi === total - 1 ? 'disabled' : ''} title="아래로">▼</button>
           <button class="btn-edit-sm" onclick="editBanner(${b.id})">수정</button>
           <button class="btn-edit-sm" onclick="toggleBannerHidden(${b.id})">${b.hidden ? '노출' : '숨김'}</button>
           <button class="btn-del-sm" onclick="confirmDelete('banner', ${b.id})">삭제</button>
@@ -1160,6 +1165,27 @@ async function toggleBannerHidden(id) {
   b.hidden = nextHidden;
   adminToast(nextHidden ? '팝업을 숨겼어요.' : '팝업 숨김을 해제했어요.');
   renderBannerList();
+}
+
+// 팝업 노출 순서 이동(캐러셀 순서). 인접 배너와 위치를 바꾼 뒤 전체 sort_order를 0..N-1로 정규화
+async function moveBanner(id, dir) {
+  const ordered = [...banners].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || b.id - a.id);
+  const idx = ordered.findIndex(x => x.id === id);
+  const swap = idx + dir;
+  if (idx < 0 || swap < 0 || swap >= ordered.length) return;
+  [ordered[idx], ordered[swap]] = [ordered[swap], ordered[idx]];
+  // 순서가 바뀐 배너만 PATCH
+  const updates = [];
+  ordered.forEach((b, i) => { if ((b.sortOrder || 0) !== i) { b.sortOrder = i; updates.push({ id: b.id, i }); } });
+  renderBannerList(); // 즉시 반영(낙관적)
+  try {
+    for (const u of updates) {
+      await fetch(`/api/banners?id=${u.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder: u.i })
+      });
+    }
+  } catch (e) { adminToast('순서 저장에 실패했어요. 새로고침 후 다시 시도해 주세요.'); }
 }
 
 async function submitBanner() {

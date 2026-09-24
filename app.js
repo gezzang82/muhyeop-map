@@ -696,25 +696,83 @@ function tryInitialLocation() {
   }).catch(() => {});
 }
 
-// ===== 공지/이벤트 배너 팝업 =====
-function getActiveBanner() {
+// ===== 공지/이벤트 배너 팝업 (여러 개면 캐러셀) =====
+// 활성 배너 전체를 순서(sort_order asc, API 정렬)대로 반환
+function getActiveBanners() {
   const today = getKSTTodayUTC();
-  return banners.find(b => !b.hidden && deadlineToUTC(b.startDate) <= today && today <= deadlineToUTC(b.endDate));
+  return banners.filter(b => !b.hidden && deadlineToUTC(b.startDate) <= today && today <= deadlineToUTC(b.endDate));
 }
 
+let _bannerSlides = [];   // 현재 표시 중인 활성 배너 목록
+let _bannerIdx = 0;       // 현재 슬라이드 인덱스
+
 function showBannerPopup() {
-  const banner = getActiveBanner();
-  if (!banner) return;
+  const active = getActiveBanners();
+  if (!active.length) return;
   const dismissedDate = localStorage.getItem('bannerDismissedDate');
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
   if (dismissedDate === todayStr) return;
 
+  _bannerSlides = active;
+  _bannerIdx = 0;
+
   const overlay = document.getElementById('bannerPopupOverlay');
-  const img = document.getElementById('bannerPopupImage');
-  img.src = banner.imageUrl;
-  img.onclick = () => { if (banner.linkUrl) openExternal(banner.linkUrl); };
-  img.style.cursor = banner.linkUrl ? 'pointer' : 'default';
+  const track = document.getElementById('bannerTrack');
+  const dots = document.getElementById('bannerDots');
+  // 슬라이드(이미지) 렌더
+  track.innerHTML = active.map(b => `<img class="banner-slide" src="${b.imageUrl}" alt="공지/이벤트" draggable="false">`).join('');
+  Array.from(track.querySelectorAll('.banner-slide')).forEach((img, i) => {
+    const link = active[i].linkUrl;
+    img.style.cursor = link ? 'pointer' : 'default';
+    img.onclick = () => { if (!_bannerDragged && link) openExternal(link); };
+  });
+  // 점 인디케이터 (배너 2개 이상일 때만)
+  if (active.length > 1) {
+    dots.innerHTML = active.map((_, i) => `<button class="banner-dot" data-i="${i}" aria-label="배너 ${i + 1}"></button>`).join('');
+    dots.style.display = 'flex';
+    Array.from(dots.querySelectorAll('.banner-dot')).forEach(d => {
+      d.onclick = () => goBannerSlide(parseInt(d.dataset.i, 10));
+    });
+  } else {
+    dots.innerHTML = '';
+    dots.style.display = 'none';
+  }
+  setBannerSlide(0);
+  attachBannerSwipe();
   overlay.classList.add('show');
+}
+
+function setBannerSlide(i) {
+  const track = document.getElementById('bannerTrack');
+  const dots = document.getElementById('bannerDots');
+  const n = _bannerSlides.length;
+  _bannerIdx = Math.max(0, Math.min(n - 1, i));
+  track.style.transform = `translateX(${-_bannerIdx * 100}%)`;
+  if (dots) Array.from(dots.querySelectorAll('.banner-dot')).forEach((d, di) => d.classList.toggle('active', di === _bannerIdx));
+}
+function goBannerSlide(i) { setBannerSlide(i); }
+
+// 스와이프(터치·드래그)로 슬라이드 이동
+let _bannerDragged = false;
+function attachBannerSwipe() {
+  const carousel = document.getElementById('bannerCarousel');
+  if (carousel._swipeBound) return;
+  carousel._swipeBound = true;
+  let startX = 0, dragging = false;
+  const onDown = (x) => { startX = x; dragging = true; _bannerDragged = false; };
+  const onMove = (x) => { if (dragging && Math.abs(x - startX) > 8) _bannerDragged = true; };
+  const onUp = (x) => {
+    if (!dragging) return; dragging = false;
+    const dx = x - startX;
+    if (Math.abs(dx) > 40) setBannerSlide(_bannerIdx + (dx < 0 ? 1 : -1));
+    setTimeout(() => { _bannerDragged = false; }, 0);
+  };
+  carousel.addEventListener('touchstart', e => onDown(e.touches[0].clientX), { passive: true });
+  carousel.addEventListener('touchmove', e => onMove(e.touches[0].clientX), { passive: true });
+  carousel.addEventListener('touchend', e => onUp((e.changedTouches[0] || {}).clientX || startX));
+  carousel.addEventListener('mousedown', e => onDown(e.clientX));
+  carousel.addEventListener('mousemove', e => onMove(e.clientX));
+  window.addEventListener('mouseup', e => { if (dragging) onUp(e.clientX); });
 }
 
 function closeBannerPopup() {

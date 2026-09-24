@@ -1326,6 +1326,21 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 .banner-popup-overlay.show .banner-popup { transform: translateY(0) scale(1); }
 .banner-popup-image { width: 100%; display: block; }
+/* 캐러셀 */
+.banner-carousel { position: relative; overflow: hidden; }
+.banner-track { display: flex; transition: transform 0.28s ease; }
+.banner-slide { flex: 0 0 100%; width: 100%; display: block; user-select: none; -webkit-user-drag: none; }
+.banner-dots {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  display: flex; gap: 6px;
+  padding: 5px 8px; border-radius: 999px;
+  background: rgba(0,0,0,0.32);
+}
+.banner-dot {
+  width: 7px; height: 7px; padding: 0; border: none; border-radius: 50%;
+  background: rgba(255,255,255,0.5); cursor: pointer; transition: background 0.15s, transform 0.15s;
+}
+.banner-dot.active { background: #fff; transform: scale(1.15); }
 .banner-popup-actions {
   display: flex; border-top: 1px solid #eee;
 }
