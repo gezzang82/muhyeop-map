@@ -1253,6 +1253,7 @@ function cleanStoreName(name) {
   do {
     prev = n;
     n = n
+      .replace(/^\s*(?:[A-Za-z]|\d{1,4})\s*동(?=\s)\s*/, '')             // "E동 …" / "101동 …" (건물 동 접두; 동네 洞 오인 방지 위해 영문·숫자+동만)
       .replace(/^\s*(?:지상|지하)?\s*\d+\s*평(?:대|형)?(?=\s)\s*/, '')  // "지상 200평대 …"
       .replace(/^\s*지하\s*\d+\s*층(?=\s)\s*/, '')                       // "지하 1층 …"
       .replace(/^\s*[Bb]\s*\d+\s*(?:호|층)(?=\s)\s*/, '')                // "B01호 …" / "B1층 …"
@@ -1892,7 +1893,9 @@ function revuVisitHours(alt) {
   if (!t) return '';
   const m = t.match(/(?:인플루언서\s*)?방문\s*가능\s*한?\s*시간\s*대?\s*[\]:：]?\s*(.+)/) || t.match(/영업\s*시간\s*대?\s*[\]:：]?\s*(.+)/);
   let seg = m ? m[1] : t;
-  seg = seg.replace(/^[\s\-*ㄴ▶■●◆:：]+/, ''); // 앞머리 불릿/기호 제거
+  seg = seg.replace(/^[\s\-*ㄴ▶■●◆★☆※:：]+/, ''); // 앞머리 불릿/기호 제거
+  // ★☆※ 별표 주석은 뒤에 공백이 없어도('★주말') 경계로 처리 — 별표 뒤 안내문이 시간에 새는 것 방지
+  seg = seg.split(/[★☆※]/)[0].trim();
   // 첫 '안내문' 마커 전까지만(=시간 부분)
   seg = seg.split(/\s*(?:[-*ㄴ▶■●◆]\s|주의사항|선정\s*후|최소\s*방문|예약\s*필수|당일\s*예약|매장\s*방문|콘텐츠\s*기재|쿠폰\s*발송|유선\s*예약|체험권\s*내)/)[0].trim();
   // 필러 제거: '영업시간 내/內 방문'·'영업시간 내/內' 같은 군말과 시간 감싼 괄호 → 요일·시간이 붙어 파서가 인식하게
@@ -2058,7 +2061,9 @@ function popName(title, addrDetail) {
   }
   // C_address_detail이 '건물명+호수'(예: 금강벤처텔 405호)면 매장명이 아니라 위치라 C_title로 폴백.
   const isBuilding = /(벤처텔|오피스텔|지식산업센터|빌딩|타워|프라자|플라자|아파트|상가|오피스)/.test(d) && /\d+\s*(호|층|F)/i.test(d);
-  if (d && !isFloor(d) && !isBuilding && d.length <= 30) return cleanStoreName(d);
+  // 'E동 2층 체리피트니스'처럼 건물 동/층으로 시작하면 매장명이 아니라 위치 → C_title로 폴백(제목이 정식 상호).
+  const startsLoc = /^\s*(?:[A-Za-z]|\d{1,4})\s*동(?=\s)/.test(d);
+  if (d && !isFloor(d) && !isBuilding && !startsLoc && d.length <= 30) return cleanStoreName(d);
   // 폴백: C_title에서 [지역] 접두 + 날짜/방문 접미 제거
   return cleanStoreName(String(title || '').replace(/^\[[^\]]*\]\s*/, '').replace(/\s*\d{1,2}\/\d{1,2}\s*\([^)]*\).*$/, '').replace(/\s*(방문|예약)\s*$/, '').trim());
 }
