@@ -1875,16 +1875,29 @@ async function revuFetchAuthed(token, page, limit = 50) {
 }
 
 // 인증 상세: GET /campaigns/{id} → campaignOptions.altVisitInfo(방문/영업시간 자유텍스트) 확보용
+// 상세 제공내역(HTML) 정리: 태그/엔티티 제거, ★ 안내문(얼굴공개필수 등) 컷, 공백 정리.
+// 목록 campaignData.reward는 "증명사진"처럼 축약값이라, 상세 reward(=blogRewardDetail)의 실제 제공내역을 씀.
+function revuRewardClean(t) {
+  let s = String(t || '')
+    .replace(/<br\s*\/?>(?=)/gi, '\n').replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&[a-z#0-9]+;/gi, ' ');
+  // 안내문 경계에서 컷(제공내역만 남김): ★☆※, [참고/유의/주의사항], 줄머리 불릿(* - ·), 공백감싼 * 불릿
+  s = s.split(/[★☆※]|\[(?:참고|유의|주의)\s*사항\]|\n\s*[*\-·]\s|\s\*\s/)[0];
+  s = s.replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return s.slice(0, 200);
+}
 async function revuFetchDetail(token, id) {
   try {
     const r = await fetch(`${REVU_API}/campaigns/${id}`, { headers: { ...REVU_HEADERS, Authorization: `Bearer ${token}` } });
-    if (!r.ok) return { alt: '', shortForm: '' };
+    if (!r.ok) return { alt: '', shortForm: '', reward: '' };
     const j = await r.json();
     const d = j && (j.data || j);
     const co = d && (d.campaignOptions || (d.data && d.data.campaignOptions));
+    // 상세 제공내역: 최상위 reward(=campaignBlogData.blogRewardDetail)에 전체 텍스트가 있음(목록 reward는 축약)
+    const rawReward = (d && d.reward) || (d && d.campaignBlogData && d.campaignBlogData.blogRewardDetail) || '';
     // shortForm='reels_only'면 인스타그램이 아니라 릴스 캠페인(목록 media엔 안 드러나고 상세에만 있음)
-    return { alt: (co && co.altVisitInfo) ? String(co.altVisitInfo) : '', shortForm: (co && co.shortForm) ? String(co.shortForm) : '' };
-  } catch (e) { return { alt: '', shortForm: '' }; }
+    return { alt: (co && co.altVisitInfo) ? String(co.altVisitInfo) : '', shortForm: (co && co.shortForm) ? String(co.shortForm) : '', reward: revuRewardClean(rawReward) };
+  } catch (e) { return { alt: '', shortForm: '', reward: '' }; }
 }
 // altVisitInfo(자유텍스트)에서 방문/영업시간만 추출. 포맷 다양: "영업시간: 평일 …", "월~토 11:00~21:00 / 일 휴무",
 // "매일 10:30~20:30", "09:30~19:00 / 월,화 정기휴무", "[방문 가능 시간] …", "인플루언서 방문가능시간 - 평일 …"
@@ -1938,7 +1951,7 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
   const vcKey = name.replace(/\s+/g, '') + '|' + channel;
   if (seenVC.has(vcKey)) { c.dupActive++; return; }
   seenVC.add(vcKey);
-  const content = (it.campaignData && it.campaignData.reward) ? String(it.campaignData.reward).trim() : '';
+  let content = (it.campaignData && it.campaignData.reward) ? String(it.campaignData.reward).trim() : '';
   const auto = categoryByKeyword(content + ' ' + name, name);
   // 레뷰 업종은 it.category 배열의 업종 태그(맛집/뷰티샵/숙박/문화 등)가 신뢰 가능. venue.category는 대부분 'other'.
   //  우선순위: 내용 키워드(운동·카페 등 세부 구분) → 레뷰 업종태그 → venue.category → 기타.
@@ -1957,6 +1970,7 @@ async function revuStageItem(db, it, dedupe, today, seen, doneIds, seenVC, token
     const detail = await revuFetchDetail(token, id);
     const alt = detail.alt || '';
     shortForm = detail.shortForm || '';
+    if (detail.reward && detail.reward.length >= 2) content = detail.reward; // 목록 축약 reward → 상세 실제 제공내역으로 교체
     await sleep(180); // 상세 fetch 레이트리밋
     // 공휴일 불가는 altVisitInfo 원문에서 직접 판정(★공휴일 체험불가처럼 rbHoursDays가 ★에서 잘려 놓치는 것 방지)
     const altHol = /공휴일[\s\S]{0,15}?(?:불가|휴무|제외|안됨|불가능)/.test(String(alt || '')) ? 1 : 0;
@@ -2147,4 +2161,4 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
   return { platform, newCandidates: moreLeft ? campCount : c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, campCount, timedOut };
 }
 
-module.exports = { categoryByKeyword, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };

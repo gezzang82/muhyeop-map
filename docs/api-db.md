@@ -48,6 +48,7 @@
 ## 인덱스 (읽기량 직결 — 2026-08-31 추가)
 - `idx_scraped_status_seen(status, auto_seen)` — 오토파일럿 대기조회(`status='pending' AND auto_seen=0`)가 `scraped_items` 전수스캔하던 것 방지. 쿼리는 `COALESCE(auto_seen,0)` 금지(인덱스 무력화) — `auto_seen`은 NULL 없이 0/1.
 - `idx_campaigns_link(link)` — `insertCampaign`의 링크 중복확인(`WHERE link=?`)이 `campaigns` 전수스캔하던 것 방지.
+- `idx_campaigns_platform(platform)`(2026-09-25) — 플랫폼별 캠페인 조회(`WHERE platform='레뷰'` 등: `?clickstats=1` 플랫폼 집계·유지보수 스윕)가 `campaigns` 전수스캔하던 것 방지. 쿼리플랜 `SEARCH ... USING COVERING INDEX` 확인.
 - `idx_places_lat_lng(lat, lng)` — `insertPlace` 중복확인은 이 좌표 인덱스로 근처만 읽고 이름은 앱에서 비교(`REPLACE(name)` 같은 함수 WHERE는 인덱스를 죽이니 금지).
 - **원칙**: 크롤러가 매 패스/매 아이템 실행하는 쿼리의 WHERE 컬럼은 반드시 인덱스. Turso는 스캔한 행을 전부 rows-read로 카운트 → 인덱스 없는 전수스캔이 읽기 한도 폭증의 주원인이었음. 새 핫패스 쿼리는 `EXPLAIN QUERY PLAN`으로 `SEARCH ... USING INDEX` 확인. 운영 런북 [[15-operations]] 10절.
 

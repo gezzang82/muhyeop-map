@@ -2,6 +2,13 @@
 
 ## 2026-09
 
+### 레뷰 협찬내용(제공내역) 전수 재수집 + platform 인덱스 (2026-09-25)
+- **증상**: 레뷰 협찬 content가 "증명사진"·"레뷰포인트"처럼 부실. 실제 제공내역("[1인 1회] 여권사진 or 비자사진 or 반명함사진 중 1")과 다름.
+- **원인**: 우리가 레뷰 **목록 API `campaignData.reward`**(축약값)를 content로 씀. 진짜 제공내역은 **상세 API 최상위 `reward`(=blogRewardDetail)** 에 있음.
+- **파서 수정**: `revuFetchDetail`이 상세 reward도 반환(`revuRewardClean`: HTML·★☆※·[참고/유의/주의사항]·불릿 경계 컷 → 제공내역만) → `revuStageItem`이 content를 그걸로 교체.
+- **전수 스윕**(`scripts/sweep-revu-content.js`): 등록된 레뷰 3,857건 상세 재조회 → **content 3,515건 교체 + ★/※ 운영시간 169건 정리**(link없음 51 스킵, 에러 0).
+- **인덱스**: `idx_campaigns_platform` 추가 — `WHERE platform=?` 전수스캔 제거(스윕 목록 쿼리가 인덱스 없어 43초 걸렸음). [[api-db]]
+
 ### 포포몬 매장명 오염 수정 + 전수검사 (2026-09-25)
 - **증상**: "E동 2층 체리피트니스", "101호", "연이빌딩 지하 1층" 등 매장명에 위치(동/층/호/건물/주소)가 들어감. 이름 불일치로 **중복 매장까지 생성**(체리피트니스 50598 vs 563).
 - **원인**: 포포몬 `popName`이 캠페인 제목(`C_title`, 정식 상호) 대신 **`C_address_detail`(위치성 필드)** 을 이름으로 씀. `cleanStoreName`엔 건물 동(棟) 접두 규칙도 없었음.

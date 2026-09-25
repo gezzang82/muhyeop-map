@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
 );
 
 CREATE INDEX IF NOT EXISTS idx_campaigns_place_id ON campaigns(place_id);
+CREATE INDEX IF NOT EXISTS idx_campaigns_platform ON campaigns(platform);
 
 CREATE TABLE IF NOT EXISTS banners (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
