@@ -195,7 +195,8 @@ function classifyRefClient(ref) {
   } catch (e) { return ''; }
 }
 // 가입 유입경로: 세션에 저장된 최초 유입소스(?ref 태그 또는 분류된 referrer)
-function getSignupSrc() { try { return sessionStorage.getItem('mh_src') || ''; } catch (e) { return ''; } }
+// 앱(Capacitor)은 referrer·?ref가 없어 mh_src가 비므로, 최소 'app'으로 폴백(가입경로 미확인 방지). 웹은 빈값 유지.
+function getSignupSrc() { try { return sessionStorage.getItem('mh_src') || (isNativeApp() ? 'app' : ''); } catch (e) { return (typeof isNativeApp === 'function' && isNativeApp()) ? 'app' : ''; } }
 // 카카오/네이버 로그인: 유입소스(src)를 실어 이동(신규 가입 시 users.signup_source에 기록)
 function oauthLogin(provider) {
   const redirectTo = encodeURIComponent(location.pathname + location.search);
