@@ -2532,6 +2532,27 @@ function closeSideMenu() {
   document.getElementById('sideMenuOverlay').classList.remove('open');
 }
 
+// ===== 하단 GNB 탭 전환 (Phase 1 뼈대, 모바일 전용) =====
+// home = 기존 지도 화면 유지, 그 외 = tab-view 오버레이(현재 placeholder).
+// body.tab-active 클래스로 홈 외 탭에서 지도 크롬(상단검색/캐릭터/현재위치/시트) 숨김.
+const GNB_TABS = ['home', 'places', 'community', 'my', 'menu'];
+function switchTab(tab) {
+  if (GNB_TABS.indexOf(tab) < 0) tab = 'home';
+  // 메뉴 탭: 기존 사이드메뉴(제보/신고/소개/내정보)를 여는 런처로 임시 연결.
+  // 탭 상태는 바꾸지 않음(오버레이만 열림) — 정식 메뉴 화면은 다음 슬라이스.
+  if (tab === 'menu') { openSideMenu(); return; }
+  document.querySelectorAll('.gnb-tab').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+  });
+  GNB_TABS.forEach(function (t) {
+    if (t === 'home') return;
+    const v = document.getElementById('tabView-' + t);
+    if (v) v.hidden = (t !== tab);
+  });
+  document.body.classList.toggle('tab-active', tab !== 'home');
+}
+window.switchTab = switchTab;
+
 // ===== 간편로그인 =====
 let currentUser = null;
 
