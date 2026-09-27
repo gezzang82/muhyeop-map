@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=73">
+  <link rel="stylesheet" href="style.css?v=74">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -1023,7 +1023,12 @@
 
   <!-- 탭 뷰 컨테이너 (홈 외 — Phase 1 뼈대, 내용은 다음 슬라이스에서 채움) -->
   <div class="tab-view" id="tabView-places" hidden>
-    <div class="tab-view-placeholder"><span class="tvp-emoji">📍</span><h2>내 장소</h2><p>집·회사·여행지를 등록하고<br>주변 협찬을 모아보는 화면이 곧 열려요.</p></div>
+    <div class="ml-list">
+      <h1 class="ml-title">내 장소</h1>
+      <div class="ml-info">자주 가는 곳과 여행지를 저장하면, 그 주변 모집 중인 협찬을 한눈에 모아볼 수 있어요.</div>
+      <div id="mlItems"></div>
+      <div class="ml-note" id="mlNote">내 장소는 최대 10개까지 등록 가능해요.</div>
+    </div>
   </div>
   <div class="tab-view" id="tabView-community" hidden>
     <div class="tab-view-placeholder"><span class="tvp-emoji">💬</span><h2>커뮤니티</h2><p>리뷰어들이 서로 소식을 나누는<br>공간을 준비하고 있어요.</p></div>
@@ -1033,6 +1038,46 @@
   </div>
   <div class="tab-view" id="tabView-menu" hidden>
     <div class="tab-view-placeholder"><span class="tvp-emoji">☰</span><h2>메뉴</h2><p>서비스 안내·설정을 준비하고 있어요.</p></div>
+  </div>
+
+  <!-- 내 장소 설정(등록/수정) 화면 — Phase1 -->
+  <div class="ml-setting-overlay" id="mlSettingOverlay" hidden>
+    <div class="ml-set-header">
+      <button class="ml-set-back" onclick="closeMlSetting()" aria-label="뒤로">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#222" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="ml-set-title" id="mlSetTitle">집 설정</span>
+    </div>
+    <div class="ml-set-map-wrap">
+      <div id="mlSetMap" class="ml-set-map"></div>
+      <div class="ml-set-centerpin" aria-hidden="true"></div>
+      <button class="ml-set-myloc" onclick="mlSettingMyLocation()" aria-label="현재 위치">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="#333" stroke-width="1.6"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="#333" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="ml-set-body">
+      <div class="ml-set-addr-box">
+        <div class="ml-set-addr"><span class="ml-set-addr-ico" id="mlSetAddrIco">🏠</span><span id="mlSetAddrText">지도를 움직여 위치를 맞춰주세요</span></div>
+        <button class="ml-set-select" id="mlSetSelectBtn" onclick="mlConfirmLocation()">이 위치를 집으로 선택</button>
+      </div>
+      <div class="ml-set-hint">정확한 주소는 뜨지 않아요. 동네만 맞히면 주변 협찬을 보여드려요.</div>
+      <div class="ml-set-radius">
+        <div class="ml-set-radius-head"><span class="ml-set-radius-label">협찬 볼 반경</span><span class="ml-set-radius-val" id="mlSetRadiusVal">3km</span></div>
+        <input type="range" id="mlSetRadius" class="ml-set-slider" min="1" max="5" step="1" value="3" oninput="mlOnRadius(this.value)">
+      </div>
+      <div class="ml-set-cats">
+        <div class="ml-set-cats-label">카테고리</div>
+        <div class="ml-set-cats-chips" id="mlSetCats"></div>
+      </div>
+      <div class="ml-set-alarm">
+        <span class="ml-set-alarm-label">새 협찬 알림</span>
+        <label class="ml-switch"><input type="checkbox" id="mlSetAlarm"><span class="ml-switch-track"></span></label>
+      </div>
+      <div class="ml-set-actions">
+        <button class="ml-set-delete" id="mlSetDelete" hidden onclick="mlDelete()">삭제</button>
+        <button class="ml-set-save" onclick="mlSave()">저장</button>
+      </div>
+    </div>
   </div>
 
   <!-- 공지/이벤트 배너 팝업 -->
@@ -1116,7 +1161,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=96"></script>
+  <script src="app.js?v=97"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

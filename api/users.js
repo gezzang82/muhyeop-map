@@ -63,6 +63,106 @@ async function handlePushPost(req, res, db, kind) {
   return res.status(400).json({ error: 'unknown push action' });
 }
 
+// ===== 내 장소(집/회사/여행지) — 로그인 계정 기반. Phase1. docs/product/17-travel-pins.md =====
+async function ensureUserPlacesTable(db) {
+  try {
+    await db.execute("CREATE TABLE IF NOT EXISTS user_places (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, kind TEXT NOT NULL, name TEXT, address TEXT, lat REAL, lng REAL, radius_km REAL DEFAULT 3, categories TEXT, alarm_enabled INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')))");
+  } catch (e) {}
+  try { await db.execute("CREATE INDEX IF NOT EXISTS idx_user_places_user ON user_places(user_id)"); } catch (e) {}
+}
+
+function toUserPlace(row) {
+  let cats = [];
+  try { cats = row.categories ? JSON.parse(row.categories) : []; } catch (e) { cats = []; }
+  return {
+    id: row.id,
+    kind: row.kind,                              // home | work | place
+    name: row.name || '',
+    address: row.address || '',
+    lat: row.lat, lng: row.lng,
+    radiusKm: Number(row.radius_km || 3),
+    categories: Array.isArray(cats) ? cats : [],
+    alarmEnabled: !!row.alarm_enabled,
+  };
+}
+
+// 내 장소 CRUD (로그인 필수). GET=목록 / POST=저장(신규·수정) / DELETE=삭제
+async function handleUserPlaces(req, res, db) {
+  const session = readSession(req);
+  const userId = (session && session.userId) ? session.userId : null;
+  if (!userId) return res.status(401).json({ error: 'login_required' });
+  await ensureUserPlacesTable(db);
+
+  if (req.method === 'GET') {
+    const r = await db.execute({
+      // 집→회사→나머지(등록순) 정렬
+      sql: "SELECT * FROM user_places WHERE user_id=? ORDER BY CASE kind WHEN 'home' THEN 0 WHEN 'work' THEN 1 ELSE 2 END, id ASC",
+      args: [userId],
+    });
+    return res.status(200).json(r.rows.map(toUserPlace));
+  }
+
+  if (req.method === 'DELETE') {
+    const id = Number(req.query.id);
+    if (!id) return res.status(400).json({ error: 'id required' });
+    await db.execute({ sql: "DELETE FROM user_places WHERE id=? AND user_id=?", args: [id, userId] });
+    return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === 'POST') {
+    const body = req.body || {};
+    const kind = (['home', 'work', 'place'].indexOf(body.kind) >= 0) ? body.kind : null;
+    if (!kind) return res.status(400).json({ error: 'kind required (home|work|place)' });
+    const la = Number(body.lat), ln = Number(body.lng);
+    if (!isFinite(la) || !isFinite(ln) || la < 33 || la > 39 || ln < 124 || ln > 132) {
+      return res.status(400).json({ error: 'invalid coords' });
+    }
+    let radius = Number(body.radiusKm);
+    if (!(radius >= 1 && radius <= 5)) radius = 3;
+    const name = String(body.name || (kind === 'home' ? '집' : kind === 'work' ? '회사' : '')).trim().slice(0, 40);
+    const address = String(body.address || '').trim().slice(0, 200);
+    let cats = [];
+    if (Array.isArray(body.categories)) cats = body.categories.filter(c => typeof c === 'string').slice(0, 12);
+    const catsJson = JSON.stringify(cats);
+    const alarm = (body.alarmEnabled === true || body.alarmEnabled === 1) ? 1 : 0;
+    const id = Number(body.id);
+
+    if (id) {
+      // 수정(본인 소유만)
+      const own = (await db.execute({ sql: "SELECT id FROM user_places WHERE id=? AND user_id=?", args: [id, userId] })).rows[0];
+      if (!own) return res.status(404).json({ error: 'not found' });
+      await db.execute({
+        sql: "UPDATE user_places SET kind=?, name=?, address=?, lat=?, lng=?, radius_km=?, categories=?, alarm_enabled=?, updated_at=datetime('now') WHERE id=? AND user_id=?",
+        args: [kind, name, address, la, ln, radius, catsJson, alarm, id, userId],
+      });
+      return res.status(200).json({ ok: true, id });
+    }
+
+    // 신규: 집/회사는 1개만(있으면 기존 것을 갱신)
+    if (kind === 'home' || kind === 'work') {
+      const ex = (await db.execute({ sql: "SELECT id FROM user_places WHERE user_id=? AND kind=? LIMIT 1", args: [userId, kind] })).rows[0];
+      if (ex) {
+        await db.execute({
+          sql: "UPDATE user_places SET name=?, address=?, lat=?, lng=?, radius_km=?, categories=?, alarm_enabled=?, updated_at=datetime('now') WHERE id=?",
+          args: [name, address, la, ln, radius, catsJson, alarm, ex.id],
+        });
+        return res.status(200).json({ ok: true, id: ex.id });
+      }
+    }
+    // 최대 10개 제한
+    const cnt = (await db.execute({ sql: "SELECT COUNT(*) AS n FROM user_places WHERE user_id=?", args: [userId] })).rows[0];
+    if (Number(cnt.n || 0) >= 10) return res.status(400).json({ error: 'limit_reached' });
+    const ins = await db.execute({
+      sql: "INSERT INTO user_places (user_id, kind, name, address, lat, lng, radius_km, categories, alarm_enabled) VALUES (?,?,?,?,?,?,?,?,?)",
+      args: [userId, kind, name, address, la, ln, radius, catsJson, alarm],
+    });
+    return res.status(200).json({ ok: true, id: Number(ins.lastInsertRowid) });
+  }
+
+  res.setHeader('Allow', 'GET, POST, DELETE');
+  return res.status(405).json({ error: 'Method Not Allowed' });
+}
+
 function toUser(row) {
   return {
     id: row.id,
@@ -87,6 +187,11 @@ module.exports = async function handler(req, res) {
   // 앱 푸시 토큰/관심위치 등록(공개, 기기 단위) — GET 전용 가드보다 먼저.
   if (req.method === 'POST' && req.query.push) {
     return handlePushPost(req, res, db, req.query.push);
+  }
+
+  // 내 장소(집/회사/여행지) CRUD — 로그인 계정 기반. GET/POST/DELETE 모두 여기서(GET 가드 이전).
+  if (req.query.places !== undefined) {
+    return handleUserPlaces(req, res, db);
   }
 
   if (req.method !== 'GET') {

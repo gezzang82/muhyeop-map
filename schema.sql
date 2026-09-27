@@ -179,3 +179,19 @@ CREATE TABLE IF NOT EXISTS push_prefs (
   enabled INTEGER DEFAULT 1,
   updated_at TEXT DEFAULT (datetime('now'))
 );
+
+-- 내 장소(집/회사/여행지) — 로그인 계정 기반, 최대 10개. Phase1 (docs/product/17-travel-pins.md)
+CREATE TABLE IF NOT EXISTS user_places (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,            -- 'home' | 'work' | 'place' (집/회사는 1개, place는 다수)
+  name TEXT,                     -- 라벨/장소명 (집/회사/여행지명)
+  address TEXT,                  -- 동네단위 주소(리버스지오코딩)
+  lat REAL, lng REAL,
+  radius_km REAL DEFAULT 3,      -- 협찬 볼 반경 (1~5km)
+  categories TEXT,               -- JSON 배열, 비우면 전체
+  alarm_enabled INTEGER DEFAULT 0, -- 새 협찬 알림 (Phase2)
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_user_places_user ON user_places(user_id);

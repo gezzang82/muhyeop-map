@@ -2550,8 +2550,215 @@ function switchTab(tab) {
     if (v) v.hidden = (t !== tab);
   });
   document.body.classList.toggle('tab-active', tab !== 'home');
+  if (tab === 'places') renderMyPlaces();
 }
 window.switchTab = switchTab;
+
+// ===== 내 장소(집/회사/여행지) — Phase1 ① (목록/등록/수정/삭제) =====
+const ML_CATS = ['음식점', '카페', '뷰티', '헤어', '숙박/여가', '문화', '사진관', '의류', '안경/잡화', '운동', '기타'];
+const ML_KIND_ICON = {
+  home: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 10.8 12 4.5l8 6.3V20a1 1 0 0 1-1 1h-4.2v-5.4H9.2V21H5a1 1 0 0 1-1-1v-9.2Z" fill="currentColor"/></svg>',
+  work: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 21V5.5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1V21H5Z" fill="currentColor"/><path d="M14 10h4a1 1 0 0 1 1 1v10h-5V10Z" fill="currentColor"/><rect x="7" y="7" width="2" height="2" fill="#fff"/><rect x="10.5" y="7" width="2" height="2" fill="#fff"/><rect x="7" y="11" width="2" height="2" fill="#fff"/><rect x="10.5" y="11" width="2" height="2" fill="#fff"/><rect x="7" y="15" width="2" height="2" fill="#fff"/></svg>',
+  place: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 21.5s6.5-5.2 6.5-10.5a6.5 6.5 0 1 0-13 0c0 5.3 6.5 10.5 6.5 10.5Z" fill="currentColor"/><path d="M8.8 10.6l2 2 4-4.2" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+function mlBellSvg(on) {
+  return on
+    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3a5 5 0 0 0-5 5c0 4-2 5-2 7h14c0-2-2-3-2-7a5 5 0 0 0-5-5Z" fill="currentColor"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+    : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M7 8a5 5 0 0 1 9.5-2.2M17 10c0 4 2 5 2 7H8M6.5 6.5C5.6 7.4 5 9 5 12c0 2-2 3-2 5h3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+}
+function mlEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function mlKindLabel(p) { return p.kind === 'home' ? '집' : p.kind === 'work' ? '회사' : (p.name || '장소'); }
+
+let _myPlaces = [];
+async function renderMyPlaces() {
+  const items = document.getElementById('mlItems');
+  const note = document.getElementById('mlNote');
+  if (!items) return;
+  if (!currentUser) {
+    if (note) note.style.display = 'none';
+    items.innerHTML = '<div class="ml-login"><p>로그인하면 집·회사·여행지를 저장하고<br>그 주변 모집 중인 협찬을 모아볼 수 있어요.</p><button class="ml-login-btn" onclick="oauthLogin(\'kakao\')">카카오로 시작하기</button></div>';
+    return;
+  }
+  if (note) note.style.display = '';
+  try {
+    const res = await fetch('/api/users?places=1', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('load');
+    _myPlaces = await res.json();
+  } catch (e) { _myPlaces = []; }
+  renderMlItems();
+}
+function mlAddRowHtml(kind, label) {
+  return `<button class="ml-addrow" onclick="openMlSetting('${kind}')">
+    <span class="ml-addrow-ico">${ML_KIND_ICON[kind]}</span>
+    <span class="ml-addrow-label">${label}</span>
+    <span class="ml-addrow-chev">›</span></button>`;
+}
+function mlCardHtml(p) {
+  const cats = (p.categories && p.categories.length) ? p.categories.join(' ') : '전체';
+  const meta = `반경 ${p.radiusKm || 3}km`;   // 모집 N건은 stage② 예정
+  return `<div class="ml-card" onclick="openMlSetting('${p.kind}', ${p.id})">
+    <span class="ml-card-ico">${ML_KIND_ICON[p.kind] || ML_KIND_ICON.place}</span>
+    <div class="ml-card-main">
+      <div class="ml-card-name">${mlEsc(mlKindLabel(p))} <span class="chev">›</span></div>
+      ${p.address ? `<div class="ml-card-addr">${mlEsc(p.address)}</div>` : ''}
+      <div class="ml-card-meta">${meta}</div>
+      <div class="ml-card-cats">${mlEsc(cats)}</div>
+    </div>
+    <button class="ml-card-bell${p.alarmEnabled ? ' on' : ''}" onclick="event.stopPropagation();mlToggleBell(${p.id})" aria-label="알림">${mlBellSvg(!!p.alarmEnabled)}</button>
+  </div>`;
+}
+function renderMlItems() {
+  const items = document.getElementById('mlItems');
+  const home = _myPlaces.find(p => p.kind === 'home');
+  const work = _myPlaces.find(p => p.kind === 'work');
+  const places = _myPlaces.filter(p => p.kind === 'place');
+  let h = '';
+  h += home ? mlCardHtml(home) : mlAddRowHtml('home', '집 추가');
+  h += work ? mlCardHtml(work) : mlAddRowHtml('work', '회사 추가');
+  places.forEach(p => { h += mlCardHtml(p); });
+  h += mlAddRowHtml('place', '장소 추가');
+  items.innerHTML = h;
+}
+
+// ----- 설정(등록/수정) 화면 -----
+let _mlDraft = null;      // { id?, kind, name, address, lat, lng, radiusKm, categories[], alarmEnabled }
+let _mlMap = null;
+let _mlConfirmed = false; // 위치 선택(리버스지오코딩) 완료 여부
+function openMlSetting(kind, id) {
+  const editing = _myPlaces.find(p => p.id === id) || null;
+  _mlDraft = editing
+    ? { id: editing.id, kind: editing.kind, name: editing.name, address: editing.address, lat: editing.lat, lng: editing.lng, radiusKm: editing.radiusKm || 3, categories: (editing.categories || []).slice(), alarmEnabled: !!editing.alarmEnabled }
+    : { kind: kind, name: kind === 'home' ? '집' : kind === 'work' ? '회사' : '', address: '', lat: null, lng: null, radiusKm: 3, categories: [], alarmEnabled: false };
+  _mlConfirmed = !!(editing && editing.lat);
+  const kLabel = kind === 'home' ? '집' : kind === 'work' ? '회사' : '장소';
+  document.getElementById('mlSetTitle').textContent = kLabel + ' 설정';
+  document.getElementById('mlSetSelectBtn').textContent = `이 위치를 ${kLabel}으로 선택`;
+  document.getElementById('mlSetAddrIco').textContent = kind === 'home' ? '🏠' : kind === 'work' ? '🏢' : '📍';
+  document.getElementById('mlSetAddrText').textContent = _mlDraft.address || '지도를 움직여 위치를 맞춰주세요';
+  document.getElementById('mlSetRadius').value = _mlDraft.radiusKm;
+  document.getElementById('mlSetRadiusVal').textContent = _mlDraft.radiusKm + 'km';
+  document.getElementById('mlSetAlarm').checked = _mlDraft.alarmEnabled;
+  document.getElementById('mlSetDelete').hidden = !editing;
+  mlRenderCats();
+  const ov = document.getElementById('mlSettingOverlay');
+  ov.hidden = false;
+  // 중심 좌표: 편집중이면 저장위치, 아니면 현재 지도 중심(또는 서울)
+  let center;
+  try { center = (_mlDraft.lat) ? new naver.maps.LatLng(_mlDraft.lat, _mlDraft.lng) : (map ? map.getCenter() : new naver.maps.LatLng(37.5665, 126.978)); }
+  catch (e) { center = new naver.maps.LatLng(37.5665, 126.978); }
+  mlInitSetMap(center);
+  mlUpdateSaveState();
+}
+function closeMlSetting() { document.getElementById('mlSettingOverlay').hidden = true; }
+function mlInitSetMap(center) {
+  const el = document.getElementById('mlSetMap');
+  if (!el || typeof naver === 'undefined' || !naver.maps) return;
+  if (!_mlMap) {
+    _mlMap = new naver.maps.Map(el, { center: center, zoom: 15, mapDataControl: false, scaleControl: false, logoControl: true, mapTypeControl: false, zoomControl: false });
+  } else {
+    _mlMap.setCenter(center);
+  }
+  // 숨김 컨테이너에서 만들어졌을 수 있어 표시 후 리레이아웃
+  setTimeout(() => { try { naver.maps.Event.trigger(_mlMap, 'resize'); _mlMap.setCenter(center); } catch (e) {} }, 60);
+}
+function mlOnRadius(v) {
+  _mlDraft.radiusKm = Number(v);
+  document.getElementById('mlSetRadiusVal').textContent = Number(v) + 'km';
+}
+function mlRenderCats() {
+  const box = document.getElementById('mlSetCats');
+  box.innerHTML = ML_CATS.map(c =>
+    `<button class="ml-cat-chip${_mlDraft.categories.indexOf(c) >= 0 ? ' on' : ''}" onclick="mlToggleCat('${mlEsc(c)}')">${mlEsc(c)}</button>`
+  ).join('');
+}
+function mlToggleCat(c) {
+  const i = _mlDraft.categories.indexOf(c);
+  if (i >= 0) _mlDraft.categories.splice(i, 1); else _mlDraft.categories.push(c);
+  mlRenderCats();
+}
+function mlUpdateSaveState() {
+  const btn = document.querySelector('.ml-set-save');
+  if (btn) btn.disabled = !_mlConfirmed;
+}
+function mlReverseGeocode(cb) {
+  if (!_mlMap || !naver.maps.Service) { cb(null); return; }
+  const c = _mlMap.getCenter();
+  naver.maps.Service.reverseGeocode({ coords: c, orders: 'legalcode,admcode,roadaddr,addr' }, (status, response) => {
+    if (status !== naver.maps.Service.Status.OK) { cb({ lat: c.lat(), lng: c.lng(), address: '' }); return; }
+    let dong = '';
+    try {
+      const reg = response.v2.results[0].region;
+      dong = [reg.area1 && reg.area1.name, reg.area2 && reg.area2.name, reg.area3 && reg.area3.name].filter(Boolean).join(' ');
+    } catch (e) {}
+    if (!dong) { try { dong = response.v2.address.jibunAddress || response.v2.address.roadAddress || ''; } catch (e) {} }
+    cb({ lat: c.lat(), lng: c.lng(), address: dong });
+  });
+}
+function mlConfirmLocation() {
+  mlReverseGeocode(r => {
+    if (!r) return;
+    _mlDraft.lat = r.lat; _mlDraft.lng = r.lng; _mlDraft.address = r.address;
+    document.getElementById('mlSetAddrText').textContent = r.address || '선택한 위치';
+    _mlConfirmed = true;
+    mlUpdateSaveState();
+  });
+}
+function mlSettingMyLocation() {
+  if (!navigator.geolocation || !_mlMap) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    try { _mlMap.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude)); } catch (e) {}
+  }, () => {}, { enableHighAccuracy: true, timeout: 8000 });
+}
+async function mlSave() {
+  if (!_mlConfirmed || !_mlDraft.lat) { if (typeof showToast === 'function') showToast('지도에서 위치를 먼저 선택해주세요'); return; }
+  _mlDraft.alarmEnabled = document.getElementById('mlSetAlarm').checked;
+  const btn = document.querySelector('.ml-set-save');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/users?places=save', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(_mlDraft),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      if (typeof showToast === 'function') showToast(e.error === 'limit_reached' ? '내 장소는 최대 10개까지예요' : '저장에 실패했어요');
+      if (btn) btn.disabled = false;
+      return;
+    }
+    closeMlSetting();
+    await renderMyPlaces();
+  } catch (e) { if (btn) btn.disabled = false; if (typeof showToast === 'function') showToast('저장에 실패했어요'); }
+}
+async function mlDelete() {
+  if (!_mlDraft || !_mlDraft.id) return;
+  if (!confirm('이 장소를 삭제할까요?')) return;
+  try {
+    await fetch('/api/users?places=1&id=' + _mlDraft.id, { method: 'DELETE', credentials: 'same-origin' });
+    closeMlSetting();
+    await renderMyPlaces();
+  } catch (e) {}
+}
+async function mlToggleBell(id) {
+  const p = _myPlaces.find(x => x.id === id);
+  if (!p) return;
+  p.alarmEnabled = !p.alarmEnabled;
+  renderMlItems();
+  try {
+    await fetch('/api/users?places=save', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: p.id, kind: p.kind, name: p.name, address: p.address, lat: p.lat, lng: p.lng, radiusKm: p.radiusKm, categories: p.categories, alarmEnabled: p.alarmEnabled }),
+    });
+  } catch (e) {}
+}
+window.openMlSetting = openMlSetting;
+window.closeMlSetting = closeMlSetting;
+window.mlConfirmLocation = mlConfirmLocation;
+window.mlSettingMyLocation = mlSettingMyLocation;
+window.mlOnRadius = mlOnRadius;
+window.mlToggleCat = mlToggleCat;
+window.mlSave = mlSave;
+window.mlDelete = mlDelete;
+window.mlToggleBell = mlToggleBell;
 
 // ===== 간편로그인 =====
 let currentUser = null;
