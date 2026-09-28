@@ -338,6 +338,18 @@ module.exports = async function handler(req, res) {
     // ── 지도 경량화(뷰포트 로딩) 공개 분기 — 2026-09-01 ──
     const kstDay = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const activeSql = "COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0 AND (((c.deadline='' OR c.deadline IS NULL) AND c.created_at >= datetime('now','-45 days')) OR c.deadline >= ?)";
+    // 반경(bbox) 안 활성 캠페인 수 — 내 장소 카드 '모집 N건'. idx_places_lat_lng 사용, 페이로드 {count}.
+    if (q.count === 'active' && q.bbox) {
+      res.setHeader('Cache-Control', 'public, s-maxage=1800, stale-while-revalidate=3600');
+      const p4 = String(q.bbox).split(',').map(Number);
+      if (p4.length !== 4 || !p4.every(v => Number.isFinite(v))) return res.status(400).json({ error: 'bbox must be W,S,E,N' });
+      const [w, s, e, n] = p4;
+      const r = await db.execute({
+        sql: `SELECT COUNT(*) AS n FROM campaigns c JOIN places p ON p.id=c.place_id WHERE p.lat BETWEEN ? AND ? AND p.lng BETWEEN ? AND ? AND ${activeSql}`,
+        args: [s, n, w, e, kstDay]
+      });
+      return res.status(200).json({ count: Number(r.rows[0]?.n || 0) });
+    }
     // 전역 활성 캠페인 수(총 협찬수). 페이로드 소량.
     if (q.count === 'active') {
       res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');

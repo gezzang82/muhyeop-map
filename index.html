@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=74">
+  <link rel="stylesheet" href="style.css?v=106">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -1023,11 +1023,14 @@
 
   <!-- 탭 뷰 컨테이너 (홈 외 — Phase 1 뼈대, 내용은 다음 슬라이스에서 채움) -->
   <div class="tab-view" id="tabView-places" hidden>
-    <div class="ml-list">
-      <h1 class="ml-title">내 장소</h1>
-      <div class="ml-info">자주 가는 곳과 여행지를 저장하면, 그 주변 모집 중인 협찬을 한눈에 모아볼 수 있어요.</div>
-      <div id="mlItems"></div>
-      <div class="ml-note" id="mlNote">내 장소는 최대 10개까지 등록 가능해요.</div>
+    <div class="modal-sticky-header" id="mlStickyHeader"><span>내 장소</span></div>
+    <div class="ml-scroll" id="mlScroll">
+      <div class="ml-list">
+        <div class="modal-scroll-header ml-scroll-header" id="mlScrollHeader"><h2>내 장소</h2></div>
+        <div class="ml-info">자주 가는 곳과 여행지를 저장하면, 그 주변 모집 중인 협찬을 한눈에 모아볼 수 있어요.</div>
+        <div id="mlItems"></div>
+        <div class="ml-note" id="mlNote"><span class="ml-note-ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#555555"/><rect x="7" y="3" width="2" height="7" rx="1" fill="white"/><circle cx="8" cy="12" r="1" fill="white"/></svg></span>내 장소는 최대 10개까지 등록 가능해요.</div>
+      </div>
     </div>
   </div>
   <div class="tab-view" id="tabView-community" hidden>
@@ -1040,43 +1043,55 @@
     <div class="tab-view-placeholder"><span class="tvp-emoji">☰</span><h2>메뉴</h2><p>서비스 안내·설정을 준비하고 있어요.</p></div>
   </div>
 
-  <!-- 내 장소 설정(등록/수정) 화면 — Phase1 -->
+  <!-- 내 장소 설정(등록/수정) — 전체 스크롤 + 스크롤 시 컴팩트 헤더(제보/신고 동일), Phase1 -->
   <div class="ml-setting-overlay" id="mlSettingOverlay" hidden>
-    <div class="ml-set-header">
-      <button class="ml-set-back" onclick="closeMlSetting()" aria-label="뒤로">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#222" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <span class="ml-set-title" id="mlSetTitle">집 설정</span>
+    <!-- 스크롤 시 나타나는 컴팩트 sticky 헤더 -->
+    <div class="modal-sticky-header ml-set-sticky" id="mlSetSticky">
+      <button class="ml-set-back-btn ml-set-back-sm" onclick="closeMlSetting()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <span id="mlSetStickyTitle">집 설정</span>
     </div>
-    <div class="ml-set-map-wrap">
-      <div id="mlSetMap" class="ml-set-map"></div>
-      <div class="ml-set-centerpin" aria-hidden="true"></div>
-      <button class="ml-set-myloc" onclick="mlSettingMyLocation()" aria-label="현재 위치">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="#333" stroke-width="1.6"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="#333" stroke-width="1.6" stroke-linecap="round"/></svg>
-      </button>
+    <!-- 전체 스크롤러 -->
+    <div class="ml-set-scroll" id="mlSetScroll">
+      <div class="modal-scroll-header ml-set-scroll-header" id="mlSetScrollHeader">
+        <button class="ml-set-back-btn ml-set-back-lg" onclick="closeMlSetting()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <h2 id="mlSetTitle">집 설정</h2>
+      </div>
+      <div class="ml-set-map-wrap">
+        <div id="mlSetMap" class="ml-set-map"></div>
+        <div class="ml-set-centerpin" aria-hidden="true">
+          <span class="ml-set-pin-bubble"><span class="ml-set-pin-ico" id="mlSetPinIco"></span></span>
+          <img class="ml-set-pin-dot" src="image/ml_pin_dot.svg" alt="">
+        </div>
+        <button class="ml-set-myloc" onclick="mlSettingMyLocation()" aria-label="현재 위치"><img src="image/ml_loc_btn.svg" width="40" height="40" alt=""></button>
+      </div>
+      <div class="ml-set-fields">
+        <div class="ml-set-addr-box">
+          <div class="ml-set-addr"><span class="ml-set-addr-ico" id="mlSetAddrIco"></span><span id="mlSetAddrText">지도를 움직여 위치를 맞춰주세요</span></div>
+          <button class="ml-set-select" id="mlSetSelectBtn" onclick="mlConfirmLocation()">이 위치를 집으로 선택</button>
+        </div>
+        <div class="ml-set-hint"><span class="ml-set-hint-ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#555555"/><rect x="7" y="3" width="2" height="7" rx="1" fill="white"/><circle cx="8" cy="12" r="1" fill="white"/></svg></span><span>정확한 주소는 필요 없어요. 동네만 맞춰도 주변 협찬을 보여드려요.</span></div>
+        <div class="ml-set-field" id="mlSetNameField" hidden>
+          <label class="ml-set-flabel">장소명 <span class="ml-req">*</span></label>
+          <input type="text" id="mlSetName" class="ml-set-input" placeholder="장소명을 입력해주세요" maxlength="40" autocomplete="off">
+        </div>
+        <div class="ml-set-radius">
+          <div class="ml-set-radius-head"><span class="ml-set-radius-label">협찬 볼 반경</span><span class="ml-set-radius-val" id="mlSetRadiusVal">3km</span></div>
+          <div class="ml-set-slider-box"><input type="range" id="mlSetRadius" class="ml-set-slider" min="1" max="5" step="1" value="3" oninput="mlOnRadius(this.value)"></div>
+        </div>
+        <div class="ml-set-cats">
+          <div class="ml-set-cats-label">카테고리</div>
+          <div class="ml-set-cats-chips" id="mlSetCats"></div>
+        </div>
+        <div class="ml-set-divider"></div>
+        <div class="ml-set-alarm">
+          <span class="ml-set-alarm-label">새 협찬 알림</span>
+          <label class="ml-switch"><input type="checkbox" id="mlSetAlarm"><span class="ml-switch-track"></span></label>
+        </div>
+      </div>
     </div>
-    <div class="ml-set-body">
-      <div class="ml-set-addr-box">
-        <div class="ml-set-addr"><span class="ml-set-addr-ico" id="mlSetAddrIco">🏠</span><span id="mlSetAddrText">지도를 움직여 위치를 맞춰주세요</span></div>
-        <button class="ml-set-select" id="mlSetSelectBtn" onclick="mlConfirmLocation()">이 위치를 집으로 선택</button>
-      </div>
-      <div class="ml-set-hint">정확한 주소는 뜨지 않아요. 동네만 맞히면 주변 협찬을 보여드려요.</div>
-      <div class="ml-set-radius">
-        <div class="ml-set-radius-head"><span class="ml-set-radius-label">협찬 볼 반경</span><span class="ml-set-radius-val" id="mlSetRadiusVal">3km</span></div>
-        <input type="range" id="mlSetRadius" class="ml-set-slider" min="1" max="5" step="1" value="3" oninput="mlOnRadius(this.value)">
-      </div>
-      <div class="ml-set-cats">
-        <div class="ml-set-cats-label">카테고리</div>
-        <div class="ml-set-cats-chips" id="mlSetCats"></div>
-      </div>
-      <div class="ml-set-alarm">
-        <span class="ml-set-alarm-label">새 협찬 알림</span>
-        <label class="ml-switch"><input type="checkbox" id="mlSetAlarm"><span class="ml-switch-track"></span></label>
-      </div>
-      <div class="ml-set-actions">
-        <button class="ml-set-delete" id="mlSetDelete" hidden onclick="mlDelete()">삭제</button>
-        <button class="ml-set-save" onclick="mlSave()">저장</button>
-      </div>
+    <div class="ml-set-actions">
+      <button class="ml-set-delete" id="mlSetDelete" hidden onclick="mlDelete()">삭제</button>
+      <button class="ml-set-save" onclick="mlSave()">저장</button>
     </div>
   </div>
 
@@ -1147,7 +1162,7 @@
     <div class="modal login-modal" onclick="event.stopPropagation()">
       <div class="login-modal-handle-wrap"></div>
       <div class="login-modal-header">
-        <h2>알림</h2>
+        <h2 id="alertPopupHeader">알림</h2>
       </div>
       <div class="withdraw-message">
         <p class="withdraw-message-title" id="alertPopupMain"></p>
@@ -1161,7 +1176,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=97"></script>
+  <script src="app.js?v=126"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

@@ -1,0 +1,13 @@
+<svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="ic_company_16">
+<g id="Ellipse 20">
+<circle cx="15" cy="15" r="14" fill="white"/>
+<circle cx="15" cy="15" r="14.5" stroke="black" stroke-opacity="0.08"/>
+</g>
+<circle id="Ellipse 18" cx="15" cy="15" r="12" fill="#39395C"/>
+<g id="ic">
+<rect id="Rectangle 5071" opacity="0" x="7" y="7" width="16" height="16" fill="white"/>
+<path id="Subtract" d="M19 9C20.1046 9 21 9.89543 21 11V21H9V11C9 9.89543 9.89543 9 11 9H19ZM14 17C13.4477 17 13 17.4477 13 18V20H17V18C17 17.4477 16.5523 17 16 17H14ZM11 14V16H13V14H11ZM14 14V16H16V14H14ZM17 14V16H19V14H17ZM11 11V13H13V11H11ZM14 11V13H16V11H14ZM17 11V13H19V11H17Z" fill="white"/>
+</g>
+</g>
+</svg>

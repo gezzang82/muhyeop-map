@@ -184,6 +184,20 @@ function toUser(row) {
 module.exports = async function handler(req, res) {
   const db = getDb();
 
+  // ⚠️ 개발 전용 미리보기 로그인 — dev.db(file:)일 때만 동작, 운영(libsql://)에선 완전 무효(404).
+  // LAN(http) 프리뷰에서 OAuth 콜백이 운영도메인으로 가 로그인 불가한 문제 우회. non-Secure 쿠키(http용).
+  if (req.query.devlogin !== undefined) {
+    if (!String(process.env.TURSO_DATABASE_URL || '').startsWith('file:')) return res.status(404).json({ error: 'not found' });
+    try { await db.execute("INSERT INTO users (provider, provider_user_id, nickname) VALUES ('dev','dev-preview','미리보기') ON CONFLICT(provider, provider_user_id) DO NOTHING"); } catch (e) {}
+    const u = (await db.execute("SELECT id, nickname, provider FROM users WHERE provider='dev' AND provider_user_id='dev-preview'")).rows[0];
+    const crypto = require('crypto');
+    const payload = { userId: Number(u.id), nickname: u.nickname, provider: u.provider, exp: Date.now() + 30 * 24 * 3600 * 1000 };
+    const p64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const sig = crypto.createHmac('sha256', process.env.SESSION_SECRET || '').update(p64).digest('base64url');
+    res.setHeader('Set-Cookie', `mhm_session=${p64}.${sig}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${30 * 24 * 3600}`);
+    res.statusCode = 302; res.setHeader('Location', '/'); return res.end();
+  }
+
   // 앱 푸시 토큰/관심위치 등록(공개, 기기 단위) — GET 전용 가드보다 먼저.
   if (req.method === 'POST' && req.query.push) {
     return handlePushPost(req, res, db, req.query.push);

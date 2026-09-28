@@ -1035,7 +1035,7 @@ function renderMarkers() {
   if (!renderMarkers._idleBound) {
     renderMarkers._idleBound = true;
     let _t;
-    naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_t); _t = setTimeout(() => { renderMarkers(); loadCampaignsForView(); }, 120); });
+    naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_t); _t = setTimeout(() => { renderMarkers(); loadCampaignsForView(); updateMyPlaceEdges(); }, 120); });
     loadCampaignsForView(); // 초기 뷰 캠페인 로드(첫 렌더 시 1회; 이후 idle에서 갱신)
   }
 
@@ -2550,33 +2550,178 @@ function switchTab(tab) {
     if (v) v.hidden = (t !== tab);
   });
   document.body.classList.toggle('tab-active', tab !== 'home');
-  if (tab === 'places') renderMyPlaces();
+  if (tab === 'places') {
+    renderMyPlaces();
+    // 제보/신고와 동일: 스크롤 시 컴팩트 sticky 헤더 노출 (스크롤러는 #mlScroll)
+    bindMobileScrollHeader('mlScroll', 'mlScrollHeader', 'mlStickyHeader');
+    const sh = document.getElementById('mlStickyHeader'); if (sh) sh.classList.remove('show');
+    const sc = document.getElementById('mlScroll'); if (sc) sc.scrollTop = 0;
+  }
 }
 window.switchTab = switchTab;
 
 // ===== 내 장소(집/회사/여행지) — Phase1 ① (목록/등록/수정/삭제) =====
 const ML_CATS = ['음식점', '카페', '뷰티', '헤어', '숙박/여가', '문화', '사진관', '의류', '안경/잡화', '운동', '기타'];
+// Figma 디자인 아이콘(ic_home_24/ic_company_24/ic_pin_24/alarm) 실제 path — currentColor로 색 제어
 const ML_KIND_ICON = {
-  home: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 10.8 12 4.5l8 6.3V20a1 1 0 0 1-1 1h-4.2v-5.4H9.2V21H5a1 1 0 0 1-1-1v-9.2Z" fill="currentColor"/></svg>',
-  work: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 21V5.5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1V21H5Z" fill="currentColor"/><path d="M14 10h4a1 1 0 0 1 1 1v10h-5V10Z" fill="currentColor"/><rect x="7" y="7" width="2" height="2" fill="#fff"/><rect x="10.5" y="7" width="2" height="2" fill="#fff"/><rect x="7" y="11" width="2" height="2" fill="#fff"/><rect x="10.5" y="11" width="2" height="2" fill="#fff"/><rect x="7" y="15" width="2" height="2" fill="#fff"/></svg>',
-  place: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 21.5s6.5-5.2 6.5-10.5a6.5 6.5 0 1 0-13 0c0 5.3 6.5 10.5 6.5 10.5Z" fill="currentColor"/><path d="M8.8 10.6l2 2 4-4.2" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  home: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.8379 5.83037C11.5332 5.33389 12.4668 5.33389 13.1621 5.83037L18.1621 9.40166C18.6877 9.77709 19 10.3837 19 11.0296V17.0003C18.9998 18.1047 18.1045 19.0003 17 19.0003H7C5.89553 19.0003 5.00015 18.1047 5 17.0003V11.0296C5 10.3837 5.3123 9.77709 5.83789 9.40166L10.8379 5.83037ZM11 15.0003C10.4477 15.0003 10 15.448 10 16.0003V18.0003H14V16.0003C14 15.448 13.5523 15.0003 13 15.0003H11Z" fill="currentColor"/></svg>',
+  work: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M17 5C18.1046 5 19 5.89543 19 7V19H5V7C5 5.89543 5.89543 5 7 5H17ZM11 15C10.4477 15 10 15.4477 10 16V18H14V16C14 15.4477 13.5523 15 13 15H11ZM8 11V13H10V11H8ZM11 11V13H13V11H11ZM14 11V13H16V11H14ZM8 8V10H10V8H8ZM11 8V10H13V8H11ZM14 8V10H16V8H14Z" fill="currentColor"/></svg>',
+  place: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 4C15.866 4 19 7.13401 19 11C19 16.7272 13.2727 20.5449 12 20.5449C10.7273 20.5449 5.00004 16.7272 5 11C5 7.13401 8.13401 4 12 4ZM15.166 8.98926C14.8623 8.68582 14.3701 8.68582 14.0664 8.98926L11.3164 11.7393L10.2168 10.6396C9.91306 10.3359 9.42093 10.3359 9.11719 10.6396C8.8136 10.9434 8.81351 11.4346 9.11719 11.7383L10.7666 13.3877C11.0703 13.6914 11.5634 13.6924 11.8672 13.3887L15.167 10.0889C15.4704 9.78517 15.4694 9.29291 15.166 8.98926Z" fill="currentColor"/></svg>',
 };
+// Figma Vector 6 — 얇은 chevron(>) . currentColor
+const ML_CHEVRON = '<svg width="6" height="10" viewBox="0 0 5 9" fill="none"><path d="M0.5 0.5L4.5 4.5L0.5 8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function mlBellSvg(on) {
   return on
-    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3a5 5 0 0 0-5 5c0 4-2 5-2 7h14c0-2-2-3-2-7a5 5 0 0 0-5-5Z" fill="currentColor"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
-    : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M7 8a5 5 0 0 1 9.5-2.2M17 10c0 4 2 5 2 7H8M6.5 6.5C5.6 7.4 5 9 5 12c0 2-2 3-2 5h3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.9023 18.75C14.569 20.0435 13.3976 21 12 21C10.6024 21 9.43095 20.0435 9.09766 18.75H14.9023ZM12 3C12.8284 3 13.5 3.67157 13.5 4.5C13.5 4.56288 13.4948 4.6247 13.4873 4.68555C16.0816 5.34717 18 7.69965 18 10.5V15L18.1533 15.0078C18.9097 15.0846 19.5 15.7233 19.5 16.5C19.5 17.3284 18.8284 18 18 18H6C5.17157 18 4.5 17.3284 4.5 16.5C4.5 15.6716 5.17157 15 6 15V10.5C6 7.69998 7.91788 5.34749 10.5117 4.68555C10.5042 4.62474 10.5 4.56284 10.5 4.5C10.5 3.67157 11.1716 3 12 3Z" fill="currentColor"/></svg>'
+    : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.9023 18.75C14.5691 20.0435 13.3976 20.9999 12 21C10.6024 21 9.43097 20.0435 9.09766 18.75H14.9023ZM18.3799 3.53027C18.6728 3.23763 19.1476 3.23746 19.4404 3.53027C19.7331 3.82309 19.733 4.29795 19.4404 4.59082L4.59083 19.4404C4.29797 19.7332 3.82314 19.7331 3.53028 19.4404C3.23743 19.1476 3.23751 18.6728 3.53028 18.3799L18.3799 3.53027ZM17.6563 8.49512C17.8785 9.12211 18 9.79686 18 10.5V15L18.1533 15.0078C18.9097 15.0847 19.5 15.7234 19.5 16.5C19.5 17.3284 18.8284 17.9999 18 18H8.15235L17.6563 8.49512ZM12 3C12.8284 3.00007 13.5 3.67161 13.5 4.5C13.5 4.56288 13.4948 4.6247 13.4873 4.68555C14.4073 4.9202 15.2419 5.36814 15.9365 5.97266L4.68555 17.2236C4.56719 17.0091 4.50001 16.7624 4.50001 16.5C4.50001 15.6716 5.17158 15 6.00001 15V10.5C6.00001 7.69998 7.91788 5.34749 10.5117 4.68555C10.5042 4.62474 10.5 4.56284 10.5 4.5C10.5 3.67157 11.1716 3 12 3Z" fill="currentColor"/></svg>';
 }
 function mlEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+// dev/LAN 호스트 여부(운영 muhyeop.com이 아니면 dev 미리보기 로그인 버튼 노출)
+function mlIsDevHost() { const h = location.hostname; return /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) || (h.indexOf('muhyeop.com') < 0 && h !== ''); }
 function mlKindLabel(p) { return p.kind === 'home' ? '집' : p.kind === 'work' ? '회사' : (p.name || '장소'); }
 
 let _myPlaces = [];
+// 홈 지도용 내 장소 마커(집/회사/여행지). 클러스터링/줌 게이트와 무관하게 항상 표시(축소해도 보임).
+const ML_MAP_ICON = { home: 'image/ml_map_home.svg', work: 'image/ml_map_company.svg', place: 'image/ml_map_place.svg' };
+let _myPlaceMarkers = [];
+let _selMyMarker = null;
+let _myMarkerDeselectBound = false;
+// 내 장소 아이콘 글리프(흰색, 30뷰박스 cx15 기준 — 카테고리 아이콘과 동일 좌표계)
+const ML_PIN_GLYPH = {
+  home: '<path d="M13.7764 8.94709C14.4969 8.38971 15.5031 8.38971 16.2236 8.94709L20.2236 12.0428C20.713 12.4215 20.9999 13.0051 21 13.6238V18.9998C21 20.1044 20.1046 20.9998 19 20.9998H11C9.89543 20.9998 9 20.1044 9 18.9998V13.6238C9.00012 13.0051 9.28698 12.4215 9.77637 12.0428L13.7764 8.94709ZM14 16.9998C13.4478 16.9998 13.0001 17.4476 13 17.9998V19.9998H17V17.9998C16.9999 17.4476 16.5522 16.9998 16 16.9998H14Z" fill="white"/>',
+  work: '<path d="M19 9C20.1046 9 21 9.89543 21 11V21H9V11C9 9.89543 9.89543 9 11 9H19ZM14 17C13.4477 17 13 17.4477 13 18V20H17V18C17 17.4477 16.5523 17 16 17H14ZM11 14V16H13V14H11ZM14 14V16H16V14H14ZM17 14V16H19V14H17ZM11 11V13H13V11H11ZM14 11V13H16V11H14ZM17 11V13H19V11H17Z" fill="white"/>',
+  place: '<path d="M15 8.18178C18.3137 8.18178 21 10.8681 21 14.1818C21 19.0908 16.0909 22.3634 15 22.3634C13.9091 22.3634 9.00004 19.0908 9 14.1818C9 10.8681 11.6863 8.18178 15 8.18178ZM17.7139 12.4572C17.4535 12.1972 17.0307 12.197 16.7705 12.4572L14.4141 14.8146L13.4717 13.8722C13.2113 13.6119 12.7887 13.6119 12.5283 13.8722C12.2683 14.1325 12.2683 14.5543 12.5283 14.8146L13.9424 16.2296C14.2027 16.4898 14.6254 16.4897 14.8857 16.2296L17.7139 13.4005C17.9742 13.1402 17.9742 12.7175 17.7139 12.4572Z" fill="white"/>',
+};
+// 선택된 내 장소 핀: 물방울(teardrop) 48px — 카테고리 선택 핀과 동일 형태
+function getMyPinSelected(kind) {
+  const icon = ML_PIN_GLYPH[kind] || ML_PIN_GLYPH.place;
+  return `<svg class="map-pin-svg" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">`
+    + `<path d="M24 3.55675C28.5005 3.55684 32.8171 5.38047 36 8.63194H35.999C38.8639 11.5548 40.3793 14.8561 40.7793 18.3009C41.1758 21.7042 40.4635 25.0858 39.1445 28.212C36.533 34.4156 31.3755 40.005 26.457 43.631C25.7434 44.1586 24.8842 44.4444 24 44.4444C23.1152 44.4444 22.255 44.1583 21.541 43.63V43.629C16.6229 40.0028 11.4656 34.4127 8.85254 28.212C7.53549 25.0857 6.8255 21.7044 7.21973 18.2999V18.2989C7.61974 14.8559 9.13549 11.5565 12 8.63194L12.001 8.63097C15.1946 5.37825 19.5047 3.55254 24 3.55675Z" fill="#39395C" stroke="#fff" stroke-width="1.77778"/>`
+    + `<g transform="translate(3 1) scale(1.4)">${icon}</g>`
+    + `</svg>`;
+}
+function myPinContent(kind, selected, name) {
+  if (selected) {
+    // 여행지(place)는 선택 시 장소명 말풍선 노출(집/회사는 없음)
+    const bubble = (kind === 'place' && name) ? `<span class="ml-pin-name">${mlEsc(name)}</span>` : '';
+    return `<div class="map-pin map-pin-selected ml-named-pin">${bubble}${getMyPinSelected(kind)}</div>`;
+  }
+  const icon = ML_MAP_ICON[kind] || ML_MAP_ICON.place;
+  return `<div class="map-pin"><img class="map-pin-svg" src="${icon}" width="34" height="34" alt=""></div>`;
+}
+function deselectMyPlaceMarker() {
+  if (_selMyMarker) {
+    try { _selMyMarker.setIcon({ content: myPinContent(_selMyMarker._mlKind, false), anchor: new naver.maps.Point(17, 17) }); } catch (e) {}
+    _selMyMarker = null;
+  }
+}
+function selectMyPlaceMarker(mk) {
+  if (_selMyMarker && _selMyMarker !== mk) deselectMyPlaceMarker();
+  try { mk.setIcon({ content: myPinContent(mk._mlKind, true, mk._mlName), anchor: new naver.maps.Point(24, 45) }); } catch (e) {}
+  _selMyMarker = mk;
+}
+// 선택 시 그 위치로 확대(주변 협찬 확인). 반경 클수록 살짝 덜 확대.
+function focusMyPlaceData(la, ln, r) {
+  let z = 15; if (r >= 4) z = 14; else if (r <= 1) z = 16;
+  try {
+    const c = new naver.maps.LatLng(la, ln);
+    if (typeof map.morph === 'function') map.morph(c, z); else { map.setCenter(c); map.setZoom(z); }
+  } catch (e) { try { map.setCenter(new naver.maps.LatLng(la, ln)); } catch (e2) {} }
+}
+function focusMyPlace(mk) { focusMyPlaceData(mk._mlLat, mk._mlLng, mk._mlRadius || 3); }
+function focusMyPlaceByIndex(i) { const p = _myPlacesForMap[i]; if (p) focusMyPlaceData(p.lat, p.lng, p.radiusKm || 3); }
+window.focusMyPlaceByIndex = focusMyPlaceByIndex;
+
+// ===== 화면 밖 내 장소 엣지 인디케이터 (일정 거리 안일 때만; 멀리 이탈하면 숨김) =====
+let _myPlacesForMap = [];
+let _mlEdgeLayer = null, _mlEdgeBound = false;
+function ensureEdgeLayer() {
+  const mapEl = document.getElementById('map'); if (!mapEl) return null;
+  if (!_mlEdgeLayer || !mapEl.contains(_mlEdgeLayer)) {
+    _mlEdgeLayer = document.createElement('div');
+    _mlEdgeLayer.id = 'mlEdgeLayer'; _mlEdgeLayer.className = 'ml-edge-layer';
+    mapEl.appendChild(_mlEdgeLayer);
+  }
+  return _mlEdgeLayer;
+}
+function mlClampToRect(cx, cy, x, y, minX, maxX, minY, maxY) {
+  const dx = x - cx, dy = y - cy; let t = 1;
+  if (dx > 0) t = Math.min(t, (maxX - cx) / dx); else if (dx < 0) t = Math.min(t, (minX - cx) / dx);
+  if (dy > 0) t = Math.min(t, (maxY - cy) / dy); else if (dy < 0) t = Math.min(t, (minY - cy) / dy);
+  if (!isFinite(t) || t < 0) t = 0;
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+function updateMyPlaceEdges() {
+  const layer = ensureEdgeLayer(); if (!layer) return;
+  // 모바일 전용(디자인 기준) · 로그인 + 저장장소 있을 때 · 확대 상태에서만(줌아웃 미표시)
+  if (!currentUser || !_myPlacesForMap.length || window.innerWidth > 640 || typeof map === 'undefined' || !map) { layer.innerHTML = ''; return; }
+  let bounds, size, zoom; try { bounds = map.getBounds(); size = map.getSize(); zoom = map.getZoom(); } catch (e) { layer.innerHTML = ''; return; }
+  if (zoom < 12) { layer.innerHTML = ''; return; }   // 줌아웃(광역/전국)에선 표시 안 함
+  const ne = bounds.getNE(), sw = bounds.getSW();
+  const neLat = ne.lat(), neLng = ne.lng(), swLat = sw.lat(), swLng = sw.lng();
+  const W = size.width, H = size.height, cx = W / 2, cy = H / 2;
+  const iTop = 132, iBottom = 150, iSide = 16;   // 상단 검색·칩 / 하단 시트·GNB 회피
+  const maxDist = Math.hypot(W, H) * 1.6;         // 화면(뷰포트) 상대 거리 — 가장자리 밖 약 1화면까지 유지(줌 따라 자동)
+  const minX = iSide, maxX = W - iSide, minY = iTop, maxY = H - iBottom;
+  let html = '';
+  _myPlacesForMap.forEach((p, i) => {
+    if (!p.lat || !p.lng) return;
+    const x = (p.lng - swLng) / (neLng - swLng) * W;
+    const y = (neLat - p.lat) / (neLat - swLat) * H;
+    if (x >= 0 && x <= W && y >= 0 && y <= H) return;   // 화면 안 → 일반 핀으로 보임
+    if (Math.hypot(x - cx, y - cy) > maxDist) return;   // 멀리 이탈 → 숨김
+    const cl = mlClampToRect(cx, cy, x, y, minX, maxX, minY, maxY);
+    // 닿은 변 판정
+    const atL = cl.x <= minX + 0.5, atR = cl.x >= maxX - 0.5, atT = cl.y <= minY + 0.5, atB = cl.y >= maxY - 0.5;
+    // 장소 방향을 가리키는 화살표 방향(가장 뚜렷한 축)
+    let dir;
+    if ((atL || atR) && (atT || atB)) dir = Math.abs(x - cx) > Math.abs(y - cy) ? (atL ? 'left' : 'right') : (atT ? 'up' : 'down');
+    else if (atL) dir = 'left'; else if (atR) dir = 'right'; else if (atT) dir = 'up'; else dir = 'down';
+    // 칩을 안쪽으로 정렬(잘림 방지)
+    let tx = '-50%', ty = '-50%';
+    if (atL) tx = '0'; else if (atR) tx = '-100%';
+    if (atT) ty = '0'; else if (atB) ty = '-100%';
+    const ico = ML_KIND_ICON[p.kind] || ML_KIND_ICON.place;
+    const label = p.kind === 'home' ? '집' : p.kind === 'work' ? '회사' : (p.name || '장소');
+    html += `<button class="ml-edge-chip dir-${dir}" style="left:${Math.round(cl.x)}px;top:${Math.round(cl.y)}px;transform:translate(${tx},${ty})" onclick="focusMyPlaceByIndex(${i})"><span class="ml-edge-bg"></span><span class="ml-edge-ico">${ico}</span><span class="ml-edge-label">${mlEsc(label)}</span></button>`;
+  });
+  layer.innerHTML = html;
+}
+async function loadMyPlaceMarkers() {
+  if (typeof naver === 'undefined' || !naver.maps || typeof map === 'undefined' || !map) return;
+  _myPlaceMarkers.forEach(m => { try { m.setMap(null); } catch (e) {} });
+  _myPlaceMarkers = []; _selMyMarker = null;
+  if (!currentUser) { _myPlacesForMap = []; updateMyPlaceEdges(); return; }
+  let places = [];
+  try { const r = await fetch('/api/users?places=1', { credentials: 'same-origin' }); if (!r.ok) return; places = await r.json(); } catch (e) { return; }
+  _myPlacesForMap = places;
+  places.forEach(p => {
+    if (!p.lat || !p.lng) return;
+    try {
+      const mk = new naver.maps.Marker({
+        position: new naver.maps.LatLng(p.lat, p.lng), map: map,
+        icon: { content: myPinContent(p.kind, false), anchor: new naver.maps.Point(17, 17) },
+        zIndex: 1000,
+      });
+      mk._mlKind = p.kind; mk._mlLat = p.lat; mk._mlLng = p.lng; mk._mlRadius = p.radiusKm || 3; mk._mlName = p.name || '';
+      naver.maps.Event.addListener(mk, 'click', () => { selectMyPlaceMarker(mk); focusMyPlace(mk); });
+      _myPlaceMarkers.push(mk);
+    } catch (e) {}
+  });
+  // 지도 빈 곳/다른 곳 클릭 시 선택 해제(카테고리 핀과 동일 거동)
+  if (!_myMarkerDeselectBound) { _myMarkerDeselectBound = true; try { naver.maps.Event.addListener(map, 'click', deselectMyPlaceMarker); } catch (e) {} }
+  updateMyPlaceEdges();
+}
 async function renderMyPlaces() {
   const items = document.getElementById('mlItems');
   const note = document.getElementById('mlNote');
   if (!items) return;
   if (!currentUser) {
     if (note) note.style.display = 'none';
-    items.innerHTML = '<div class="ml-login"><p>로그인하면 집·회사·여행지를 저장하고<br>그 주변 모집 중인 협찬을 모아볼 수 있어요.</p><button class="ml-login-btn" onclick="oauthLogin(\'kakao\')">카카오로 시작하기</button></div>';
+    const devBtn = mlIsDevHost()
+      ? '<button class="ml-login-btn" style="background:#444;margin-top:10px" onclick="location.href=\'/api/users?devlogin=1\'">🔧 미리보기 로그인 (dev)</button>'
+      : '';
+    items.innerHTML = '<div class="ml-login"><p>로그인하면 집·회사·여행지를 저장하고<br>그 주변 모집 중인 협찬을 모아볼 수 있어요.</p><button class="ml-login-btn" onclick="oauthLogin(\'kakao\')">카카오로 시작하기</button>' + devBtn + '</div>';
     return;
   }
   if (note) note.style.display = '';
@@ -2586,26 +2731,47 @@ async function renderMyPlaces() {
     _myPlaces = await res.json();
   } catch (e) { _myPlaces = []; }
   renderMlItems();
+  mlFetchCounts();
 }
 function mlAddRowHtml(kind, label) {
   return `<button class="ml-addrow" onclick="openMlSetting('${kind}')">
     <span class="ml-addrow-ico">${ML_KIND_ICON[kind]}</span>
-    <span class="ml-addrow-label">${label}</span>
-    <span class="ml-addrow-chev">›</span></button>`;
+    <span class="ml-addrow-textwrap"><span class="ml-addrow-label">${label}</span><span class="ml-addrow-chev">${ML_CHEVRON}</span></span></button>`;
 }
 function mlCardHtml(p) {
-  const cats = (p.categories && p.categories.length) ? p.categories.join(' ') : '전체';
-  const meta = `반경 ${p.radiusKm || 3}km`;   // 모집 N건은 stage② 예정
+  const catList = (p.categories && p.categories.length) ? p.categories : ['전체'];
+  const catsHtml = catList.map(c => `<span class="ml-cat-tag">${mlEsc(c)}</span>`).join('');
+  const cnt = (p._count != null) ? p._count : '–';
   return `<div class="ml-card" onclick="openMlSetting('${p.kind}', ${p.id})">
-    <span class="ml-card-ico">${ML_KIND_ICON[p.kind] || ML_KIND_ICON.place}</span>
     <div class="ml-card-main">
-      <div class="ml-card-name">${mlEsc(mlKindLabel(p))} <span class="chev">›</span></div>
+      <div class="ml-card-name"><span class="ml-card-ico">${ML_KIND_ICON[p.kind] || ML_KIND_ICON.place}</span>${mlEsc(mlKindLabel(p))}<span class="chev">${ML_CHEVRON}</span></div>
       ${p.address ? `<div class="ml-card-addr">${mlEsc(p.address)}</div>` : ''}
-      <div class="ml-card-meta">${meta}</div>
-      <div class="ml-card-cats">${mlEsc(cats)}</div>
+      <div class="ml-card-meta" id="mlMeta-${p.id}">모집 중 <b><span class="ml-count">${cnt}</span>건</b> · 반경 ${p.radiusKm || 3}km</div>
+      <div class="ml-card-cats">${catsHtml}</div>
     </div>
     <button class="ml-card-bell${p.alarmEnabled ? ' on' : ''}" onclick="event.stopPropagation();mlToggleBell(${p.id})" aria-label="알림">${mlBellSvg(!!p.alarmEnabled)}</button>
   </div>`;
+}
+// 장소 반경 → bbox(대략). 1°lat≈111km, lng는 위도 보정.
+function mlBbox(lat, lng, r) {
+  const dLat = r / 111;
+  const dLng = r / (111 * Math.max(0.1, Math.cos(lat * Math.PI / 180)));
+  return [lng - dLng, lat - dLat, lng + dLng, lat + dLat];
+}
+// 각 장소 반경 내 활성 캠페인 수(모집 N건)를 병렬 조회해 카드에 채움.
+async function mlFetchCounts() {
+  await Promise.all(_myPlaces.map(async p => {
+    if (!p.lat || !p.lng) return;
+    const [w, s, e, n] = mlBbox(p.lat, p.lng, p.radiusKm || 3);
+    try {
+      const res = await fetch(`/api/campaigns?count=active&bbox=${w},${s},${e},${n}`, { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const j = await res.json();
+      p._count = Number(j.count || 0);
+      const el = document.getElementById('mlMeta-' + p.id);
+      if (el) { const b = el.querySelector('.ml-count'); if (b) b.textContent = p._count; }
+    } catch (e) {}
+  }));
 }
 function renderMlItems() {
   const items = document.getElementById('mlItems');
@@ -2632,16 +2798,28 @@ function openMlSetting(kind, id) {
   _mlConfirmed = !!(editing && editing.lat);
   const kLabel = kind === 'home' ? '집' : kind === 'work' ? '회사' : '장소';
   document.getElementById('mlSetTitle').textContent = kLabel + ' 설정';
-  document.getElementById('mlSetSelectBtn').textContent = `이 위치를 ${kLabel}으로 선택`;
-  document.getElementById('mlSetAddrIco').textContent = kind === 'home' ? '🏠' : kind === 'work' ? '🏢' : '📍';
+  document.getElementById('mlSetStickyTitle').textContent = kLabel + ' 설정';
+  document.getElementById('mlSetSelectBtn').textContent = kind === 'place' ? '이 위치로 선택' : `이 위치를 ${kLabel}으로 선택`;
+  document.getElementById('mlSetAddrIco').innerHTML = ML_KIND_ICON[kind] || ML_KIND_ICON.place;
+  document.getElementById('mlSetPinIco').innerHTML = ML_KIND_ICON[kind] || ML_KIND_ICON.place;
   document.getElementById('mlSetAddrText').textContent = _mlDraft.address || '지도를 움직여 위치를 맞춰주세요';
+  // 장소명 입력: 여행지(place)만 노출
+  const nameField = document.getElementById('mlSetNameField');
+  nameField.hidden = (kind !== 'place');
+  document.getElementById('mlSetName').value = (kind === 'place') ? (_mlDraft.name || '') : '';
   document.getElementById('mlSetRadius').value = _mlDraft.radiusKm;
-  document.getElementById('mlSetRadiusVal').textContent = _mlDraft.radiusKm + 'km';
+  mlOnRadius(_mlDraft.radiusKm);
   document.getElementById('mlSetAlarm').checked = _mlDraft.alarmEnabled;
   document.getElementById('mlSetDelete').hidden = !editing;
+  const saveBtn = document.querySelector('.ml-set-save');
+  if (saveBtn) saveBtn.textContent = editing ? '수정' : '저장';
   mlRenderCats();
   const ov = document.getElementById('mlSettingOverlay');
   ov.hidden = false;
+  document.getElementById('mlSetSticky').classList.remove('show');
+  const sc = document.getElementById('mlSetScroll'); if (sc) sc.scrollTop = 0;
+  // 스크롤 시 컴팩트 헤더(제보/신고 동일)
+  bindMobileScrollHeader('mlSetScroll', 'mlSetScrollHeader', 'mlSetSticky');
   // 중심 좌표: 편집중이면 저장위치, 아니면 현재 지도 중심(또는 서울)
   let center;
   try { center = (_mlDraft.lat) ? new naver.maps.LatLng(_mlDraft.lat, _mlDraft.lng) : (map ? map.getCenter() : new naver.maps.LatLng(37.5665, 126.978)); }
@@ -2654,7 +2832,7 @@ function mlInitSetMap(center) {
   const el = document.getElementById('mlSetMap');
   if (!el || typeof naver === 'undefined' || !naver.maps) return;
   if (!_mlMap) {
-    _mlMap = new naver.maps.Map(el, { center: center, zoom: 15, mapDataControl: false, scaleControl: false, logoControl: true, mapTypeControl: false, zoomControl: false });
+    _mlMap = new naver.maps.Map(el, { center: center, zoom: 15, mapDataControl: false, scaleControl: false, logoControl: true, logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT }, mapTypeControl: false, zoomControl: false });
   } else {
     _mlMap.setCenter(center);
   }
@@ -2662,16 +2840,25 @@ function mlInitSetMap(center) {
   setTimeout(() => { try { naver.maps.Event.trigger(_mlMap, 'resize'); _mlMap.setCenter(center); } catch (e) {} }, 60);
 }
 function mlOnRadius(v) {
-  _mlDraft.radiusKm = Number(v);
-  document.getElementById('mlSetRadiusVal').textContent = Number(v) + 'km';
+  v = Number(v);
+  _mlDraft.radiusKm = v;
+  document.getElementById('mlSetRadiusVal').textContent = v + 'km';
+  // 슬라이더 왼쪽 빨강 채움(1~5 → 0~100%)
+  const el = document.getElementById('mlSetRadius');
+  if (el) { const pct = (v - 1) / 4 * 100; el.style.background = `linear-gradient(90deg, #e82a2d 0%, #e82a2d ${pct}%, #ededee ${pct}%)`; }
 }
+// 카테고리: '전체'(=필터 없음) + 개별. 전체 선택 시 개별 해제, 개별 선택 시 전체 자동 해제.
 function mlRenderCats() {
   const box = document.getElementById('mlSetCats');
-  box.innerHTML = ML_CATS.map(c =>
+  const allOn = !(_mlDraft.categories && _mlDraft.categories.length);
+  let h = `<button class="ml-cat-chip${allOn ? ' on' : ''}" onclick="mlToggleCat('전체')">전체</button>`;
+  h += ML_CATS.map(c =>
     `<button class="ml-cat-chip${_mlDraft.categories.indexOf(c) >= 0 ? ' on' : ''}" onclick="mlToggleCat('${mlEsc(c)}')">${mlEsc(c)}</button>`
   ).join('');
+  box.innerHTML = h;
 }
 function mlToggleCat(c) {
+  if (c === '전체') { _mlDraft.categories = []; mlRenderCats(); return; }
   const i = _mlDraft.categories.indexOf(c);
   if (i >= 0) _mlDraft.categories.splice(i, 1); else _mlDraft.categories.push(c);
   mlRenderCats();
@@ -2704,13 +2891,26 @@ function mlConfirmLocation() {
   });
 }
 function mlSettingMyLocation() {
-  if (!navigator.geolocation || !_mlMap) return;
+  if (!_mlMap) return;
+  const secure = (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+  if (!navigator.geolocation || !secure) {
+    if (typeof showToast === 'function') showToast(secure ? '이 브라우저에서 위치를 쓸 수 없어요' : '현재 위치는 배포(https)에서 동작해요');
+    return;
+  }
   navigator.geolocation.getCurrentPosition(pos => {
     try { _mlMap.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude)); } catch (e) {}
-  }, () => {}, { enableHighAccuracy: true, timeout: 8000 });
+  }, () => {
+    if (typeof showToast === 'function') showToast('위치 권한을 허용해주세요');
+  }, { enableHighAccuracy: true, timeout: 8000 });
 }
 async function mlSave() {
   if (!_mlConfirmed || !_mlDraft.lat) { if (typeof showToast === 'function') showToast('지도에서 위치를 먼저 선택해주세요'); return; }
+  // 여행지(place)는 장소명 필수
+  if (_mlDraft.kind === 'place') {
+    const nm = (document.getElementById('mlSetName').value || '').trim();
+    if (!nm) { if (typeof showToast === 'function') showToast('장소명을 입력해주세요'); document.getElementById('mlSetName').focus(); return; }
+    _mlDraft.name = nm;
+  }
   _mlDraft.alarmEnabled = document.getElementById('mlSetAlarm').checked;
   const btn = document.querySelector('.ml-set-save');
   if (btn) btn.disabled = true;
@@ -2727,16 +2927,24 @@ async function mlSave() {
     }
     closeMlSetting();
     await renderMyPlaces();
+    loadMyPlaceMarkers();
   } catch (e) { if (btn) btn.disabled = false; if (typeof showToast === 'function') showToast('저장에 실패했어요'); }
 }
-async function mlDelete() {
+function mlDelete() {
   if (!_mlDraft || !_mlDraft.id) return;
-  if (!confirm('이 장소를 삭제할까요?')) return;
-  try {
-    await fetch('/api/users?places=1&id=' + _mlDraft.id, { method: 'DELETE', credentials: 'same-origin' });
-    closeMlSetting();
-    await renderMyPlaces();
-  } catch (e) {}
+  const id = _mlDraft.id;
+  // 회원탈퇴와 동일 UI(범용 확인 팝업)로 삭제 확인
+  showAlert('이 장소를 삭제할까요?', '저장한 반경·카테고리·알림 설정이 사라져요.', {
+    twoButton: true, cancelText: '취소', confirmText: '삭제하기', header: '장소 삭제', align: 'left',
+    onConfirm: async () => {
+      try {
+        await fetch('/api/users?places=1&id=' + id, { method: 'DELETE', credentials: 'same-origin' });
+        closeMlSetting();
+        await renderMyPlaces();
+        loadMyPlaceMarkers();
+      } catch (e) {}
+    },
+  });
 }
 async function mlToggleBell(id) {
   const p = _myPlaces.find(x => x.id === id);
@@ -2798,6 +3006,8 @@ async function refreshAuthUI() {
   }
   // 내 정보 패널이 열려 있으면 로그인 상태 변화 반영
   if (document.body.classList.contains('pc-myinfo-mode')) openMyInfoPanel();
+  // 홈 지도에 내 장소(집/회사/여행지) 마커 갱신 (로그인/로그아웃 반영)
+  loadMyPlaceMarkers();
 }
 
 // 로그인 provider별 아이콘 (카카오/네이버/애플) — 닉네임 앞 표시용
@@ -3076,6 +3286,9 @@ function finishWithdraw() {
 let _alertOnConfirm = null;
 function showAlert(main, sub, opts) {
   opts = opts || {};
+  const hd = document.getElementById('alertPopupHeader');
+  if (hd) hd.textContent = opts.header || '알림';
+  document.getElementById('alertPopupOverlay').classList.toggle('align-left', opts.align === 'left');
   document.getElementById('alertPopupMain').textContent = main || '';
   document.getElementById('alertPopupSub').textContent = sub || '';
   const cancel = document.getElementById('alertPopupCancel');
