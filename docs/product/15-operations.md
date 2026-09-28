@@ -74,7 +74,8 @@ scraped_items (승인 대기 큐)
 
 - **OpenAI(GPT, gpt-4o-mini)**: 신규매장 후보에만 호출. **주당 약 14원**(호출당 ~540토큰). 월 몇백 원 수준.
 - 나머지(수집·지오코딩·규칙 판정)는 무료 쿼터/토큰 0.
-- 잔액 확인: platform.openai.com → Billing → API credit balance. (Auto-reload OFF면 잔액 0에서 API 멈추나, 지금 속도론 수년치.)
+- 잔액 확인: platform.openai.com → Billing → API credit balance.
+- **⚠️ 크레딧 소진 = 신규매장 자동등록 정지(2026-09-28 실제 발생)**: 잔액 0이면 신규매장 AI 판정이 **429(no credits)** → 전부 "AI보류"로 **검수큐에 쌓이고 자동등록이 멈춘다**(기존매장 채널추가/갱신은 규칙기반이라 계속됨). 증상: 승인대기 `auto_note='AI보류(0.00): OpenAI 429 …'` 급증. **대응**: ①크레딧 충전 → ②보류건 재처리(`UPDATE scraped_items SET auto_seen=0, auto_note=NULL WHERE status='pending' AND auto_note LIKE 'AI보류%'`) → 크롤러가 재판정. **예방**: Billing에 **Auto-reload(자동충전) 켜두기** + 잔액 가끔 확인. (과거 "수년치" 추정은 틀림 — 실제 소진됨.)
 
 ---
 
