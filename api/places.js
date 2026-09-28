@@ -145,6 +145,15 @@ module.exports = async function handler(req, res) {
         todayMemberReturning = Number(mr.n || 0);
       } catch (e) {}
 
+      // 오늘 방문한 로그인 회원 수(당일 가입 포함) → 비회원 추정 = UV − 로그인회원.
+      // ⚠️ 추정치: UV는 IP+일 기준이라 오차 있고, '회원이 로그아웃 상태로 방문'은 비회원에 섞임.
+      let todayMemberTotal = 0;
+      try {
+        const mt = (await db.execute({ sql: "SELECT COUNT(*) AS n FROM user_visits WHERE visit_date = ?", args: [day] })).rows[0] || {};
+        todayMemberTotal = Number(mt.n || 0);
+      } catch (e) {}
+      const todayNonMemberEst = Math.max(0, Number(today.uv || 0) - todayMemberTotal);
+
       // 기간별 시계열: PV=SUM(pv)(site_daily), UV=COUNT(DISTINCT visitor_key)(site_visitor, 기간 내 진짜 고유)
       const period = req.query.period === 'week' ? 'week' : req.query.period === 'month' ? 'month' : 'day';
       let series;
@@ -181,6 +190,7 @@ module.exports = async function handler(req, res) {
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
         todayDwell: dwellAvg(today), todayDwellCount: Number(today.dwell_count || 0),
         todayMemberReturning,
+        todayMemberTotal, todayNonMemberEst,
         period, series,
         referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
         todayReferrers: todayRefRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),

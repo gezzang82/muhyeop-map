@@ -718,6 +718,7 @@ function renderDashboard() {
     set('statVisitTodayPv', s.todayPv);
     set('statVisitTodayUv', s.todayUv);
     set('statVisitTodayMember', s.todayMemberReturning);
+    set('statVisitTodayGuest', s.todayNonMemberEst);
     set('statVisitTotalPv', s.totalPv);
     const dwEl = document.getElementById('statVisitTodayDwell');
     if (dwEl) dwEl.textContent = s.todayDwellCount ? fmtDwell(s.todayDwell) : '-';
