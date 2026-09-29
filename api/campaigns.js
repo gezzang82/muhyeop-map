@@ -10,6 +10,11 @@ const { getCachedStats, refreshStatsCache } = require('./_stats');
 //  1) 인메모리: 같은 웜 인스턴스 재요청 즉시.
 //  2) DB(stats_cache 1행): 콜드스타트·인스턴스 교체에도 유지 — 로컬 크롤러가 매 사이클 갱신해 대개 여기서 히트(~130ms).
 //  3) 미스(크롤러 꺼져 오래됨): 1회 재계산 후 DB 기록.
+// 운영자 본인 클릭이 조회/클릭 통계를 부풀리지 않게 제외(방문 집계 places.js와 동일 목록).
+const EXCLUDED_TRACK_IPS = new Set(
+  ['119.67.74.173'].concat(String(process.env.EXCLUDED_VISIT_IPS || '').split(','))
+    .map(s => s.trim()).filter(Boolean)
+);
 const STATS_CACHE_TTL = 180000;    // 인메모리 3분
 const STATS_CACHE_DB_TTL = 900000; // DB 15분(크롤러가 더 자주 갱신하므로 사실상 항상 신선)
 let _statsCache = null; // { at:number, data:object }
@@ -237,6 +242,7 @@ module.exports = async function handler(req, res) {
     const kind = req.query.track;
     const col = kind === 'click' ? 'click_count' : 'view_count';
     const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+    if (EXCLUDED_TRACK_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true }); // 운영자 본인 클릭 제외
     const day = new Date().toISOString().slice(0, 10);
     const visitorKey = `${ip}|${day}`;
     try {
