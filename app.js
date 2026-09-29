@@ -1905,7 +1905,9 @@ async function searchRegion() {
   // 지역명·주소접미(동·읍·면·리·로·길·가 / 구·시·군 / 주요상권)면 그 위치로 이동(네이버 geocode/지역검색).
   //  역명은 아래에서 네이버 지역검색 '카테고리(지하철·전철…)'로 감지 — 패턴 대신 네이버가 진짜 역인지 판단.
   const KNOWN_AREAS = new Set(['홍대', '강남', '성수', '이태원', '건대', '신촌', '잠실', '명동', '연남', '망원', '압구정', '청담', '을지로', '종로', '서면', '동성로', '해운대', '광안리', '판교', '가로수길', '경리단길']);
-  const isRegionLike = q2.length <= 8 && (/(동|읍|면|리|로|길|가|거리)$/.test(q2) || (/(구|시|군)$/.test(q2) && q2.length >= 3) || KNOWN_AREAS.has(q2));
+  // 광역시·도 이름(시/구/군 접미 없이도 지역): '대전'·'서울'·'경기' 등 → 그 위치로 지도 이동
+  const KNOWN_REGIONS = new Set(['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주', '충청', '전라']);
+  const isRegionLike = q2.length <= 8 && (/(동|읍|면|리|로|길|가|거리)$/.test(q2) || (/(구|시|군|도)$/.test(q2) && q2.length >= 3) || KNOWN_AREAS.has(q2) || KNOWN_REGIONS.has(q2));
   if (isRegionLike) { clearSearchPin(); geocodeRegion(query); return; }
 
   // 등록된 매장명과 정확히 일치하는 매장 찾기
@@ -2023,7 +2025,7 @@ function geocodeRegion(query) {
       }
     });
   }
-  const alreadyPrefixed = /^서울|^경기|^인천|^부산|^대구|^광주|^대전/.test(query);
+  const alreadyPrefixed = /^(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|충청|전북|전남|전라|경북|경남|제주)/.test(query);
   trySearch(query, alreadyPrefixed ? null : '서울 ' + query);
 }
 
