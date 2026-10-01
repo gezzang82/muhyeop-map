@@ -1955,9 +1955,11 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   font-size: 26px; font-weight: 500; color: #000;
   letter-spacing: -0.52px; line-height: normal;
 }
-/* 회원정보관리(프로필): 헤더 좌측 back 버튼 추가 → [back][제목 flex][회원탈퇴] 배치 */
-.profile-modal .modal-scroll-header { gap: 12px; }
-.profile-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
+/* 회원정보관리(프로필)·신고하기: 헤더 좌측 back 버튼 추가 → [back][제목 flex][우측요소] 배치 */
+.profile-modal .modal-scroll-header,
+.report-modal .modal-scroll-header { gap: 12px; }
+.profile-modal .modal-scroll-header h2,
+.report-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
 
 /* 알림설정 화면 (MY → 알림설정) */
 .alarm-modal .modal-body { padding-bottom: calc(32px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }
@@ -1965,12 +1967,16 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .alarm-perm-text { flex: 1; min-width: 0; font-size: 13px; line-height: 1.5; color: #6b4a1b; }
 .alarm-perm-text b { color: #a8650a; }
 .alarm-perm-btn { flex-shrink: 0; height: 36px; padding: 0 14px; border: none; border-radius: 8px; background: #e82a2d; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
-.alarm-info { display: flex; align-items: flex-start; gap: 6px; background: #ededee; border-radius: 8px; padding: 12px; font-size: 14px; line-height: 1.5; color: #000; }
-.alarm-info-ico { flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; }
+/* 안내 앞 글머리 dot(•) — 내 장소 .ml-info와 동일 */
+.alarm-info { position: relative; background: #ededee; border-radius: 8px; padding: 12px 12px 12px 24px; font-size: 14px; line-height: 1.5; color: #000; }
+.alarm-info::before { content: "•"; position: absolute; left: 12px; top: 12px; color: #999; }
 .alarm-list { display: flex; flex-direction: column; }
 .alarm-row { display: flex; align-items: center; gap: 16px; padding: 16px 0; }
 .alarm-row-label { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; color: #000; }
 .alarm-divider { height: 1px; background: #eee; }
+/* '전체 알림 받기' OFF 시 하위 토글 비활성(dim + 조작 불가) */
+.alarm-row-disabled { opacity: 0.4; }
+.alarm-row-disabled .ml-switch { pointer-events: none; }
 
 /* 모달 sticky 헤더 (step2 스크롤 시 나타남) */
 .modal-sticky-header {
@@ -3356,8 +3362,9 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .native-app #tabView-places #mlStickyHeader { height: auto; padding-top: calc(10px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); }
 .ml-title { font-size: 22px; font-weight: 700; color: #1a1a1a; margin: 0 0 14px; }
 /* 안내 문구 — 바텀시트 '.sidebar-notice'와 동일 스타일 */
-.ml-info { position: relative; margin: 0 0 8px; padding: 10px 12px 10px 22px; background: #f5f5f5; border-radius: 10px; font-size: 14px; line-height: 1.5; color: #000; }
-.ml-info::before { content: "•"; position: absolute; left: 12px; top: 10px; color: #999; }
+.ml-info { margin: 0 0 8px; padding: 10px 14px; background: #f5f5f5; border-radius: 10px; font-size: 14px; line-height: 1.5; color: #000; display: flex; flex-direction: column; gap: 6px; }
+.ml-info-line { position: relative; margin: 0; padding-left: 12px; }
+.ml-info-line::before { content: "•"; position: absolute; left: 0; top: 0; color: #999; }
 .ml-note { display: flex; align-items: center; gap: 6px; color: #555; font-size: 14px; margin-top: 16px; }
 .ml-note-ic { flex-shrink: 0; display: inline-flex; align-items: center; }
 
@@ -3381,6 +3388,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .ml-cat-tag { display: inline-flex; align-items: center; background: rgba(0,0,0,0.08); color: #000; font-size: 13px; border-radius: 4px; padding: 2px 4px; line-height: 1; height: 20px; box-sizing: border-box; }
 .ml-card-bell { width: 40px; height: 40px; flex-shrink: 0; align-self: center; display: flex; align-items: center; justify-content: center; color: #c4c4c4; background: #fff; border: 1px solid #ececec; border-radius: 10px; cursor: pointer; padding: 0; }
 .ml-card-bell.on { color: #111; }
+/* 알림설정에서 '전체 알림' 또는 '내 장소 신규 협찬'이 꺼지면 내 장소 벨을 dim(값은 보존, 탭 시 안내) */
+.ml-card-bell-off { opacity: 0.35; }
 
 /* 로그인 유도 */
 .ml-login { width: 100%; text-align: center; padding: 48px 24px; box-sizing: border-box; }

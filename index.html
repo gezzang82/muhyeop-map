@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=134">
+  <link rel="stylesheet" href="style.css?v=139">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -310,20 +310,18 @@
       </div>
       <div class="modal-header">
         <h2>알림설정</h2>
-        <button class="profile-withdraw-link" onclick="deleteAccount()">회원 탈퇴</button>
       </div>
       <div class="modal-body" id="alarmBody">
         <div class="modal-scroll-header" id="alarmScrollHeader">
           <button class="mlset-back" onclick="closeMyAlarmSetting()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <h2>알림설정</h2>
-          <button class="profile-withdraw-link" onclick="deleteAccount()">회원 탈퇴</button>
         </div>
         <!-- 기기(OS) 알림 권한 꺼짐 안내 — 꺼진 상태에서만 노출 -->
         <div class="alarm-perm-banner" id="alarmPermBanner" style="display:none">
           <div class="alarm-perm-text"><b>휴대폰 알림이 꺼져 있어 알림을 받을 수 없어요.</b><br>아래 설정을 바꿔도 기기 알림을 먼저 켜야 적용돼요.</div>
           <button class="alarm-perm-btn" onclick="openAlarmPermSettings()">설정에서 켜기</button>
         </div>
-        <div class="alarm-info"><img src="image/ic_info_16.svg" alt="" width="16" height="16" class="alarm-info-ico"><span>장소별 ON/OFF는 '내 장소' 탭 각 카드에서 하실 수 있어요.</span></div>
+        <div class="alarm-info">장소별 ON/OFF는 '내 장소' 탭 각 카드에서 하실 수 있어요.</div>
         <div class="alarm-list">
           <div class="alarm-row">
             <span class="alarm-row-label">전체 알림 받기</span>
@@ -704,6 +702,7 @@
   <div class="modal-overlay" id="reportOverlay" onclick="closeReportModal()">
     <div class="modal report-modal" onclick="event.stopPropagation()">
       <div class="modal-sticky-header" id="reportStickyHeader">
+        <button class="mlset-back" onclick="closeReportModal()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <span>신고하기</span>
       </div>
       <div class="modal-header">
@@ -711,6 +710,7 @@
       </div>
       <div class="modal-body" id="reportBody">
         <div class="modal-scroll-header" id="reportScrollHeader">
+          <button class="mlset-back" onclick="closeReportModal()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <h2>신고하기</h2>
         </div>
         <div class="form-group">
@@ -752,7 +752,6 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeReportModal()">취소</button>
         <button class="btn-next" onclick="submitReport()">제출하기</button>
       </div>
     </div>
@@ -1038,7 +1037,10 @@
     <div class="ml-scroll" id="mlScroll">
       <div class="ml-list">
         <div class="modal-scroll-header ml-scroll-header" id="mlScrollHeader"><h2>내 장소</h2></div>
-        <div class="ml-info">자주 가는 곳과 여행지를 저장하면, 그 주변 모집 중인 협찬을 한눈에 모아볼 수 있어요.</div>
+        <div class="ml-info">
+          <p class="ml-info-line">자주 가는 곳과 여행지를 저장하면, 그 주변 모집 중인 협찬을 한눈에 모아볼 수 있어요.</p>
+          <p class="ml-info-line">각 장소의 알림을 켜두면 주변에 새 협찬이 올라올 때 알려드려요. 휴대폰 알림이 켜져 있어야 받을 수 있어요.</p>
+        </div>
         <div id="mlItems"></div>
         <div class="ml-note" id="mlNote"><span class="ml-note-ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#555555"/><rect x="7" y="3" width="2" height="7" rx="1" fill="white"/><circle cx="8" cy="12" r="1" fill="white"/></svg></span>내 장소는 최대 10개까지 등록 가능해요.</div>
       </div>
@@ -1094,6 +1096,7 @@
         <button class="mypage-menu-item" onclick="openMyAlarmSetting()">알림설정</button>
         <div class="mypage-menu-line"></div>
         <button class="mypage-menu-item" onclick="openAbout()">무협맵 소개</button>
+        <button class="mypage-menu-item" onclick="showBannerPopup(true)">이벤트·공지</button>
         <button class="mypage-menu-item" onclick="openPolicy('terms')">이용약관</button>
         <button class="mypage-menu-item" onclick="openPolicy('privacy')">개인정보처리방침</button>
         <button class="mypage-menu-item" onclick="openPolicy('operation')">운영정책</button>
@@ -1256,7 +1259,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=153"></script>
+  <script src="app.js?v=156"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

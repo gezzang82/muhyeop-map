@@ -819,13 +819,16 @@ function startBannerAuto() {
   _bannerAuto = setInterval(() => { setBannerSlide((_bannerIdx + 1) % n); }, 5000);
 }
 
-function showBannerPopup() {
-  if (_bannerShown) return; // 이미 띄웠으면(조기 노출 등) 중복 렌더/슬라이드 리셋 방지
+// force=true: 메뉴 '이벤트·공지'에서 수동 호출 — 중복/'오늘 그만 보기' 가드를 무시하고 재노출
+function showBannerPopup(force) {
+  if (!force && _bannerShown) return; // 이미 띄웠으면(조기 노출 등) 중복 렌더/슬라이드 리셋 방지
   const active = getActiveBanners();
-  if (!active.length) return;
-  const dismissedDate = localStorage.getItem('bannerDismissedDate');
-  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
-  if (dismissedDate === todayStr) return;
+  if (!active.length) { if (force && typeof showToast === 'function') showToast('등록된 공지·이벤트가 없어요.'); return; }
+  if (!force) {
+    const dismissedDate = localStorage.getItem('bannerDismissedDate');
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+    if (dismissedDate === todayStr) return;
+  }
 
   _bannerShown = true;
   _bannerSlides = active;
@@ -2724,7 +2727,9 @@ function openMyAlarmSetting() {
   bindMobileScrollHeader('alarmBody', 'alarmScrollHeader', 'alarmStickyHeader');
   const sticky = document.getElementById('alarmStickyHeader'); if (sticky) sticky.classList.remove('show');
   const body = document.getElementById('alarmBody'); if (body) body.scrollTop = 0;
+  ['alarmAll', 'alarmNewCampaign', 'alarmEvent'].forEach(id => { const cb = document.getElementById(id); if (cb) cb.checked = getAlarmPref(id); });
   refreshAlarmPermBanner();
+  applyAlarmGate();
   document.getElementById('alarmOverlay').classList.add('open');
 }
 function closeMyAlarmSetting() {
@@ -2751,8 +2756,29 @@ async function openAlarmPermSettings() {
     else { showToast('휴대폰 설정 > 무협맵 > 알림에서 켜주세요.'); }
   } catch (e) {}
 }
-// 토글 변경 — Phase2에서 서버(push_prefs enabled/카테고리/이벤트 수신 플래그)에 배선 예정. 지금은 UI만.
-function onAlarmToggle() {}
+// '전체 알림 받기' OFF면 하위 토글(내 장소 신규협찬·이벤트·공지)을 dim+비활성(게이트).
+// 지금은 클라 UI만 — 실제 발송 억제(서버 push_prefs/수신 플래그)는 Phase2.
+function applyAlarmGate() {
+  const all = document.getElementById('alarmAll'); if (!all) return;
+  const on = all.checked;
+  ['alarmNewCampaign', 'alarmEvent'].forEach(id => {
+    const cb = document.getElementById(id); if (!cb) return;
+    cb.disabled = !on;
+    const row = cb.closest('.alarm-row');
+    if (row) row.classList.toggle('alarm-row-disabled', !on);
+  });
+}
+// 알림설정 토글 상태를 localStorage에 저장 — master 상태를 내 장소 벨 게이트가 읽는다. 실제 발송 배선은 Phase2.
+function getAlarmPref(key) { try { return localStorage.getItem('mh_' + key) !== '0'; } catch (e) { return true; } } // 기본 ON
+function setAlarmPref(key, on) { try { localStorage.setItem('mh_' + key, on ? '1' : '0'); } catch (e) {} }
+// 내 장소 '신규 협찬' 알림이 실효 상태인지 = 전체 알림 ON && 내 장소 신규협찬 ON
+function isMyPlaceAlarmActive() { return getAlarmPref('alarmAll') && getAlarmPref('alarmNewCampaign'); }
+// 토글 변경: 상태 저장 + 하위 게이트 재적용 + 내 장소 벨 즉시 반영. (발송 억제=Phase2 서버)
+function onAlarmToggle() {
+  ['alarmAll', 'alarmNewCampaign', 'alarmEvent'].forEach(id => { const cb = document.getElementById(id); if (cb) setAlarmPref(id, cb.checked); });
+  applyAlarmGate();
+  if (typeof renderMlItems === 'function') renderMlItems();
+}
 window.switchTab = switchTab;
 window.openMyAlarmSetting = openMyAlarmSetting;
 
@@ -2954,7 +2980,7 @@ function mlCardHtml(p) {
       <div class="ml-card-meta" id="mlMeta-${p.id}">모집 중 <b><span class="ml-count">${cnt}</span>건</b> · 반경 ${p.radiusKm || 3}km</div>
       <div class="ml-card-cats">${catsHtml}</div>
     </div>
-    <button class="ml-card-bell${p.alarmEnabled ? ' on' : ''}" onclick="event.stopPropagation();mlToggleBell(${p.id})" aria-label="알림">${mlBellSvg(!!p.alarmEnabled)}</button>
+    <button class="ml-card-bell${p.alarmEnabled ? ' on' : ''}${isMyPlaceAlarmActive() ? '' : ' ml-card-bell-off'}" onclick="event.stopPropagation();mlToggleBell(${p.id})" aria-label="알림">${mlBellSvg(!!p.alarmEnabled)}</button>
   </div>`;
 }
 // 장소 반경 → bbox(대략). 1°lat≈111km, lng는 위도 보정.
@@ -3292,6 +3318,7 @@ function mlDelete() {
   });
 }
 async function mlToggleBell(id) {
+  if (!isMyPlaceAlarmActive()) { if (typeof showToast === 'function') showToast("알림설정에서 '내 장소 신규 협찬' 알림을 먼저 켜주세요."); return; }
   const p = _myPlaces.find(x => x.id === id);
   if (!p) return;
   p.alarmEnabled = !p.alarmEnabled;
