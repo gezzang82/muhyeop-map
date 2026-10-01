@@ -3224,8 +3224,6 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .gnb-tab[data-tab="community"].active .gnb-ico { background-image: url(image/ic_gnb_community_on.svg); }
   .gnb-tab[data-tab="my"] .gnb-ico { background-image: url(image/ic_gnb_my.svg); }
   .gnb-tab[data-tab="my"].active .gnb-ico { background-image: url(image/ic_gnb_my_on.svg); }
-  .gnb-tab[data-tab="menu"] .gnb-ico { background-image: url(image/ic_gnb_menu.svg); }
-  .gnb-tab[data-tab="menu"].active .gnb-ico { background-image: url(image/ic_gnb_menu_on.svg); }
 
   /* 탭 뷰(홈 외) — 지도 위를 덮음(GNB 아래 z), 상단 세이프까지 */
   .tab-view {
@@ -3245,6 +3243,47 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .tab-view-placeholder .tvp-emoji { font-size: 44px; line-height: 1; }
   .tab-view-placeholder h2 { font-size: 20px; font-weight: 700; color: #1a1a1a; margin: 0; }
   .tab-view-placeholder p { font-size: 14px; font-weight: 400; color: #888; margin: 0; line-height: 1.6; }
+
+  /* ===== MY 페이지 (Figma 1728-44131) ===== */
+  /* 상단(프로필/카드)은 고정, 하단 메뉴영역만 스크롤 */
+  .tab-view.mypage { background: #f7f9fa; overflow: hidden; }
+  .mypage-scroll { width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; }
+  /* 상단 여백은 내 장소(.ml-list padding-top:20px)와 동일하게 맞춤 */
+  .mypage-top { flex-shrink: 0; display: flex; flex-direction: column; gap: 24px; padding: 20px 20px 24px; }
+  .native-app .mypage-top { padding-top: calc(20px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
+  .mypage-header { display: flex; align-items: center; gap: 24px; }
+  .mypage-title { flex: 1; margin: 0; font-size: 26px; font-weight: 500; letter-spacing: -0.52px; color: #000; }
+  .mypage-logout { background: none; border: 0; padding: 0; font-size: 14px; color: #777; cursor: pointer; }
+  .mypage-account { display: flex; flex-direction: column; gap: 16px; }
+  .mypage-profile { display: flex; align-items: center; gap: 16px; }
+  .mypage-avatar { flex-shrink: 0; width: 64px; height: 64px; border-radius: 50%; overflow: hidden; background: #eee; display: block; }
+  .mypage-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mypage-profile-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .mypage-name-row { display: flex; align-items: center; gap: 8px; }
+  .mypage-nick { font-size: 16px; font-weight: 600; color: #000; }
+  .mypage-provider { width: 16px; height: 16px; flex-shrink: 0; }
+  .mypage-days { margin: 0; font-size: 14px; color: #777; }
+  .mypage-infocard { background: #fff; border-radius: 8px; box-shadow: 0 0 2px rgba(0,0,0,0.08); padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .mypage-info-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .mypage-info-label { flex: 1; color: #555; }
+  .mypage-info-value { color: #000; text-align: right; word-break: break-all; }
+  .mypage-info-divider { height: 1px; background: #eee; }
+  .mypage-stats { display: flex; align-items: center; gap: 16px; }
+  .mypage-stat { flex: 1; display: flex; align-items: center; gap: 4px; }
+  .mypage-stat img { width: 16px; height: 16px; flex-shrink: 0; }
+  .mypage-stat-label { flex: 1; font-size: 14px; color: #555; }
+  .mypage-stat-count { font-size: 14px; color: #000; }
+  .mypage-stat-count b { font-size: 20px; font-weight: 700; margin-right: 2px; }
+  .mypage-stat-sep { width: 1px; height: 16px; background: #eee; flex-shrink: 0; }
+  .mypage-login-link { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; font-size: 14px; color: #777; cursor: pointer; font-family: inherit; }
+  /* display:inline-flex가 [hidden] 기본(display:none)을 덮어써 로그인 상태에서도 보이던 문제 → [hidden]일 때 명시적으로 숨김 */
+  .mypage-login-link[hidden] { display: none; }
+  .mypage-login-link img { width: 4px; height: 8px; display: block; }
+  .mypage-menu { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; padding: 32px 20px 40px; display: flex; flex-direction: column; gap: 28px; }
+  .mypage-menu-item { background: none; border: 0; padding: 0; text-align: left; font-size: 16px; color: #000; cursor: pointer; display: flex; align-items: center; font-family: inherit; }
+  .mypage-menu-line { height: 1px; background: #eee; }
+  .mypage-version { justify-content: space-between; cursor: default; }
+  .mypage-version-num { font-size: 14px; color: #777; }
 
   /* GNB 높이만큼 홈 하단 요소 올림(상세시트/모달은 GNB를 덮으므로 대상 아님) */
   .sidebar { bottom: calc(var(--gnb-h) + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))) !important; }
@@ -3315,25 +3354,47 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .ml-setting-overlay { position: fixed; inset: 0; z-index: 600; background: #fff; display: none; }
 .ml-setting-overlay:not([hidden]) { display: block; }
 
-/* 스크롤 시 나타나는 컴팩트 헤더(.modal-sticky-header 재사용): back + 제목 */
-.ml-set-sticky { gap: 8px; align-items: center; }
-.ml-set-sticky > span { flex: 1; font-size: 18px; font-weight: 500; letter-spacing: -0.36px; color: #000; }
-.native-app .ml-set-sticky { height: auto; padding-top: calc(10px + max(env(safe-area-inset-top,0px), var(--and-sat,0px))); }
+/* ===== 2단계 공통 ===== */
+.mlset-step1, .mlset-step2 { position: absolute; inset: 0; display: flex; flex-direction: column; background: #fff; }
+.mlset-step1[hidden], .mlset-step2[hidden] { display: none; }  /* [hidden] override 방지(명시 규칙) */
 
-/* 전체 스크롤러(제목·지도·폼 모두 스크롤). 푸터(그라디언트)가 위에 떠서 콘텐츠가 그 아래로 흐름 */
-.ml-set-scroll { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* ===== STEP1: 전체 지도 위치 선택 ===== */
+/* 지도는 패널의 라운드 코너 선까지만(풀블리드 X). 지도 중심=핀=getCenter라 좌표 정확. 코너(16px)엔 지도 비침 */
+.mlset-s1-mapslot { position: absolute; top: 0; left: 0; right: 0; bottom: calc(var(--mlset-panel-h, 194px) - 16px); background: #e9eef2; }
+.mlset-s1-top { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; gap: 12px; padding: 16px 20px; }
+.native-app .mlset-s1-top { padding-top: calc(16px + max(env(safe-area-inset-top,0px), var(--and-sat,0px))); }
+/* 홈 검색바(.mobile-header-search)와 동일한 선택(포커스) 상태 */
+.mlset-search { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 56px; background: #fff; border: 1px solid transparent; box-sizing: border-box; border-radius: 8px; padding: 0 14px; box-shadow: 0 0 6px rgba(0,0,0,0.16); }
+.mlset-search:focus-within { border-color: #e82a2d; box-shadow: 0 0 8px rgba(232,42,45,0.4); }
+.mlset-search-ico { flex-shrink: 0; display: block; color: #bbb; }
+.mlset-search:focus-within .mlset-search-ico { color: #e82a2d; }
+.mlset-search-input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 16px; font-family: inherit; color: #333; padding-right: 26px; letter-spacing: -0.03em; }
+.mlset-search-input::placeholder { color: #bbb; }
+.mlset-search-input::-webkit-search-cancel-button, .mlset-search-input::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+.mlset-search .btn-input-clear { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); }
+.mlset-s1-close { flex-shrink: 0; width: 56px; height: 56px; border: none; background: #fff; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.16); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+/* 하단 전체폭 패널: 지도 위에 떠서 좌우/하단 플러시, 상단만 16px 라운드(코너로 지도 비침) */
+.mlset-s1-card { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; background: #fff; border-radius: 16px 16px 0 0; box-shadow: 0 0 6px rgba(0,0,0,0.16); padding: 32px 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+.native-app .mlset-s1-card { padding-bottom: calc(20px + max(env(safe-area-inset-bottom,0px), var(--and-sab,0px))); }
 
-/* 큰 제목 헤더(스크롤): back + 26px 타이틀 — 내 장소 리스트 헤더와 동일한 상단 여백(20px) */
-.ml-set-scroll-header { justify-content: flex-start; gap: 4px; padding: 20px 20px 16px; }
-.native-app .ml-set-scroll-header { padding-top: calc(20px + max(env(safe-area-inset-top,0px), var(--and-sat,0px))); }
-.ml-set-scroll-header h2 { margin: 0; font-size: 26px; font-weight: 500; color: #000; letter-spacing: -0.52px; }
-.ml-set-back-btn { flex-shrink: 0; background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #000; padding: 0; }
-.ml-set-back-lg { width: 32px; height: 32px; margin-left: -4px; }
-.ml-set-back-lg svg { width: 11px; height: 20px; }
-.ml-set-back-sm { width: 24px; height: 24px; }
-.ml-set-back-sm svg { width: 8px; height: 15px; }
+/* ===== STEP2: 정보 선택 — 전체 스크롤 + 컴팩트 sticky 헤더(기존 .modal-sticky-header/.modal-scroll-header 재사용) ===== */
+.mlset-back { flex-shrink: 0; width: 32px; height: 32px; margin-left: -4px; background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #000; padding: 0; }
+.mlset-back svg { width: 11px; height: 20px; }
+.mlset-s2-scroll { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.mlset-s2-scrollheader { justify-content: flex-start; gap: 4px; padding: 20px 20px 16px; }
+.native-app .mlset-s2-scrollheader { padding-top: calc(20px + max(env(safe-area-inset-top,0px), var(--and-sat,0px))); }
+.mlset-s2-body { padding: 0 20px 110px; display: flex; flex-direction: column; gap: 24px; }
+.mlset-s2-mapslot { position: relative; height: 236px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #e9eef2; }
+/* 지도(자식) 위에 inner shadow 오버레이 — 박스 그림자가 지도에 가려지지 않게 */
+.mlset-s2-mapslot::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 4px rgba(0,0,0,0.12); pointer-events: none; z-index: 3; }
+.mlset-s2-mapslot .ml-set-myloc { display: none; }  /* 미리보기엔 현재위치 버튼 숨김 */
+.mlset-s2-addrbox { background: #ededee; border-radius: 8px; padding: 20px 16px; display: flex; align-items: center; gap: 6px; }
+.mlset-addr-text { flex: 1; min-width: 0; font-size: 16px; color: #000; }
+.mlset-addr-change { flex-shrink: 0; background: none; border: none; font-size: 14px; color: #777; cursor: pointer; font-family: inherit; }
+.mlset-s2-actions { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 12px 20px calc(12px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, #fff 30%); }
 
-.ml-set-map-wrap { position: relative; height: 240px; background: #e9eef2; }
+/* 지도 1개(두 슬롯 사이로 이동) — 슬롯을 꽉 채움 */
+.ml-set-map-wrap { position: absolute; inset: 0; background: #e9eef2; }
 .ml-set-map { width: 100%; height: 100%; }
 /* 중앙 핀 = 말풍선(아이콘) + 빨강 점(위치). 점 끝이 지도 중심 */
 .ml-set-centerpin {
@@ -3344,12 +3405,14 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .ml-set-pin-ico { position: absolute; left: 4px; top: 2px; width: 32px; height: 32px; color: #222; display: inline-flex; align-items: center; justify-content: center; }
 .ml-set-pin-ico svg { width: 100%; height: 100%; display: block; }
 .ml-set-pin-dot { width: 28px; height: 28px; margin-top: 5px; display: block; }
+/* 홈 현재위치 버튼(.btn-my-location 모바일)과 동일: 44px 원형·흰배경·그림자·20px 아이콘. 지도 하단(=패널 바로 위) 우측 */
 .ml-set-myloc {
-  position: absolute; right: 14px; bottom: 14px; z-index: 3;
-  width: 40px; height: 40px; border: none; background: none; padding: 0;
-  border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer;
+  position: absolute; right: 20px; bottom: 26px; z-index: 4;
+  width: 44px; height: 44px; border: none; padding: 0;
+  border-radius: 50%; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.12); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
 }
-.ml-set-myloc img { display: block; width: 40px; height: 40px; }
+.ml-set-myloc img { display: block; width: 20px; height: 20px; }
 .ml-set-fields { padding: 24px 20px 110px; display: flex; flex-direction: column; gap: 22px; }
 
 /* 주소 박스 */
@@ -3403,7 +3466,9 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .ml-switch input:checked + .ml-switch-track::before { transform: translateX(24px); }
 
 /* 저장/삭제 — 제보/신고와 동일(.modal-footer): 라인 없음 + 그라디언트 페이드, 버튼 64px */
-.ml-set-actions { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 12px 20px calc(12px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, #fff 30%); }
-.ml-set-delete { flex: 4 1 0; height: 64px; border-radius: 8px; border: 1px solid rgba(170,170,170,0.87); background: #fff; color: #000; font-size: 20px; font-weight: 400; cursor: pointer; font-family: inherit; }
-.ml-set-save { flex: 6 1 0; height: 64px; border-radius: 8px; border: none; background: #E82A2D; color: #fff; font-size: 20px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+/* 삭제 — step2 스크롤 안 단독 전체폭 버튼(편집 시만 노출) */
+/* 삭제: 흰 아웃라인 140px(고정) + 저장: 빨강 flex (디자인 1742-45953). 삭제 숨김 시 저장 전체폭 */
+.ml-set-delete { flex-shrink: 0; width: 140px; height: 64px; border-radius: 8px; border: 1px solid rgba(170,170,170,0.87); background: #fff; color: #000; font-size: 20px; font-weight: 400; cursor: pointer; font-family: inherit; }
+.ml-set-delete[hidden] { display: none; }
+.ml-set-save { flex: 1; min-width: 0; height: 64px; border-radius: 8px; border: none; background: #E82A2D; color: #fff; font-size: 20px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.2s; }
 .ml-set-save:disabled { background: #f0a8a9; }

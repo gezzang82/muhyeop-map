@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=106">
+  <link rel="stylesheet" href="style.css?v=122">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -1016,9 +1016,6 @@
     <button class="gnb-tab" data-tab="my" onclick="switchTab('my')" aria-label="MY">
       <span class="gnb-ico"></span><span class="gnb-label">MY</span>
     </button>
-    <button class="gnb-tab" data-tab="menu" onclick="switchTab('menu')" aria-label="메뉴">
-      <span class="gnb-ico"></span><span class="gnb-label">메뉴</span>
-    </button>
   </nav>
 
   <!-- 탭 뷰 컨테이너 (홈 외 — Phase 1 뼈대, 내용은 다음 슬라이스에서 채움) -->
@@ -1036,62 +1033,131 @@
   <div class="tab-view" id="tabView-community" hidden>
     <div class="tab-view-placeholder"><span class="tvp-emoji">💬</span><h2>커뮤니티</h2><p>리뷰어들이 서로 소식을 나누는<br>공간을 준비하고 있어요.</p></div>
   </div>
-  <div class="tab-view" id="tabView-my" hidden>
-    <div class="tab-view-placeholder"><span class="tvp-emoji">🙋</span><h2>MY</h2><p>내 제보·후기·관심 장소를<br>한곳에서 볼 수 있게 준비 중이에요.</p></div>
-  </div>
-  <div class="tab-view" id="tabView-menu" hidden>
-    <div class="tab-view-placeholder"><span class="tvp-emoji">☰</span><h2>메뉴</h2><p>서비스 안내·설정을 준비하고 있어요.</p></div>
+  <!-- MY 탭 (Figma 1728-44131). 로그인 후 화면. 로그인 전 화면은 디자인 확정 후 교체 예정(현재 임시 CTA). -->
+  <div class="tab-view mypage" id="tabView-my" hidden>
+    <div class="mypage-scroll" id="myScroll">
+      <div class="mypage-top">
+        <div class="mypage-header">
+          <h1 class="mypage-title">MY</h1>
+          <button class="mypage-logout" id="myLogout" onclick="logout()">로그아웃</button>
+        </div>
+        <!-- 프로필/카드 (로그인 전·후 동일 레이아웃, 내용만 renderMyPage에서 스왑) -->
+        <div class="mypage-account">
+          <div class="mypage-profile">
+            <span class="mypage-avatar"><img id="myAvatarImg" src="image/img_login_default_32.png" alt="" width="64" height="64"></span>
+            <div class="mypage-profile-text">
+              <div class="mypage-name-row">
+                <span class="mypage-nick" id="myNick"></span>
+                <img class="mypage-provider" id="myProvider" src="image/ic_login_naver_16.svg" width="16" height="16" alt="">
+              </div>
+              <p class="mypage-days" id="myDays"></p>
+              <button class="mypage-login-link" id="myLoginLink" onclick="openLoginSheet()" hidden>로그인<img src="image/ic_chevron_right_gray.svg" width="4" height="8" alt=""></button>
+            </div>
+          </div>
+          <div class="mypage-infocard">
+            <div class="mypage-info-row"><span class="mypage-info-label">이메일</span><span class="mypage-info-value" id="myEmail">-</span></div>
+            <div class="mypage-info-row"><span class="mypage-info-label">나의 SNS계정</span><span class="mypage-info-value" id="mySns">-</span></div>
+            <div class="mypage-info-divider"></div>
+            <div class="mypage-stats">
+              <div class="mypage-stat">
+                <img src="image/ic_menu_review_16.svg" width="16" height="16" alt="">
+                <span class="mypage-stat-label">후기</span>
+                <span class="mypage-stat-count"><b id="myReviewCnt">0</b>건</span>
+              </div>
+              <span class="mypage-stat-sep"></span>
+              <div class="mypage-stat">
+                <img src="image/ic_menu_helpful_16.svg" width="16" height="16" alt="">
+                <span class="mypage-stat-label">좋아요</span>
+                <span class="mypage-stat-count"><b id="myHelpfulCnt">0</b>건</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mypage-menu">
+        <button class="mypage-menu-item" onclick="openProfileSheet()">회원정보관리</button>
+        <button class="mypage-menu-item" onclick="openReportModal()">신고하기</button>
+        <button class="mypage-menu-item" onclick="openMyAlarmSetting()">알림설정</button>
+        <div class="mypage-menu-line"></div>
+        <button class="mypage-menu-item" onclick="openAbout()">무협맵 소개</button>
+        <button class="mypage-menu-item" onclick="openPolicy('terms')">이용약관</button>
+        <button class="mypage-menu-item" onclick="openPolicy('privacy')">개인정보처리방침</button>
+        <button class="mypage-menu-item" onclick="openPolicy('operation')">운영정책</button>
+        <div class="mypage-menu-item mypage-version"><span>버전</span><span class="mypage-version-num">ver 0.1</span></div>
+      </div>
+    </div>
   </div>
 
   <!-- 내 장소 설정(등록/수정) — 전체 스크롤 + 스크롤 시 컴팩트 헤더(제보/신고 동일), Phase1 -->
   <div class="ml-setting-overlay" id="mlSettingOverlay" hidden>
-    <!-- 스크롤 시 나타나는 컴팩트 sticky 헤더 -->
-    <div class="modal-sticky-header ml-set-sticky" id="mlSetSticky">
-      <button class="ml-set-back-btn ml-set-back-sm" onclick="closeMlSetting()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <span id="mlSetStickyTitle">집 설정</span>
-    </div>
-    <!-- 전체 스크롤러 -->
-    <div class="ml-set-scroll" id="mlSetScroll">
-      <div class="modal-scroll-header ml-set-scroll-header" id="mlSetScrollHeader">
-        <button class="ml-set-back-btn ml-set-back-lg" onclick="closeMlSetting()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <h2 id="mlSetTitle">집 설정</h2>
-      </div>
-      <div class="ml-set-map-wrap">
-        <div id="mlSetMap" class="ml-set-map"></div>
-        <div class="ml-set-centerpin" aria-hidden="true">
-          <span class="ml-set-pin-bubble"><span class="ml-set-pin-ico" id="mlSetPinIco"></span></span>
-          <img class="ml-set-pin-dot" src="image/ml_pin_dot.svg" alt="">
+    <!-- STEP 1: 지도로 위치 선택 (전체 지도) -->
+    <div class="mlset-step mlset-step1" id="mlStep1" hidden>
+      <div class="mlset-s1-top">
+        <div class="mlset-search" onclick="var s=document.getElementById('mlStep1Search'); s.focus(); s.select();">
+          <svg class="mlset-search-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11 2.5C15.9706 2.5 20 6.52944 20 11.5C20 13.3146 19.4609 15.0025 18.5371 16.416L21.7178 19.5967C22.3032 20.1825 22.3034 21.1321 21.7178 21.7178C21.1321 22.3034 20.1825 22.3032 19.5967 21.7178L16.5 18.6211C14.9788 19.7977 13.072 20.5 11 20.5C6.02944 20.5 2 16.4706 2 11.5C2 6.52944 6.02944 2.5 11 2.5ZM11 5.5C7.68629 5.5 5 8.18629 5 11.5C5 14.8137 7.68629 17.5 11 17.5C14.3137 17.5 17 14.8137 17 11.5C17 8.18629 14.3137 5.5 11 5.5Z" fill="currentColor"/></svg>
+          <input type="search" id="mlStep1Search" class="mlset-search-input" placeholder="지역, 매장명, 역명으로 검색" autocomplete="off" enterkeyhint="search"
+                 onfocus="this.select()" onkeydown="if(event.key==='Enter' && !event.isComposing){event.preventDefault();mlStep1DoSearch();}">
         </div>
-        <button class="ml-set-myloc" onclick="mlSettingMyLocation()" aria-label="현재 위치"><img src="image/ml_loc_btn.svg" width="40" height="40" alt=""></button>
+        <button class="mlset-s1-close" onclick="mlStep1Close()" aria-label="닫기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="#111" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </div>
-      <div class="ml-set-fields">
-        <div class="ml-set-addr-box">
-          <div class="ml-set-addr"><span class="ml-set-addr-ico" id="mlSetAddrIco"></span><span id="mlSetAddrText">지도를 움직여 위치를 맞춰주세요</span></div>
-          <button class="ml-set-select" id="mlSetSelectBtn" onclick="mlConfirmLocation()">이 위치를 집으로 선택</button>
-        </div>
+      <div class="mlset-s1-mapslot" id="mlStep1Mapslot"></div>
+      <div class="mlset-s1-card">
+        <div class="ml-set-addr"><span class="ml-set-addr-ico" id="mlSetAddrIco"></span><span id="mlSetAddrText">지도를 움직여 위치를 맞춰주세요</span></div>
+        <button class="ml-set-select" id="mlSetSelectBtn" onclick="mlConfirmLocation()">이 위치를 집으로 선택</button>
         <div class="ml-set-hint"><span class="ml-set-hint-ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#555555"/><rect x="7" y="3" width="2" height="7" rx="1" fill="white"/><circle cx="8" cy="12" r="1" fill="white"/></svg></span><span>정확한 주소는 필요 없어요. 동네만 맞춰도 주변 협찬을 보여드려요.</span></div>
-        <div class="ml-set-field" id="mlSetNameField" hidden>
-          <label class="ml-set-flabel">장소명 <span class="ml-req">*</span></label>
-          <input type="text" id="mlSetName" class="ml-set-input" placeholder="장소명을 입력해주세요" maxlength="40" autocomplete="off">
-        </div>
-        <div class="ml-set-radius">
-          <div class="ml-set-radius-head"><span class="ml-set-radius-label">협찬 볼 반경</span><span class="ml-set-radius-val" id="mlSetRadiusVal">3km</span></div>
-          <div class="ml-set-slider-box"><input type="range" id="mlSetRadius" class="ml-set-slider" min="1" max="5" step="1" value="3" oninput="mlOnRadius(this.value)"></div>
-        </div>
-        <div class="ml-set-cats">
-          <div class="ml-set-cats-label">카테고리</div>
-          <div class="ml-set-cats-chips" id="mlSetCats"></div>
-        </div>
-        <div class="ml-set-divider"></div>
-        <div class="ml-set-alarm">
-          <span class="ml-set-alarm-label">새 협찬 알림</span>
-          <label class="ml-switch"><input type="checkbox" id="mlSetAlarm"><span class="ml-switch-track"></span></label>
-        </div>
       </div>
     </div>
-    <div class="ml-set-actions">
-      <button class="ml-set-delete" id="mlSetDelete" hidden onclick="mlDelete()">삭제</button>
-      <button class="ml-set-save" onclick="mlSave()">저장</button>
+    <!-- STEP 2: 정보 선택 — 전체 스크롤 + 스크롤 시 컴팩트 sticky 헤더(제보/신고/내장소와 동일 컴포넌트) -->
+    <div class="mlset-step mlset-step2" id="mlStep2" hidden>
+      <div class="modal-sticky-header mlset-s2-sticky" id="mlSetS2Sticky">
+        <button class="mlset-back" onclick="mlStep2Back()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span id="mlSetStickyTitle">집 설정</span>
+      </div>
+      <div class="mlset-s2-scroll" id="mlSetS2Scroll">
+        <div class="modal-scroll-header mlset-s2-scrollheader" id="mlSetS2ScrollHeader">
+          <button class="mlset-back" onclick="mlStep2Back()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2 id="mlSetTitle">집 설정</h2>
+        </div>
+        <div class="mlset-s2-body">
+          <div class="mlset-s2-mapslot" id="mlStep2Mapslot"></div>
+          <div class="mlset-s2-addrbox">
+            <span class="ml-set-addr-ico" id="mlSetAddrIco2"></span>
+            <span class="mlset-addr-text" id="mlSetAddrText2">주소</span>
+            <button class="mlset-addr-change" onclick="mlBackToStep1()">변경</button>
+          </div>
+          <div class="ml-set-radius">
+            <div class="ml-set-radius-head"><span class="ml-set-radius-label">협찬 볼 반경</span><span class="ml-set-radius-val" id="mlSetRadiusVal">3km</span></div>
+            <div class="ml-set-slider-box"><input type="range" id="mlSetRadius" class="ml-set-slider" min="1" max="5" step="0.1" value="3" oninput="mlOnRadius(this.value)"></div>
+          </div>
+          <div class="ml-set-field" id="mlSetNameField" hidden>
+            <label class="ml-set-flabel">장소명 <span class="ml-req">*</span></label>
+            <input type="text" id="mlSetName" class="ml-set-input" placeholder="장소명을 입력해주세요 (최대 8자)" maxlength="8" autocomplete="off" oninput="mlClearNameError()">
+            <span class="field-error-msg" id="mlNameError"></span>
+          </div>
+          <div class="ml-set-cats">
+            <div class="ml-set-cats-label">카테고리</div>
+            <div class="ml-set-cats-chips" id="mlSetCats"></div>
+          </div>
+          <div class="ml-set-divider"></div>
+          <div class="ml-set-alarm">
+            <span class="ml-set-alarm-label">새 협찬 알림</span>
+            <label class="ml-switch"><input type="checkbox" id="mlSetAlarm"><span class="ml-switch-track"></span></label>
+          </div>
+        </div>
+      </div>
+      <div class="mlset-s2-actions">
+        <button class="ml-set-delete" id="mlSetDelete" hidden onclick="mlDelete()">삭제</button>
+        <button class="ml-set-save" onclick="mlSave()">저장</button>
+      </div>
+    </div>
+    <!-- 지도 1개(단일 인스턴스) — step 전환 시 위 두 슬롯 사이로 이동 -->
+    <div class="ml-set-map-wrap" id="mlMapWrap">
+      <div id="mlSetMap" class="ml-set-map"></div>
+      <div class="ml-set-centerpin" aria-hidden="true">
+        <span class="ml-set-pin-bubble"><span class="ml-set-pin-ico" id="mlSetPinIco"></span></span>
+        <img class="ml-set-pin-dot" src="image/ml_pin_dot.svg" alt="">
+      </div>
+      <button class="ml-set-myloc" id="mlSetMyloc" onclick="mlSettingMyLocation()" aria-label="현재 위치"><img src="image/ic_local_20.svg" width="20" height="20" alt="내 위치"></button>
     </div>
   </div>
 
@@ -1176,7 +1242,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=127"></script>
+  <script src="app.js?v=146"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

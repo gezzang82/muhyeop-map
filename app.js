@@ -1690,8 +1690,7 @@ function renderSidebar() {
     list.innerHTML = `
       <div class="empty-state">
         <img src="image/img_list_80.png" alt="" class="empty-img">
-        <p>모집 중인 협찬이 없어요.<br>첫번째로 제보해 보세요!</p>
-        <button class="empty-state-btn" onclick="openModal()">제보하기</button>
+        <p>이 지역엔 모집 중인 협찬이 없어요.<br>지도를 옮겨 다른 지역을 둘러보세요.</p>
       </div>`;
     return;
   }
@@ -1927,6 +1926,12 @@ async function searchRegion() {
     return;
   }
 
+  // 짧은 한글 검색어(시/군/동 등 지역명 가능성)는 매장 부분일치 리스트보다 먼저 '지역 이동' 시도.
+  //  '군산'처럼 시/구/군 접미 없는 시·군명 대응(200+개라 목록 대신 지오코딩으로 판별). 매장명은 지오코딩이 안 돼 아래 매장검색으로 넘어감.
+  if (q2.length >= 2 && q2.length <= 5 && /^[가-힣]+$/.test(q2)) {
+    if (await tryRegionByGeocode(query)) return;
+  }
+
   // 역명 후보('역'으로 끝남) → 네이버 지역검색 카테고리가 교통(지하철·전철…)이면 진짜 역 → 그 위치로 이동+핀.
   //   ('종착역' 같은 매장명은 네이버가 음식점 카테고리로 줘서 역으로 오인 안 함 → 아래 매장 검색으로.)
   if (/역$/.test(q2) && q2.length <= 7 && await tryStationByNaver(query)) return;
@@ -2008,6 +2013,39 @@ async function searchPlacesOnServer(query) {
   geocodeRegion(query); // 등록 매장 아님 → 지역/주소 검색
 }
 
+// 지오코딩 결과 주소의 행정단위로 적절한 줌 산출(도/광역시=넓게, 동/리=확대). 시 단위도 CAMPAIGN_MIN_ZOOM(11) 이상이라 캠페인 로드됨.
+function regionZoom(item) {
+  const s = (item && (item.roadAddress || item.jibunAddress)) || '';
+  if (/(광역시|특별시|특별자치시|특별자치도|도)$/.test(s)) return 11; // 도·광역시 = 전체
+  if (/(동|가|리)$/.test(s)) return 14;   // 동/리 = 동네
+  if (/(읍|면|구)$/.test(s)) return 13;   // 읍/면/구
+  if (/시$/.test(s)) return 12;           // 시
+  return 13;
+}
+
+// 짧은 한글 검색어를 네이버 지오코딩으로 해석 → 행정구역(일산·군산·성수 등)이면 그 위치로 이동+핀 → true.
+//   매장명(백소정·온담 등)은 지오코딩이 count 0이라 false → 아래 매장 검색으로 넘어감.
+function tryRegionByGeocode(query) {
+  return new Promise(resolve => {
+    try {
+      naver.maps.Service.geocode({ query: query }, function(status, response) {
+        const it = response?.v2?.addresses?.[0];
+        if (status === naver.maps.Service.Status.OK && it) {
+          const y = parseFloat(it.y), x = parseFloat(it.x);
+          if (y >= 33 && y <= 39 && x >= 124 && x <= 132) { // 한국 좌표 범위 안일 때만
+            clearSearchPin();
+            map.setCenter(new naver.maps.LatLng(y, x));
+            map.setZoom(regionZoom(it));
+            showSearchPin(y, x);
+            resolve(true); return;
+          }
+        }
+        resolve(false);
+      });
+    } catch (e) { resolve(false); }
+  });
+}
+
 // 주소/지역명 → 지도 이동(등록 매장이 아닐 때). (구 searchRegion 내부 trySearch 분리)
 function geocodeRegion(query) {
   function trySearch(q, fallback) {
@@ -2015,7 +2053,7 @@ function geocodeRegion(query) {
       const items = response?.v2?.addresses;
       if (status === naver.maps.Service.Status.OK && items?.length) {
         map.setCenter(new naver.maps.LatLng(parseFloat(items[0].y), parseFloat(items[0].x)));
-        map.setZoom(15);
+        map.setZoom(regionZoom(items[0]));
         showSearchPin(parseFloat(items[0].y), parseFloat(items[0].x));
       } else if (fallback) {
         trySearch(fallback, null);
@@ -2469,6 +2507,51 @@ const POLICY_CONTENT = {
         <p>본 방침은 운영상·법령상 필요에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.</p>
       </div>`
   },
+  operation: {
+    title: '운영정책',
+    body: `
+      <p>시행일: 2026-06-19</p>
+      <p>본 운영정책은 무협맵(이하 '서비스') 내 장소·협찬 정보의 등록, 중복 처리, 신고 및 분쟁 처리 기준을 정합니다. 이용약관의 하위 정책으로, 이용약관과 충돌하는 내용이 있을 경우 이용약관이 우선합니다.</p>
+      <div class="about-section">
+        <div class="about-section-title">1. 서비스의 성격</div>
+        <p class="about-desc">무협맵은 여러 협찬 플랫폼(레뷰, 리뷰노트, 미블 등)에 흩어진 협찬 모집 정보를 지도 위에서 한눈에 볼 수 있도록 큐레이션하는 서비스입니다. 서비스는 협찬 캠페인의 운영 주체가 아니며, 신청·당첨·이행 등 협찬 진행은 각 플랫폼 및 업체와 이용자 간에 별도로 이루어집니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">2. 장소(Place) 등록 기준</div>
+        <p class="about-desc">1. 장소는 실제로 존재하는 매장/공간이어야 하며, 허위 장소 등록은 금지됩니다.<br>
+        2. 장소 등록 시 장소명, 주소(도로명주소 기준 지오코딩 좌표), 카테고리를 필수로 입력합니다.<br>
+        3. 동일 장소가 이미 등록되어 있는 경우: 이름 유사도(포함관계) 기준으로 "이미 등록된 장소" 목록을 안내하고, 선택한 주소 좌표가 기존 장소와 50m 이내이면 중복 등록 경고를 표시합니다.<br>
+        4. 주소 검색은 건물(도로명주소) 단위까지만 식별되며, 층/호 등 상세 단위는 구분하지 않습니다. 같은 건물에 입점한 서로 다른 매장은 경고 확인 후 별개 장소로 등록할 수 있습니다.<br>
+        5. 한 번 등록된 장소의 이름·주소는 임의로 변경되지 않으며, 동일 장소에 대한 추가 협찬 제보는 기존 장소에 캠페인으로 귀속됩니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">3. 협찬(Campaign) 등록 기준</div>
+        <p class="about-desc">1. 협찬 등록 시 채널(블로그/클립/인스타그램/유튜브 등 복수 선택 가능), 모집 플랫폼, 협찬 내용, 모집 마감일을 필수로 입력합니다.<br>
+        2. 협찬 신청 링크는 선택 입력 사항입니다. 로그인이 필요하거나 신뢰하기 어려운 링크는 등록을 보류할 수 있습니다.<br>
+        3. 마감일이 지난 협찬은 지도 핀 및 목록에서 자동으로 비노출됩니다.<br>
+        4. 동일 장소에 복수의 협찬이 동시에 진행 중인 경우 모두 노출됩니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">4. 최초 제보자(Founder) 표시</div>
+        <p class="about-desc">1. 특정 장소를 최초로 등록한 이용자는 해당 장소에 "최초 제보자"로 영구 표시됩니다(닉네임 및 선택적으로 입력한 SNS/블로그 링크).<br>
+        2. 최초 제보자 표시는 변경·이전되지 않으며, 동일 장소에 추가되는 협찬 제보자는 별도로 표시되지 않습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">5. 신고 및 비노출 처리</div>
+        <p class="about-desc">1. 다음에 해당하는 정보는 신고 대상입니다: 허위 장소, 종료된 협찬을 마감일 변경 없이 방치, 부적절한 콘텐츠, 타인의 권리를 침해하는 정보.<br>
+        2. 신고가 누적되어 일정 기준을 초과하는 경우 서비스 운영자가 사전 통지 없이 해당 정보를 비노출 처리할 수 있습니다.<br>
+        3. 비노출 처리에 이의가 있는 경우 고객센터를 통해 소명할 수 있으며, 소명이 합리적인 경우 재노출됩니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">6. 정보 오류 정정</div>
+        <p class="about-desc">1. 등록된 정보(주소, 영업 종료 여부, 협찬 내용 등)가 실제와 다른 경우 누구나 정정을 제보할 수 있습니다.<br>
+        2. 정정 제보가 다수 접수되거나 명백한 오류(예: 폐업 확인)가 확인되면 운영자가 직접 수정·비노출 처리할 수 있습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">7. 정책의 변경</div>
+        <p class="about-desc">운영정책은 서비스 운영 방식 변경에 따라 수정될 수 있으며, 변경 시 서비스 내 공지를 통해 안내합니다.</p>
+      </div>`
+  },
   terms: {
     title: '이용약관',
     body: `
@@ -2537,12 +2620,9 @@ function closeSideMenu() {
 // ===== 하단 GNB 탭 전환 (Phase 1 뼈대, 모바일 전용) =====
 // home = 기존 지도 화면 유지, 그 외 = tab-view 오버레이(현재 placeholder).
 // body.tab-active 클래스로 홈 외 탭에서 지도 크롬(상단검색/캐릭터/현재위치/시트) 숨김.
-const GNB_TABS = ['home', 'places', 'community', 'my', 'menu'];
+const GNB_TABS = ['home', 'places', 'community', 'my'];
 function switchTab(tab) {
   if (GNB_TABS.indexOf(tab) < 0) tab = 'home';
-  // 메뉴 탭: 기존 사이드메뉴(제보/신고/소개/내정보)를 여는 런처로 임시 연결.
-  // 탭 상태는 바꾸지 않음(오버레이만 열림) — 정식 메뉴 화면은 다음 슬라이스.
-  if (tab === 'menu') { openSideMenu(); return; }
   document.querySelectorAll('.gnb-tab').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-tab') === tab);
   });
@@ -2559,8 +2639,55 @@ function switchTab(tab) {
     const sh = document.getElementById('mlStickyHeader'); if (sh) sh.classList.remove('show');
     const sc = document.getElementById('mlScroll'); if (sc) sc.scrollTop = 0;
   }
+  if (tab === 'my') {
+    // MY 탭: 기존 '메뉴'를 흡수(로그인/내정보/신고/소개/약관 등). 제보하기는 제외(후기+매장등록으로 대체 방향).
+    // 상단 프로필은 고정, 하단 메뉴영역만 스크롤 → 진입 시 메뉴 스크롤 상단 리셋.
+    renderMyPage();
+    const mm = document.querySelector('#tabView-my .mypage-menu'); if (mm) mm.scrollTop = 0;
+  }
 }
+
+// MY 탭 데이터 렌더. 로그인 전·후 동일 레이아웃, 내용만 스왑(Figma 1728-44131 로그인후 / 1731-45047 로그인전).
+function renderMyPage() {
+  const loggedIn = !!currentUser;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
+  const logoutBtn = document.getElementById('myLogout');
+  if (logoutBtn) logoutBtn.style.display = loggedIn ? '' : 'none';
+  const avatar = document.getElementById('myAvatarImg');
+  if (loggedIn) {
+    if (avatar) avatar.src = 'image/img_login_default_32.png';
+    set('myNick', currentUser.nickname || '');
+    const prov = document.getElementById('myProvider'); if (prov) { prov.src = providerIconSrc(currentUser.provider); prov.hidden = false; }
+    const d = mypageDaysSince(currentUser.createdAt);
+    set('myDays', d > 0 ? `무협맵을 만난지 ${d}일째 되는 날이에요.` : '무협맵에 오신 걸 환영해요.');
+    show('myDays', true); show('myLoginLink', false);
+    set('myEmail', currentUser.email || '미등록');
+    const p = currentUser.urlPlatform, uid = currentUser.urlId;
+    set('mySns', (p && uid && URL_PLATFORM_DOMAINS[p]) ? (URL_PLATFORM_DOMAINS[p] + uid) : '미등록');
+    set('myReviewCnt', currentUser.reviewCount || 0);
+    set('myHelpfulCnt', currentUser.helpfulCount || 0);
+  } else {
+    if (avatar) avatar.src = 'image/img_login_guest.svg';
+    set('myNick', '로그인이 필요합니다.');
+    show('myProvider', false);
+    show('myDays', false); show('myLoginLink', true);
+    set('myEmail', '-'); set('mySns', '-'); set('myReviewCnt', '-'); set('myHelpfulCnt', '-');
+  }
+}
+// 가입일(UTC)부터 오늘까지 KST 기준 일수(가입 첫날=1일째).
+function mypageDaysSince(createdAt) {
+  if (!createdAt) return 0;
+  const t = Date.parse(String(createdAt).replace(' ', 'T') + 'Z');
+  if (isNaN(t)) return 0;
+  const createdKstDay = Math.floor((t + 9 * 3600 * 1000) / 86400000);
+  const nowKstDay = Math.floor((Date.now() + 9 * 3600 * 1000) / 86400000);
+  return (nowKstDay - createdKstDay) + 1;
+}
+// 알림설정 — 화면 디자인 확정 전 임시(추후 관심지역/푸시 설정 연결).
+function openMyAlarmSetting() { showToast('알림 설정 화면은 곧 제공될 예정이에요.'); }
 window.switchTab = switchTab;
+window.openMyAlarmSetting = openMyAlarmSetting;
 
 // ===== 내 장소(집/회사/여행지) — Phase1 ① (목록/등록/수정/삭제) =====
 const ML_CATS = ['음식점', '카페', '뷰티', '헤어', '숙박/여가', '문화', '사진관', '의류', '안경/잡화', '운동', '기타'];
@@ -2792,6 +2919,7 @@ function renderMlItems() {
 let _mlDraft = null;      // { id?, kind, name, address, lat, lng, radiusKm, categories[], alarmEnabled }
 let _mlMap = null;
 let _mlConfirmed = false; // 위치 선택(리버스지오코딩) 완료 여부
+let _mlEntryStep = 1;     // 진입점(1=신규 지도선택 / 2=편집 정보화면) — 뒤로/닫기 분기용
 function openMlSetting(kind, id) {
   const editing = _myPlaces.find(p => p.id === id) || null;
   _mlDraft = editing
@@ -2802,34 +2930,118 @@ function openMlSetting(kind, id) {
   document.getElementById('mlSetTitle').textContent = kLabel + ' 설정';
   document.getElementById('mlSetStickyTitle').textContent = kLabel + ' 설정';
   document.getElementById('mlSetSelectBtn').textContent = kind === 'place' ? '이 위치로 선택' : `이 위치를 ${kLabel}으로 선택`;
-  document.getElementById('mlSetAddrIco').innerHTML = ML_KIND_ICON[kind] || ML_KIND_ICON.place;
-  document.getElementById('mlSetPinIco').innerHTML = ML_KIND_ICON[kind] || ML_KIND_ICON.place;
+  const icon = ML_KIND_ICON[kind] || ML_KIND_ICON.place;
+  document.getElementById('mlSetAddrIco').innerHTML = icon;
+  document.getElementById('mlSetAddrIco2').innerHTML = icon;
+  document.getElementById('mlSetPinIco').innerHTML = icon;
   document.getElementById('mlSetAddrText').textContent = _mlDraft.address || '지도를 움직여 위치를 맞춰주세요';
+  document.getElementById('mlSetAddrText2').textContent = _mlDraft.address || '선택한 위치';
   // 장소명 입력: 여행지(place)만 노출
   const nameField = document.getElementById('mlSetNameField');
   nameField.hidden = (kind !== 'place');
   document.getElementById('mlSetName').value = (kind === 'place') ? (_mlDraft.name || '') : '';
+  mlClearNameError();
   document.getElementById('mlSetRadius').value = _mlDraft.radiusKm;
   mlOnRadius(_mlDraft.radiusKm);
   document.getElementById('mlSetAlarm').checked = _mlDraft.alarmEnabled;
   document.getElementById('mlSetDelete').hidden = !editing;
   const saveBtn = document.querySelector('.ml-set-save');
-  if (saveBtn) saveBtn.textContent = editing ? '수정' : '저장';
+  if (saveBtn) { saveBtn.textContent = editing ? '수정' : '저장'; saveBtn.disabled = false; }
+  const s1search = document.getElementById('mlStep1Search'); if (s1search) s1search.value = '';
   mlRenderCats();
-  const ov = document.getElementById('mlSettingOverlay');
-  ov.hidden = false;
-  document.getElementById('mlSetSticky').classList.remove('show');
-  const sc = document.getElementById('mlSetScroll'); if (sc) sc.scrollTop = 0;
-  // 스크롤 시 컴팩트 헤더(제보/신고 동일)
-  bindMobileScrollHeader('mlSetScroll', 'mlSetScrollHeader', 'mlSetSticky');
+  document.getElementById('mlSettingOverlay').hidden = false;
   // 중심 좌표: 편집중이면 저장위치, 아니면 현재 지도 중심(또는 서울)
   let center;
   try { center = (_mlDraft.lat) ? new naver.maps.LatLng(_mlDraft.lat, _mlDraft.lng) : (map ? map.getCenter() : new naver.maps.LatLng(37.5665, 126.978)); }
   catch (e) { center = new naver.maps.LatLng(37.5665, 126.978); }
   mlInitSetMap(center);
-  mlUpdateSaveState();
+  // 편집(위치 있음)이면 바로 정보(step2)가 진입점, 신규면 지도선택(step1)이 진입점
+  _mlEntryStep = (editing && editing.lat) ? 2 : 1;
+  mlShowStep(_mlEntryStep);
 }
-function closeMlSetting() { document.getElementById('mlSettingOverlay').hidden = true; }
+// step1 X(닫기): 편집에서 '변경'으로 들어온 경우(진입점 step2)면 step2로 복귀, 신규면 전체 닫기
+function mlStep1Close() { if (_mlEntryStep === 2) mlShowStep(2); else closeMlSetting(); }
+// step2 뒤로(‹): 편집 진입(step2가 루트)이면 전체 닫기, 신규(step1→step2)면 step1로
+function mlStep2Back() { if (_mlEntryStep === 2) closeMlSetting(); else mlShowStep(1); }
+// 단계 전환 — 지도 1개(#mlMapWrap)를 해당 step 슬롯으로 이동 + 드래그 가능여부 토글 + 리레이아웃
+function mlShowStep(n) {
+  const wrap = document.getElementById('mlMapWrap');
+  const slot = document.getElementById(n === 1 ? 'mlStep1Mapslot' : 'mlStep2Mapslot');
+  if (wrap && slot && wrap.parentElement !== slot) slot.appendChild(wrap);
+  document.getElementById('mlStep1').hidden = (n !== 1);
+  document.getElementById('mlStep2').hidden = (n !== 2);
+  document.body.classList.toggle('mlset-step2-mode', n === 2);
+  // step1: 하단 패널 높이를 CSS 변수로 → 현재위치 버튼이 패널 위로 뜨게
+  if (n === 1) {
+    const panel = document.querySelector('#mlStep1 .mlset-s1-card');
+    const s1 = document.getElementById('mlStep1');
+    if (panel && s1) s1.style.setProperty('--mlset-panel-h', panel.offsetHeight + 'px');
+  }
+  // step2: 전체 스크롤 + 스크롤 시 컴팩트 sticky 헤더(제보/신고와 동일)
+  if (n === 2) {
+    const sc = document.getElementById('mlSetS2Scroll'); if (sc) sc.scrollTop = 0;
+    const sticky = document.getElementById('mlSetS2Sticky'); if (sticky) sticky.classList.remove('show');
+    bindMobileScrollHeader('mlSetS2Scroll', 'mlSetS2ScrollHeader', 'mlSetS2Sticky');
+  }
+  if (_mlMap) {
+    try { _mlMap.setOptions({ draggable: n === 1, pinchZoom: n === 1, scrollWheel: n === 1, disableKineticPan: n !== 1, disableDoubleClickZoom: n !== 1, disableDoubleTapZoom: n !== 1 }); } catch (e) {}
+  }
+  setTimeout(() => {
+    try {
+      naver.maps.Event.trigger(_mlMap, 'resize');
+      if (_mlDraft && _mlDraft.lat) _mlMap.setCenter(new naver.maps.LatLng(_mlDraft.lat, _mlDraft.lng));
+    } catch (e) {}
+    mlPositionNaverLogo(n === 1);
+    mlUpdateRadiusCircle(); // step2 반경 원 표시+줌맞춤 / step1 숨김
+    setTimeout(() => { mlPositionNaverLogo(n === 1); mlUpdateRadiusCircle(); }, 250); // 네이버 resize 재배치 뒤 한 번 더
+  }, 60);
+}
+function mlBackToStep1() { mlShowStep(1); }
+// 네이버 로고(지도 좌하단 고정 컨트롤)를 step1 하단 패널 위로 올림. step2(미리보기)에선 원위치(하단).
+function mlPositionNaverLogo(lift) {
+  try {
+    const img = document.querySelector('#mlSetMap img[src*="naver-logo"]');
+    if (!img) return;
+    let el = img;
+    for (let i = 0; i < 5; i++) {
+      el = el.parentElement;
+      if (!el || el.id === 'mlSetMap') { el = null; break; }
+      if (getComputedStyle(el).position === 'absolute') break;
+    }
+    if (!el) return;
+    // step1: 지도가 패널 라운드선까지라 하단이 곧 패널 위 → 작은 오프셋이면 패널 위로 노출. step2 미리보기: 하단.
+    el.style.setProperty('top', 'auto', 'important');
+    el.style.setProperty('bottom', (lift ? 26 : 6) + 'px', 'important');
+  } catch (e) {}
+}
+// step1 검색 — 지역/주소는 geocode, 매장/역 등은 지역검색(POI) 폴백 → 피커 지도 재중심
+function mlStep1DoSearch() {
+  const q = (document.getElementById('mlStep1Search').value || '').trim();
+  if (!q || !_mlMap || !naver.maps.Service) return;
+  const recenter = (y, x, z) => { try { _mlMap.setCenter(new naver.maps.LatLng(y, x)); _mlMap.setZoom(z); } catch (e) {} };
+  naver.maps.Service.geocode({ query: q }, (status, resp) => {
+    const it = resp && resp.v2 && resp.v2.addresses && resp.v2.addresses[0];
+    if (status === naver.maps.Service.Status.OK && it) {
+      const y = parseFloat(it.y), x = parseFloat(it.x);
+      if (y >= 33 && y <= 39 && x >= 124 && x <= 132) { recenter(y, x, 15); return; }
+    }
+    // 폴백: 네이버 지역검색(POI/역/매장) → 그 주소 geocode
+    fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => (r.ok ? r.json() : [])).then(items => {
+      const top = Array.isArray(items) ? items[0] : null;
+      const addr = top && (top.roadAddress || top.address);
+      if (addr) naver.maps.Service.geocode({ query: addr }, (s2, r2) => {
+        const a = r2 && r2.v2 && r2.v2.addresses && r2.v2.addresses[0];
+        if (s2 === naver.maps.Service.Status.OK && a) recenter(parseFloat(a.y), parseFloat(a.x), 16);
+      });
+      else if (typeof showToast === 'function') showToast('검색 결과가 없어요');
+    }).catch(() => {});
+  });
+}
+function closeMlSetting() {
+  document.getElementById('mlSettingOverlay').hidden = true;
+  document.body.classList.remove('mlset-step2-mode');
+}
+let _mlIdleBound = false, _mlLiveTimer = null;
 function mlInitSetMap(center) {
   const el = document.getElementById('mlSetMap');
   if (!el || typeof naver === 'undefined' || !naver.maps) return;
@@ -2838,16 +3050,47 @@ function mlInitSetMap(center) {
   } else {
     _mlMap.setCenter(center);
   }
+  // 지도 이동 멈출 때마다(step1에서만) 중심 주소를 실시간 갱신 — 디바운스로 과호출 방지
+  if (!_mlIdleBound) {
+    _mlIdleBound = true;
+    naver.maps.Event.addListener(_mlMap, 'idle', () => {
+      const s1 = document.getElementById('mlStep1');
+      if (!s1 || s1.hidden || document.getElementById('mlSettingOverlay').hidden) return;
+      mlPositionNaverLogo(true); // 패널 위로 유지(resize/이동 후 재적용)
+      clearTimeout(_mlLiveTimer);
+      _mlLiveTimer = setTimeout(mlLiveUpdateAddr, 400);
+    });
+  }
   // 숨김 컨테이너에서 만들어졌을 수 있어 표시 후 리레이아웃
   setTimeout(() => { try { naver.maps.Event.trigger(_mlMap, 'resize'); _mlMap.setCenter(center); } catch (e) {} }, 60);
 }
 function mlOnRadius(v) {
-  v = Number(v);
+  v = Math.round(Number(v) * 10) / 10; // 0.1 단위
   _mlDraft.radiusKm = v;
   document.getElementById('mlSetRadiusVal').textContent = v + 'km';
   // 슬라이더 왼쪽 빨강 채움(1~5 → 0~100%)
   const el = document.getElementById('mlSetRadius');
   if (el) { const pct = (v - 1) / 4 * 100; el.style.background = `linear-gradient(90deg, #e82a2d 0%, #e82a2d ${pct}%, #ededee ${pct}%)`; }
+  mlUpdateRadiusCircle();
+}
+// step2 미리보기 지도에 '협찬 볼 반경'을 빨간 원으로 표시 + 그 원이 꽉 차도록 줌 자동조절
+let _mlCircle = null, _mlFitTimer = null;
+// 지오 반경 원(naver.maps.Circle) + fitBounds로 미리보기에 맞춰 줌. 얇고 연한 빨강.
+function mlUpdateRadiusCircle() {
+  if (!_mlMap || typeof naver === 'undefined' || !naver.maps || !naver.maps.Circle) return;
+  const step2 = document.getElementById('mlStep2');
+  const show = step2 && !step2.hidden && _mlDraft && _mlDraft.lat != null;
+  if (!show) { if (_mlCircle) _mlCircle.setMap(null); return; }
+  const center = new naver.maps.LatLng(_mlDraft.lat, _mlDraft.lng);
+  const radiusM = (_mlDraft.radiusKm || 3) * 1000;
+  if (!_mlCircle) {
+    _mlCircle = new naver.maps.Circle({ map: _mlMap, center: center, radius: radiusM, strokeColor: '#E82A2D', strokeOpacity: 0.5, strokeWeight: 1, fillColor: '#E82A2D', fillOpacity: 0.06 });
+  } else {
+    _mlCircle.setMap(_mlMap); _mlCircle.setCenter(center); _mlCircle.setRadius(radiusM);
+  }
+  // 반경이 미리보기에 꽉 차도록 줌 맞춤(드래그 중 과도한 재줌 방지로 디바운스)
+  clearTimeout(_mlFitTimer);
+  _mlFitTimer = setTimeout(() => { try { _mlMap.fitBounds(_mlCircle.getBounds(), 12); } catch (e) {} }, 110);
 }
 // 카테고리: '전체'(=필터 없음) + 개별. 전체 선택 시 개별 해제, 개별 선택 시 전체 자동 해제.
 function mlRenderCats() {
@@ -2871,7 +3114,7 @@ function mlUpdateSaveState() {
 }
 function mlReverseGeocode(cb) {
   if (!_mlMap || !naver.maps.Service) { cb(null); return; }
-  const c = _mlMap.getCenter();
+  const c = _mlMap.getCenter(); // 지도가 패널 라운드까지만 → 중심=핀 위치. 픽셀 변환 불필요
   naver.maps.Service.reverseGeocode({ coords: c, orders: 'legalcode,admcode,roadaddr,addr' }, (status, response) => {
     if (status !== naver.maps.Service.Status.OK) { cb({ lat: c.lat(), lng: c.lng(), address: '' }); return; }
     let dong = '';
@@ -2883,13 +3126,23 @@ function mlReverseGeocode(cb) {
     cb({ lat: c.lat(), lng: c.lng(), address: dong });
   });
 }
+// step1 지도 이동 시 버튼 위 주소 실시간 갱신(확정 전 미리보기)
+function mlLiveUpdateAddr() {
+  mlReverseGeocode(r => {
+    if (!r) return;
+    const el = document.getElementById('mlSetAddrText');
+    if (el) el.textContent = r.address || '선택한 위치';
+  });
+}
 function mlConfirmLocation() {
   mlReverseGeocode(r => {
     if (!r) return;
     _mlDraft.lat = r.lat; _mlDraft.lng = r.lng; _mlDraft.address = r.address;
-    document.getElementById('mlSetAddrText').textContent = r.address || '선택한 위치';
+    const addr = r.address || '선택한 위치';
+    document.getElementById('mlSetAddrText').textContent = addr;
+    document.getElementById('mlSetAddrText2').textContent = addr;
     _mlConfirmed = true;
-    mlUpdateSaveState();
+    mlShowStep(2); // 정보 입력 단계로
   });
 }
 function mlSettingMyLocation() {
@@ -2905,12 +3158,26 @@ function mlSettingMyLocation() {
     if (typeof showToast === 'function') showToast('위치 권한을 허용해주세요');
   }, { enableHighAccuracy: true, timeout: 8000 });
 }
+// 장소명 인라인 에러(입력행 아래 빨간 메시지 + 빨간 테두리) — 제보/후기 field-error 패턴 재사용
+function mlSetNameError(msg) {
+  const err = document.getElementById('mlNameError');
+  const input = document.getElementById('mlSetName');
+  if (err) { err.textContent = msg; err.classList.add('show'); }
+  if (input) { input.classList.add('input-error'); input.focus(); }
+}
+function mlClearNameError() {
+  const err = document.getElementById('mlNameError');
+  const input = document.getElementById('mlSetName');
+  if (err) { err.textContent = ''; err.classList.remove('show'); }
+  if (input) input.classList.remove('input-error');
+}
 async function mlSave() {
   if (!_mlConfirmed || !_mlDraft.lat) { if (typeof showToast === 'function') showToast('지도에서 위치를 먼저 선택해주세요'); return; }
-  // 여행지(place)는 장소명 필수
+  // 여행지(place)는 장소명 필수(최대 8자) — 입력행 아래 빨간 노티(제보/후기와 동일 field-error 패턴)
   if (_mlDraft.kind === 'place') {
     const nm = (document.getElementById('mlSetName').value || '').trim();
-    if (!nm) { if (typeof showToast === 'function') showToast('장소명을 입력해주세요'); document.getElementById('mlSetName').focus(); return; }
+    if (!nm) { mlSetNameError('장소명을 입력해주세요.'); return; }
+    if (nm.length > 8) { mlSetNameError('장소명은 8자 이내로 입력해주세요.'); return; }
     _mlDraft.name = nm;
   }
   _mlDraft.alarmEnabled = document.getElementById('mlSetAlarm').checked;
@@ -2963,6 +3230,24 @@ async function mlToggleBell(id) {
 window.openMlSetting = openMlSetting;
 window.closeMlSetting = closeMlSetting;
 window.mlConfirmLocation = mlConfirmLocation;
+window.mlBackToStep1 = mlBackToStep1;
+window.mlStep1Close = mlStep1Close;
+window.mlStep2Back = mlStep2Back;
+window.mlClearNameError = mlClearNameError;
+window.mlStep1DoSearch = mlStep1DoSearch;
+// 해상도/방향 변화 시 step1 핀·패널·로고 재정렬(반응형)
+let _mlResizeTimer = null;
+window.addEventListener('resize', () => {
+  const s1 = document.getElementById('mlStep1');
+  if (!s1 || s1.hidden) return;
+  clearTimeout(_mlResizeTimer);
+  _mlResizeTimer = setTimeout(() => {
+    const panel = s1.querySelector('.mlset-s1-card');
+    if (panel) s1.style.setProperty('--mlset-panel-h', panel.offsetHeight + 'px');
+    try { naver.maps.Event.trigger(_mlMap, 'resize'); } catch (e) {}
+    mlPositionNaverLogo(true);
+  }, 200);
+});
 window.mlSettingMyLocation = mlSettingMyLocation;
 window.mlOnRadius = mlOnRadius;
 window.mlToggleCat = mlToggleCat;
@@ -2982,6 +3267,9 @@ async function refreshAuthUI() {
     currentUser = null;
   }
   const loggedIn = !!currentUser;
+  // 로그인 상태에 따라 갱신되는 탭들 먼저 처리 — 아래 PC/사이드메뉴/마커 로직 중 하나가 실패해도 항상 반영되도록 앞에 둠
+  renderMyPage();       // MY 탭
+  renderMyPlaces();     // 내 장소 탭(로그아웃 시 로그인 CTA로 전환)
   // PC 하단 MY 영역 (로그인 전: 간편로그인 안내 / 로그인 후: 아바타+닉네임+로그아웃)
   const pcMyGuest = document.getElementById('pcNavMyGuest');
   const pcMyUser = document.getElementById('pcNavMyUser');
@@ -3118,6 +3406,7 @@ function closeSignupDone() {
 async function logout() {
   await fetch('/api/auth/logout', { method: 'POST' });
   currentUser = null;
+  renderMyPage();   // MY 탭 즉시 로그아웃 반영(refreshAuthUI 비동기 대기 없이 — 반쪽 갱신 방지)
   refreshAuthUI();
   // 제보 모달이 열려 있으면 '내 이름 남기기'를 즉시 비로그인 상태로 갱신
   const modalOpen = document.getElementById('modalOverlay');
@@ -4586,6 +4875,14 @@ function setupClearButtons() {
     const btn = createClearBtn();
     pcSearchInput.parentElement.appendChild(btn);
     bindClearBtn(btn, pcSearchInput);
+  }
+
+  // 내 장소 step1 지도검색창 (홈과 동일한 선택/클리어 동작)
+  const mlSearchInput = document.getElementById('mlStep1Search');
+  if (mlSearchInput) {
+    const btn = createClearBtn();
+    mlSearchInput.parentElement.appendChild(btn);
+    bindClearBtn(btn, mlSearchInput);
   }
 
   // 모달 폼 텍스트 입력 (input-wrap으로 감싸서 절대 위치)

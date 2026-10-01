@@ -34,7 +34,8 @@ function createSessionCookie({ userId, nickname, provider }) {
 }
 
 function clearSessionCookie() {
-  return `${COOKIE_NAME}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
+  // 삭제 쿠키엔 Secure 미포함 — 값이 비어 보안 무관이고, dev(HTTP)에선 Secure가 붙으면 브라우저가 Set-Cookie를 무시해 세션이 안 지워짐. 운영(HTTPS)에서도 이름+Path 매칭으로 정상 삭제.
+  return `${COOKIE_NAME}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
 }
 
 function readSession(req) {
