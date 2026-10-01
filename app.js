@@ -2620,9 +2620,19 @@ function closeSideMenu() {
 // ===== 하단 GNB 탭 전환 (Phase 1 뼈대, 모바일 전용) =====
 // home = 기존 지도 화면 유지, 그 외 = tab-view 오버레이(현재 placeholder).
 // body.tab-active 클래스로 홈 외 탭에서 지도 크롬(상단검색/캐릭터/현재위치/시트) 숨김.
+// 탭 선택 시 가벼운 햅틱. 네이티브 앱(Capacitor Haptics) 우선 → 안드 웹은 navigator.vibrate 폴백.
+// iOS 웹(WKWebView)은 웹 진동 API 미지원이라 Haptics 플러그인이 앱에 추가되면 그때부터 동작(앱 재빌드 필요).
+function hapticTap() {
+  try {
+    const P = window.Capacitor && window.Capacitor.Plugins;
+    if (P && P.Haptics && typeof P.Haptics.impact === 'function') { P.Haptics.impact({ style: 'LIGHT' }); return; }
+    if (navigator.vibrate) navigator.vibrate(10);
+  } catch (e) {}
+}
 const GNB_TABS = ['home', 'places', 'community', 'my'];
 function switchTab(tab) {
   if (GNB_TABS.indexOf(tab) < 0) tab = 'home';
+  hapticTap();
   document.querySelectorAll('.gnb-tab').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-tab') === tab);
   });
