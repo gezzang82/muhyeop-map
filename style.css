@@ -2892,10 +2892,11 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   }
   .sidebar.expanded { height: calc(var(--app-height, 100dvh) * 0.5); }
   .sidebar.expanded-full { height: calc(var(--app-height, 100dvh) - 120px); }
-  /* 앱: 바텀시트 콘텐츠를 하단 홈 인디케이터(세이프에어리어) 위로 올림 */
-  .native-app .sidebar { padding-bottom: max(env(safe-area-inset-bottom), var(--and-sab, 0px)); }
-  .native-app .sidebar:not(.expanded):not(.expanded-full) { height: calc(78px + max(env(safe-area-inset-bottom), var(--and-sab, 0px))); }
-  .native-app .sidebar.expanded { height: calc(50dvh + max(env(safe-area-inset-bottom), var(--and-sab, 0px))); }
+  /* 앱: 바텀시트는 GNB 위에 얹히고(아래 .sidebar bottom=gnb-h+env), 세이프에어리어는 GNB가 담당 →
+     예전(바텀시트가 화면 맨 아래)의 홈인디케이터 회피용 하단 여백/높이 보정은 제거(중복 빈 띠 방지) */
+  .native-app .sidebar { padding-bottom: 0; }
+  .native-app .sidebar:not(.expanded):not(.expanded-full) { height: 78px; }
+  .native-app .sidebar.expanded { height: 50dvh; }
   /* 앱: 최대 확장 시 상단 칩스(검색+필터 오버레이) 바로 아래까지 올라오게 */
   .native-app .sidebar.expanded-full { height: calc(100dvh - 128px - max(env(safe-area-inset-top), var(--and-sat, 0px))); }
 
@@ -3212,9 +3213,27 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .gnb-tab .gnb-ico {
     width: 32px; height: 32px;
     background-repeat: no-repeat; background-position: center; background-size: auto;
+    transform: scale(1);
+    transform-origin: center;
+    transition: transform 0.12s cubic-bezier(.2, .8, .2, 1);
   }
+  .gnb-tab:active .gnb-ico { transform: scale(0.82); }
   .gnb-tab .gnb-label { line-height: 1; letter-spacing: -0.02em; }
   .gnb-tab.active { color: #111; font-weight: 700; }
+  .gnb-tab.active .gnb-ico { animation: gnb-icon-pop 0.26s cubic-bezier(.2, .9, .2, 1); }
+  @keyframes gnb-icon-pop {
+    0% { transform: scale(0.8); }
+    58% { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gnb-tab .gnb-ico {
+      transition: none;
+      animation: none !important;
+      transform: none !important;
+    }
+    .gnb-tab:active .gnb-ico { transform: none !important; }
+  }
   /* 탭별 아이콘 (기본 회색 / 선택 검정 채움) */
   .gnb-tab[data-tab="home"] .gnb-ico { background-image: url(image/ic_gnb_home.svg); }
   .gnb-tab[data-tab="home"].active .gnb-ico { background-image: url(image/ic_gnb_home_on.svg); }
@@ -3294,7 +3313,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   /* 확장 시트: 바닥이 GNB만큼 올라갔으니 높이도 그만큼 줄여 상단 위치 유지 */
   .sidebar.expanded { height: calc(var(--app-height, 100dvh) * 0.5 - var(--gnb-h)) !important; }
   .sidebar.expanded-full { height: calc(var(--app-height, 100dvh) - 120px - var(--gnb-h)) !important; }
-  .native-app .sidebar.expanded { height: calc(50dvh + max(env(safe-area-inset-bottom), var(--and-sab, 0px)) - var(--gnb-h)) !important; }
+  .native-app .sidebar.expanded { height: calc(50dvh - var(--gnb-h)) !important; }
   .native-app .sidebar.expanded-full { height: calc(100dvh - 128px - max(env(safe-area-inset-top), var(--and-sat, 0px)) - var(--gnb-h)) !important; }
 
   /* 홈 외 탭: 지도 크롬 숨김 */

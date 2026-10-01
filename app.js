@@ -2799,7 +2799,16 @@ function updateMyPlaceEdges() {
   const ne = bounds.getNE(), sw = bounds.getSW();
   const neLat = ne.lat(), neLng = ne.lng(), swLat = sw.lat(), swLng = sw.lng();
   const W = size.width, H = size.height, cx = W / 2, cy = H / 2;
-  const iTop = 132, iBottom = 150, iSide = 16;   // 상단 검색·칩 / 하단 시트·GNB 회피
+  // 상단 검색·칩 / 하단 시트·GNB 회피 — 하드코딩 대신 실제 요소 위치를 측정해 모든 해상도·세이프에어리어·시트높이에 맞춤(측정 실패 시 상수 폴백)
+  const iSide = 16;
+  let iTop = 132, iBottom = 150;
+  try {
+    const mapRect = document.getElementById('map').getBoundingClientRect();
+    const chips = document.querySelector('.mobile-chips-row');
+    if (chips) { const r = chips.getBoundingClientRect(); if (r.height) iTop = (r.bottom - mapRect.top) + 12; }
+    const sheet = document.querySelector('.sidebar');
+    if (sheet) { const r = sheet.getBoundingClientRect(); if (r.height) iBottom = (mapRect.bottom - r.top) + 12; }
+  } catch (e) {}
   const maxDist = Math.hypot(W, H) * 1.6;         // 화면(뷰포트) 상대 거리 — 가장자리 밖 약 1화면까지 유지(줌 따라 자동)
   const minX = iSide, maxX = W - iSide, minY = iTop, maxY = H - iBottom;
   let html = '';
