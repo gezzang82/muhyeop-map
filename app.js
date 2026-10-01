@@ -144,6 +144,20 @@ let map;
   setTimeout(setAppHeight, 800);
 })();
 
+// 바텀시트 최대확장(expanded-full) 시 상단이 칩스 줄을 덮지 않게 — 칩스 실제 하단을 측정해 --sheet-top-max에 반영.
+// getBoundingClientRect가 상단 세이프에어리어까지 반영하므로 전 해상도/노치에서 자동으로 맞음(측정 실패 시 CSS 폴백).
+function setSheetTopMax() {
+  try {
+    const chips = document.querySelector('.mobile-chips-row');
+    if (!chips) return;
+    const b = chips.getBoundingClientRect().bottom;
+    if (b > 0) document.documentElement.style.setProperty('--sheet-top-max', Math.round(b + 12) + 'px');
+  } catch (e) {}
+}
+window.addEventListener('load', setSheetTopMax);
+window.addEventListener('resize', setSheetTopMax);
+window.addEventListener('orientationchange', function () { setSheetTopMax(); setTimeout(setSheetTopMax, 300); });
+
 let markers = [];
 let markerCluster = null;
 let openInfoWindow = null;
@@ -2189,6 +2203,7 @@ function expandSidebar() {
   const arrow = document.getElementById('sidebarArrow');
   if (arrow) arrow.textContent = '﹀';
   setNaverLogoVisible(false);
+  setSheetTopMax();
   animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); ensureSidebarList(); });
   setTimeout(updateSidebarListFade, 400);
 }
@@ -2206,6 +2221,7 @@ function toggleBottomSheet(e) {
     sidebar.style.transform = ''; sidebar.style.transition = '';
     if (arrow) arrow.textContent = '﹀';
     setNaverLogoVisible(false);
+    setSheetTopMax();
     // 여는 애니메이션은 transform 기반(FLIP)으로 — height 트랜지션은 저사양에서 버벅임
     animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); ensureSidebarList(); });
   } else {
@@ -2237,9 +2253,17 @@ function initSidebarScrollExpand() {
     if (list.scrollTop > 10 && !sidebar.classList.contains('expanded-full')) {
       // 스크롤 '도중'이라 CSS height 트랜지션(0.35s)을 돌리면 매 프레임 리스트 재레이아웃+스크롤
       // 관성이 겹쳐 심하게 버벅임 → 트랜지션을 억제해 즉시 전체높이로(스크롤 위치는 유지).
+      setSheetTopMax();
       sidebar.style.transition = 'none';
       sidebar.classList.add('expanded-full');
-      requestAnimationFrame(() => { sidebar.style.transition = ''; }); // 닫기 애니메이션용 트랜지션 복원
+      requestAnimationFrame(() => {
+        sidebar.style.transition = ''; // 닫기 애니메이션용 트랜지션 복원
+        // 콘텐츠가 전체높이보다 짧으면(몇 건) 스크롤 여지가 사라지는데, scroll 이벤트가 안 떠
+        // 페이드 마스크가 '스크롤됨(상단 16px 페이드)' 상태로 굳어 맨 위 안내문구가 반쯤 가려짐
+        // → 맨 위로 되돌리고 페이드 재계산(리스트가 길면 scrollTop 유지, 페이드만 갱신).
+        if (list.scrollHeight <= list.clientHeight + 4) list.scrollTop = 0;
+        updateSidebarListFade();
+      });
     }
   }, { passive: true });
 }
@@ -2694,8 +2718,41 @@ function mypageDaysSince(createdAt) {
   const nowKstDay = Math.floor((Date.now() + 9 * 3600 * 1000) / 86400000);
   return (nowKstDay - createdKstDay) + 1;
 }
-// 알림설정 — 화면 디자인 확정 전 임시(추후 관심지역/푸시 설정 연결).
-function openMyAlarmSetting() { showToast('알림 설정 화면은 곧 제공될 예정이에요.'); }
+// 알림설정 (MY → 알림설정). 모바일 시트. 토글은 Phase2에서 푸시(push_prefs/브로드캐스트 수신)에 배선 예정 — 지금은 UI + OS 권한 배너만 동작.
+function openMyAlarmSetting() {
+  syncMobileModalHeader('#alarmOverlay');
+  bindMobileScrollHeader('alarmBody', 'alarmScrollHeader', 'alarmStickyHeader');
+  const sticky = document.getElementById('alarmStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('alarmBody'); if (body) body.scrollTop = 0;
+  refreshAlarmPermBanner();
+  document.getElementById('alarmOverlay').classList.add('open');
+}
+function closeMyAlarmSetting() {
+  document.getElementById('alarmOverlay').classList.remove('open');
+  resetModalScroll('alarmOverlay');
+}
+// OS(기기) 알림 권한이 꺼져 있으면 상단 배너 노출(앱 전용). 권한 허용/웹이면 숨김 — 평소엔 안 거슬리게.
+async function refreshAlarmPermBanner() {
+  const banner = document.getElementById('alarmPermBanner'); if (!banner) return;
+  const P = pushPlugin();
+  if (!isNativeApp() || !P) { banner.style.display = 'none'; return; }
+  try {
+    const perm = await P.checkPermissions();
+    banner.style.display = (perm && perm.receive === 'granted') ? 'none' : '';
+  } catch (e) { banner.style.display = 'none'; }
+}
+// 배너 '설정에서 켜기': 권한 요청 → 여전히 거부면 기기 설정 안내(iOS는 한번 거부 시 앱에서 재요청 불가)
+async function openAlarmPermSettings() {
+  const P = pushPlugin(); if (!P) return;
+  try {
+    let perm = await P.checkPermissions();
+    if (perm.receive !== 'granted') perm = await P.requestPermissions();
+    if (perm && perm.receive === 'granted') { await P.register(); refreshAlarmPermBanner(); }
+    else { showToast('휴대폰 설정 > 무협맵 > 알림에서 켜주세요.'); }
+  } catch (e) {}
+}
+// 토글 변경 — Phase2에서 서버(push_prefs enabled/카테고리/이벤트 수신 플래그)에 배선 예정. 지금은 UI만.
+function onAlarmToggle() {}
 window.switchTab = switchTab;
 window.openMyAlarmSetting = openMyAlarmSetting;
 

@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=125">
+  <link rel="stylesheet" href="style.css?v=134">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -249,15 +249,17 @@
   <div class="modal-overlay" id="profileOverlay" onclick="closeProfileSheet()">
     <div class="modal profile-modal" onclick="event.stopPropagation()">
       <div class="modal-sticky-header" id="profileStickyHeader">
-        <span>내 정보</span>
+        <button class="mlset-back" onclick="closeProfileSheet()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>회원정보관리</span>
       </div>
       <div class="modal-header">
-        <h2>내 정보</h2>
+        <h2>회원정보관리</h2>
         <button class="profile-withdraw-link" onclick="deleteAccount()">회원 탈퇴</button>
       </div>
       <div class="modal-body" id="profileBody">
         <div class="modal-scroll-header" id="profileScrollHeader">
-          <h2>내 정보</h2>
+          <button class="mlset-back" onclick="closeProfileSheet()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>회원정보관리</h2>
           <button class="profile-withdraw-link" onclick="deleteAccount()">회원 탈퇴</button>
         </div>
         <!-- 로그인 전: 로그인 유도 (PC 내 정보 패널 전용 / 모바일은 openProfileSheet가 로그인 시트로 우회) -->
@@ -268,36 +270,6 @@
         </div>
         <!-- 로그인 후: 내 정보 -->
         <div id="profileLoggedIn">
-        <div class="myinfo-card">
-          <div class="myinfo-card-user">
-            <img src="" alt="" width="16" height="16" id="myinfoProviderIcon">
-            <span class="myinfo-nick" id="myinfoNick"></span>
-          </div>
-          <div class="myinfo-rows">
-            <div class="myinfo-row">
-              <span class="myinfo-label">가입일</span>
-              <span class="myinfo-value" id="myinfoJoined">-</span>
-            </div>
-            <div class="myinfo-row">
-              <span class="myinfo-label">접속일 수</span>
-              <span class="myinfo-value"><b id="myinfoVisitCount">0</b>일</span>
-            </div>
-          </div>
-          <div class="myinfo-stats">
-            <div class="myinfo-stat">
-              <div class="myinfo-stat-label"><img src="image/ic_menu_report_16.svg" width="16" height="16" alt="">협찬 제보</div>
-              <div class="myinfo-stat-value"><b id="myinfoReportCount">0</b>건</div>
-            </div>
-            <div class="myinfo-stat">
-              <div class="myinfo-stat-label"><img src="image/ic_menu_review_16.svg" width="16" height="16" alt="">후기 등록</div>
-              <div class="myinfo-stat-value"><b id="myinfoReviewCount">0</b>건</div>
-            </div>
-            <div class="myinfo-stat">
-              <div class="myinfo-stat-label"><img src="image/ic_menu_helpful_16.svg" width="16" height="16" alt="">도움돼요</div>
-              <div class="myinfo-stat-value"><b id="myinfoHelpfulCount">0</b>건</div>
-            </div>
-          </div>
-        </div>
         <div class="form-group">
           <label>이메일 (선택)</label>
           <input type="email" id="profileEmail" inputmode="email" autocomplete="email" placeholder="이메일을 입력해주세요">
@@ -320,12 +292,54 @@
             <input type="text" id="profileUrlId" class="url-id-input" placeholder="아이디 입력">
           </div>
         </div>
-        <div class="guest-hint"><img src="image/ic_info_16.svg" alt="" width="16" height="16"><span>SNS계정을 등록하면 제보·신고할 때 링크를 다시 입력하지 않아도 돼요.</span></div>
+        <div class="guest-hint"><img src="image/ic_info_16.svg" alt="" width="16" height="16"><span>SNS 계정을 미리 등록해두면 협찬 활동 시 링크를 매번 입력하지 않아도 자동으로 채워져요.</span></div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeProfileSheet()">닫기</button>
         <button class="btn-submit" onclick="saveProfile()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 알림설정 (MY → 알림설정) — 모바일 시트. 토글은 Phase2에서 푸시 배선, 지금은 UI + 권한 배너만 동작 -->
+  <div class="modal-overlay" id="alarmOverlay" onclick="closeMyAlarmSetting()">
+    <div class="modal profile-modal alarm-modal" onclick="event.stopPropagation()">
+      <div class="modal-sticky-header" id="alarmStickyHeader">
+        <button class="mlset-back" onclick="closeMyAlarmSetting()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>알림설정</span>
+      </div>
+      <div class="modal-header">
+        <h2>알림설정</h2>
+        <button class="profile-withdraw-link" onclick="deleteAccount()">회원 탈퇴</button>
+      </div>
+      <div class="modal-body" id="alarmBody">
+        <div class="modal-scroll-header" id="alarmScrollHeader">
+          <button class="mlset-back" onclick="closeMyAlarmSetting()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>알림설정</h2>
+          <button class="profile-withdraw-link" onclick="deleteAccount()">회원 탈퇴</button>
+        </div>
+        <!-- 기기(OS) 알림 권한 꺼짐 안내 — 꺼진 상태에서만 노출 -->
+        <div class="alarm-perm-banner" id="alarmPermBanner" style="display:none">
+          <div class="alarm-perm-text"><b>휴대폰 알림이 꺼져 있어 알림을 받을 수 없어요.</b><br>아래 설정을 바꿔도 기기 알림을 먼저 켜야 적용돼요.</div>
+          <button class="alarm-perm-btn" onclick="openAlarmPermSettings()">설정에서 켜기</button>
+        </div>
+        <div class="alarm-info"><img src="image/ic_info_16.svg" alt="" width="16" height="16" class="alarm-info-ico"><span>장소별 ON/OFF는 '내 장소' 탭 각 카드에서 하실 수 있어요.</span></div>
+        <div class="alarm-list">
+          <div class="alarm-row">
+            <span class="alarm-row-label">전체 알림 받기</span>
+            <label class="ml-switch"><input type="checkbox" id="alarmAll" checked onchange="onAlarmToggle()"><span class="ml-switch-track"></span></label>
+          </div>
+          <div class="alarm-divider"></div>
+          <div class="alarm-row">
+            <span class="alarm-row-label">내 장소 신규 협찬</span>
+            <label class="ml-switch"><input type="checkbox" id="alarmNewCampaign" checked onchange="onAlarmToggle()"><span class="ml-switch-track"></span></label>
+          </div>
+          <div class="alarm-divider"></div>
+          <div class="alarm-row">
+            <span class="alarm-row-label">이벤트·공지</span>
+            <label class="ml-switch"><input type="checkbox" id="alarmEvent" checked onchange="onAlarmToggle()"><span class="ml-switch-track"></span></label>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1242,7 +1256,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=150"></script>
+  <script src="app.js?v=153"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
