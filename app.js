@@ -3318,7 +3318,7 @@ function mlDelete() {
   });
 }
 async function mlToggleBell(id) {
-  if (!isMyPlaceAlarmActive()) { if (typeof showToast === 'function') showToast("알림설정에서 '내 장소 신규 협찬' 알림을 먼저 켜주세요."); return; }
+  if (!isMyPlaceAlarmActive()) { if (typeof showToast === 'function') showToast("MY > 알림설정에서 '내 장소 신규 협찬' 알림을 먼저 켜주세요."); return; }
   const p = _myPlaces.find(x => x.id === id);
   if (!p) return;
   p.alarmEnabled = !p.alarmEnabled;
