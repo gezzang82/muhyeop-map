@@ -3435,7 +3435,12 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 
 /* 로그인 유도 */
 /* 내 장소 로그인 전 empty-state (Figma 1750-46580) — 캐릭터 + 문구 + 간편 로그인, 화면 중앙 */
-.ml-login { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; padding: 24px; min-height: calc(100dvh - 200px); }
+.ml-login { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; padding: 24px; }
+/* 로그인 전: 스크롤 없이 가용영역에 꽉 채워 중앙 고정 */
+#tabView-places.ml-noauth .ml-scroll { overflow: hidden; display: flex; }
+#tabView-places.ml-noauth .ml-list { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#tabView-places.ml-noauth #mlItems { flex: 1; min-height: 0; display: flex; }
+#tabView-places.ml-noauth .ml-login { flex: 1; min-height: 0; }
 .ml-login-img { width: 200px; height: 200px; object-fit: contain; }
 .ml-login-cta { display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .ml-login-text { color: #000; font-size: 20px; font-weight: 500; line-height: 1.5; letter-spacing: -0.4px; margin: 0; }

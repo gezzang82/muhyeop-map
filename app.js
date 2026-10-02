@@ -3015,8 +3015,10 @@ async function renderMyPlaces() {
   const note = document.getElementById('mlNote');
   if (!items) return;
   const info = document.querySelector('#tabView-places .ml-info');
+  const tv = document.getElementById('tabView-places');
   if (!currentUser) {
-    // 로그인 전: 안내/노트 숨기고 캐릭터 empty-state만 (Figma 1750-46580)
+    // 로그인 전: 안내/노트 숨기고 캐릭터 empty-state만 (Figma 1750-46580). ml-noauth로 스크롤 없이 중앙 고정.
+    if (tv) tv.classList.add('ml-noauth');
     if (info) info.style.display = 'none';
     if (note) note.style.display = 'none';
     const devBtn = mlIsDevHost()
@@ -3029,6 +3031,7 @@ async function renderMyPlaces() {
       + devBtn + '</div>';
     return;
   }
+  if (tv) tv.classList.remove('ml-noauth');
   if (info) info.style.display = '';
   if (note) note.style.display = '';
   try {
