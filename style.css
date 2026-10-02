@@ -1533,7 +1533,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .step-dot-sep { width: 4px; height: 4px; border-radius: 50%; background: #ccc; }
 
 .modal-body {
-  padding: 24px 20px calc(120px + env(safe-area-inset-bottom)); overflow-y: auto;
+  padding: 20px 20px calc(120px + env(safe-area-inset-bottom)); overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   display: flex; flex-direction: column; gap: 24px;
   flex: 1; min-height: 0;
@@ -1965,8 +1965,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* 정책: 푸터(닫기) 제거 → 본문 하단 여백 축소 */
 .policy-modal .modal-body { padding-bottom: calc(32px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }
 /* 무협맵 소개: 헤더 [back][무협맵 소개] + 푸터(닫기) 제거 */
-.about-modal .modal-header { align-items: center; gap: 12px; }
-.about-modal .modal-header h2 { flex: 1; min-width: 0; }
+.about-modal .modal-header { align-items: center; gap: 12px; padding: 20px 20px 0; }
+.about-modal .modal-header h2 { flex: 1; min-width: 0; font-size: 26px; font-weight: 500; letter-spacing: -0.52px; }
 .about-modal .modal-body { padding-bottom: calc(32px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }
 
 /* 알림설정 화면 (MY → 알림설정) */
@@ -2158,10 +2158,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* 01. 히어로 : 섹션 gap24, 타이틀그룹 gap16, 설명 gap8 */
 .intro-hero {
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  gap: 24px; padding: 40px 24px;
+  gap: 24px; padding: 16px 24px 40px;
 }
-/* 앱: 소개 페이지 최상단 히어로를 상태바·노치 아래로 (모바일에서 헤더 숨김 상태라 히어로가 최상단) */
-.native-app #aboutOverlay .intro-hero { padding-top: calc(40px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
+/* 헤더(back+타이틀)가 상단/세이프에어리어를 담당하므로 히어로 상단 패딩은 소폭만(예전엔 헤더 숨김이라 40+노치였음) */
+.native-app #aboutOverlay .intro-hero { padding-top: 16px; }
 .intro-hero-title-group { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
 .intro-badge {
   display: inline-flex; align-items: center; justify-content: center;
@@ -2266,7 +2266,7 @@ body.pc-myinfo-mode #map::after { cursor: pointer; }
 
 /* 소개 페이지 헤더: back 버튼 + '무협맵 소개' 타이틀 노출(다른 서브화면과 통일). 예전엔 display:none이었음 */
 #aboutOverlay .modal-header { display: flex; }
-.native-app #aboutOverlay .modal-header { padding-top: calc(14px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); }
+.native-app #aboutOverlay .modal-header { padding-top: calc(20px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); }
 /* 모바일 상단 드래그 핸들(회색 라인) 제거 */
 #aboutOverlay .about-drag-handle { display: none; }
 
@@ -2732,7 +2732,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   align-self: center; flex-shrink: 0; white-space: nowrap;
   border: none; background: none; cursor: pointer; padding: 0;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px; color: #777; text-decoration: underline;
+  font-size: 14px; color: #777; text-decoration: none;
 }
 /* 내 정보 카드 */
 /* 내 정보 콘텐츠 블록 간 간격 24px 균일 (Figma) */
