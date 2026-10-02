@@ -3589,7 +3589,18 @@ function closeSignupDone() {
   document.getElementById('signupDoneOverlay').classList.remove('open');
 }
 
-async function logout() {
+// 로그아웃 버튼 → 회원탈퇴처럼 확인 바텀시트 먼저 노출
+function logout() {
+  document.getElementById('logoutConfirmOverlay').classList.add('open');
+}
+function closeLogoutConfirm() {
+  document.getElementById('logoutConfirmOverlay').classList.remove('open');
+}
+async function confirmLogout() {
+  closeLogoutConfirm();
+  await doLogout();
+}
+async function doLogout() {
   await fetch('/api/auth/logout', { method: 'POST' });
   currentUser = null;
   renderMyPage();   // MY 탭 즉시 로그아웃 반영(refreshAuthUI 비동기 대기 없이 — 반쪽 갱신 방지)
@@ -5207,7 +5218,7 @@ document.addEventListener('DOMContentLoaded', initAppLoading);
 function initAndroidStatusBar() {
   const WHITE_MODALS = ['modalOverlay', 'reportOverlay', 'aboutOverlay', 'policyOverlay',
     'profileOverlay', 'reviewFormOverlay', 'signupInfoOverlay', 'signupDoneOverlay',
-    'withdrawConfirmOverlay', 'withdrawDoneOverlay'];
+    'withdrawConfirmOverlay', 'withdrawDoneOverlay', 'logoutConfirmOverlay'];
   let tries = 0;
   (function waitForBridge() {
     const iface = window.MuhyeopNativeUI;

@@ -1287,6 +1287,25 @@
     </div>
   </div>
 
+  <!-- 로그아웃 확인 바텀시트 (회원탈퇴와 동일 스타일) -->
+  <div class="modal-overlay login-overlay withdraw-overlay" id="logoutConfirmOverlay" onclick="closeLogoutConfirm()">
+    <div class="modal login-modal" onclick="event.stopPropagation()">
+      <div class="login-modal-handle-wrap"></div>
+      <div class="login-modal-header">
+        <h2>로그아웃</h2>
+        <button class="modal-close" onclick="closeLogoutConfirm()"><img src="image/ic_popup_close_16.svg" alt="닫기" width="16" height="16"></button>
+      </div>
+      <div class="withdraw-message">
+        <p class="withdraw-message-title">로그아웃 하시겠어요?</p>
+        <p class="withdraw-message-desc">다시 이용하려면 간편 로그인으로 들어올 수 있어요.</p>
+      </div>
+      <div class="withdraw-actions">
+        <button class="withdraw-btn withdraw-btn-cancel" onclick="closeLogoutConfirm()">취소</button>
+        <button class="withdraw-btn withdraw-btn-danger" onclick="confirmLogout()">로그아웃</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 공통 알림 팝업 (탈퇴하기 팝업과 동일 스타일) -->
   <div class="modal-overlay login-overlay withdraw-overlay alert-popup" id="alertPopupOverlay" onclick="closeAlertPopup()">
     <div class="modal login-modal" onclick="event.stopPropagation()">
@@ -1306,7 +1325,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=166"></script>
+  <script src="app.js?v=167"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
