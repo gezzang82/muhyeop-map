@@ -1400,6 +1400,14 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 .modal-overlay.open { display: flex; }
 
+/* back 버튼 서브화면: 우측에서 슬라이드 인(iOS push 느낌). 적용은 모바일 full-screen 시트에서만(아래 @media). */
+@keyframes sheetSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  #profileOverlay.open > .modal, #reportOverlay.open > .modal, #alarmOverlay.open > .modal,
+  #noticeOverlay.open > .modal, #noticeDetailOverlay.open > .modal, #policyOverlay.open > .modal,
+  #aboutOverlay.open > .modal { animation: none !important; }
+}
+
 .modal {
   background: white; border-radius: 16px;
   width: 480px; max-width: 90vw; max-height: 85vh;
@@ -2991,6 +2999,11 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   }
   .modal-header { padding-top: max(40px, env(safe-area-inset-top, 40px)); }
   .modal-overlay { align-items: stretch; }
+  /* back 버튼 서브화면: 전체화면 시트가 우측에서 밀려 들어옴(이전 화면 위로). dim 배경 없이 push 느낌 */
+  #profileOverlay, #reportOverlay, #alarmOverlay, #noticeOverlay, #noticeDetailOverlay, #policyOverlay, #aboutOverlay { background: transparent; }
+  #profileOverlay.open > .modal, #reportOverlay.open > .modal, #alarmOverlay.open > .modal,
+  #noticeOverlay.open > .modal, #noticeDetailOverlay.open > .modal, #policyOverlay.open > .modal,
+  #aboutOverlay.open > .modal { animation: sheetSlideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
   /* 앱: 상단 고정 헤더(스티키/사이드메뉴)를 상태바·노치 아래로 내림 */
   .native-app .modal-sticky-header { height: calc(56px + max(env(safe-area-inset-top), var(--and-sat, 0px))); padding-top: calc(10px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
   .native-app .side-menu-header { height: calc(72px + max(env(safe-area-inset-top), var(--and-sat, 0px))); padding-top: calc(10px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
