@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=179">
+  <link rel="stylesheet" href="style.css?v=180">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -425,6 +425,17 @@
       </div>
       <div class="signup-footer">
         <button class="signup-btn-confirm rv-submit-full" id="reviewSubmitBtn" onclick="submitReview()">등록하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 내 후기 (후기 화면 '내 후기' 링크 → 별도 서브화면) -->
+  <div class="modal-overlay" id="myReviewsOverlay" onclick="closeMyReviews()">
+    <div class="modal myrev-modal" onclick="event.stopPropagation()">
+      <div class="modal-sticky-header" id="myRevStickyHeader"><button class="mlset-back" onclick="closeMyReviews()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span>내 후기</span></div>
+      <div class="modal-body" id="myRevBody">
+        <div class="modal-scroll-header" id="myRevScrollHeader"><button class="mlset-back" onclick="closeMyReviews()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h2>내 후기</h2></div>
+        <div id="myRevContent"></div>
       </div>
     </div>
   </div>
@@ -1115,7 +1126,7 @@
     <div class="modal-sticky-header" id="cmStickyHeader"><span>커뮤니티</span></div>
     <div class="cm-scroll" id="cmScroll">
       <div class="cm-inner">
-        <div class="modal-scroll-header cm-scroll-header" id="cmScrollHeader"><h2>커뮤니티</h2><button class="cm-myrev-link" id="cmMyRevLink" onclick="toggleMyReviews()" hidden>내 후기</button></div>
+        <div class="modal-scroll-header cm-scroll-header" id="cmScrollHeader"><h2>커뮤니티</h2><button class="cm-myrev-link" id="cmMyRevLink" onclick="openMyReviews()" hidden>내 후기</button></div>
         <!-- 세그먼트: 이웃찾기(활성화) / 후기(콘텐츠) -->
         <div class="cm-seg" id="cmSeg" role="tablist">
           <button class="cm-seg-btn active" data-seg="seoichu" onclick="setCommunitySeg('seoichu')">이웃찾기</button>
@@ -1363,7 +1374,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=185"></script>
+  <script src="app.js?v=186"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

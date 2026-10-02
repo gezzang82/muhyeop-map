@@ -1580,9 +1580,11 @@ async function deleteMyReview(reviewId) {
         if (!res.ok) { showToast('삭제에 실패했어요.'); return; }
         showToast('후기를 삭제했어요.');
         if (_detailPlaceId != null) loadReviews(_detailPlaceId);
-        // 커뮤니티 후기 피드에서 삭제한 경우도 목록 갱신
+        // 커뮤니티 후기 피드 / 내 후기 화면에서 삭제한 경우도 목록 갱신
         const cmv = document.getElementById('tabView-community');
         if (cmv && !cmv.hidden && _cmSeg === 'feed') renderCommunity(true);
+        const mro = document.getElementById('myReviewsOverlay');
+        if (mro && mro.classList.contains('open')) renderMyReviews();
       } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
     }
   });
@@ -2964,14 +2966,49 @@ function setCmSort(s) {
   _cmFeedSort = s;
   renderCommunity();
 }
-// '내 후기' 토글(후기 세그먼트 안에서 본인 후기만 ↔ 전체)
-function toggleMyReviews() {
+// '내 후기' — 후기 화면 링크 → 별도 서브화면(백버튼). 후기 카드/정렬은 기존 컴포넌트 재사용.
+let _myRevSort = 'likes';
+function openMyReviews() {
   if (!currentUser) { openLoginSheet(); return; }
-  _cmFeedMine = !_cmFeedMine;
-  const link = document.getElementById('cmMyRevLink');
-  if (link) link.textContent = _cmFeedMine ? '전체 후기' : '내 후기';
-  renderCommunity();
-  const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+  syncMobileModalHeader('#myReviewsOverlay');
+  bindMobileScrollHeader('myRevBody', 'myRevScrollHeader', 'myRevStickyHeader');
+  const sticky = document.getElementById('myRevStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('myRevBody'); if (body) body.scrollTop = 0;
+  document.getElementById('myReviewsOverlay').classList.add('open');
+  renderMyReviews();
+}
+function closeMyReviews() {
+  closeSheetSlide('myReviewsOverlay', () => resetModalScroll('myReviewsOverlay'));
+}
+async function renderMyReviews() {
+  const el = document.getElementById('myRevContent');
+  if (!el) return;
+  el.innerHTML = '<div class="rv-loading">불러오는 중…</div>';
+  try {
+    const data = await fetch(`/api/places?reviews=feed&mine=1&sort=${_myRevSort}&_=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : { total: 0, items: [] });
+    const items = (data && data.items) || [];
+    const total = (data && data.total) || 0;
+    const label = _myRevSort === 'likes' ? '좋아요 순' : '최신 순';
+    const top = `<div class="rv-list-head">
+      <span class="rv-count">총 ${Number(total).toLocaleString()}건</span>
+      <div class="rv-sort-wrap">
+        <button class="rv-sort" onclick="event.stopPropagation();toggleSortMenu(this)"><span class="rv-sort-label">${label}</span><img class="rv-sort-caret" src="image/ic_arrow_01.svg" width="9" height="5" alt=""></button>
+        <div class="rv-sort-menu">
+          <button class="rv-sort-opt${_myRevSort !== 'likes' ? ' active' : ''}" onclick="setMyRevSort('latest')">최신 순</button>
+          <button class="rv-sort-opt${_myRevSort === 'likes' ? ' active' : ''}" onclick="setMyRevSort('likes')">좋아요 순</button>
+        </div>
+      </div>
+    </div>`;
+    el.innerHTML = top + (items.length
+      ? `<div class="rv-cards">${items.map(r => reviewCardHtml(r, false)).join('')}</div>`
+      : `<div class="cm-empty"><p class="cm-empty-title">아직 등록한 후기가 없어요</p><p class="cm-empty-desc">다녀온 곳의 블로그 후기를 등록해보세요.</p></div>`);
+  } catch (e) { el.innerHTML = '<div class="rv-loading">불러오지 못했어요.</div>'; }
+}
+function setMyRevSort(s) {
+  document.querySelectorAll('.rv-sort-wrap.open').forEach(w => w.classList.remove('open'));
+  if (s === _myRevSort) return;
+  _myRevSort = s;
+  renderMyReviews();
 }
 
 // 글쓰기 영역: 로그인 + SNS(블로그/인스타) 등록자만. 아니면 안내 CTA.

@@ -1413,7 +1413,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 @media (prefers-reduced-motion: reduce) {
   #profileOverlay.open > .modal, #reportOverlay.open > .modal, #alarmOverlay.open > .modal,
   #noticeOverlay.open > .modal, #noticeDetailOverlay.open > .modal, #policyOverlay.open > .modal,
-  #aboutOverlay.open > .modal, .ml-setting-overlay:not([hidden]), .ml-setting-overlay.mlset-closing,
+  #aboutOverlay.open > .modal, #myReviewsOverlay.open > .modal, #myReviewsOverlay.sheet-closing > .modal,
+  .ml-setting-overlay:not([hidden]), .ml-setting-overlay.mlset-closing,
   .login-overlay.open > .modal, .login-overlay.sheet-closing > .modal { animation: none !important; }
 }
 
@@ -1976,11 +1977,13 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .profile-modal .modal-scroll-header,
 .report-modal .modal-scroll-header,
 .policy-modal .modal-scroll-header,
-.about-modal .modal-scroll-header { gap: 12px; }
+.about-modal .modal-scroll-header,
+.myrev-modal .modal-scroll-header { gap: 12px; }
 .profile-modal .modal-scroll-header h2,
 .report-modal .modal-scroll-header h2,
 .policy-modal .modal-scroll-header h2,
-.about-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
+.about-modal .modal-scroll-header h2,
+.myrev-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
 /* 정책: 푸터(닫기) 제거 → 본문 하단 여백 축소 */
 .policy-modal .modal-body { padding-bottom: calc(32px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }
 /* 무협맵 소개: 헤더 [back][무협맵 소개] + 푸터(닫기) 제거 */
@@ -3025,14 +3028,14 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .modal-header { padding-top: max(40px, env(safe-area-inset-top, 40px)); }
   .modal-overlay { align-items: stretch; }
   /* back 버튼 서브화면: 전체화면 시트가 우측에서 밀려 들어오고(push), 뒤 화면은 약간 dim */
-  #profileOverlay, #reportOverlay, #alarmOverlay, #noticeOverlay, #noticeDetailOverlay, #policyOverlay, #aboutOverlay { background: rgba(0,0,0,0.3); }
+  #profileOverlay, #reportOverlay, #alarmOverlay, #noticeOverlay, #noticeDetailOverlay, #policyOverlay, #aboutOverlay, #myReviewsOverlay { background: rgba(0,0,0,0.3); }
   #profileOverlay.open > .modal, #reportOverlay.open > .modal, #alarmOverlay.open > .modal,
   #noticeOverlay.open > .modal, #noticeDetailOverlay.open > .modal, #policyOverlay.open > .modal,
-  #aboutOverlay.open > .modal { animation: sheetSlideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
+  #aboutOverlay.open > .modal, #myReviewsOverlay.open > .modal { animation: sheetSlideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
   /* 닫기(back): 우측으로 슬라이드 아웃 (JS가 sheet-closing 부여 후 250ms 뒤 open 제거) */
   #profileOverlay.sheet-closing > .modal, #reportOverlay.sheet-closing > .modal, #alarmOverlay.sheet-closing > .modal,
   #noticeOverlay.sheet-closing > .modal, #noticeDetailOverlay.sheet-closing > .modal, #policyOverlay.sheet-closing > .modal,
-  #aboutOverlay.sheet-closing > .modal { animation: sheetSlideOut 0.24s cubic-bezier(0.4, 0, 1, 1) forwards; }
+  #aboutOverlay.sheet-closing > .modal, #myReviewsOverlay.sheet-closing > .modal { animation: sheetSlideOut 0.24s cubic-bezier(0.4, 0, 1, 1) forwards; }
   /* 내 장소 설정(집/회사/여행지): 동일 슬라이드 인/아웃 (mlSettingOverlay는 hidden 토글) */
   .ml-setting-overlay:not([hidden]) { animation: sheetSlideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
   .ml-setting-overlay.mlset-closing { animation: sheetSlideOut 0.24s cubic-bezier(0.4, 0, 1, 1) forwards; }
@@ -3432,10 +3435,10 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .cm-info-plain { margin: 0 0 16px; }
   /* 후기 총건수·정렬·카드는 지도 상세 후기 pane 컴포넌트(rv-list-head/rv-sort/rv-cards/rv-card) 재사용.
      상세 pane은 흰 시트 안 flat 행이지만, 커뮤니티 후기는 각 후기가 흰 카드라 #cmBody 스코프로만 카드화 */
-  #cmBody .rv-cards { gap: 12px; }
-  #cmBody .rv-card { align-items: center; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+  #cmBody .rv-cards, #myRevContent .rv-cards { gap: 12px; }
+  #cmBody .rv-card, #myRevContent .rv-card { align-items: center; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
   /* 본문(발췌)은 항상 2줄 높이로 고정 → 카드 높이 통일(짧아도 2줄 공간 확보) */
-  #cmBody .rv-card-excerpt { min-height: calc(1.4em * 2); }
+  #cmBody .rv-card-excerpt, #myRevContent .rv-card-excerpt { min-height: calc(1.4em * 2); }
   .cm-info-char { position: absolute; right: 10px; bottom: calc(100% - 37px); width: 104px; height: 104px; object-fit: contain; pointer-events: none; }
   /* 카테고리 칩(가로 스크롤) */
   .cm-chips { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
