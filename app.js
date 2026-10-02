@@ -3014,14 +3014,22 @@ async function renderMyPlaces() {
   const items = document.getElementById('mlItems');
   const note = document.getElementById('mlNote');
   if (!items) return;
+  const info = document.querySelector('#tabView-places .ml-info');
   if (!currentUser) {
+    // 로그인 전: 안내/노트 숨기고 캐릭터 empty-state만 (Figma 1750-46580)
+    if (info) info.style.display = 'none';
     if (note) note.style.display = 'none';
     const devBtn = mlIsDevHost()
-      ? '<button class="ml-login-btn" style="background:#444;margin-top:10px" onclick="location.href=\'/api/users?devlogin=1\'">🔧 미리보기 로그인 (dev)</button>'
+      ? '<button class="ml-login-dev" onclick="location.href=\'/api/users?devlogin=1\'">🔧 미리보기 로그인 (dev)</button>'
       : '';
-    items.innerHTML = '<div class="ml-login"><p>로그인하면 집·회사·여행지를 저장하고<br>그 주변 모집 중인 협찬을 모아볼 수 있어요.</p><button class="ml-login-btn" onclick="oauthLogin(\'kakao\')">카카오로 시작하기</button>' + devBtn + '</div>';
+    items.innerHTML = '<div class="ml-login">'
+      + '<img class="ml-login-img" src="image/img_my_local_pin.png" alt="" width="200" height="200">'
+      + '<div class="ml-login-cta"><p class="ml-login-text">내 장소를 등록하려면<br>로그인이 필요합니다.</p>'
+      + '<button class="ml-login-btn" onclick="openLoginSheet()">간편 로그인</button></div>'
+      + devBtn + '</div>';
     return;
   }
+  if (info) info.style.display = '';
   if (note) note.style.display = '';
   try {
     const res = await fetch('/api/users?places=1', { credentials: 'same-origin' });

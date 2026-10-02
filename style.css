@@ -3434,9 +3434,13 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .ml-card-bell-off { opacity: 0.35; }
 
 /* 로그인 유도 */
-.ml-login { width: 100%; text-align: center; padding: 48px 24px; box-sizing: border-box; }
-.ml-login p { color: #888; font-size: 14px; margin: 0 0 18px; line-height: 1.6; }
-.ml-login-btn { background: #e82a2d; color: #fff; border: none; border-radius: 8px; padding: 13px 28px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+/* 내 장소 로그인 전 empty-state (Figma 1750-46580) — 캐릭터 + 문구 + 간편 로그인, 화면 중앙 */
+.ml-login { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; padding: 24px; min-height: calc(100dvh - 200px); }
+.ml-login-img { width: 200px; height: 200px; object-fit: contain; }
+.ml-login-cta { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.ml-login-text { color: #000; font-size: 20px; font-weight: 500; line-height: 1.5; letter-spacing: -0.4px; margin: 0; }
+.ml-login-btn { background: #e82a2d; color: #fff; border: none; border-radius: 8px; height: 40px; padding: 0 20px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.ml-login-dev { background: #444; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-family: inherit; }
 
 /* ===== 내 장소 설정(등록/수정) — 전체 스크롤 + 스크롤 시 컴팩트 헤더(제보/신고 동일) ===== */
 .ml-setting-overlay { position: fixed; inset: 0; z-index: 600; background: #fff; display: none; }
