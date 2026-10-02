@@ -1958,10 +1958,12 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* 회원정보관리(프로필)·신고하기·정책: 헤더 좌측 back 버튼 추가 → [back][제목 flex][우측요소] 배치 */
 .profile-modal .modal-scroll-header,
 .report-modal .modal-scroll-header,
-.policy-modal .modal-scroll-header { gap: 12px; }
+.policy-modal .modal-scroll-header,
+.about-modal .modal-scroll-header { gap: 12px; }
 .profile-modal .modal-scroll-header h2,
 .report-modal .modal-scroll-header h2,
-.policy-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
+.policy-modal .modal-scroll-header h2,
+.about-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
 /* 정책: 푸터(닫기) 제거 → 본문 하단 여백 축소 */
 .policy-modal .modal-body { padding-bottom: calc(32px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }
 /* 무협맵 소개: 헤더 [back][무협맵 소개] + 푸터(닫기) 제거 */
@@ -2158,10 +2160,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* 01. 히어로 : 섹션 gap24, 타이틀그룹 gap16, 설명 gap8 */
 .intro-hero {
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  gap: 24px; padding: 16px 24px 40px;
+  gap: 24px; padding: 48px 24px 40px;
 }
-/* 헤더(back+타이틀)가 상단/세이프에어리어를 담당하므로 히어로 상단 패딩은 소폭만(예전엔 헤더 숨김이라 40+노치였음) */
-.native-app #aboutOverlay .intro-hero { padding-top: 16px; }
+/* 헤더(back+타이틀)가 상단/세이프에어리어 담당 → 히어로 상단은 헤더와의 간격만(env 불필요) */
+.native-app #aboutOverlay .intro-hero { padding-top: 48px; }
 .intro-hero-title-group { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
 .intro-badge {
   display: inline-flex; align-items: center; justify-content: center;
@@ -2264,9 +2266,11 @@ body.pc-myinfo-mode #map::after { cursor: pointer; }
   100% { transform: translate(-50%, 0) scale(1.9); opacity: 0; }
 }
 
-/* 소개 페이지 헤더: back 버튼 + '무협맵 소개' 타이틀 노출(다른 서브화면과 통일). 예전엔 display:none이었음 */
-#aboutOverlay .modal-header { display: flex; }
-.native-app #aboutOverlay .modal-header { padding-top: calc(20px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); }
+/* 소개 페이지: 모바일은 scroll-header + sticky-header 패턴(다른 서브화면과 동일한 스크롤 UI). modal-header는 미사용.
+   modal-body가 full-bleed(좌우 0)라 scroll-header에 직접 패딩 부여 + 네이티브 상단 세이프에어리어 */
+#aboutOverlay .modal-header { display: none; }
+.about-modal .modal-scroll-header { padding: 20px 20px 0; }
+.native-app .about-modal .modal-scroll-header { padding-top: calc(20px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); }
 /* 모바일 상단 드래그 핸들(회색 라인) 제거 */
 #aboutOverlay .about-drag-handle { display: none; }
 

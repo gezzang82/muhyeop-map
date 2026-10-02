@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=147">
+  <link rel="stylesheet" href="style.css?v=150">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -638,12 +638,19 @@
   <!-- 서비스 소개 모달 -->
   <div class="modal-overlay" id="aboutOverlay" onclick="closeAbout()">
     <div class="modal about-modal" onclick="event.stopPropagation()">
-      <div class="about-drag-handle" onclick="closeAbout()"></div>
+      <div class="modal-sticky-header" id="aboutStickyHeader">
+        <button class="mlset-back" onclick="closeAbout()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>무협맵 소개</span>
+      </div>
       <div class="modal-header">
         <button class="mlset-back" onclick="closeAbout()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <h2>무협맵 소개</h2>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" id="aboutBody">
+        <div class="modal-scroll-header" id="aboutScrollHeader">
+          <button class="mlset-back" onclick="closeAbout()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>무협맵 소개</h2>
+        </div>
         <div class="intro">
           <!-- 01. 히어로 -->
           <section class="intro-hero">
@@ -1298,7 +1305,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=160"></script>
+  <script src="app.js?v=161"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

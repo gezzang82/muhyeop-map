@@ -3775,6 +3775,11 @@ function openAbout() {
     switchPcTab('about');
     return;
   }
+  // 다른 서브화면과 동일한 스크롤 UI: 큰 타이틀(scroll-header) 스크롤되어 사라지고 compact sticky 등장
+  syncMobileModalHeader('#aboutOverlay');
+  bindMobileScrollHeader('aboutBody', 'aboutScrollHeader', 'aboutStickyHeader');
+  const sticky = document.getElementById('aboutStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('aboutBody'); if (body) body.scrollTop = 0;
   document.getElementById('aboutOverlay').classList.add('open');
 }
 function closeAbout() {
