@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=150">
+  <link rel="stylesheet" href="style.css?v=151">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -1097,9 +1097,10 @@
   </div>
   <!-- MY 탭 (Figma 1728-44131). 로그인 후 화면. 로그인 전 화면은 디자인 확정 후 교체 예정(현재 임시 CTA). -->
   <div class="tab-view mypage" id="tabView-my" hidden>
+    <div class="modal-sticky-header mypage-sticky" id="myStickyHeader"><span>MY</span></div>
     <div class="mypage-scroll" id="myScroll">
       <div class="mypage-top">
-        <div class="mypage-header">
+        <div class="mypage-header" id="myScrollHeader">
           <h1 class="mypage-title">MY</h1>
           <button class="mypage-logout" id="myLogout" onclick="logout()">로그아웃</button>
         </div>
@@ -1305,7 +1306,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=161"></script>
+  <script src="app.js?v=162"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

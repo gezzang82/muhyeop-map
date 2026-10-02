@@ -2684,9 +2684,11 @@ function switchTab(tab) {
   }
   if (tab === 'my') {
     // MY 탭: 기존 '메뉴'를 흡수(로그인/내정보/신고/소개/약관 등). 제보하기는 제외(후기+매장등록으로 대체 방향).
-    // 상단 프로필은 고정, 하단 메뉴영역만 스크롤 → 진입 시 메뉴 스크롤 상단 리셋.
+    // 다른 서브화면과 동일하게 전체 콘텐츠가 스크롤되고, 큰 'MY'(scroll-header)가 사라지면 compact sticky 등장.
     renderMyPage();
-    const mm = document.querySelector('#tabView-my .mypage-menu'); if (mm) mm.scrollTop = 0;
+    const sticky = document.getElementById('myStickyHeader'); if (sticky) sticky.classList.remove('show');
+    const sc = document.getElementById('myScroll'); if (sc) sc.scrollTop = 0;
+    bindMobileScrollHeader('myScroll', 'myScrollHeader', 'myStickyHeader');
   }
 }
 

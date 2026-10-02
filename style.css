@@ -3328,9 +3328,10 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   /* ===== MY 페이지 (Figma 1728-44131) ===== */
   /* 상단(프로필/카드)은 고정, 하단 메뉴영역만 스크롤 */
   .tab-view.mypage { background: #f7f9fa; overflow: hidden; }
-  .mypage-scroll { width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; }
+  /* 전체 콘텐츠가 함께 스크롤(다른 서브화면과 동일). 하단은 흰색으로 채워지게 스크롤 컨테이너 bg 흰색 */
+  .mypage-scroll { width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; }
   /* 상단 여백은 내 장소(.ml-list padding-top:20px)와 동일하게 맞춤 */
-  .mypage-top { flex-shrink: 0; display: flex; flex-direction: column; gap: 24px; padding: 20px 20px 24px; }
+  .mypage-top { flex-shrink: 0; display: flex; flex-direction: column; gap: 24px; padding: 20px 20px 24px; background: #f7f9fa; }
   .native-app .mypage-top { padding-top: calc(20px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
   .mypage-header { display: flex; align-items: center; gap: 24px; }
   .mypage-title { flex: 1; margin: 0; font-size: 26px; font-weight: 500; letter-spacing: -0.52px; color: #000; }
@@ -3360,7 +3361,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   /* display:inline-flex가 [hidden] 기본(display:none)을 덮어써 로그인 상태에서도 보이던 문제 → [hidden]일 때 명시적으로 숨김 */
   .mypage-login-link[hidden] { display: none; }
   .mypage-login-link img { width: 4px; height: 8px; display: block; }
-  .mypage-menu { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; padding: 32px 20px 40px; display: flex; flex-direction: column; gap: 28px; }
+  .mypage-menu { background: #fff; padding: 32px 20px 40px; display: flex; flex-direction: column; gap: 28px; }
   .mypage-menu-item { background: none; border: 0; padding: 0; text-align: left; font-size: 16px; color: #000; cursor: pointer; display: flex; align-items: center; font-family: inherit; }
   .mypage-menu-item, .mypage-menu-line { flex-shrink: 0; }   /* 메뉴가 뷰보다 길면 flex가 1px 라인을 0으로 줄여 안 보이던 문제 → 압축 금지(대신 스크롤) */
   .mypage-menu-line { height: 1px; background: #eee; }
