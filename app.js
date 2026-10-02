@@ -2699,6 +2699,9 @@ function renderMyPage() {
   const logoutBtn = document.getElementById('myLogout');
   if (logoutBtn) logoutBtn.style.display = loggedIn ? '' : 'none';
   const avatar = document.getElementById('myAvatarImg');
+  const stickyAvatar = document.getElementById('myStickyAvatar');
+  const avatarSrc = loggedIn ? 'image/img_login_default_32.png' : 'image/img_login_guest.svg';
+  if (stickyAvatar) stickyAvatar.src = avatarSrc;
   if (loggedIn) {
     if (avatar) avatar.src = 'image/img_login_default_32.png';
     set('myNick', currentUser.nickname || '');

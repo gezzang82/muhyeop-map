@@ -2045,6 +2045,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
   flex: 1; font-size: 18px; font-weight: 500;
   letter-spacing: -0.36px; color: #000;
 }
+/* MY 스크롤 컴팩트 헤더: 우측 프로필 아바타 (Figma 1751-46950) */
+.mypage-sticky-avatar { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 
 /* 모달 푸터 */
 .modal-footer {
