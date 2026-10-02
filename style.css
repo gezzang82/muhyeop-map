@@ -1984,6 +1984,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .policy-modal .modal-scroll-header h2,
 .about-modal .modal-scroll-header h2,
 .myrev-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
+/* 내 후기: 커뮤니티와 동일 배경(카드 사이 여백이 회색으로). sticky 헤더는 커뮤니티처럼 흰색 유지 */
+.myrev-modal { background: #f7f9fa; }
 /* 정책: 푸터(닫기) 제거 → 본문 하단 여백 축소 */
 .policy-modal .modal-body { padding-bottom: calc(32px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }
 /* 무협맵 소개: 헤더 [back][무협맵 소개] + 푸터(닫기) 제거 */
