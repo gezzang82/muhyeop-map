@@ -1580,6 +1580,9 @@ async function deleteMyReview(reviewId) {
         if (!res.ok) { showToast('삭제에 실패했어요.'); return; }
         showToast('후기를 삭제했어요.');
         if (_detailPlaceId != null) loadReviews(_detailPlaceId);
+        // 커뮤니티 후기 피드에서 삭제한 경우도 목록 갱신
+        const cmv = document.getElementById('tabView-community');
+        if (cmv && !cmv.hidden && _cmSeg === 'feed') renderCommunity(true);
       } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
     }
   });
