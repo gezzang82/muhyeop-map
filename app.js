@@ -3026,7 +3026,11 @@ async function renderMyPlaces() {
       : '';
     items.innerHTML = '<div class="ml-login">'
       + '<img class="ml-login-img" src="image/img_my_local_pin.png" alt="" width="200" height="200">'
-      + '<div class="ml-login-cta"><p class="ml-login-text">내 장소를 등록하려면<br>로그인이 필요합니다.</p>'
+      + '<div class="ml-login-cta">'
+      + '<div class="ml-login-texts">'
+      + '<p class="ml-login-text">내 장소를 저장하고<br>협찬을 놓치지 마세요.</p>'
+      + '<p class="ml-login-sub">집·회사·자주 가는 동네 주변의 모집 중인 협찬과<br>새 소식을 한눈에 확인할 수 있어요.</p>'
+      + '</div>'
       + '<button class="ml-login-btn" onclick="openLoginSheet()">간편 로그인</button></div>'
       + devBtn + '</div>';
     return;

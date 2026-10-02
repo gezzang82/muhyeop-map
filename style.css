@@ -3443,7 +3443,9 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 #tabView-places.ml-noauth .ml-login { flex: 1; min-height: 0; }
 .ml-login-img { width: 200px; height: 200px; object-fit: contain; }
 .ml-login-cta { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.ml-login-texts { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .ml-login-text { color: #000; font-size: 20px; font-weight: 500; line-height: 1.5; letter-spacing: -0.4px; margin: 0; }
+.ml-login-sub { color: #777; font-size: 16px; line-height: 1.5; margin: 0; }
 .ml-login-btn { background: #e82a2d; color: #fff; border: none; border-radius: 8px; height: 40px; padding: 0 20px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
 .ml-login-dev { background: #444; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-family: inherit; }
 
