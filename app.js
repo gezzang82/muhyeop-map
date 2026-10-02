@@ -1681,38 +1681,66 @@ function rvRenderSelected(store) {
     <svg class="rv-selected-check" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5L10 17.5L19 7" stroke="#006cff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </div>`;
 }
-let _rvSearchCache = {};
-// 네이버 장소검색(없는 매장도 찾음). 새 검색 시 선택 해제 + URL 숨김. 결과는 제보 UI(.place-result-item).
+// 제보하기와 동일: 우리 DB 매장(in-memory places) 우선 → 네이버 결과 → 더보기(10개 단위) 페이지네이션
+let _rvNaverResults = [], _rvQuery = '', _rvVisibleCount = 10;
+const RV_PAGE_SIZE = 10;
 async function rvSearchStores() {
   const q = document.getElementById('rvStoreSearch').value.trim();
   const box = document.getElementById('rvStoreResults');
   _reviewFormPlaceId = null; _reviewFormNewPlace = null;
   rvShowUrlStep(false);
   if (!q) { box.innerHTML = ''; return; }
+  _rvQuery = q; _rvNaverResults = []; _rvVisibleCount = RV_PAGE_SIZE;
   box.innerHTML = '<div class="search-hint">검색 중…</div>';
   try {
-    const items = await fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []);
-    if (!Array.isArray(items) || !items.length) { box.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
-    box.innerHTML = items.map((it, i) => {
-      const addr = it.roadAddress || it.address || '';
-      _rvSearchCache[i] = { name: it.name, address: addr, category: it.category || '' };
-      return `<div class="place-result-item" onclick="rvPickStore(${i})">
-        <div class="place-result-info">
-          <div class="place-result-name">${rvEsc(it.name)}</div>
-          <div class="place-result-addr">${rvEsc(addr)}</div>
-        </div>
-        <span class="place-result-check">✓</span>
-      </div>`;
-    }).join('');
-  } catch (e) { box.innerHTML = '<div class="search-hint error">검색 중 오류가 발생했어요.</div>'; }
+    _rvNaverResults = await fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []);
+  } catch (e) { _rvNaverResults = []; }
+  rvRenderResults();
 }
-// 결과 선택 → 주소를 좌표로(브라우저 지오코딩) → 신규 매장 후보 확정, 선택 1건만 하이라이트 + URL 노출
-async function rvPickStore(i) {
-  const it = _rvSearchCache[i];
+// DB 매장(기존) + 네이버(신규) 통합 렌더(.place-result-item), 더보기 포함
+function rvRenderResults() {
+  const box = document.getElementById('rvStoreResults');
+  if (!box) return;
+  const normalize = s => String(s || '').replace(/\s/g, '').toLowerCase();
+  const nq = normalize(_rvQuery);
+  const existing = (typeof places !== 'undefined' ? places : []).filter(p => {
+    const np = normalize(p.name); return nq && (np.includes(nq) || nq.includes(np));
+  });
+  const naver = Array.isArray(_rvNaverResults) ? _rvNaverResults : [];
+  const combined = [
+    ...existing.map(p => ({ type: 'existing', place: p })),
+    ...naver.map((item, i) => ({ type: 'naver', item, index: i }))
+  ];
+  if (!combined.length) { box.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
+  const rows = combined.slice(0, _rvVisibleCount).map(e => {
+    if (e.type === 'existing') {
+      const p = e.place;
+      return `<div class="place-result-item" onclick="rvPickExisting(${p.id})"><div class="place-result-info"><div class="place-result-name">${rvEsc(p.name)}</div><div class="place-result-addr">${rvEsc(p.address || '')}</div></div><span class="place-result-check">✓</span></div>`;
+    }
+    const addr = e.item.roadAddress || e.item.address || '';
+    return `<div class="place-result-item" onclick="rvPickNaver(${e.index})"><div class="place-result-info"><div class="place-result-name">${rvEsc(e.item.name)}</div><div class="place-result-addr">${rvEsc(addr)}</div></div><span class="place-result-check">✓</span></div>`;
+  }).join('');
+  const more = combined.length > _rvVisibleCount
+    ? `<div class="place-result-more-wrap"><div class="place-result-more" onclick="rvLoadMore()">더보기</div></div>` : '';
+  box.innerHTML = rows + more;
+}
+function rvLoadMore() { _rvVisibleCount += RV_PAGE_SIZE; rvRenderResults(); }
+// 기존 DB 매장 선택 → placeId(기존, 좌표 지오코딩 불필요) + 선택 박스 + URL
+function rvPickExisting(placeId) {
+  const p = (typeof places !== 'undefined' ? places : []).find(x => x.id === placeId);
+  if (!p) return;
+  _reviewFormPlaceId = placeId; _reviewFormNewPlace = null;
+  rvRenderSelected({ name: p.name, address: p.address || '' });
+  rvShowUrlStep(true);
+  setTimeout(() => { const u = document.getElementById('reviewUrl'); if (u) u.focus(); }, 0);
+}
+// 네이버 결과 선택 → 주소 지오코딩 → 신규 매장 후보(newPlace) + 선택 박스 + URL
+async function rvPickNaver(index) {
+  const it = (Array.isArray(_rvNaverResults) ? _rvNaverResults : [])[index];
   if (!it) return;
   const box = document.getElementById('rvStoreResults');
   box.innerHTML = '<div class="search-hint">위치 확인 중…</div>';
-  const addr = it.address || it.name;
+  const addr = it.roadAddress || it.address || it.name;
   try {
     const coord = await new Promise((resolve) => {
       if (!(naver && naver.maps && naver.maps.Service)) return resolve(null);
@@ -1723,13 +1751,13 @@ async function rvPickStore(i) {
         } else resolve(null);
       });
     });
-    if (!coord) { box.innerHTML = '<div class="search-hint error">위치를 확인하지 못했어요. 다른 매장을 선택해주세요.</div>'; return; }
+    if (!coord) { rvRenderResults(); rvSetError('위치를 확인하지 못했어요. 다른 매장을 선택해주세요.'); return; }
     _reviewFormPlaceId = null;
-    _reviewFormNewPlace = { name: it.name, address: it.address, lat: coord.lat, lng: coord.lng, naverCategory: it.category };
-    rvRenderSelected({ name: it.name, address: it.address });
+    _reviewFormNewPlace = { name: it.name, address: addr, lat: coord.lat, lng: coord.lng, naverCategory: it.category || '' };
+    rvRenderSelected({ name: it.name, address: addr });
     rvShowUrlStep(true);
     setTimeout(() => { const u = document.getElementById('reviewUrl'); if (u) u.focus(); }, 0);
-  } catch (e) { box.innerHTML = '<div class="search-hint error">위치 확인 중 오류가 발생했어요.</div>'; }
+  } catch (e) { rvRenderResults(); }
 }
 // validate/create에 보낼 매장 식별 payload
 function rvStorePayload() {
