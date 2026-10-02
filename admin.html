@@ -165,6 +165,7 @@
         <a class="nav-item" onclick="showTab('reviews')" id="tab-reviews"><img class="nav-ic" src="image/ic_admin_07review_24.svg" width="20" height="20" alt=""> 후기 관리</a>
         <a class="nav-item" onclick="showTab('users')" id="tab-users"><img class="nav-ic" src="image/ic_admin_05users_24.svg" width="20" height="20" alt=""> 회원 목록</a>
         <a class="nav-item" onclick="showTab('banners')" id="tab-banners"><img class="nav-ic" src="image/ic_admin_06popup_24.svg" width="20" height="20" alt=""> 이벤트 팝업</a>
+        <a class="nav-item" onclick="showTab('notices')" id="tab-notices"><img class="nav-ic" src="image/ic_admin_06popup_24.svg" width="20" height="20" alt=""> 이벤트·공지</a>
       </nav>
     </aside>
 
@@ -832,6 +833,12 @@
             </div>
           </div>
           <div class="form-row">
+            <div class="form-group full">
+              <label>연결 이벤트·공지 <span class="hint">선택 — 팝업 클릭 시 해당 글 상세로 이동(이동 URL보다 우선)</span></label>
+              <select id="bannerNoticeId"><option value="">연결 안 함</option></select>
+            </div>
+          </div>
+          <div class="form-row">
             <div class="form-group">
               <label>시작일 <span class="req">*</span></label>
               <div class="cdate" id="bsDatePicker">
@@ -895,6 +902,49 @@
             </table>
           </div>
           <div class="pager" id="bvPager"></div>
+        </div>
+      </div>
+
+      <!-- 이벤트·공지 (피드) -->
+      <div id="page-notices" class="admin-page" style="display:none;">
+        <h1 class="page-title">이벤트·공지</h1>
+        <div class="form-card">
+          <div class="form-section-title">작성</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>유형 <span class="req">*</span></label>
+              <select id="noticeType"><option value="notice">공지</option><option value="event">이벤트</option></select>
+            </div>
+            <div class="form-group">
+              <label>게시일 <span class="hint">비우면 현재시각</span></label>
+              <input type="date" id="noticePublishedAt">
+            </div>
+          </div>
+          <div class="form-row"><div class="form-group full"><label>제목 <span class="req">*</span></label><input type="text" id="noticeTitle" placeholder="제목"></div></div>
+          <div class="form-row"><div class="form-group full"><label>본문 <span class="hint">줄바꿈 그대로 반영</span></label><textarea id="noticeBody" rows="6" placeholder="본문 내용"></textarea></div></div>
+          <div class="form-row"><div class="form-group full"><label>대표 이미지 URL <span class="hint">선택 (피드 썸네일/상세 이미지)</span></label><input type="text" id="noticeImageUrl" placeholder="https://..."></div></div>
+          <div class="form-row"><div class="form-group full"><label>외부 링크(CTA) URL <span class="hint">선택 (상세 '자세히 보기' 버튼)</span></label><input type="text" id="noticeLinkUrl" placeholder="https://..."></div></div>
+          <div class="form-row">
+            <div class="form-group"><label>이벤트 시작일 <span class="hint">이벤트만</span></label><input type="date" id="noticePeriodStart"></div>
+            <div class="form-group"><label>이벤트 종료일</label><input type="date" id="noticePeriodEnd"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="chk-inline"><input type="checkbox" id="noticePinned"> 상단 고정</label></div>
+            <div class="form-group"><label class="chk-inline"><input type="checkbox" id="noticeHidden"> 숨김</label></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-submit" id="noticeSubmitBtn" onclick="submitNotice()">등록하기</button>
+            <button class="btn-reset" id="noticeCancelBtn" onclick="resetNoticeForm()" style="display:none;">취소</button>
+          </div>
+        </div>
+        <div class="result-card">
+          <div class="result-bar"><div class="result-bar-left"><span>전체 <strong id="nvTotal">0</strong>건</span></div></div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>ID</th><th>유형</th><th>제목</th><th>게시일</th><th>고정</th><th>상태</th><th>관리</th></tr></thead>
+              <tbody id="noticeTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 

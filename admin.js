@@ -57,6 +57,7 @@ function showTab(tab) {
   }
   if (tab === 'view') { renderPlaceList(); renderCampaignList(); }
   if (tab === 'banners') renderBannerList();
+  if (tab === 'notices') renderNoticeList();
   if (tab === 'reports') renderReportList();
   if (tab === 'reviews') renderReviewList();
   if (tab === 'users') renderUserList();
@@ -1035,7 +1036,19 @@ document.addEventListener('click', (e) => {
 const bannerView = { page: 1, size: 100 };
 let bannerEditId = null;
 
+// 배너 폼 '연결 이벤트·공지' 셀렉트 채우기 (현재 선택값 보존)
+async function populateBannerNoticeSelect() {
+  const sel = document.getElementById('bannerNoticeId'); if (!sel) return;
+  const cur = sel.value;
+  try {
+    const r = await fetch('/api/notices?admin=1'); const list = r.ok ? await r.json() : [];
+    sel.innerHTML = '<option value="">연결 안 함</option>' + list.map(n => `<option value="${n.id}">[${n.type === 'event' ? '이벤트' : '공지'}] ${nEsc(n.title)}</option>`).join('');
+    sel.value = cur;
+  } catch (e) {}
+}
+
 function renderBannerList() {
+  populateBannerNoticeSelect();
   const today = getKSTTodayUTC();
   const tbody = document.getElementById('bannerTableBody');
   const sizeEl = document.getElementById('bvSize');
@@ -1095,6 +1108,7 @@ function editBanner(id) {
   bannerEditId = id;
   document.getElementById('bannerImageUrl').value = b.imageUrl;
   document.getElementById('bannerLinkUrl').value = b.linkUrl || '';
+  const nsel = document.getElementById('bannerNoticeId'); if (nsel) { populateBannerNoticeSelect().then(() => { nsel.value = b.noticeId ? String(b.noticeId) : ''; }); nsel.value = b.noticeId ? String(b.noticeId) : ''; }
   gcalSetValue('bs', b.startDate);
   gcalSetValue('be', b.endDate);
   updateBannerPreview();
@@ -1147,6 +1161,7 @@ function resetBannerForm() {
   bannerEditId = null;
   document.getElementById('bannerImageUrl').value = '';
   document.getElementById('bannerLinkUrl').value = '';
+  const nsel = document.getElementById('bannerNoticeId'); if (nsel) nsel.value = '';
   const fileEl = document.getElementById('bannerImageFile');
   if (fileEl) fileEl.value = '';
   gcalSetValue('bs', '');
@@ -1195,27 +1210,109 @@ async function submitBanner() {
   const linkUrl = document.getElementById('bannerLinkUrl').value.trim();
   const startDate = document.getElementById('bannerStartDate').value;
   const endDate = document.getElementById('bannerEndDate').value;
+  const noticeId = (document.getElementById('bannerNoticeId') || {}).value || null;
   if (!imageUrl || !startDate || !endDate) {
     adminToast('이미지, 시작일, 종료일은 필수예요!'); return;
   }
   if (bannerEditId) {
     await fetch(`/api/banners?id=${bannerEditId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageUrl, linkUrl, startDate, endDate })
+      body: JSON.stringify({ imageUrl, linkUrl, startDate, endDate, noticeId })
     });
     const b = banners.find(x => x.id === bannerEditId);
-    if (b) Object.assign(b, { imageUrl, linkUrl, startDate, endDate });
+    if (b) Object.assign(b, { imageUrl, linkUrl, startDate, endDate, noticeId: noticeId ? Number(noticeId) : null });
     adminToast('이벤트 팝업 수정 완료');
   } else {
     const res = await fetch('/api/banners', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageUrl, linkUrl, startDate, endDate })
+      body: JSON.stringify({ imageUrl, linkUrl, startDate, endDate, noticeId })
     });
     banners.unshift(await res.json());
     adminToast('이벤트 팝업 등록 완료');
   }
   resetBannerForm();
   renderBannerList();
+}
+
+// ===== 이벤트·공지 (피드) =====
+let notices = [];
+let noticeEditId = null;
+function nEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+async function renderNoticeList() {
+  try { const r = await fetch('/api/notices?admin=1'); notices = r.ok ? await r.json() : []; }
+  catch (e) { notices = []; }
+  const tb = document.getElementById('noticeTableBody');
+  const tot = document.getElementById('nvTotal'); if (tot) tot.textContent = notices.length;
+  if (!tb) return;
+  tb.innerHTML = notices.map(n => `<tr>
+    <td>${n.id}</td>
+    <td>${n.type === 'event' ? '이벤트' : '공지'}</td>
+    <td>${nEsc(n.title)}</td>
+    <td>${(n.publishedAt || '').slice(0, 10)}</td>
+    <td>${n.pinned ? '📌' : ''}</td>
+    <td>${n.hidden ? '숨김' : '노출'}</td>
+    <td>
+      <button class="btn-edit-sm" onclick="editNotice(${n.id})">수정</button>
+      <button class="btn-edit-sm" onclick="toggleNoticeHidden(${n.id})">${n.hidden ? '노출' : '숨김'}</button>
+      <button class="btn-del-sm" onclick="deleteNotice(${n.id})">삭제</button>
+    </td></tr>`).join('');
+}
+function noticeFormData() {
+  const v = id => (document.getElementById(id) || {}).value || '';
+  return {
+    type: v('noticeType'), title: v('noticeTitle').trim(), body: document.getElementById('noticeBody').value,
+    imageUrl: v('noticeImageUrl').trim(), linkUrl: v('noticeLinkUrl').trim(),
+    periodStart: v('noticePeriodStart'), periodEnd: v('noticePeriodEnd'), publishedAt: v('noticePublishedAt'),
+    pinned: document.getElementById('noticePinned').checked, hidden: document.getElementById('noticeHidden').checked,
+  };
+}
+async function submitNotice() {
+  const f = noticeFormData();
+  if (!f.title) { adminToast('제목은 필수예요!'); return; }
+  if (noticeEditId) {
+    await fetch(`/api/notices?id=${noticeEditId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) });
+    adminToast('수정 완료');
+  } else {
+    await fetch('/api/notices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) });
+    adminToast('등록 완료');
+  }
+  resetNoticeForm();
+  renderNoticeList();
+}
+function editNotice(id) {
+  const n = notices.find(x => x.id === id); if (!n) return;
+  noticeEditId = id;
+  const set = (i, val) => { const el = document.getElementById(i); if (el) el.value = val; };
+  set('noticeType', n.type || 'notice'); set('noticeTitle', n.title || ''); set('noticeBody', n.body || '');
+  set('noticeImageUrl', n.imageUrl || ''); set('noticeLinkUrl', n.linkUrl || '');
+  set('noticePeriodStart', (n.periodStart || '').slice(0, 10)); set('noticePeriodEnd', (n.periodEnd || '').slice(0, 10));
+  set('noticePublishedAt', (n.publishedAt || '').slice(0, 10));
+  document.getElementById('noticePinned').checked = !!n.pinned;
+  document.getElementById('noticeHidden').checked = !!n.hidden;
+  document.getElementById('noticeSubmitBtn').textContent = '수정하기';
+  document.getElementById('noticeCancelBtn').style.display = '';
+  window.scrollTo(0, 0);
+}
+function resetNoticeForm() {
+  noticeEditId = null;
+  ['noticeTitle', 'noticeBody', 'noticeImageUrl', 'noticeLinkUrl', 'noticePeriodStart', 'noticePeriodEnd', 'noticePublishedAt'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+  document.getElementById('noticeType').value = 'notice';
+  document.getElementById('noticePinned').checked = false;
+  document.getElementById('noticeHidden').checked = false;
+  document.getElementById('noticeSubmitBtn').textContent = '등록하기';
+  document.getElementById('noticeCancelBtn').style.display = 'none';
+}
+async function toggleNoticeHidden(id) {
+  const n = notices.find(x => x.id === id); if (!n) return;
+  await fetch(`/api/notices?id=${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hidden: !n.hidden }) });
+  adminToast(n.hidden ? '노출로 전환' : '숨김 처리');
+  renderNoticeList();
+}
+async function deleteNotice(id) {
+  if (!confirm('이 글을 삭제할까요? 되돌릴 수 없어요.')) return;
+  await fetch(`/api/notices?id=${id}`, { method: 'DELETE' });
+  adminToast('삭제 완료');
+  renderNoticeList();
 }
 
 // ===== 회원 목록 =====

@@ -9,7 +9,8 @@ function toBanner(row) {
     startDate: row.start_date,
     endDate: row.end_date,
     hidden: !!row.hidden,
-    sortOrder: row.sort_order || 0
+    sortOrder: row.sort_order || 0,
+    noticeId: row.notice_id || null   // 연결된 이벤트·공지(있으면 팝업 탭 시 그 상세로 이동)
   };
 }
 
@@ -25,6 +26,7 @@ module.exports = async function handler(req, res) {
   )`);
   try { await db.execute("ALTER TABLE banners ADD COLUMN hidden INTEGER DEFAULT 0"); } catch (e) {}
   try { await db.execute("ALTER TABLE banners ADD COLUMN sort_order INTEGER DEFAULT 0"); } catch (e) {} // 노출 순서(작을수록 먼저)
+  try { await db.execute("ALTER TABLE banners ADD COLUMN notice_id INTEGER"); } catch (e) {} // 연결된 이벤트·공지 id
 
   if (req.method === 'GET') {
     // 공개는 숨김 배너 제외, 관리자(mh_admin)만 전체 조회(숨김 관리용). 순서: sort_order 오름차순(작을수록 먼저)
@@ -52,12 +54,13 @@ module.exports = async function handler(req, res) {
     // 새 배너는 맨 뒤로(가장 큰 sort_order+1). 지정값 오면 그대로.
     const so = (req.body || {}).sortOrder !== undefined ? Number(req.body.sortOrder) || 0
       : Number((await db.execute("SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM banners")).rows[0].n);
+    const noticeId = (req.body || {}).noticeId || null;
     const result = await db.execute({
-      sql: `INSERT INTO banners (image_url, link_url, start_date, end_date, sort_order) VALUES (?, ?, ?, ?, ?)`,
-      args: [imageUrl, linkUrl || '', startDate, endDate, so]
+      sql: `INSERT INTO banners (image_url, link_url, start_date, end_date, sort_order, notice_id) VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [imageUrl, linkUrl || '', startDate, endDate, so, noticeId ? Number(noticeId) : null]
     });
     const id = Number(result.lastInsertRowid);
-    return res.status(201).json({ id, imageUrl, linkUrl: linkUrl || '', startDate, endDate, sortOrder: so });
+    return res.status(201).json({ id, imageUrl, linkUrl: linkUrl || '', startDate, endDate, sortOrder: so, noticeId: noticeId ? Number(noticeId) : null });
   }
 
   if (req.method === 'PATCH') {
@@ -71,6 +74,7 @@ module.exports = async function handler(req, res) {
     if (b.endDate !== undefined) { fields.push('end_date = ?'); args.push(b.endDate); }
     if (b.hidden !== undefined) { fields.push('hidden = ?'); args.push(b.hidden ? 1 : 0); }
     if (b.sortOrder !== undefined) { fields.push('sort_order = ?'); args.push(Number(b.sortOrder) || 0); }
+    if (b.noticeId !== undefined) { fields.push('notice_id = ?'); args.push(b.noticeId ? Number(b.noticeId) : null); }
     if (!fields.length) return res.status(400).json({ error: '수정할 항목이 필요합니다.' });
     args.push(id);
     await db.execute({ sql: `UPDATE banners SET ${fields.join(', ')} WHERE id = ?`, args });

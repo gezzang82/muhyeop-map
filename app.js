@@ -840,9 +840,15 @@ function showBannerPopup(force) {
   // 슬라이드(이미지) 렌더
   track.innerHTML = active.map(b => `<img class="banner-slide" src="${b.imageUrl}" alt="공지/이벤트" draggable="false">`).join('');
   Array.from(track.querySelectorAll('.banner-slide')).forEach((img, i) => {
-    const link = active[i].linkUrl;
-    img.style.cursor = link ? 'pointer' : 'default';
-    img.onclick = () => { if (!_bannerDragged && link) openExternal(link); };
+    const b = active[i];
+    const clickable = !!(b.noticeId || b.linkUrl);
+    img.style.cursor = clickable ? 'pointer' : 'default';
+    // 연결된 공지(noticeId) 있으면 팝업 닫고 이벤트·공지 상세로, 없으면 기존처럼 외부 링크
+    img.onclick = () => {
+      if (_bannerDragged) return;
+      if (b.noticeId) { closeBannerPopup(); openNoticeDetail(b.noticeId); }
+      else if (b.linkUrl) openExternal(b.linkUrl);
+    };
   });
   // 점 인디케이터 (배너 2개 이상일 때만)
   if (active.length > 1) {
@@ -2624,7 +2630,7 @@ function openPolicy(type) {
   document.getElementById('policyStickyHeader').classList.remove('show');
   const body = document.getElementById('policyBody');
   // 모바일: 제보하기처럼 큰 타이틀(scroll-header)이 본문 위에서 스크롤되어 사라지고 sticky가 등장
-  body.innerHTML = `<div class="modal-scroll-header" id="policyScrollHeader"><h2>${data.title}</h2></div>` + data.body;
+  body.innerHTML = `<div class="modal-scroll-header" id="policyScrollHeader"><button class="mlset-back" onclick="closePolicy()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h2>${data.title}</h2></div>` + data.body;
   const ov = document.getElementById('policyOverlay');
   ov.classList.add('open');
   void ov.offsetHeight;   // display:none→flex 반영 후에 리셋해야 브라우저의 스크롤 복원을 막음
@@ -2779,6 +2785,65 @@ function onAlarmToggle() {
   applyAlarmGate();
   if (typeof renderMlItems === 'function') renderMlItems();
 }
+
+// ===== 이벤트·공지 피드 (MY → 이벤트·공지). 한 테이블(type) 피드형 + 상단 필터(전체/공지/이벤트) =====
+let _notices = null;         // 목록 캐시(세션)
+let _noticeFilter = 'all';   // all | notice | event
+function noticeDateFmt(s) { return (s || '').slice(0, 10).replace(/-/g, '.'); }
+function noticeTypeLabel(t) { return t === 'event' ? '이벤트' : '공지'; }
+
+async function openNoticeFeed() {
+  syncMobileModalHeader('#noticeOverlay');
+  bindMobileScrollHeader('noticeBody', 'noticeScrollHeader', 'noticeStickyHeader');
+  const sticky = document.getElementById('noticeStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('noticeBody'); if (body) body.scrollTop = 0;
+  document.getElementById('noticeOverlay').classList.add('open');
+  const feed = document.getElementById('noticeFeed');
+  if (_notices === null) {
+    if (feed) feed.innerHTML = '<div class="notice-empty">불러오는 중…</div>';
+    try { const r = await fetch('/api/notices', { credentials: 'same-origin' }); _notices = r.ok ? await r.json() : []; }
+    catch (e) { _notices = []; }
+  }
+  renderNoticeFeed();
+}
+function closeNoticeFeed() { document.getElementById('noticeOverlay').classList.remove('open'); resetModalScroll('noticeOverlay'); }
+function setNoticeFilter(f) {
+  _noticeFilter = f;
+  document.querySelectorAll('#noticeFilter .notice-chip').forEach(c => c.classList.toggle('active', c.dataset.nf === f));
+  renderNoticeFeed();
+}
+function renderNoticeFeed() {
+  const feed = document.getElementById('noticeFeed'); if (!feed) return;
+  const list = (_notices || []).filter(n => _noticeFilter === 'all' || n.type === _noticeFilter);
+  if (!list.length) { feed.innerHTML = '<div class="notice-empty">등록된 소식이 없어요.</div>'; return; }
+  feed.innerHTML = list.map(n => {
+    const excerpt = mlEsc((n.body || '').replace(/\s+/g, ' ').trim().slice(0, 60));
+    const img = n.imageUrl ? `<div class="notice-card-img"><img src="${n.imageUrl}" alt="" draggable="false"></div>` : '';
+    return `<button class="notice-card" onclick="openNoticeDetail(${n.id})">${img}<div class="notice-card-main">`
+      + `<div class="notice-card-top"><span class="notice-badge nb-${n.type}">${noticeTypeLabel(n.type)}</span><span class="notice-card-date">${noticeDateFmt(n.publishedAt)}</span></div>`
+      + `<div class="notice-card-title">${mlEsc(n.title)}</div>`
+      + (excerpt ? `<div class="notice-card-excerpt">${excerpt}</div>` : '')
+      + `</div></button>`;
+  }).join('');
+}
+async function openNoticeDetail(id) {
+  syncMobileModalHeader('#noticeDetailOverlay');
+  bindMobileScrollHeader('noticeDtBody', 'noticeDtScrollHeader', 'noticeDtStickyHeader');
+  const sticky = document.getElementById('noticeDtStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('noticeDtBody'); if (body) body.scrollTop = 0;
+  const box = document.getElementById('noticeDetail'); if (box) box.innerHTML = '<div class="notice-empty">불러오는 중…</div>';
+  document.getElementById('noticeDetailOverlay').classList.add('open');
+  let n = (_notices || []).find(x => x.id === id);
+  if (!n) { try { const r = await fetch('/api/notices?id=' + id, { credentials: 'same-origin' }); if (r.ok) n = await r.json(); } catch (e) {} }
+  if (!n) { if (box) box.innerHTML = '<div class="notice-empty">소식을 불러오지 못했어요.</div>'; return; }
+  const period = (n.type === 'event' && (n.periodStart || n.periodEnd)) ? `<div class="notice-dt-period">기간 ${noticeDateFmt(n.periodStart)} ~ ${noticeDateFmt(n.periodEnd)}</div>` : '';
+  const img = n.imageUrl ? `<img class="notice-dt-img" src="${n.imageUrl}" alt="" draggable="false">` : '';
+  const cta = n.linkUrl ? `<a class="notice-dt-cta" href="${n.linkUrl}" target="_blank" rel="noopener">자세히 보기</a>` : '';
+  if (box) box.innerHTML = `<div class="notice-dt-top"><span class="notice-badge nb-${n.type}">${noticeTypeLabel(n.type)}</span><span class="notice-card-date">${noticeDateFmt(n.publishedAt)}</span></div>`
+    + `<h2 class="notice-dt-title">${mlEsc(n.title)}</h2>${period}${img}`
+    + `<div class="notice-dt-body">${mlEsc(n.body || '').replace(/\n/g, '<br>')}</div>${cta}`;
+}
+function closeNoticeDetail() { document.getElementById('noticeDetailOverlay').classList.remove('open'); resetModalScroll('noticeDetailOverlay'); }
 window.switchTab = switchTab;
 window.openMyAlarmSetting = openMyAlarmSetting;
 

@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=140">
+  <link rel="stylesheet" href="style.css?v=143">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -342,6 +342,51 @@
     </div>
   </div>
 
+  <!-- 이벤트·공지 피드 (MY → 이벤트·공지). 한 테이블(type) 피드형 + 상단 필터 -->
+  <div class="modal-overlay" id="noticeOverlay" onclick="closeNoticeFeed()">
+    <div class="modal profile-modal notice-modal" onclick="event.stopPropagation()">
+      <div class="modal-sticky-header" id="noticeStickyHeader">
+        <button class="mlset-back" onclick="closeNoticeFeed()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>이벤트·공지</span>
+      </div>
+      <div class="modal-header">
+        <h2>이벤트·공지</h2>
+      </div>
+      <div class="modal-body" id="noticeBody">
+        <div class="modal-scroll-header" id="noticeScrollHeader">
+          <button class="mlset-back" onclick="closeNoticeFeed()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>이벤트·공지</h2>
+        </div>
+        <div class="notice-filter" id="noticeFilter">
+          <button class="notice-chip active" data-nf="all" onclick="setNoticeFilter('all')">전체</button>
+          <button class="notice-chip" data-nf="notice" onclick="setNoticeFilter('notice')">공지</button>
+          <button class="notice-chip" data-nf="event" onclick="setNoticeFilter('event')">이벤트</button>
+        </div>
+        <div class="notice-feed" id="noticeFeed"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 이벤트·공지 상세 -->
+  <div class="modal-overlay" id="noticeDetailOverlay" onclick="closeNoticeDetail()">
+    <div class="modal profile-modal notice-modal" onclick="event.stopPropagation()">
+      <div class="modal-sticky-header" id="noticeDtStickyHeader">
+        <button class="mlset-back" onclick="closeNoticeDetail()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>이벤트·공지</span>
+      </div>
+      <div class="modal-header">
+        <h2>이벤트·공지</h2>
+      </div>
+      <div class="modal-body" id="noticeDtBody">
+        <div class="modal-scroll-header" id="noticeDtScrollHeader">
+          <button class="mlset-back" onclick="closeNoticeDetail()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>이벤트·공지</h2>
+        </div>
+        <div class="notice-detail" id="noticeDetail"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- 후기 등록 (네이버 블로그 URL) — 모바일 풀페이지 / PC 가운데 팝업 -->
   <div class="fullpage-overlay" id="reviewFormOverlay">
     <div class="signup-page">
@@ -369,15 +414,13 @@
   <div class="modal-overlay" id="policyOverlay" onclick="closePolicy()">
     <div class="modal policy-modal" onclick="event.stopPropagation()">
       <div class="modal-sticky-header" id="policyStickyHeader">
+        <button class="mlset-back" onclick="closePolicy()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <span id="policyStickyTitle"></span>
       </div>
       <div class="modal-header">
         <h2 id="policyTitle"></h2>
       </div>
       <div class="modal-body" id="policyBody"></div>
-      <div class="modal-footer policy-footer">
-        <button class="btn-next" onclick="closePolicy()" style="width:100%">닫기</button>
-      </div>
     </div>
   </div>
 
@@ -597,8 +640,8 @@
     <div class="modal about-modal" onclick="event.stopPropagation()">
       <div class="about-drag-handle" onclick="closeAbout()"></div>
       <div class="modal-header">
+        <button class="mlset-back" onclick="closeAbout()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <h2>무협맵 소개</h2>
-        <button class="modal-close" onclick="closeAbout()">✕</button>
       </div>
       <div class="modal-body">
         <div class="intro">
@@ -691,9 +734,6 @@
             <button onclick="openPolicy('terms')">이용약관</button>
           </div>
         </div>
-      </div>
-      <div class="modal-footer about-footer">
-        <button class="btn-next" onclick="closeAbout()" style="width:100%">닫기</button>
       </div>
     </div>
   </div>
@@ -1096,7 +1136,7 @@
         <button class="mypage-menu-item" onclick="openMyAlarmSetting()">알림설정</button>
         <div class="mypage-menu-line"></div>
         <button class="mypage-menu-item" onclick="openAbout()">무협맵 소개</button>
-        <button class="mypage-menu-item" onclick="showBannerPopup(true)">이벤트·공지</button>
+        <button class="mypage-menu-item" onclick="openNoticeFeed()">이벤트·공지</button>
         <button class="mypage-menu-item" onclick="openPolicy('terms')">이용약관</button>
         <button class="mypage-menu-item" onclick="openPolicy('privacy')">개인정보처리방침</button>
         <button class="mypage-menu-item" onclick="openPolicy('operation')">운영정책</button>
@@ -1259,7 +1299,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=157"></script>
+  <script src="app.js?v=160"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
