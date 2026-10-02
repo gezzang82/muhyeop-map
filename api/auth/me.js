@@ -24,8 +24,9 @@ module.exports = async function handler(req, res) {
   // 최종접속 시각: 매 접속마다 갱신(UTC 저장, 어드민에서 fmtKST로 KST 변환). user_visits는 날짜만 남아 시각 표기 불가라 별도 컬럼.
   try { await db.execute("ALTER TABLE users ADD COLUMN last_seen_at TEXT"); } catch (e) {}
   try { await db.execute({ sql: "UPDATE users SET last_seen_at = datetime('now') WHERE id = ?", args: [session.userId] }); } catch (e) {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN profile_image TEXT"); } catch (e) {}
 
-  const result = await db.execute({ sql: 'SELECT email, url_platform, url_id, created_at FROM users WHERE id = ?', args: [session.userId] });
+  const result = await db.execute({ sql: 'SELECT email, url_platform, url_id, profile_image, created_at FROM users WHERE id = ?', args: [session.userId] });
   const row = result.rows[0] || {};
 
   // 기여 통계: 협찬 제보(내 캠페인) / 후기 등록(내 후기) / 도움돼요(내 후기가 받은 좋아요 총합) / 접속일 수
@@ -55,6 +56,7 @@ module.exports = async function handler(req, res) {
       email: row.email || '',
       urlPlatform: row.url_platform || '',
       urlId: row.url_id || '',
+      profileImage: row.profile_image || '',
       createdAt: row.created_at || '',
       reportCount,
       reviewCount,

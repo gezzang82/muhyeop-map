@@ -37,7 +37,8 @@ html, body {
    overscroll-behavior는 상속되지 않아 스크롤 컨테이너마다 직접 지정해야 함(iOS 16+ WebView).
    → 바텀시트 리스트를 위로/아래로 당길 때 튕기던(내려갔다 올라옴) 현상 제거 */
 .sidebar-list, .detail-scroll, .modal-body, .signup-content,
-.select-sheet-list, .side-menu-content, .rv-pane-review {
+.select-sheet-list, .side-menu-content, .rv-pane-review,
+.cm-scroll, .mypage-scroll, #mlScroll, .mlset-s2-scroll {
   overscroll-behavior: none;
 }
 
@@ -2269,6 +2270,20 @@ body.pc-myinfo-mode #map::after { cursor: pointer; }
   background: rgba(232, 42, 45, 0.35); pointer-events: none;
   animation: searchPinRing 1.6s ease-out infinite;
 }
+/* 검색핀 위 '후기 등록' 말풍선 (매장명 검색 시) */
+.search-pin-bubble {
+  position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%);
+  z-index: 2; display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px 7px 12px; border-radius: 999px; white-space: nowrap;
+  background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.18); pointer-events: auto;
+}
+.search-pin-bubble::after {
+  content: ''; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%);
+  width: 10px; height: 10px; background: #fff; border-radius: 0 0 2px 0;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.08); clip-path: polygon(100% 0, 0 100%, 100% 100%); rotate: 45deg;
+}
+.search-pin-bubble .spb-name { font-size: 13px; font-weight: 600; color: #222; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.search-pin-bubble .spb-review-btn { flex-shrink: 0; padding: 5px 12px; border: 0; border-radius: 999px; background: #F51122; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
 @keyframes searchPinDrop {
   0%   { transform: translateY(-64px); opacity: 0; }
   60%  { opacity: 1; }
@@ -3206,6 +3221,25 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .rv-verify-btn:hover { background: #f5f5f5; }
 .rv-form-error { color: #E82A2D; font-size: 14px; margin: 4px 0 0; }
 .rv-preview-label { font-size: 14px; color: #555; margin: 8px 0; }
+/* 후기등록 매장 검색/선택 */
+.rv-store-results { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.rv-store-item { display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%; padding: 12px 14px; border: 1px solid #eee; border-radius: 10px; background: #fff; cursor: pointer; }
+.rv-store-item:hover { background: #fafafa; }
+.rv-store-item-name { font-size: 15px; font-weight: 600; color: #000; }
+.rv-store-item-addr { font-size: 13px; color: #888; }
+.rv-store-none { padding: 16px 4px; font-size: 14px; color: #999; }
+.rv-store-selected { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; }
+.rv-store-sel-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rv-store-sel-name { font-size: 15px; font-weight: 600; color: #000; }
+.rv-store-sel-addr { font-size: 13px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-store-change { flex-shrink: 0; padding: 7px 14px; border: 1px solid rgba(170,170,170,0.87); background: #fff; border-radius: 8px; font-size: 14px; color: #1a1a1a; cursor: pointer; }
+/* 프로필 사진 (회원정보관리) — 원형, object-fit:cover로 찌부 없음 */
+.profile-photo-row { display: flex; align-items: center; gap: 16px; }
+.profile-photo-preview { flex-shrink: 0; width: 72px; height: 72px; border-radius: 50%; overflow: hidden; background: #eee; display: block; }
+.profile-photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.profile-photo-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.profile-photo-btn { padding: 8px 16px; border: 1px solid rgba(170,170,170,0.87); background: #fff; border-radius: 8px; font-size: 14px; color: #1a1a1a; cursor: pointer; }
+.profile-photo-reset { padding: 0; border: 0; background: none; font-size: 13px; color: #999; cursor: pointer; text-decoration: underline; }
 
 /* PC: 후기 등록은 가운데 팝업 (signup 팝업과 동일 패턴) */
 @media (min-width: 641px) {
@@ -3354,6 +3388,97 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .tab-view-placeholder .tvp-emoji { font-size: 44px; line-height: 1; }
   .tab-view-placeholder h2 { font-size: 20px; font-weight: 700; color: #1a1a1a; margin: 0; }
   .tab-view-placeholder p { font-size: 14px; font-weight: 400; color: #888; margin: 0; line-height: 1.6; }
+
+  /* ===== 커뮤니티 탭 (이웃찾기 + 후기) ===== */
+  .tab-view.community { background: #f7f9fa; overflow: hidden; }
+  .cm-scroll { width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .cm-inner { padding: 20px 20px calc(28px + var(--gnb-h)); box-sizing: border-box; }
+  /* 상단 세이프에어리어는 .modal-scroll-header(.cm-scroll-header)가 처리 → .cm-inner에 중복 적용 금지(내 장소와 동일 패턴) */
+  .cm-scroll-header { padding: 0; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+  .cm-scroll-header h2 { margin: 0; flex: 1; min-width: 0; }
+  .cm-myrev-link { flex-shrink: 0; background: none; border: 0; padding: 0; font-size: 16px; color: #555; cursor: pointer; }
+  .cm-myrev-link[hidden] { display: none; }
+  /* 세그먼트 토글 */
+  .cm-seg { display: flex; gap: 6px; margin-bottom: 16px; }
+  .cm-seg-btn { flex: 0 0 auto; height: 40px; padding: 8px 16px; border-radius: 20px; border: 0; background: rgba(57,57,92,0.12); font-size: 16px; color: #39395c; cursor: pointer; }
+  .cm-seg-btn.active { background: #39395c; color: #fff; font-weight: 700; }
+  /* 이웃찾기 안내 배너(캐릭터 + 문구) */
+  .cm-info-banner { position: relative; display: flex; align-items: flex-start; gap: 6px; background: #ededee; border-radius: 8px; padding: 12px; margin: 0 0 16px; }
+  .cm-info-dot { flex-shrink: 0; width: 3px; height: 3px; border-radius: 50%; background: #111; margin-top: 7px; }
+  .cm-info-text { margin: 0; font-size: 14px; line-height: 18px; color: #111; }
+  /* 스크롤 투 탑 버튼 (우하단, 스크롤 시 노출) */
+  .cm-top-btn { position: absolute; right: 20px; bottom: 16px; z-index: 10; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #eee; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .cm-top-btn[hidden] { display: none; }
+  /* 후기작성 FAB(네이비 연필, 후기 세그먼트) */
+  .cm-write-fab { position: absolute; right: 20px; bottom: 16px; z-index: 10; width: 48px; height: 48px; border-radius: 50%; border: 0; background: #39395c; box-shadow: 0 4px 10px rgba(57,57,92,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .cm-write-fab[hidden] { display: none; }
+  /* 후기 안내배너(캐릭터 없음) */
+  .cm-info-plain { margin: 0 0 16px; }
+  /* 후기 총건수·정렬·카드는 지도 상세 후기 pane 컴포넌트(rv-list-head/rv-sort/rv-cards/rv-card) 재사용.
+     상세 pane은 흰 시트 안 flat 행이지만, 커뮤니티 후기는 각 후기가 흰 카드라 #cmBody 스코프로만 카드화 */
+  #cmBody .rv-cards { gap: 12px; }
+  #cmBody .rv-card { align-items: center; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+  .cm-info-char { position: absolute; right: 10px; bottom: calc(100% - 37px); width: 104px; height: 104px; object-fit: contain; pointer-events: none; }
+  /* 카테고리 칩(가로 스크롤) */
+  .cm-chips { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .cm-chips[hidden] { display: none; }   /* display:flex가 [hidden] 기본값(none)을 덮으므로 명시 */
+  .cm-chips::-webkit-scrollbar { display: none; }
+  .cm-chip { flex: 0 0 auto; padding: 6px 14px; border-radius: 999px; border: 1px solid #e5e5e5; background: #fff; font-size: 13px; color: #777; white-space: nowrap; cursor: pointer; }
+  .cm-chip.active { border-color: #aaa; color: #000; font-weight: 700; }
+  .cm-hint { font-size: 13px; color: #888; margin: 0 0 12px; line-height: 1.5; }
+  /* 후기등록 버튼(후기 세그먼트 상단) */
+  .cm-reg-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 12px; margin-bottom: 12px; border: 0; border-radius: 10px; background: #fff; box-shadow: 0 0 2px rgba(0,0,0,0.1); font-size: 14px; font-weight: 700; color: #1a1a1a; cursor: pointer; }
+  .cm-loading { font-size: 13px; color: #999; text-align: center; padding: 48px 0; }
+  /* 서이추 카드 리스트 */
+  .cm-sc-list { display: flex; flex-direction: column; gap: 10px; }
+  .cm-sc-card { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+  .cm-sc-avatar { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: #eee; }
+  .cm-sc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .cm-sc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .cm-sc-nick-row { display: flex; align-items: center; gap: 6px; }
+  .cm-sc-nick { font-size: 15px; font-weight: 500; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cm-sc-prov { flex-shrink: 0; }
+  /* 글쓰기 박스 (이웃찾기) */
+  .cm-compose { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 16px 16px 12px; margin-bottom: 12px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+  .cm-compose-input { width: 100%; border: 0; resize: none; overflow-y: auto; min-height: 42px; max-height: 180px; font-size: 15px; line-height: 1.4; color: #000; background: transparent; outline: none; font-family: inherit; }
+  .cm-compose-input::placeholder { color: #bbb; }
+  .cm-compose-divider { height: 1px; background: #eee; margin: 12px 0; }
+  .cm-compose-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cm-compose-blog { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cm-compose-blog img { flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px; object-fit: cover; }
+  .cm-compose-btn { flex-shrink: 0; height: 32px; padding: 0 16px; border-radius: 8px; border: 0; background: #f51122; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .cm-compose-btn:disabled { opacity: 0.5; }
+  .cm-compose-cta { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; }
+  .cm-compose-msg { margin: 0; font-size: 13px; color: #777; line-height: 1.4; }
+  /* 게시글 카드 (이웃찾기) */
+  .cm-sc-list { display: flex; flex-direction: column; gap: 12px; }
+  .cm-sc-post { background: #fff; border-radius: 12px; padding: 12px 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+  .cm-sc-head { display: flex; align-items: center; gap: 12px; }
+  .cm-sc-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .cm-sc-time { flex-shrink: 0; font-size: 12px; color: #aaa; }
+  .cm-sc-linkrow { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cm-sc-plat { flex-shrink: 0; width: 12px; height: 12px; border-radius: 2px; object-fit: cover; }
+  .cm-sc-cta { flex-shrink: 0; height: 31px; padding: 0 12px; border-radius: 8px; border: 1px solid #aaa; background: #fff; color: #000; font-size: 13px; font-weight: 400; cursor: pointer; }
+  .cm-sc-divider { height: 1px; background: #eee; margin: 12px 0; }
+  .cm-sc-content { margin: 0; font-size: 15px; line-height: 21px; color: #222; white-space: pre-wrap; word-break: break-word; }
+  /* 후기 포스트잇 2열(살짝 회전=게시벽 느낌) */
+  .cm-rv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cm-rv-card { display: flex; flex-direction: column; gap: 8px; border-radius: 12px; padding: 14px; min-height: 118px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .cm-rv-card:nth-child(odd) { transform: rotate(-0.7deg); }
+  .cm-rv-card:nth-child(even) { transform: rotate(0.7deg); }
+  .cm-rv-c0 { background: #FFF6E6; } .cm-rv-c1 { background: #EAF4FF; } .cm-rv-c2 { background: #F0F7EC; }
+  .cm-rv-tags { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; }
+  .cm-rv-place { font-size: 12px; font-weight: 700; color: #333; }
+  .cm-rv-cat { font-size: 11px; color: #888; }
+  .cm-rv-line { flex: 1; margin: 0; font-size: 13px; line-height: 1.45; color: #222; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .cm-rv-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cm-rv-author { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cm-rv-seoichu { flex-shrink: 0; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.12); background: rgba(255,255,255,0.7); font-size: 11px; font-weight: 700; color: #F51122; cursor: pointer; }
+  /* 빈 상태 */
+  .cm-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 56px 24px; }
+  .cm-empty-title { margin: 0; font-size: 16px; font-weight: 700; color: #333; }
+  .cm-empty-desc { margin: 0; font-size: 13px; color: #999; line-height: 1.5; }
+  .cm-empty-btn { margin-top: 8px; padding: 10px 20px; border-radius: 8px; border: 0; background: #F51122; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
 
   /* ===== MY 페이지 (Figma 1728-44131) ===== */
   /* 상단(프로필/카드)은 고정, 하단 메뉴영역만 스크롤 */

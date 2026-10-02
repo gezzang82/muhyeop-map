@@ -1,6 +1,40 @@
 const { getDb } = require('./_db');
 const { requireAdmin } = require('./auth/_admin');
 const { readSession } = require('./auth/_session');
+const { enforceRateLimit } = require('./_ratelimit');
+
+// 서이추 글 테이블 보장(최초 1회)
+async function ensureSeoichuTable(db) {
+  try {
+    await db.execute(`CREATE TABLE IF NOT EXISTS seoichu_posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      hidden INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')))`);
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_seoichu_created ON seoichu_posts(created_at)");
+  } catch (e) {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN profile_image TEXT"); } catch (e) {}
+}
+
+// 서이추 글쓰기(공개 아님 — 로그인 + 블로그 등록자만). content 200자 제한, 레이트리밋.
+async function handleSeoichuPost(req, res, db) {
+  const session = readSession(req);
+  if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+  if (!await enforceRateLimit(req, res, { name: 'seoichu', limit: 10, windowSec: 300 })) return;
+  await ensureSeoichuTable(db);
+  // SNS(블로그/인스타) 등록 여부 확인 — 이웃찾기는 블로그·인스타 모두 가능
+  const u = (await db.execute({ sql: "SELECT url_platform, url_id FROM users WHERE id = ?", args: [session.userId] })).rows[0];
+  if (!u || !u.url_id || (u.url_platform !== '블로그' && u.url_platform !== '인스타그램')) {
+    return res.status(400).json({ error: 'SNS 계정을 먼저 등록해주세요.', needBlog: true });
+  }
+  const content = String((req.body && req.body.content) || '').replace(/\s*\n\s*/g, ' ').trim().slice(0, 100);
+  if (!content) return res.status(400).json({ error: '내용을 입력해주세요.' });
+  const { hasProfanity } = require('./_profanity');
+  if (hasProfanity(content)) return res.status(400).json({ error: '부적절한 표현이 포함되어 있어요. 수정 후 다시 등록해주세요.' });
+  await db.execute({ sql: "INSERT INTO seoichu_posts (user_id, content) VALUES (?, ?)", args: [session.userId, content] });
+  return res.status(201).json({ ok: true });
+}
 
 // 앱 푸시(FCM) — 기기 토큰 + 관심위치 저장 테이블(로그인 안 해도 기기 단위). 설계: docs/product/16-push-notifications.md
 async function ensurePushTables(db) {
@@ -208,6 +242,11 @@ module.exports = async function handler(req, res) {
     return handleUserPlaces(req, res, db);
   }
 
+  // 서이추 글쓰기(POST) — GET 가드 이전. 로그인+블로그 필요.
+  if (req.method === 'POST' && req.query.seoichu !== undefined) {
+    return handleSeoichuPost(req, res, db);
+  }
+
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -241,6 +280,38 @@ module.exports = async function handler(req, res) {
     const top = result.rows[0];
     if (!top) return res.status(200).json({ nickname: '', count: 0 });
     return res.status(200).json({ nickname: top.nickname || '', count: Number(top.count) });
+  }
+
+  // 서이추 게시판 글 목록(공개) — 블로그 등록자가 쓴 글만. 프사·닉·작성시간·작성글·블로그.
+  // GET ?seoichu=1&limit=&offset=. 커뮤니티 '서이추' 세그먼트.
+  if (req.query.seoichu !== undefined) {
+    await ensureSeoichuTable(db);
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 30));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+    let rows = [];
+    try {
+      rows = (await db.execute({
+        sql: `SELECT s.id AS id, s.content AS content, s.created_at AS created_at,
+                     u.nickname AS nickname, u.provider AS provider,
+                     u.url_platform AS url_platform, u.url_id AS url_id, u.profile_image AS profile_image
+              FROM seoichu_posts s JOIN users u ON u.id = s.user_id
+              WHERE COALESCE(s.hidden,0)=0 AND u.url_id IS NOT NULL AND u.url_id <> '' AND u.url_platform IN ('블로그','인스타그램')
+              ORDER BY s.created_at DESC, s.id DESC
+              LIMIT ? OFFSET ?`,
+        args: [limit, offset]
+      })).rows;
+    } catch (e) { rows = []; }
+    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    return res.status(200).json(rows.map(x => ({
+      id: x.id,
+      nickname: x.nickname || '익명',
+      provider: x.provider || '',
+      urlPlatform: x.url_platform || '',
+      urlId: x.url_id || '',
+      profileImage: x.profile_image || '',
+      content: x.content || '',
+      createdAt: x.created_at || ''
+    })));
   }
 
   // 전체 회원 목록(이메일 등 PII 포함)은 관리자만

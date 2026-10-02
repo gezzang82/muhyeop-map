@@ -763,23 +763,35 @@ function showMyLocationMarker(lat, lng) {
 }
 
 // 검색 결과 위치 핀 (image/ic_pin_28.svg) — 검색할 때마다 위치 갱신, 다른 검색/선택 시 제거
+// store 인자가 있으면(매장명 검색) 핀 위에 '후기 등록' 말풍선 노출 → 없는 매장도 후기 등록(3번째 진입점)
 let searchPinMarker = null;
-function showSearchPin(lat, lng) {
+let _searchPinStore = null;
+function showSearchPin(lat, lng, store) {
   // 매 검색마다 재생성 → 바운스 드롭 인터랙션이 다시 재생됨
   clearSearchPin();
+  _searchPinStore = store ? { name: store.name, address: store.address || '', lat: lat, lng: lng, category: store.category || '' } : null;
+  const bubble = store
+    ? `<div class="search-pin-bubble"><span class="spb-name">${rvEsc(store.name)}</span><button class="spb-review-btn" onclick="searchPinReview()">후기 등록</button></div>`
+    : '';
   searchPinMarker = new naver.maps.Marker({
     position: new naver.maps.LatLng(lat, lng),
     map,
     zIndex: 900,
     clickable: false,
     icon: {
-      content: '<div class="search-pin"><span class="search-pin-ring"></span><img src="image/ic_pin_28.svg" width="28" height="28" alt="검색 위치" draggable="false"></div>',
+      content: `<div class="search-pin">${bubble}<span class="search-pin-ring"></span><img src="image/ic_pin_28.svg" width="28" height="28" alt="검색 위치" draggable="false"></div>`,
       anchor: new naver.maps.Point(14, 25)
     }
   });
 }
+function searchPinReview() {
+  if (!_searchPinStore) return;
+  if (!currentUser) { openLoginSheet(); return; }
+  openReviewRegisterForPlace(_searchPinStore);
+}
 function clearSearchPin() {
   if (searchPinMarker) { searchPinMarker.setMap(null); searchPinMarker = null; }
+  _searchPinStore = null;
 }
 
 // 최초 진입 시 내 위치로 지도 중심 이동 (권한 거부/실패 시 기본 위치 유지)
@@ -1355,6 +1367,8 @@ function createMobileDetailContent(place) {
 // ===== 후기(리뷰) 탭 + 리스트 + 등록 =====
 let _detailPlaceId = null, _detailTab = 'campaign', _reviewSort = 'latest', _reviewLoaded = false;
 let _reviewFormPlaceId = null, _reviewValidated = false;
+let _reviewFormNewPlace = null;   // 없는 매장 후기 등록 시 {name,address,lat,lng,naverCategory}
+let _reviewAfterSubmit = null;    // 등록 성공 후 콜백(커뮤니티 새로고침 등)
 
 function rvEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function rvHeart() { return '<img class="rv-heart-off" src="image/ic_good_def.svg" width="16" height="14" alt=""><img class="rv-heart-on" src="image/ic_good_sel.svg" width="16" height="14" alt="">'; }
@@ -1592,22 +1606,134 @@ function rvSetError(msg) {
   if (msg) { err.textContent = msg; err.classList.add('show'); if (input) input.classList.add('input-error'); }
   else { err.textContent = ''; err.classList.remove('show'); if (input) input.classList.remove('input-error'); }
 }
-function openReviewForm(placeId) {
-  if (!currentUser) { openLoginSheet(); return; }
-  _reviewFormPlaceId = placeId;
+// 공통 폼 초기화 + 오픈
+function rvOpenFormBase() {
   _reviewValidated = false;
   document.getElementById('reviewUrl').value = '';
   document.getElementById('reviewPreview').innerHTML = '';
-  // 직전 등록 성공/401 후 disabled로 남은 버튼을 항상 초기화(두 번째 등록이 안 되던 버그 방지)
   const sb = document.getElementById('reviewSubmitBtn'); if (sb) sb.disabled = false;
   rvSetError('');
   document.getElementById('reviewFormOverlay').classList.add('open');
+}
+// 매장 상세(기존 매장)에서 후기 등록 — 매장 이미 선택됨, 검색 영역 숨김
+function openReviewForm(placeId) {
+  if (!currentUser) { openLoginSheet(); return; }
+  _reviewFormPlaceId = placeId;
+  _reviewFormNewPlace = null;
+  _reviewAfterSubmit = null;
+  document.getElementById('rvStoreGroup').hidden = true;      // 매장 선택 단계 생략
+  rvShowUrlStep(true);
+  rvOpenFormBase();
+}
+// 커뮤니티 '후기등록' 버튼 — 매장 검색부터
+function openReviewRegister(afterSubmit) {
+  if (!currentUser) { openLoginSheet(); return; }
+  _reviewFormPlaceId = null;
+  _reviewFormNewPlace = null;
+  _reviewAfterSubmit = afterSubmit || null;
+  document.getElementById('rvStoreGroup').hidden = false;
+  rvShowSelectedStore(null);                                   // 검색 상태로 시작
+  document.getElementById('rvStoreSearch').value = '';
+  document.getElementById('rvStoreResults').innerHTML = '';
+  rvShowUrlStep(false);                                        // 매장 고를 때까지 URL 숨김
+  rvOpenFormBase();
+}
+// 홈 검색핀 말풍선 '후기등록' — 매장 미리 선택(신규 매장 후보)
+function openReviewRegisterForPlace(place, afterSubmit) {
+  if (!currentUser) { openLoginSheet(); return; }
+  _reviewFormPlaceId = place.id || null;
+  _reviewFormNewPlace = place.id ? null : { name: place.name, address: place.address || '', lat: place.lat, lng: place.lng, naverCategory: place.category || '' };
+  _reviewAfterSubmit = afterSubmit || null;
+  document.getElementById('rvStoreGroup').hidden = false;
+  rvShowSelectedStore({ name: place.name, address: place.address || '' });
+  rvShowUrlStep(true);
+  rvOpenFormBase();
 }
 function closeReviewForm() {
   document.getElementById('reviewFormOverlay').classList.remove('open');
   resetModalScroll('reviewFormOverlay');
 }
+// URL/힌트/프리뷰 단계 표시 토글
+function rvShowUrlStep(on) {
+  const g = document.getElementById('reviewUrlGroup'); if (g) g.hidden = !on;
+  const h = document.getElementById('reviewUrlHint'); if (h) h.hidden = !on;
+  const sb = document.getElementById('reviewSubmitBtn'); if (sb) sb.style.display = on ? '' : 'none';
+  if (!on) document.getElementById('reviewPreview').innerHTML = '';
+}
+// 선택된 매장 표시(null이면 검색 영역 노출)
+function rvShowSelectedStore(store) {
+  const sel = document.getElementById('rvStoreSelected');
+  const sw = document.getElementById('rvStoreSearchWrap');
+  if (store) {
+    document.getElementById('rvStoreSelName').textContent = store.name || '';
+    document.getElementById('rvStoreSelAddr').textContent = store.address || '';
+    sel.hidden = false; sw.hidden = true;
+  } else {
+    sel.hidden = true; sw.hidden = false;
+  }
+}
+function rvChangeStore() {
+  _reviewFormPlaceId = null; _reviewFormNewPlace = null; _reviewValidated = false;
+  rvShowSelectedStore(null);
+  rvShowUrlStep(false);
+  document.getElementById('rvStoreSearch').value = '';
+  document.getElementById('rvStoreResults').innerHTML = '';
+  setTimeout(() => { const s = document.getElementById('rvStoreSearch'); if (s) s.focus(); }, 0);
+}
+// 네이버 장소검색(없는 매장도 찾음). 결과엔 이름+주소(+카테고리) 포함.
+async function rvSearchStores() {
+  const q = document.getElementById('rvStoreSearch').value.trim();
+  const box = document.getElementById('rvStoreResults');
+  if (!q) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="rv-loading">검색 중…</div>';
+  try {
+    const items = await fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []);
+    if (!Array.isArray(items) || !items.length) { box.innerHTML = '<div class="rv-store-none">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
+    box.innerHTML = items.map((it, i) => {
+      const addr = it.roadAddress || it.address || '';
+      _rvSearchCache[i] = { name: it.name, address: addr, category: it.category || '' };
+      return `<button type="button" class="rv-store-item" onclick="rvPickStore(${i})">
+        <span class="rv-store-item-name">${rvEsc(it.name)}</span>
+        <span class="rv-store-item-addr">${rvEsc(addr)}</span>
+      </button>`;
+    }).join('');
+  } catch (e) { box.innerHTML = '<div class="rv-store-none">검색 중 오류가 발생했어요.</div>'; }
+}
+let _rvSearchCache = {};
+// 검색 결과 선택 → 주소를 좌표로(브라우저 지오코딩) → 신규 매장 후보 확정
+async function rvPickStore(i) {
+  const it = _rvSearchCache[i];
+  if (!it) return;
+  const box = document.getElementById('rvStoreResults');
+  box.innerHTML = '<div class="rv-loading">위치 확인 중…</div>';
+  const addr = it.address || it.name;
+  try {
+    const coord = await new Promise((resolve) => {
+      if (!(naver && naver.maps && naver.maps.Service)) return resolve(null);
+      naver.maps.Service.geocode({ query: addr }, (status, response) => {
+        if (status === naver.maps.Service.Status.OK && response.v2.addresses && response.v2.addresses[0]) {
+          const a = response.v2.addresses[0];
+          resolve({ lat: Number(a.y), lng: Number(a.x) });
+        } else resolve(null);
+      });
+    });
+    if (!coord) { box.innerHTML = '<div class="rv-store-none">위치를 확인하지 못했어요. 다른 매장을 선택해주세요.</div>'; return; }
+    _reviewFormPlaceId = null;
+    _reviewFormNewPlace = { name: it.name, address: it.address, lat: coord.lat, lng: coord.lng, naverCategory: it.category };
+    rvShowSelectedStore({ name: it.name, address: it.address });
+    rvShowUrlStep(true);
+    setTimeout(() => { const u = document.getElementById('reviewUrl'); if (u) u.focus(); }, 0);
+  } catch (e) { box.innerHTML = '<div class="rv-store-none">위치 확인 중 오류가 발생했어요.</div>'; }
+}
+// validate/create에 보낼 매장 식별 payload
+function rvStorePayload() {
+  if (_reviewFormPlaceId) return { placeId: _reviewFormPlaceId };
+  if (_reviewFormNewPlace) return { newPlace: _reviewFormNewPlace, placeName: _reviewFormNewPlace.name };
+  return null;
+}
 async function validateReviewUrl() {
+  const store = rvStorePayload();
+  if (!store) { rvSetError('매장을 먼저 선택해주세요.'); return; }
   const url = document.getElementById('reviewUrl').value.trim();
   const preview = document.getElementById('reviewPreview');
   rvSetError('');
@@ -1617,16 +1743,18 @@ async function validateReviewUrl() {
   try {
     const res = await fetch('/api/places?reviews=validate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, placeId: _reviewFormPlaceId })
+      body: JSON.stringify(Object.assign({ url }, { placeId: store.placeId, placeName: store.placeName }))
     });
     const data = await res.json();
-    if (!data.ok) { preview.innerHTML = ''; rvSetError(data.reason || '검증에 실패했어요.'); return; }
+    if (!data.ok) { preview.innerHTML = ''; rvSetError(data.reason || data.error || '검증에 실패했어요.'); return; }
     const previewAuthor = (currentUser && currentUser.nickname) || data.data.author;
     preview.innerHTML = `<p class="rv-preview-label">이 후기로 등록할까요?</p>` + reviewCardHtml(Object.assign({ likeCount: 0, liked: false, createdAt: '' }, data.data, { author: previewAuthor }), true);
     _reviewValidated = true;
   } catch (e) { preview.innerHTML = ''; rvSetError('검증 중 오류가 발생했어요.'); }
 }
 async function submitReview() {
+  const store = rvStorePayload();
+  if (!store) { rvSetError('매장을 먼저 선택해주세요.'); return; }
   if (!_reviewValidated) { validateReviewUrl(); return; }
   const url = document.getElementById('reviewUrl').value.trim();
   const btn = document.getElementById('reviewSubmitBtn');
@@ -1634,18 +1762,19 @@ async function submitReview() {
   try {
     const res = await fetch('/api/places?reviews=create', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, placeId: _reviewFormPlaceId })
+      body: JSON.stringify(Object.assign({ url }, store.placeId ? { placeId: store.placeId } : { newPlace: store.newPlace }))
     });
     if (res.status === 401) { btn.disabled = false; openLoginSheet(); return; }
     const data = await res.json();
     if (!res.ok) { rvSetError(data.error || data.reason || '등록에 실패했어요.'); btn.disabled = false; return; }
     closeReviewForm();
     showToast('후기가 등록되었어요!');
-    if (_detailPlaceId === _reviewFormPlaceId) {
+    if (_reviewFormPlaceId && _detailPlaceId === _reviewFormPlaceId) {
       _reviewLoaded = true;
       switchDetailTab(_reviewFormPlaceId, 'review');
       loadReviews(_reviewFormPlaceId);
     }
+    if (typeof _reviewAfterSubmit === 'function') { try { _reviewAfterSubmit(); } catch (e) {} }
   } catch (e) { rvSetError('등록 중 오류가 발생했어요.'); btn.disabled = false; }
 }
 
@@ -2134,7 +2263,8 @@ async function searchRegionViaLocalSearch(query) {
       if (status === naver.maps.Service.Status.OK && item) {
         map.setCenter(new naver.maps.LatLng(parseFloat(item.y), parseFloat(item.x)));
         map.setZoom(15);
-        showSearchPin(parseFloat(item.y), parseFloat(item.x));
+        // 매장명 검색이면 핀 위 '후기 등록' 말풍선(없는 매장 등록)
+        showSearchPin(parseFloat(item.y), parseFloat(item.x), { name: items[0].name, address: addr, category: items[0].category || '' });
       } else {
         showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
       }
@@ -2681,6 +2811,12 @@ function switchTab(tab) {
     const sh = document.getElementById('mlStickyHeader'); if (sh) sh.classList.remove('show');
     const sc = document.getElementById('mlScroll'); if (sc) sc.scrollTop = 0;
   }
+  if (tab === 'community') {
+    bindMobileScrollHeader('cmScroll', 'cmScrollHeader', 'cmStickyHeader');
+    const sh = document.getElementById('cmStickyHeader'); if (sh) sh.classList.remove('show');
+    const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+    openCommunity();
+  }
   if (tab === 'my') {
     // MY 탭: 기존 '메뉴'를 흡수(로그인/내정보/신고/소개/약관 등). 제보하기는 제외(후기+매장등록으로 대체 방향).
     // 다른 서브화면과 동일하게 전체 콘텐츠가 스크롤되고, 큰 'MY'(scroll-header)가 사라지면 compact sticky 등장.
@@ -2691,6 +2827,234 @@ function switchTab(tab) {
   }
 }
 
+// ===== 커뮤니티 탭 =====
+// 서이추-first(활성화) + 후기-boost(품질). 단일 메인 + 세그먼트([서이추][후기][내 후기]).
+//  - 서이추: 프로필(블로그/인스타 링크 보유 회원) 카드 → 이웃추가 CTA. 허들 0(후기 불필요), 후기 쓴 사람 우대.
+//  - 후기: 전체 후기 피드(매소리 포스트잇). - 내 후기: 로그인 본인 후기만.
+// 설계/결정: docs/product/17-travel-pins.md · 06-decision-log(2026-10-02).
+let _cmSeg = 'seoichu';
+let _cmFeedSort = 'likes';   // 후기 정렬: 'likes'(좋아요 순) | 'latest'(최신 순)
+let _cmFeedMine = false;     // 후기 '내 후기' 필터
+let _cmReqSeq = 0;           // 비동기 레이스 가드
+
+function openCommunity() {
+  bindCmTopBtn();
+  updateCommunitySegUI();
+  renderCommunity();
+}
+// 우하단 플로팅: 이웃찾기=스크롤 투 탑(↑), 후기=후기작성(연필 FAB)
+let _cmTopBound = false;
+function bindCmTopBtn() {
+  if (_cmTopBound) return;
+  const sc = document.getElementById('cmScroll');
+  const btn = document.getElementById('cmTopBtn');
+  if (!sc || !btn) return;
+  sc.addEventListener('scroll', function () { btn.hidden = (_cmSeg !== 'seoichu') || sc.scrollTop < 300; }, { passive: true });
+  _cmTopBound = true;
+}
+function cmScrollTop() {
+  const sc = document.getElementById('cmScroll');
+  if (sc) sc.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function setCommunitySeg(seg) {
+  if (seg === _cmSeg) return;
+  _cmSeg = seg;
+  updateCommunitySegUI();
+  renderCommunity();
+  const sc = document.getElementById('cmScroll'); if (sc) { sc.scrollTop = 0; }
+  const top = document.getElementById('cmTopBtn'); if (top) top.hidden = true;
+}
+function updateCommunitySegUI() {
+  document.querySelectorAll('#cmSeg .cm-seg-btn').forEach(b =>
+    b.classList.toggle('active', b.getAttribute('data-seg') === _cmSeg));
+  const isFeed = (_cmSeg === 'feed');
+  const chips = document.getElementById('cmChips'); if (chips) chips.hidden = true;  // 카테고리 칩 폐지(정렬로 대체)
+  const link = document.getElementById('cmMyRevLink'); if (link) link.hidden = !isFeed;   // '내 후기'는 후기에서만
+  const fab = document.getElementById('cmWriteFab'); if (fab) fab.hidden = !isFeed;         // 후기작성 FAB는 후기에서만
+  const top = document.getElementById('cmTopBtn'); if (top && isFeed) top.hidden = true;    // 후기에선 탑버튼 안 씀
+}
+async function renderCommunity(fresh) {
+  const body = document.getElementById('cmBody');
+  if (!body) return;
+  const seq = ++_cmReqSeq;
+  const bust = fresh ? ('&_=' + Date.now()) : '';   // 등록 직후엔 엣지/브라우저 캐시 우회
+  body.innerHTML = '<div class="cm-loading">불러오는 중…</div>';
+  try {
+    if (_cmSeg === 'seoichu') {
+      const list = await fetch('/api/users?seoichu=1&limit=30' + bust).then(r => r.ok ? r.json() : []);
+      if (seq !== _cmReqSeq) return;
+      const posts = Array.isArray(list) ? list : [];
+      body.innerHTML = cmInfoBannerHtml() + seoichuComposeHtml() + (posts.length
+        ? `<div class="cm-sc-list">${posts.map(seoichuPostHtml).join('')}</div>`
+        : `<div class="cm-empty"><p class="cm-empty-title">아직 인사가 없어요</p><p class="cm-empty-desc">첫 인사를 남겨보세요. 이웃을 맺고 함께 소통해요.</p></div>`);
+      return;
+    }
+    // 후기 피드
+    const mine = _cmFeedMine;
+    if (mine && !currentUser) {
+      body.innerHTML = cmFeedInfoHtml() + cmEmptyHtml('로그인이 필요해요', '내가 등록한 후기를 모아볼 수 있어요.', true);
+      return;
+    }
+    const qs = `/api/places?reviews=feed&limit=40&sort=${_cmFeedSort}${mine ? '&mine=1' : ''}${bust}`;
+    const data = await fetch(qs).then(r => r.ok ? r.json() : { total: 0, items: [] });
+    if (seq !== _cmReqSeq) return;
+    const items = (data && data.items) || [];
+    const total = (data && data.total) || 0;
+    const list = items.length
+      ? `<div class="rv-cards">${items.map(r => reviewCardHtml(r, false)).join('')}</div>`
+      : (mine
+          ? cmEmptyHtml('아직 등록한 후기가 없어요', '다녀온 곳의 블로그 후기를 등록해보세요.')
+          : cmEmptyHtml('아직 후기가 없어요', '첫 후기를 남겨보세요.'));
+    body.innerHTML = cmFeedInfoHtml() + cmFeedTopHtml(total) + list;
+  } catch (e) {
+    if (seq !== _cmReqSeq) return;
+    body.innerHTML = cmEmptyHtml('불러오지 못했어요', '잠시 후 다시 시도해주세요.');
+  }
+}
+function cmEmptyHtml(title, desc, login) {
+  return `<div class="cm-empty">
+    <p class="cm-empty-title">${rvEsc(title)}</p>
+    <p class="cm-empty-desc">${rvEsc(desc)}</p>
+    ${login ? '<button class="cm-empty-btn" onclick="openLoginSheet()">로그인</button>' : ''}
+  </div>`;
+}
+// SNS(블로그/인스타) 아이콘·링크 헬퍼
+function snsIconSrc(platform) { return platform === '인스타그램' ? 'image/ic_instagram_20.png' : 'image/ic_naver_blog_20.png'; }
+function snsLinkText(platform, id) { return (URL_PLATFORM_DOMAINS[platform] || 'blog.naver.com/') + id; }
+function snsFullUrl(platform, id) { return 'https://' + (URL_PLATFORM_DOMAINS[platform] || 'blog.naver.com/') + id; }
+function hasSns(u) { return u && u.urlId && (u.urlPlatform === '블로그' || u.urlPlatform === '인스타그램'); }
+
+// 이웃찾기 상단 안내 배너(캐릭터 + 문구)
+function cmInfoBannerHtml() {
+  return `<div class="cm-info-banner">
+    <img class="cm-info-char" src="image/img_community_01.png" alt="" width="104" height="104">
+    <span class="cm-info-dot"></span>
+    <p class="cm-info-text">체험단 이웃들과 매일매일 소통해요!</p>
+  </div>`;
+}
+
+// 후기 안내 배너(캐릭터 없음)
+function cmFeedInfoHtml() {
+  return `<div class="cm-info-banner cm-info-plain"><span class="cm-info-dot"></span><p class="cm-info-text">블로그 체험 후기를 공유하는 화면입니다.</p></div>`;
+}
+// 후기 총건수 + 정렬 — 지도 상세 후기 pane과 동일 컴포넌트(rv-list-head/rv-sort) 재사용.
+function cmFeedTopHtml(total) {
+  const label = _cmFeedSort === 'likes' ? '좋아요 순' : '최신 순';
+  return `<div class="rv-list-head">
+    <span class="rv-count">총 ${Number(total).toLocaleString()}건</span>
+    <div class="rv-sort-wrap">
+      <button class="rv-sort" onclick="event.stopPropagation();toggleSortMenu(this)">
+        <span class="rv-sort-label">${label}</span>
+        <img class="rv-sort-caret" src="image/ic_arrow_01.svg" width="9" height="5" alt="">
+      </button>
+      <div class="rv-sort-menu">
+        <button class="rv-sort-opt${_cmFeedSort !== 'likes' ? ' active' : ''}" onclick="setCmSort('latest')">최신 순</button>
+        <button class="rv-sort-opt${_cmFeedSort === 'likes' ? ' active' : ''}" onclick="setCmSort('likes')">좋아요 순</button>
+      </div>
+    </div>
+  </div>`;
+}
+function setCmSort(s) {
+  document.querySelectorAll('.rv-sort-wrap.open').forEach(w => w.classList.remove('open'));
+  if (s === _cmFeedSort) return;
+  _cmFeedSort = s;
+  renderCommunity();
+}
+// '내 후기' 토글(후기 세그먼트 안에서 본인 후기만 ↔ 전체)
+function toggleMyReviews() {
+  if (!currentUser) { openLoginSheet(); return; }
+  _cmFeedMine = !_cmFeedMine;
+  const link = document.getElementById('cmMyRevLink');
+  if (link) link.textContent = _cmFeedMine ? '전체 후기' : '내 후기';
+  renderCommunity();
+  const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+}
+
+// 글쓰기 영역: 로그인 + SNS(블로그/인스타) 등록자만. 아니면 안내 CTA.
+function seoichuComposeHtml() {
+  if (!currentUser) {
+    return `<div class="cm-compose cm-compose-cta">
+      <p class="cm-compose-msg">로그인하고 SNS를 등록하면 인사를 남길 수 있어요.</p>
+      <button class="cm-compose-btn" onclick="openLoginSheet()">로그인</button>
+    </div>`;
+  }
+  if (!hasSns(currentUser)) {
+    return `<div class="cm-compose cm-compose-cta">
+      <p class="cm-compose-msg">SNS(블로그·인스타)를 등록하면 인사를 남길 수 있어요.</p>
+      <button class="cm-compose-btn" onclick="openProfileSheet()">SNS 등록</button>
+    </div>`;
+  }
+  return `<div class="cm-compose">
+    <textarea id="cmSeoichuInput" class="cm-compose-input" maxlength="100" rows="2" oninput="cmComposeInput(this)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();}" placeholder="인사를 남겨보세요.&#10;예) 이웃 환영해요! 함께 소통해요)"></textarea>
+    <div class="cm-compose-divider"></div>
+    <div class="cm-compose-foot">
+      <span class="cm-compose-blog"><img src="${snsIconSrc(currentUser.urlPlatform)}" width="16" height="16" alt="">${rvEsc(snsLinkText(currentUser.urlPlatform, currentUser.urlId))}</span>
+      <button class="cm-compose-btn" onclick="submitSeoichu()">등록</button>
+    </div>
+  </div>`;
+}
+// 입력 줄 수에 따라 textarea 높이 자동 확장(길면 줄바꿈 wrap으로 박스가 늘어남)
+function cmAutoGrow(ta) {
+  if (!ta) return;
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+}
+// 글쓰기 입력: 줄바꿈(붙여넣기 포함) 제거 + 자동 높이. 엔터 키 입력은 onkeydown에서 차단.
+function cmComposeInput(ta) {
+  if (!ta) return;
+  if (ta.value.indexOf('\n') >= 0) {
+    const pos = ta.selectionStart;
+    ta.value = ta.value.replace(/\s*\n\s*/g, ' ');
+    try { ta.setSelectionRange(pos, pos); } catch (e) {}
+  }
+  cmAutoGrow(ta);
+}
+async function submitSeoichu() {
+  const ta = document.getElementById('cmSeoichuInput');
+  if (!ta) return;
+  const content = (ta.value || '').trim();
+  if (!content) { showToast('내용을 입력해주세요.'); return; }
+  const btn = document.querySelector('.cm-compose .cm-compose-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/users?seoichu=post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(j.error || '등록에 실패했어요.'); if (j.needBlog) openProfileSheet(); return; }
+    ta.value = '';
+    renderCommunity(true);  // 캐시 우회로 새로고침(내 글 맨 위)
+  } catch (e) { showToast('등록에 실패했어요.'); }
+  finally { if (btn) btn.disabled = false; }
+}
+// 이웃찾기 글 카드: 아바타 · 닉/시간 · SNS 링크 / 내용 + 방문하기 CTA (블로그·인스타 공통).
+function seoichuPostHtml(p) {
+  const full = snsFullUrl(p.urlPlatform, p.urlId);
+  const avatar = p.profileImage || 'image/img_login_default_32.png';
+  return `<div class="cm-sc-post">
+    <div class="cm-sc-head">
+      <span class="cm-sc-avatar"><img src="${rvEsc(avatar)}" alt="" width="40" height="40"></span>
+      <div class="cm-sc-head-text">
+        <div class="cm-sc-nick-row"><span class="cm-sc-nick">${rvEsc(p.nickname)}</span><span class="cm-sc-time">${cmTimeAgo(p.createdAt)}</span></div>
+        <div class="cm-sc-linkrow"><img class="cm-sc-plat" src="${snsIconSrc(p.urlPlatform)}" width="12" height="12" alt="">${rvEsc(snsLinkText(p.urlPlatform, p.urlId))}</div>
+      </div>
+      <button class="cm-sc-cta" onclick="openExternal('${rvEsc(full)}')">방문하기</button>
+    </div>
+    <div class="cm-sc-divider"></div>
+    <p class="cm-sc-content">${rvEsc(p.content)}</p>
+  </div>`;
+}
+// 상대 시간(UTC 저장값 → KST 기준 방금/N분/N시간/N일 전, 그 이상은 날짜)
+function cmTimeAgo(utc) {
+  if (!utc) return '';
+  const t = Date.parse(String(utc).replace(' ', 'T') + 'Z');
+  if (isNaN(t)) return '';
+  const diff = Date.now() - t;
+  if (diff < 60000) return '방금';
+  if (diff < 3600000) return Math.floor(diff / 60000) + '분 전';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + '시간 전';
+  if (diff < 7 * 86400000) return Math.floor(diff / 86400000) + '일 전';
+  const d = new Date(t + 9 * 3600000);
+  return `${d.getUTCMonth() + 1}.${d.getUTCDate()}`;
+}
 // MY 탭 데이터 렌더. 로그인 전·후 동일 레이아웃, 내용만 스왑(Figma 1728-44131 로그인후 / 1731-45047 로그인전).
 function renderMyPage() {
   const loggedIn = !!currentUser;
@@ -2700,10 +3064,10 @@ function renderMyPage() {
   if (logoutBtn) logoutBtn.style.display = loggedIn ? '' : 'none';
   const avatar = document.getElementById('myAvatarImg');
   const stickyAvatar = document.getElementById('myStickyAvatar');
-  const avatarSrc = loggedIn ? 'image/img_login_default_32.png' : 'image/img_login_guest.svg';
+  const avatarSrc = loggedIn ? (currentUser.profileImage || 'image/img_login_default_32.png') : 'image/img_login_guest.svg';
   if (stickyAvatar) stickyAvatar.src = avatarSrc;
   if (loggedIn) {
-    if (avatar) avatar.src = 'image/img_login_default_32.png';
+    if (avatar) avatar.src = avatarSrc;
     set('myNick', currentUser.nickname || '');
     const prov = document.getElementById('myProvider'); if (prov) { prov.src = providerIconSrc(currentUser.provider); prov.hidden = false; }
     const d = mypageDaysSince(currentUser.createdAt);
@@ -3643,6 +4007,51 @@ function populateProfileFields() {
   syncSelectTrigger('profileUrlPlatform');
   updateUrlPlatform(currentUser.urlPlatform || '', 'profile', true);
   document.getElementById('profileUrlId').value = currentUser.urlId || '';
+  // 프로필 사진 미리보기 초기화(변경 전 상태)
+  _pendingProfileImage = undefined;
+  const pimg = document.getElementById('profilePhotoImg');
+  if (pimg) pimg.src = currentUser.profileImage || 'image/img_login_default_32.png';
+  const preset = document.getElementById('profilePhotoReset');
+  if (preset) preset.hidden = !currentUser.profileImage;
+  const pinput = document.getElementById('profilePhotoInput');
+  if (pinput) pinput.value = '';
+}
+// 프로필 사진 변경 상태: undefined=변경없음 / ''=기본으로 / dataURI=새 이미지
+let _pendingProfileImage = undefined;
+// 정사각 center-crop(cover) — 찌부 없이 중앙을 정사각으로 잘라 256px JPEG 데이터URI로.
+function cropImageToSquareDataURL(file, size) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const s = Math.min(img.naturalWidth, img.naturalHeight);
+      const sx = (img.naturalWidth - s) / 2, sy = (img.naturalHeight - s) / 2;
+      const c = document.createElement('canvas'); c.width = size; c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+      try { resolve(c.toDataURL('image/jpeg', 0.82)); } catch (e) { reject(e); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('이미지를 불러오지 못했어요.')); };
+    img.src = url;
+  });
+}
+async function onProfilePhotoPick(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  if (!/^image\//.test(file.type)) { showToast('이미지 파일만 등록할 수 있어요.'); return; }
+  try {
+    const dataUrl = await cropImageToSquareDataURL(file, 256);
+    _pendingProfileImage = dataUrl;
+    const pimg = document.getElementById('profilePhotoImg'); if (pimg) pimg.src = dataUrl;
+    const preset = document.getElementById('profilePhotoReset'); if (preset) preset.hidden = false;
+  } catch (err) { showToast('이미지를 처리하지 못했어요.'); }
+}
+function resetProfilePhoto() {
+  _pendingProfileImage = '';   // 저장 시 기본 이미지로
+  const pimg = document.getElementById('profilePhotoImg'); if (pimg) pimg.src = 'image/img_login_default_32.png';
+  const preset = document.getElementById('profilePhotoReset'); if (preset) preset.hidden = true;
+  const pinput = document.getElementById('profilePhotoInput'); if (pinput) pinput.value = '';
 }
 // 로그인 전/후 뷰 토글
 function showProfileMode(mode) {
@@ -3726,12 +4135,18 @@ async function saveProfile() {
   const btn = document.querySelector('#profileOverlay .btn-submit');
   setButtonLoading(btn, true);
   try {
+    const payload = { urlPlatform, urlId, email };
+    if (_pendingProfileImage !== undefined) payload.profileImage = _pendingProfileImage;  // 변경된 경우만 전송
     const res = await fetch('/api/auth/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urlPlatform, urlId, email })
+      body: JSON.stringify(payload)
     });
-    if (!res.ok) { showAlert('저장 중 오류가 발생했어요.', '잠시 후 다시 시도해주세요.'); return; }
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      showAlert('저장 중 오류가 발생했어요.', j.error || '잠시 후 다시 시도해주세요.'); return;
+    }
+    _pendingProfileImage = undefined;
     await refreshAuthUI();
     // PC 내 정보 패널 모드에서는 패널을 닫지 않고 유지 (refreshAuthUI가 갱신)
     if (!document.body.classList.contains('pc-myinfo-mode')) closeProfileSheet();
