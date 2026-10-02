@@ -3040,10 +3040,24 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .native-app .modal-sticky-header { height: calc(56px + max(env(safe-area-inset-top), var(--and-sat, 0px))); padding-top: calc(10px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
   .native-app .side-menu-header { height: calc(72px + max(env(safe-area-inset-top), var(--and-sat, 0px))); padding-top: calc(10px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
   /* 후기 등록: 제보/신고 모달과 타이틀 위치(세이프에어리어)·버튼 크기 통일 */
-  #reviewFormOverlay .signup-content { padding-top: calc(24px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
+  #reviewFormOverlay .signup-content { padding-top: calc(24px + max(env(safe-area-inset-top), var(--and-sat, 0px))); gap: 24px; }
   #reviewFormOverlay .signup-footer { padding: 12px 20px calc(12px + max(env(safe-area-inset-bottom), var(--and-sab, 0px))); }
   #reviewFormOverlay .signup-btn-cancel,
   #reviewFormOverlay .signup-btn-confirm { height: 56px; font-size: 18px; }
+  /* 디자인 1758-49955 정렬: 헤더 26px, 라벨/입력 간격, 검색·검증 버튼(흰바탕 검정테두리 18px), 입력창 56px #ddd */
+  #reviewFormOverlay .rv-form-head { gap: 8px; margin-bottom: 0; }
+  #reviewFormOverlay .rv-form-head h2 { font-size: 26px; font-weight: 500; letter-spacing: -0.52px; }
+  #reviewFormOverlay .form-group { gap: 8px; }
+  #reviewFormOverlay .form-group > label { font-size: 14px; color: #777; font-weight: 400; }
+  #reviewFormOverlay .rv-url-row { gap: 6px; align-items: stretch; }
+  #reviewFormOverlay .rv-url-row input { height: 56px; border: 1px solid #ddd; border-radius: 8px; padding: 0 16px; font-size: 16px; background: #fff; box-sizing: border-box; }
+  #reviewFormOverlay .rv-verify-btn { flex-shrink: 0; width: 80px; height: 56px; padding: 0; border: 1px solid #000; border-radius: 8px; background: #fff; font-size: 18px; font-weight: 700; color: #000; }
+  #reviewFormOverlay .rv-verify-btn:hover { background: #fafafa; }
+  /* 백버튼 서브화면: 우측 슬라이드 인/아웃 + 뒤 화면 dim(다른 서브화면과 동일 인터랙션) */
+  #reviewFormOverlay { background: rgba(0,0,0,0.3); }      /* overlay는 반투명(슬라이드 중 뒤 화면 dim) */
+  #reviewFormOverlay .signup-page { background: #fff; }     /* 슬라이드되는 페이지만 흰색 */
+  #reviewFormOverlay.open > .signup-page { animation: sheetSlideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
+  #reviewFormOverlay.sheet-closing > .signup-page { animation: sheetSlideOut 0.24s cubic-bezier(0.4, 0, 1, 1) forwards; }
   /* 정책 모달: 제보하기처럼 모바일은 modal-header 숨기고 body의 scroll-header(26px) 노출 + 스크롤 시 sticky */
   #policyOverlay .modal-header { display: none; }
 
@@ -3221,18 +3235,20 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .rv-verify-btn:hover { background: #f5f5f5; }
 .rv-form-error { color: #E82A2D; font-size: 14px; margin: 4px 0 0; }
 .rv-preview-label { font-size: 14px; color: #555; margin: 8px 0; }
-/* 후기등록 매장 검색/선택 */
-.rv-store-results { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
-.rv-store-item { display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%; padding: 12px 14px; border: 1px solid #eee; border-radius: 10px; background: #fff; cursor: pointer; }
-.rv-store-item:hover { background: #fafafa; }
-.rv-store-item-name { font-size: 15px; font-weight: 600; color: #000; }
-.rv-store-item-addr { font-size: 13px; color: #888; }
-.rv-store-none { padding: 16px 4px; font-size: 14px; color: #999; }
-.rv-store-selected { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; }
-.rv-store-sel-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.rv-store-sel-name { font-size: 15px; font-weight: 600; color: #000; }
-.rv-store-sel-addr { font-size: 13px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rv-store-change { flex-shrink: 0; padding: 7px 14px; border: 1px solid rgba(170,170,170,0.87); background: #fff; border-radius: 8px; font-size: 14px; color: #1a1a1a; cursor: pointer; }
+/* 후기등록 매장 검색 결과 = 제보 step1 UI(.place-result-item). 결과영역은 고정 안 함(자연스럽게 흐름).
+   ⚠️ .place-results-list가 margin-top:-16px(신고/제보용)을 걸어 input과 겹치므로 ID로 덮어씀(form-group gap 8 + 8 = 16px) */
+#reviewFormOverlay #rvStoreResults { margin-top: 8px; }
+#reviewFormOverlay.rv-url-off .signup-footer { display: none; }
+/* [hidden] 가드: .form-group/signup-hint의 display가 [hidden] 기본값(none)을 덮으므로 명시 */
+#reviewFormOverlay .form-group[hidden], #reviewFormOverlay .signup-hint[hidden] { display: none; }
+/* 후기 등록 헤더: back + 타이틀 */
+.rv-form-head { flex-direction: row; align-items: center; gap: 8px; }
+/* 선택된 매장 박스(디자인 1758:50009): 연파랑 bg + 파란 체크 */
+.rv-selected-box { display: flex; align-items: center; gap: 8px; min-height: 72px; padding: 16px; border-radius: 8px; background: rgba(0,108,255,0.08); }
+.rv-selected-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rv-selected-name { margin: 0; font-size: 16px; font-weight: 600; color: #000; }
+.rv-selected-addr { margin: 0; font-size: 14px; color: #000; }
+.rv-selected-check { flex-shrink: 0; }
 /* 프로필 사진 (회원정보관리) — 원형, object-fit:cover로 찌부 없음 */
 .profile-photo-row { display: flex; align-items: center; gap: 16px; }
 .profile-photo-preview { flex-shrink: 0; width: 72px; height: 72px; border-radius: 50%; overflow: hidden; background: #eee; display: block; }
@@ -3410,7 +3426,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .cm-top-btn { position: absolute; right: 20px; bottom: 16px; z-index: 10; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #eee; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .cm-top-btn[hidden] { display: none; }
   /* 후기작성 FAB(네이비 연필, 후기 세그먼트) */
-  .cm-write-fab { position: absolute; right: 20px; bottom: 16px; z-index: 10; width: 48px; height: 48px; border-radius: 50%; border: 0; background: #39395c; box-shadow: 0 4px 10px rgba(57,57,92,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .cm-write-fab { position: absolute; right: 20px; bottom: 16px; z-index: 10; width: 48px; height: 48px; border-radius: 50%; border: 1px solid #ddd; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .cm-write-fab[hidden] { display: none; }
   /* 후기 안내배너(캐릭터 없음) */
   .cm-info-plain { margin: 0 0 16px; }
@@ -3418,6 +3434,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
      상세 pane은 흰 시트 안 flat 행이지만, 커뮤니티 후기는 각 후기가 흰 카드라 #cmBody 스코프로만 카드화 */
   #cmBody .rv-cards { gap: 12px; }
   #cmBody .rv-card { align-items: center; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+  /* 본문(발췌)은 항상 2줄 높이로 고정 → 카드 높이 통일(짧아도 2줄 공간 확보) */
+  #cmBody .rv-card-excerpt { min-height: calc(1.4em * 2); }
   .cm-info-char { position: absolute; right: 10px; bottom: calc(100% - 37px); width: 104px; height: 104px; object-fit: contain; pointer-events: none; }
   /* 카테고리 칩(가로 스크롤) */
   .cm-chips { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }

@@ -1372,7 +1372,7 @@ let _reviewAfterSubmit = null;    // 등록 성공 후 콜백(커뮤니티 새�
 
 function rvEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function rvHeart() { return '<img class="rv-heart-off" src="image/ic_good_def.svg" width="16" height="14" alt=""><img class="rv-heart-on" src="image/ic_good_sel.svg" width="16" height="14" alt="">'; }
-function fmtReviewDate(s) { const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : ''; }
+function fmtReviewDate(s) { const m = String(s || '').match(/(\d{4})[-.](\d{1,2})[-.](\d{1,2})/); return m ? `${m[1].slice(2)}.${m[2].padStart(2, '0')}.${m[3].padStart(2, '0')}` : ''; }
 
 // 라이브버블(후기 등록 알림) 클릭 등에서 상세를 '후기 탭'으로 강제로 열 때 사용(1회성). initDetailTabs가 소비 후 리셋.
 let _forceReviewTab = false;
@@ -1509,7 +1509,7 @@ function setReviewSort(placeId, sort) {
 }
 
 function reviewCardHtml(r, isPreview) {
-  const date = fmtReviewDate(r.postDate || r.createdAt);
+  const date = fmtReviewDate(r.postDate) || fmtReviewDate(r.createdAt);
   // 본인이 올린 후기에만 삭제 뱃지(썸네일 우하단) 노출
   const delBadge = (!isPreview && r.mine)
     ? `<button class="rv-del" onclick="event.stopPropagation();deleteMyReview(${r.id})" aria-label="후기 삭제"><img src="image/ic_trash_16.svg" width="16" height="16" alt=""></button>`
@@ -1611,31 +1611,30 @@ function rvOpenFormBase() {
   _reviewValidated = false;
   document.getElementById('reviewUrl').value = '';
   document.getElementById('reviewPreview').innerHTML = '';
-  const sb = document.getElementById('reviewSubmitBtn'); if (sb) sb.disabled = false;
+  const sb = document.getElementById('reviewSubmitBtn'); if (sb) { sb.disabled = false; sb.style.display = ''; }
   rvSetError('');
   document.getElementById('reviewFormOverlay').classList.add('open');
 }
-// 매장 상세(기존 매장)에서 후기 등록 — 매장 이미 선택됨, 검색 영역 숨김
+// 매장 상세(기존 매장)에서 후기 등록 — 매장 이미 선택됨, 매장명 검색 숨김
 function openReviewForm(placeId) {
   if (!currentUser) { openLoginSheet(); return; }
   _reviewFormPlaceId = placeId;
   _reviewFormNewPlace = null;
   _reviewAfterSubmit = null;
-  document.getElementById('rvStoreGroup').hidden = true;      // 매장 선택 단계 생략
-  rvShowUrlStep(true);
+  document.getElementById('rvStoreGroup').hidden = true;
+  rvShowUrlStep(true);                                   // 기존 매장 → URL 바로
   rvOpenFormBase();
 }
-// 커뮤니티 '후기등록' 버튼 — 매장 검색부터
+// 커뮤니티 '후기등록' 버튼 — 매장명 검색부터(URL은 선택 후 노출)
 function openReviewRegister(afterSubmit) {
   if (!currentUser) { openLoginSheet(); return; }
   _reviewFormPlaceId = null;
   _reviewFormNewPlace = null;
   _reviewAfterSubmit = afterSubmit || null;
   document.getElementById('rvStoreGroup').hidden = false;
-  rvShowSelectedStore(null);                                   // 검색 상태로 시작
   document.getElementById('rvStoreSearch').value = '';
   document.getElementById('rvStoreResults').innerHTML = '';
-  rvShowUrlStep(false);                                        // 매장 고를 때까지 URL 숨김
+  rvShowUrlStep(false);                                  // 매장 선택 전엔 URL 숨김
   rvOpenFormBase();
 }
 // 홈 검색핀 말풍선 '후기등록' — 매장 미리 선택(신규 매장 후보)
@@ -1645,67 +1644,69 @@ function openReviewRegisterForPlace(place, afterSubmit) {
   _reviewFormNewPlace = place.id ? null : { name: place.name, address: place.address || '', lat: place.lat, lng: place.lng, naverCategory: place.category || '' };
   _reviewAfterSubmit = afterSubmit || null;
   document.getElementById('rvStoreGroup').hidden = false;
-  rvShowSelectedStore({ name: place.name, address: place.address || '' });
-  rvShowUrlStep(true);
+  document.getElementById('rvStoreSearch').value = place.name || '';
+  rvRenderSelected({ name: place.name, address: place.address || '' });
+  rvShowUrlStep(true);                                   // 선택된 상태 → URL 노출
   rvOpenFormBase();
 }
 function closeReviewForm() {
-  document.getElementById('reviewFormOverlay').classList.remove('open');
-  resetModalScroll('reviewFormOverlay');
+  closeSheetSlide('reviewFormOverlay', () => resetModalScroll('reviewFormOverlay'));
 }
-// URL/힌트/프리뷰 단계 표시 토글
+// URL/힌트/등록버튼은 매장 선택 후에만 노출(디자인). off면 등록 footer도 숨김.
 function rvShowUrlStep(on) {
   const g = document.getElementById('reviewUrlGroup'); if (g) g.hidden = !on;
   const h = document.getElementById('reviewUrlHint'); if (h) h.hidden = !on;
-  const sb = document.getElementById('reviewSubmitBtn'); if (sb) sb.style.display = on ? '' : 'none';
-  if (!on) document.getElementById('reviewPreview').innerHTML = '';
-}
-// 선택된 매장 표시(null이면 검색 영역 노출)
-function rvShowSelectedStore(store) {
-  const sel = document.getElementById('rvStoreSelected');
-  const sw = document.getElementById('rvStoreSearchWrap');
-  if (store) {
-    document.getElementById('rvStoreSelName').textContent = store.name || '';
-    document.getElementById('rvStoreSelAddr').textContent = store.address || '';
-    sel.hidden = false; sw.hidden = true;
-  } else {
-    sel.hidden = true; sw.hidden = false;
+  const ov = document.getElementById('reviewFormOverlay'); if (ov) ov.classList.toggle('rv-url-off', !on);
+  if (!on) {
+    _reviewValidated = false;
+    const u = document.getElementById('reviewUrl'); if (u) u.value = '';
+    document.getElementById('reviewPreview').innerHTML = '';
+    rvSetError('');
   }
 }
-function rvChangeStore() {
-  _reviewFormPlaceId = null; _reviewFormNewPlace = null; _reviewValidated = false;
-  rvShowSelectedStore(null);
-  rvShowUrlStep(false);
-  document.getElementById('rvStoreSearch').value = '';
-  document.getElementById('rvStoreResults').innerHTML = '';
-  setTimeout(() => { const s = document.getElementById('rvStoreSearch'); if (s) s.focus(); }, 0);
+// 선택된 매장 = 연파랑 박스 + 파란 체크(디자인 1758:50009)
+function rvRenderSelected(store) {
+  const box = document.getElementById('rvStoreResults');
+  if (!box) return;
+  box.innerHTML = `<div class="rv-selected-box">
+    <div class="rv-selected-text">
+      <p class="rv-selected-name">${rvEsc(store.name)}</p>
+      <p class="rv-selected-addr">${rvEsc(store.address || '')}</p>
+    </div>
+    <svg class="rv-selected-check" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5L10 17.5L19 7" stroke="#006cff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>`;
 }
-// 네이버 장소검색(없는 매장도 찾음). 결과엔 이름+주소(+카테고리) 포함.
+let _rvSearchCache = {};
+// 네이버 장소검색(없는 매장도 찾음). 새 검색 시 선택 해제 + URL 숨김. 결과는 제보 UI(.place-result-item).
 async function rvSearchStores() {
   const q = document.getElementById('rvStoreSearch').value.trim();
   const box = document.getElementById('rvStoreResults');
+  _reviewFormPlaceId = null; _reviewFormNewPlace = null;
+  rvShowUrlStep(false);
   if (!q) { box.innerHTML = ''; return; }
-  box.innerHTML = '<div class="rv-loading">검색 중…</div>';
+  box.innerHTML = '<div class="search-hint">검색 중…</div>';
   try {
     const items = await fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []);
-    if (!Array.isArray(items) || !items.length) { box.innerHTML = '<div class="rv-store-none">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
+    if (!Array.isArray(items) || !items.length) { box.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
     box.innerHTML = items.map((it, i) => {
       const addr = it.roadAddress || it.address || '';
       _rvSearchCache[i] = { name: it.name, address: addr, category: it.category || '' };
-      return `<button type="button" class="rv-store-item" onclick="rvPickStore(${i})">
-        <span class="rv-store-item-name">${rvEsc(it.name)}</span>
-        <span class="rv-store-item-addr">${rvEsc(addr)}</span>
-      </button>`;
+      return `<div class="place-result-item" onclick="rvPickStore(${i})">
+        <div class="place-result-info">
+          <div class="place-result-name">${rvEsc(it.name)}</div>
+          <div class="place-result-addr">${rvEsc(addr)}</div>
+        </div>
+        <span class="place-result-check">✓</span>
+      </div>`;
     }).join('');
-  } catch (e) { box.innerHTML = '<div class="rv-store-none">검색 중 오류가 발생했어요.</div>'; }
+  } catch (e) { box.innerHTML = '<div class="search-hint error">검색 중 오류가 발생했어요.</div>'; }
 }
-let _rvSearchCache = {};
-// 검색 결과 선택 → 주소를 좌표로(브라우저 지오코딩) → 신규 매장 후보 확정
+// 결과 선택 → 주소를 좌표로(브라우저 지오코딩) → 신규 매장 후보 확정, 선택 1건만 하이라이트 + URL 노출
 async function rvPickStore(i) {
   const it = _rvSearchCache[i];
   if (!it) return;
   const box = document.getElementById('rvStoreResults');
-  box.innerHTML = '<div class="rv-loading">위치 확인 중…</div>';
+  box.innerHTML = '<div class="search-hint">위치 확인 중…</div>';
   const addr = it.address || it.name;
   try {
     const coord = await new Promise((resolve) => {
@@ -1717,13 +1718,13 @@ async function rvPickStore(i) {
         } else resolve(null);
       });
     });
-    if (!coord) { box.innerHTML = '<div class="rv-store-none">위치를 확인하지 못했어요. 다른 매장을 선택해주세요.</div>'; return; }
+    if (!coord) { box.innerHTML = '<div class="search-hint error">위치를 확인하지 못했어요. 다른 매장을 선택해주세요.</div>'; return; }
     _reviewFormPlaceId = null;
     _reviewFormNewPlace = { name: it.name, address: it.address, lat: coord.lat, lng: coord.lng, naverCategory: it.category };
-    rvShowSelectedStore({ name: it.name, address: it.address });
+    rvRenderSelected({ name: it.name, address: it.address });
     rvShowUrlStep(true);
     setTimeout(() => { const u = document.getElementById('reviewUrl'); if (u) u.focus(); }, 0);
-  } catch (e) { box.innerHTML = '<div class="rv-store-none">위치 확인 중 오류가 발생했어요.</div>'; }
+  } catch (e) { box.innerHTML = '<div class="search-hint error">위치 확인 중 오류가 발생했어요.</div>'; }
 }
 // validate/create에 보낼 매장 식별 payload
 function rvStorePayload() {

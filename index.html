@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=172">
+  <link rel="stylesheet" href="style.css?v=179">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -402,21 +402,15 @@
   <div class="fullpage-overlay" id="reviewFormOverlay">
     <div class="signup-page">
       <div class="signup-content">
-        <div class="signup-title-wrap"><h2>후기 등록</h2></div>
-        <!-- 매장 선택/검색 (커뮤니티·검색핀 진입 시 노출. 매장 상세에서 열면 이미 선택된 상태) -->
+        <div class="signup-title-wrap rv-form-head"><button class="mlset-back" onclick="closeReviewForm()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h2>후기 등록</h2></div>
+        <!-- 매장명 검색/선택 (제보 step1 매장검색 재사용. 매장 상세에서 열면 이미 선택돼 숨김) -->
         <div class="form-group" id="rvStoreGroup" hidden>
-          <label>매장 <span class="rv-required">*</span></label>
-          <div class="rv-store-selected" id="rvStoreSelected" hidden>
-            <div class="rv-store-sel-text"><span class="rv-store-sel-name" id="rvStoreSelName"></span><span class="rv-store-sel-addr" id="rvStoreSelAddr"></span></div>
-            <button type="button" class="rv-store-change" onclick="rvChangeStore()">변경</button>
+          <label>매장명 <span class="rv-required">*</span></label>
+          <div class="rv-url-row">
+            <input type="search" id="rvStoreSearch" autocomplete="off" placeholder="매장명으로 검색" enterkeyhint="search" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();rvSearchStores();}">
+            <button class="rv-verify-btn" type="button" onclick="rvSearchStores()">검색</button>
           </div>
-          <div class="rv-store-searchwrap" id="rvStoreSearchWrap">
-            <div class="rv-url-row">
-              <input type="search" id="rvStoreSearch" autocomplete="off" placeholder="매장명으로 검색" enterkeyhint="search" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();rvSearchStores();}">
-              <button class="rv-verify-btn" type="button" onclick="rvSearchStores()">검색</button>
-            </div>
-            <div class="place-results-list rv-store-results" id="rvStoreResults"></div>
-          </div>
+          <div class="place-results-list rv-store-results" id="rvStoreResults"></div>
         </div>
         <div class="form-group" id="reviewUrlGroup">
           <label>네이버 블로그 URL <span class="rv-required">*</span></label>
@@ -430,8 +424,7 @@
         <div id="reviewPreview"></div>
       </div>
       <div class="signup-footer">
-        <button class="signup-btn-cancel" onclick="closeReviewForm()">취소</button>
-        <button class="signup-btn-confirm" id="reviewSubmitBtn" onclick="submitReview()">등록하기</button>
+        <button class="signup-btn-confirm rv-submit-full" id="reviewSubmitBtn" onclick="submitReview()">등록하기</button>
       </div>
     </div>
   </div>
@@ -1137,7 +1130,7 @@
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 18.5V6M6 12L12 6L18 12" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <button class="cm-write-fab" id="cmWriteFab" onclick="openReviewRegister(function(){ renderCommunity(true); })" aria-label="후기 작성" hidden>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.3 18.5 6.5L17.5 5.5C16.7 4.7 15.3 4.7 14.5 5.5L4 16V20Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M13 7L17 11" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <svg width="22" height="22" viewBox="16 12 24 24" fill="none"><path d="M20.5089 32.5206L20.502 32.5137C19.3677 32.4459 18.463 31.5412 18.3952 30.4069L18.389 30.4006L18.3883 30.2839L18.3835 29.5527C18.3835 29.5482 18.3835 29.5433 18.3835 29.5389L18.3517 24.0754L26.8335 32.5572L20.5089 32.5206ZM37.0742 18.0739C38.2457 19.2455 38.2456 21.145 37.0742 22.3166L27.8818 31.509L19.3965 23.0237L28.5889 13.8313C29.7605 12.6598 31.66 12.6598 32.8315 13.8313L37.0742 18.0739Z" fill="#376BCB"/></svg>
     </button>
   </div>
   <!-- MY 탭 (Figma 1728-44131). 로그인 후 화면. 로그인 전 화면은 디자인 확정 후 교체 예정(현재 임시 CTA). -->
@@ -1370,7 +1363,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=180"></script>
+  <script src="app.js?v=184"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
