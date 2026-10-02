@@ -2638,8 +2638,7 @@ function openPolicy(type) {
   bindMobileScrollHeader('policyBody', 'policyScrollHeader', 'policyStickyHeader');
 }
 function closePolicy() {
-  document.getElementById('policyOverlay').classList.remove('open');
-  resetModalScroll('policyOverlay');
+  closeSheetSlide('policyOverlay', () => resetModalScroll('policyOverlay'));
 }
 
 // ===== 우측 슬라이드 메뉴 =====
@@ -2741,8 +2740,7 @@ function openMyAlarmSetting() {
   document.getElementById('alarmOverlay').classList.add('open');
 }
 function closeMyAlarmSetting() {
-  document.getElementById('alarmOverlay').classList.remove('open');
-  resetModalScroll('alarmOverlay');
+  closeSheetSlide('alarmOverlay', () => resetModalScroll('alarmOverlay'));
 }
 // OS(기기) 알림 권한이 꺼져 있으면 상단 배너 노출(앱 전용). 권한 허용/웹이면 숨김 — 평소엔 안 거슬리게.
 async function refreshAlarmPermBanner() {
@@ -2808,7 +2806,7 @@ async function openNoticeFeed() {
   }
   renderNoticeFeed();
 }
-function closeNoticeFeed() { document.getElementById('noticeOverlay').classList.remove('open'); resetModalScroll('noticeOverlay'); }
+function closeNoticeFeed() { closeSheetSlide('noticeOverlay', () => resetModalScroll('noticeOverlay')); }
 function setNoticeFilter(f) {
   _noticeFilter = f;
   document.querySelectorAll('#noticeFilter .notice-chip').forEach(c => c.classList.toggle('active', c.dataset.nf === f));
@@ -2845,7 +2843,7 @@ async function openNoticeDetail(id) {
     + `<h2 class="notice-dt-title">${mlEsc(n.title)}</h2>${period}${img}`
     + `<div class="notice-dt-body">${mlEsc(n.body || '').replace(/\n/g, '<br>')}</div>${cta}`;
 }
-function closeNoticeDetail() { document.getElementById('noticeDetailOverlay').classList.remove('open'); resetModalScroll('noticeDetailOverlay'); }
+function closeNoticeDetail() { closeSheetSlide('noticeDetailOverlay', () => resetModalScroll('noticeDetailOverlay')); }
 window.switchTab = switchTab;
 window.openMyAlarmSetting = openMyAlarmSetting;
 
@@ -3222,8 +3220,11 @@ function mlStep1DoSearch() {
   });
 }
 function closeMlSetting() {
-  document.getElementById('mlSettingOverlay').hidden = true;
-  document.body.classList.remove('mlset-step2-mode');
+  const ov = document.getElementById('mlSettingOverlay');
+  const done = () => { ov.hidden = true; ov.classList.remove('mlset-closing'); document.body.classList.remove('mlset-step2-mode'); };
+  if (window.innerWidth > 640 || ov.hidden) { done(); return; }
+  ov.classList.add('mlset-closing');
+  setTimeout(done, 250);
 }
 let _mlIdleBound = false, _mlLiveTimer = null;
 function mlInitSetMap(center) {
@@ -3539,7 +3540,7 @@ async function appleSignIn() {
   }
 }
 function closeLoginSheet() {
-  document.getElementById('loginOverlay').classList.remove('open');
+  closeSheetSlide('loginOverlay');
 }
 
 // 이메일 형식 검증 (빈 값은 선택이라 호출 전에 분기)
@@ -3661,9 +3662,18 @@ function openMyInfoPanel() {
   if (pBody) pBody.scrollTop = 0;
   document.getElementById('profileOverlay').classList.add('open');
 }
+// 닫기(back): 모바일 full-screen 시트를 우측으로 슬라이드 아웃 후 숨김. PC/비오픈은 즉시.
+function closeSheetSlide(overlayId, after) {
+  const ov = document.getElementById(overlayId);
+  if (!ov) { if (after) after(); return; }
+  if (window.innerWidth > 640 || !ov.classList.contains('open')) {
+    ov.classList.remove('open'); if (after) after(); return;
+  }
+  ov.classList.add('sheet-closing');
+  setTimeout(() => { ov.classList.remove('sheet-closing'); ov.classList.remove('open'); if (after) after(); }, 250);
+}
 function closeProfileSheet() {
-  document.getElementById('profileOverlay').classList.remove('open');
-  resetModalScroll('profileOverlay');
+  closeSheetSlide('profileOverlay', () => resetModalScroll('profileOverlay'));
 }
 
 // 버튼 안에 로딩 로티(흰 점 3개, 후기 로딩과 동일 애니)를 넣고 텍스트를 숨김. 완료 시 복원.
@@ -3800,11 +3810,10 @@ function openAbout() {
   document.getElementById('aboutOverlay').classList.add('open');
 }
 function closeAbout() {
-  document.getElementById('aboutOverlay').classList.remove('open');
-  resetModalScroll('aboutOverlay');
-  if (window.innerWidth > 640 && pcTabActive === 'about') {
-    switchPcTab('campaigns');
-  }
+  closeSheetSlide('aboutOverlay', () => {
+    resetModalScroll('aboutOverlay');
+    if (window.innerWidth > 640 && pcTabActive === 'about') switchPcTab('campaigns');
+  });
 }
 
 // ===== 신고 모달 =====
@@ -3832,11 +3841,10 @@ function openReportModalForPlace(placeId) {
   reportContextPlaceId = placeId;
 }
 function closeReportModal() {
-  document.getElementById('reportOverlay').classList.remove('open');
-  resetModalScroll('reportOverlay');
-  if (window.innerWidth > 640 && pcTabActive === 'reportissue') {
-    switchPcTab('campaigns');
-  }
+  closeSheetSlide('reportOverlay', () => {
+    resetModalScroll('reportOverlay');
+    if (window.innerWidth > 640 && pcTabActive === 'reportissue') switchPcTab('campaigns');
+  });
 }
 function resetReportModal() {
   reportSelectedId = null;
