@@ -230,6 +230,8 @@ body.pc-myplaces-mode.pc-place-editing .pc-place-centerpin { display: block; }
 body.pc-myplaces-mode #mlItems .ml-card:hover,
 body.pc-myplaces-mode #mlItems .ml-card.pc-selected { background: #fafaf7; width: calc(100% + 40px); margin: 0 -20px; padding: 16px 20px; }
 body.pc-myplaces-mode #mlItems .ml-addrow:hover { background: #fafaf7; width: calc(100% + 40px); margin: 0 -20px; padding: 0 20px; }
+/* 내 장소 알림 = 리스트에선 '상태 표시'만(변경은 설정 패널에서). 박스 제거 + 클릭 불가 → 벨 클릭 시 카드(설정) 열림 */
+body.pc-myplaces-mode #mlItems .ml-card-bell { background: none; border: none; cursor: default; pointer-events: none; }
 
 .pc-nav-auth {
   display: flex;

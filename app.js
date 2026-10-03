@@ -1092,6 +1092,9 @@ function renderMarkers() {
   markerMap = {};
   selectedMarkerId = null;
 
+  // 내 장소 모드(PC): 지도에 매장(음식점 등 카테고리) 핀은 미노출 — 내 장소 핀/반경만 보이게
+  if (document.body.classList.contains('pc-myplaces-mode')) return;
+
   // 매장 중심: 진행 중 캠페인 있는(컬러) 핀은 항상 노출.
   // 캠페인 없는(회색) 핀은 많이 확대(네이버 스케일 20m ≈ zoom 19)했을 때만 노출해 저줌 클러터 방지.
   const showGrayPins = map.getZoom() >= GRAY_PIN_MIN_ZOOM;
@@ -3703,8 +3706,14 @@ function renderMlItems() {
 async function openPcMyPlaces() {
   if (isMobileView()) return;
   const ov = document.getElementById('mlSettingOverlay'); if (ov && !ov.hidden) ov.hidden = true;  // stale 설정 오버레이 정리
+  try { renderMarkers(); } catch (e) {}  // 홈에서 그려둔 매장 핀 제거(renderMarkers 가드가 pc-myplaces-mode면 미생성)
   await renderMyPlaces();  // #mlItems 렌더(집/회사/여행지/추가행) + 모집수/벨 (완료 후 _myPlaces 채워짐)
-  pcPlaceShowDefault();    // 우측 3번째 컬럼 기본 상태(저장 장소 있으면 안내문구, 없으면 빈 패널)
+  // 재진입 시 리스트 스크롤 맨 위로(홈 갔다 오면 display:none→flex 복원으로 이전 스크롤이 남던 것 방지).
+  // 즉시 + 다음 프레임(브라우저 스크롤 복원 이후)에 한 번 더 → 복원이 리셋을 덮지 않게.
+  const resetMlScroll = () => { const b = document.querySelector('#tabView-places .ml-body'); if (b) b.scrollTop = 0; };
+  resetMlScroll();
+  requestAnimationFrame(resetMlScroll);
+  pcPlaceShowDefault();    // 우측 3번째 컬럼 기본 상태(로고 빈 상태)
 }
 function closePcMyPlaces() {
   const ov = document.getElementById('mlSettingOverlay');
@@ -3781,6 +3790,7 @@ function openPcPlaceSetting(kind, id) {
   const form = document.getElementById('pcPlaceForm'); if (form) form.hidden = false;
   pcPlaceSelectRow(editing ? editing.id : null);
   document.body.classList.add('pc-place-editing');
+  pcPlaceToggleMyMarkers(false);  // 설정 중엔 저장된 내 장소 핀 숨김(중앙 핀+반경만)
   if (editing && editing.lat != null) { try { map.setCenter(new naver.maps.LatLng(editing.lat, editing.lng)); } catch (e) {} }
   setTimeout(() => {
     try { naver.maps.Event.trigger(map, 'resize'); } catch (e) {}
@@ -3801,6 +3811,12 @@ function pcPlaceShowDefault() {
   document.body.classList.remove('pc-place-editing');
   if (_pcPlaceCircle) { try { _pcPlaceCircle.setMap(null); } catch (e) {} }
   pcPlaceClearSelected();
+  pcPlaceToggleMyMarkers(true);  // 설정 종료: 저장된 내 장소 핀 복원
+}
+// 설정 중엔 지금 잡는 장소의 중앙 핀+반경만 보이게, 저장된 내 장소 핀(집 등)은 숨김(결정: 숨김)
+function pcPlaceToggleMyMarkers(show) {
+  if (!Array.isArray(_myPlaceMarkers)) return;
+  _myPlaceMarkers.forEach(m => { try { m.setMap(show ? map : null); } catch (e) {} });
 }
 // 탭 이탈 등 완전 닫기 — 기본 상태와 동일 처리(빈 상태는 pc-myplaces-mode 벗어나면 CSS로 자동 숨김)
 function closePcPlaceSetting() { pcPlaceShowDefault(); }
@@ -4959,6 +4975,11 @@ function switchPcTab(tab) {
   if (tab === 'community') {
     showToast('커뮤니티 PC 화면은 준비 중이에요.<br>모바일에서 이용해주세요.');
     return;
+  }
+
+  // 내 장소를 떠나기 전(아직 보이는 상태) 리스트 스크롤 리셋 → 재진입 시 display:none→flex 복원이 이전 스크롤을 되살리지 못하게(복원값=0)
+  if (pcTabActive === 'myplaces' && tab !== 'myplaces') {
+    const b = document.querySelector('#tabView-places .ml-body'); if (b) b.scrollTop = 0;
   }
 
   pcTabActive = tab;
