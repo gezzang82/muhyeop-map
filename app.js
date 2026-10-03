@@ -2871,6 +2871,7 @@ const POLICY_CONTENT = {
 function openPolicy(type) {
   const data = POLICY_CONTENT[type];
   if (!data) return;
+  if (isPcMyInfo()) pcMyCloseSubs('policyOverlay');  // PC MY: 오른쪽 상세에 약관만
   document.getElementById('policyTitle').textContent = data.title;        // PC 정적 헤더
   document.getElementById('policyStickyTitle').textContent = data.title;  // 모바일 스크롤 시 sticky 헤더
   document.getElementById('policyStickyHeader').classList.remove('show');
@@ -3332,6 +3333,7 @@ function mypageDaysSince(createdAt) {
 }
 // 알림설정 (MY → 알림설정). 모바일 시트. 토글은 Phase2에서 푸시(push_prefs/브로드캐스트 수신)에 배선 예정 — 지금은 UI + OS 권한 배너만 동작.
 function openMyAlarmSetting() {
+  if (isPcMyInfo()) pcMyCloseSubs('alarmOverlay');  // PC MY: 오른쪽 상세에 알림설정만
   syncMobileModalHeader('#alarmOverlay');
   bindMobileScrollHeader('alarmBody', 'alarmScrollHeader', 'alarmStickyHeader');
   const sticky = document.getElementById('alarmStickyHeader'); if (sticky) sticky.classList.remove('show');
@@ -3395,6 +3397,7 @@ function noticeDateFmt(s) { return (s || '').slice(0, 10).replace(/-/g, '.'); }
 function noticeTypeLabel(t) { return t === 'event' ? '이벤트' : '공지'; }
 
 async function openNoticeFeed() {
+  if (isPcMyInfo()) pcMyCloseSubs('noticeOverlay');  // PC MY: 오른쪽 상세에 이벤트·공지만
   syncMobileModalHeader('#noticeOverlay');
   bindMobileScrollHeader('noticeBody', 'noticeScrollHeader', 'noticeStickyHeader');
   const sticky = document.getElementById('noticeStickyHeader'); if (sticky) sticky.classList.remove('show');
@@ -3429,6 +3432,7 @@ function renderNoticeFeed() {
   }).join('');
 }
 async function openNoticeDetail(id) {
+  if (isPcMyInfo()) pcMyCloseSubs('noticeDetailOverlay');  // PC MY: 피드 위에 상세를 오른쪽 상세로 교체
   syncMobileModalHeader('#noticeDetailOverlay');
   bindMobileScrollHeader('noticeDtBody', 'noticeDtScrollHeader', 'noticeDtStickyHeader');
   const sticky = document.getElementById('noticeDtStickyHeader'); if (sticky) sticky.classList.remove('show');
@@ -3445,7 +3449,11 @@ async function openNoticeDetail(id) {
     + `<h2 class="notice-dt-title">${mlEsc(n.title)}</h2>${period}${img}`
     + `<div class="notice-dt-body">${mlEsc(n.body || '').replace(/\n/g, '<br>')}</div>${cta}`;
 }
-function closeNoticeDetail() { closeSheetSlide('noticeDetailOverlay', () => resetModalScroll('noticeDetailOverlay')); }
+function closeNoticeDetail() {
+  // PC MY: 상세 닫으면 오른쪽 상세 영역에 피드로 복귀
+  if (isPcMyInfo()) { document.getElementById('noticeDetailOverlay').classList.remove('open'); openNoticeFeed(); return; }
+  closeSheetSlide('noticeDetailOverlay', () => resetModalScroll('noticeDetailOverlay'));
+}
 window.switchTab = switchTab;
 window.openMyAlarmSetting = openMyAlarmSetting;
 
@@ -4242,8 +4250,14 @@ async function refreshAuthUI() {
       sideProviderIcon.src = providerIconSrc(currentUser.provider);
     }
   }
-  // 내 정보 패널이 열려 있으면 로그인 상태 변화 반영
-  if (document.body.classList.contains('pc-myinfo-mode')) openMyInfoPanel();
+  // PC MY 패널이 열려 있으면 로그인 상태 변화 반영(메뉴 패널 재렌더 + 회원정보관리 열려 있으면 재채움)
+  if (document.body.classList.contains('pc-myinfo-mode')) {
+    renderMyPage();
+    if (document.getElementById('profileOverlay')?.classList.contains('open')) {
+      showProfileMode(loggedIn ? 'in' : 'out');
+      if (loggedIn) populateProfileFields();
+    }
+  }
   // 홈 지도에 내 장소(집/회사/여행지) 마커 갱신 (로그인/로그아웃 반영)
   loadMyPlaceMarkers();
 }
@@ -4497,7 +4511,17 @@ function showProfileMode(mode) {
 // 모바일 내 정보 바텀시트 (비로그인 시 로그인 시트로 우회)
 // PC에서는 좌측 "내 정보" 탭 패널로 라우팅
 function openProfileSheet() {
-  if (!isMobileView()) { switchPcTab('myinfo'); return; }
+  if (!isMobileView()) {
+    // PC: MY 탭의 오른쪽 상세 영역에 회원정보관리를 연다(패널은 상주)
+    if (!document.body.classList.contains('pc-myinfo-mode')) switchPcTab('myinfo');
+    pcMyCloseSubs('profileOverlay');
+    const loggedIn = !!currentUser;
+    showProfileMode(loggedIn ? 'in' : 'out');
+    if (loggedIn) populateProfileFields();
+    const pBody = document.getElementById('profileBody'); if (pBody) pBody.scrollTop = 0;
+    document.getElementById('profileOverlay').classList.add('open');
+    return;
+  }
   if (!currentUser) { openLoginSheet(); return; }
   showProfileMode('in');
   populateProfileFields();
@@ -4509,7 +4533,23 @@ function openProfileSheet() {
   document.getElementById('profileOverlay').classList.add('open');
 }
 
-// PC 좌측 "내 정보" 패널 (로그인 전: 로그인 유도 / 로그인 후: 내 정보)
+// PC MY 서브화면 오버레이들(오른쪽 상세 영역에 교체 노출)
+var PC_MY_SUBS = ['profileOverlay', 'reportOverlay', 'alarmOverlay', 'aboutOverlay', 'noticeOverlay', 'noticeDetailOverlay', 'policyOverlay'];
+// 지정한 것만 남기고 나머지 MY 서브화면을 닫음(한 번에 하나만 오른쪽에 노출) — PC MY 전용
+function pcMyCloseSubs(keepId) {
+  PC_MY_SUBS.forEach(function (id) {
+    if (id !== keepId) { const el = document.getElementById(id); if (el) el.classList.remove('open'); }
+  });
+}
+// 현재 PC MY(myinfo) 모드인가 — 메뉴 핸들러가 오른쪽 상세로 라우팅할지 판단
+function isPcMyInfo() { return !isMobileView() && document.body.classList.contains('pc-myinfo-mode'); }
+// PC MY 진입: MY 메뉴 패널 렌더 + 서브화면 모두 닫아 빈 상태(로고)로 시작
+function openPcMyInfo() {
+  renderMyPage();
+  pcMyCloseSubs(null);
+  const sc = document.getElementById('myScroll'); if (sc) sc.scrollTop = 0;
+}
+// (레거시) PC 좌측 내 정보 패널 — 현재 미사용, 회원정보관리는 openProfileSheet가 오른쪽 상세로 연다
 function openMyInfoPanel() {
   const loggedIn = !!currentUser;
   showProfileMode(loggedIn ? 'in' : 'out');
@@ -4661,6 +4701,13 @@ function alertPopupConfirm() {
 // ===== 모달 =====
 function openAbout() {
   if (!isMobileView()) {
+    // PC MY에서 진입 시 오른쪽 상세 영역에 소개를 연다(MY 유지)
+    if (isPcMyInfo()) {
+      pcMyCloseSubs('aboutOverlay');
+      const aBody = document.getElementById('aboutBody'); if (aBody) aBody.scrollTop = 0;
+      document.getElementById('aboutOverlay').classList.add('open');
+      return;
+    }
     switchPcTab('about');
     return;
   }
@@ -4688,6 +4735,14 @@ let reportContextPlaceId = null;        // 매장에서 신고 진입 시 그 �
 
 function openReportModal() {
   if (!isMobileView()) {
+    // PC MY에서 진입 시 오른쪽 상세 영역에 신고하기를 연다(MY 유지)
+    if (isPcMyInfo()) {
+      pcMyCloseSubs('reportOverlay');
+      resetReportModal();
+      const rBody = document.getElementById('reportBody'); if (rBody) rBody.scrollTop = 0;
+      document.getElementById('reportOverlay').classList.add('open');
+      return;
+    }
     switchPcTab('reportissue');
     return;
   }
@@ -5018,9 +5073,9 @@ function switchPcTab(tab) {
   }
 
   if (tab === 'myinfo') {
-    openMyInfoPanel();
+    openPcMyInfo();
   } else {
-    document.getElementById('profileOverlay').classList.remove('open');
+    pcMyCloseSubs(null);
   }
 
   // 협찬찾기로 복귀 시 "모집 중인 협찬" 리스트 스크롤을 맨 위로
@@ -6300,7 +6355,7 @@ window.addEventListener('resize', function() {
     // PC → 모바일: pc-myinfo-mode 해제 (좌측 패널 닫고 협찬찾기로 복귀)
     if (document.body.classList.contains('pc-myinfo-mode')) {
       document.body.classList.remove('pc-myinfo-mode');
-      document.getElementById('profileOverlay').classList.remove('open');
+      pcMyCloseSubs(null);
       document.getElementById('tabCampaigns')?.classList.add('active');
       document.getElementById('tabMyInfo')?.classList.remove('active');
       pcTabActive = 'campaigns';
