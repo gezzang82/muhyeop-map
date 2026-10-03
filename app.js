@@ -3232,7 +3232,7 @@ async function submitSeoichu() {
 // 이웃찾기 글 카드: 아바타 · 닉/시간 · SNS 링크 / 내용 + 방문하기 CTA (블로그·인스타 공통).
 function seoichuPostHtml(p) {
   const full = snsFullUrl(p.urlPlatform, p.urlId);
-  const avatar = p.profileImage || 'image/img_login_default_32.png';
+  const avatar = p.profileImage || 'image/img_profile_login.png';
   const mine = !!(currentUser && currentUser.id != null && p.userId === currentUser.id);  // 내 글만 삭제버튼
   const trashBtn = mine
     ? `<button class="cm-sc-trash" onclick="deleteSeoichu(${p.id})" aria-label="삭제"><img src="image/ic_trash_16_gray.svg" width="16" height="16" alt=""></button>`
@@ -3287,7 +3287,7 @@ function renderMyPage() {
   if (logoutBtn) logoutBtn.style.display = loggedIn ? '' : 'none';
   const avatar = document.getElementById('myAvatarImg');
   const stickyAvatar = document.getElementById('myStickyAvatar');
-  const avatarSrc = loggedIn ? (currentUser.profileImage || 'image/img_login_default_32.png') : 'image/img_login_guest.svg';
+  const avatarSrc = loggedIn ? (currentUser.profileImage || 'image/img_profile_login.png') : 'image/img_profile_logout.png';
   if (stickyAvatar) stickyAvatar.src = avatarSrc;
   show('myAvatarCam', loggedIn);  // 카메라 배지는 로그인 시만(클릭=사진 변경)
   if (loggedIn) {
@@ -3303,8 +3303,8 @@ function renderMyPage() {
     set('myReviewCnt', currentUser.reviewCount || 0);
     set('myHelpfulCnt', currentUser.helpfulCount || 0);
   } else {
-    if (avatar) avatar.src = 'image/img_login_guest.svg';
-    set('myNick', '로그인이 필요합니다.');
+    if (avatar) avatar.src = 'image/img_profile_logout.png';
+    set('myNick', '로그인하고 시작해보세요.');
     show('myProvider', false);
     show('myDays', false); show('myLoginLink', true);
     set('myEmail', '-'); set('mySns', '-'); set('myReviewCnt', '-'); set('myHelpfulCnt', '-');
@@ -4234,7 +4234,7 @@ function populateProfileFields() {
   // 프로필 사진 미리보기 초기화(변경 전 상태)
   _pendingProfileImage = undefined;
   const pimg = document.getElementById('profilePhotoImg');
-  if (pimg) pimg.src = currentUser.profileImage || 'image/img_login_default_32.png';
+  if (pimg) pimg.src = currentUser.profileImage || 'image/img_profile_login.png';
   const pnick = document.getElementById('profileNickname');
   if (pnick) pnick.textContent = currentUser.nickname || '';
   const pinput = document.getElementById('profilePhotoInput');

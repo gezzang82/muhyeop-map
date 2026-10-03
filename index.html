@@ -151,7 +151,7 @@
       <!-- 로그인 후 -->
       <div class="pc-nav-my-user" id="pcNavMyUser" style="display:none">
         <button class="pc-nav-my" onclick="switchPcTab('myinfo')" aria-label="내 정보">
-          <span class="pc-nav-my-avatar"><img src="image/img_login_default_32.png" alt="" width="32" height="32"></span>
+          <span class="pc-nav-my-avatar"><img src="image/img_profile_login.png" alt="" width="32" height="32"></span>
           <span class="pc-nav-my-name" id="pcNavMyName"></span>
         </button>
         <button class="pc-nav-my-btn" id="pcNavMyLogout" onclick="logout()">로그아웃</button>
@@ -272,7 +272,7 @@
         <div id="profileLoggedIn">
         <div class="form-group profile-photo-group">
           <button type="button" class="profile-avatar-edit" onclick="pickProfilePhoto()" aria-label="프로필 사진 변경">
-            <span class="profile-avatar"><img id="profilePhotoImg" src="image/img_login_default_32.png" alt="" width="80" height="80"></span>
+            <span class="profile-avatar"><img id="profilePhotoImg" src="image/img_profile_login.png" alt="" width="80" height="80"></span>
             <span class="profile-avatar-cam"><img src="image/ic_camera_badge_28.svg" width="28" height="28" alt=""></span>
           </button>
           <p class="profile-nickname" id="profileNickname"></p>
@@ -1148,7 +1148,7 @@
   </div>
   <!-- MY 탭 (Figma 1728-44131). 로그인 후 화면. 로그인 전 화면은 디자인 확정 후 교체 예정(현재 임시 CTA). -->
   <div class="tab-view mypage" id="tabView-my" hidden>
-    <div class="modal-sticky-header mypage-sticky" id="myStickyHeader"><span>MY</span><img class="mypage-sticky-avatar" id="myStickyAvatar" src="image/img_login_default_32.png" alt="" width="32" height="32"></div>
+    <div class="modal-sticky-header mypage-sticky" id="myStickyHeader"><span>MY</span><img class="mypage-sticky-avatar" id="myStickyAvatar" src="image/img_profile_login.png" alt="" width="32" height="32"></div>
     <div class="mypage-scroll" id="myScroll">
       <div class="mypage-top">
         <div class="mypage-header" id="myScrollHeader">
@@ -1159,7 +1159,7 @@
         <div class="mypage-account">
           <div class="mypage-profile">
             <button type="button" class="mypage-avatar-edit" onclick="pickMyPagePhoto()" aria-label="프로필 사진 변경">
-              <span class="mypage-avatar"><img id="myAvatarImg" src="image/img_login_default_32.png" alt="" width="64" height="64"></span>
+              <span class="mypage-avatar"><img id="myAvatarImg" src="image/img_profile_login.png" alt="" width="64" height="64"></span>
               <span class="mypage-avatar-cam" id="myAvatarCam"><img src="image/ic_camera_badge_28.svg" width="24" height="24" alt=""></span>
             </button>
             <div class="mypage-profile-text">
@@ -1168,7 +1168,7 @@
                 <img class="mypage-provider" id="myProvider" src="image/ic_login_naver_16.svg" width="16" height="16" alt="">
               </div>
               <p class="mypage-days" id="myDays"></p>
-              <button class="mypage-login-link" id="myLoginLink" onclick="openLoginSheet()" hidden>로그인<img src="image/ic_chevron_right_gray.svg" width="4" height="8" alt=""></button>
+              <button class="mypage-login-link" id="myLoginLink" onclick="openLoginSheet()" hidden>간편 로그인<img src="image/ic_chevron_right_gray.svg" width="4" height="8" alt=""></button>
             </div>
           </div>
           <div class="mypage-infocard">
@@ -1379,7 +1379,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=198"></script>
+  <script src="app.js?v=199"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
