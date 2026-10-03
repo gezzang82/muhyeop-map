@@ -2871,6 +2871,35 @@ let _cmFeedSort = 'likes';   // 후기 정렬: 'likes'(좋아요 순) | 'latest'
 let _cmFeedMine = false;     // 후기 '내 후기' 필터
 let _cmReqSeq = 0;           // 비동기 레이스 가드
 
+// ===== 무한 스크롤(20개씩, 하단 도달 시 자동 append) — 이웃찾기·후기·내 후기 공용 (결정 2026-10-03) =====
+const CM_PAGE_SIZE = 20;
+let _cmInfinite = null, _myRevInfinite = null;  // 활성 컨트롤러(재렌더 시 destroy)
+// sentinelEl이 보이면 loadPage(offset)를 호출. loadPage는 append 후 '받은 개수'를 반환(에러는 -1).
+// 20개 미만이면 끝. 짧은 목록이면 재관찰로 연속 로드. destroy()로 해제.
+function createInfiniteScroll(rootEl, sentinelEl, loadPage) {
+  let offset = 0, loading = false, hasMore = true, dead = false;
+  async function next() {
+    if (loading || !hasMore || dead) return;
+    loading = true;
+    sentinelEl.classList.add('loading');
+    let count = -1;
+    try { count = await loadPage(offset); } catch (e) { count = -1; }
+    loading = false;
+    if (dead) return;
+    sentinelEl.classList.remove('loading');
+    if (count < 0) return;                 // 에러 — 다음 교차 때 재시도
+    offset += count;
+    if (count < CM_PAGE_SIZE) { hasMore = false; return; }
+    io.unobserve(sentinelEl); io.observe(sentinelEl);  // 짧은 목록: 아직 보이면 재발화
+  }
+  const io = new IntersectionObserver((entries) => {
+    if (entries.some(e => e.isIntersecting)) next();
+  }, { root: rootEl, rootMargin: '200px' });
+  io.observe(sentinelEl);
+  next();  // 첫 페이지 즉시(loading 플래그로 IO 초기콜백과 중복 방지)
+  return { destroy() { dead = true; io.disconnect(); } };
+}
+
 function openCommunity() {
   bindCmTopBtn();
   updateCommunitySegUI();
@@ -2911,39 +2940,59 @@ async function renderCommunity(fresh) {
   const body = document.getElementById('cmBody');
   if (!body) return;
   const seq = ++_cmReqSeq;
-  const bust = fresh ? ('&_=' + Date.now()) : '';   // 등록 직후엔 엣지/브라우저 캐시 우회
-  body.innerHTML = '<div class="cm-loading">불러오는 중…</div>';
-  try {
-    if (_cmSeg === 'seoichu') {
-      const list = await fetch('/api/users?seoichu=1&limit=30' + bust).then(r => r.ok ? r.json() : []);
-      if (seq !== _cmReqSeq) return;
+  const bust = fresh ? ('&_=' + Date.now()) : '';   // 등록 직후엔 엣지/브라우저 캐시 우회(첫 페이지에만)
+  if (_cmInfinite) { _cmInfinite.destroy(); _cmInfinite = null; }
+  const root = document.getElementById('cmScroll');
+
+  if (_cmSeg === 'seoichu') {
+    body.innerHTML = cmInfoBannerHtml() + seoichuComposeHtml()
+      + '<div class="cm-sc-list" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
+    const listEl = document.getElementById('cmList');
+    const sentinel = document.getElementById('cmSentinel');
+    _cmInfinite = createInfiniteScroll(root, sentinel, async (offset) => {
+      const b = offset === 0 ? bust : '';
+      const list = await fetch(`/api/users?seoichu=1&limit=${CM_PAGE_SIZE}&offset=${offset}${b}`).then(r => r.ok ? r.json() : []);
+      if (seq !== _cmReqSeq) return -1;  // stale
       const posts = Array.isArray(list) ? list : [];
-      body.innerHTML = cmInfoBannerHtml() + seoichuComposeHtml() + (posts.length
-        ? `<div class="cm-sc-list">${posts.map(seoichuPostHtml).join('')}</div>`
-        : `<div class="cm-empty"><p class="cm-empty-title">아직 인사가 없어요</p><p class="cm-empty-desc">첫 인사를 남겨보세요. 이웃을 맺고 함께 소통해요.</p></div>`);
-      return;
-    }
-    // 후기 피드
-    const mine = _cmFeedMine;
-    if (mine && !currentUser) {
-      body.innerHTML = cmFeedInfoHtml() + cmEmptyHtml('로그인이 필요해요', '내가 등록한 후기를 모아볼 수 있어요.', true);
-      return;
-    }
-    const qs = `/api/places?reviews=feed&limit=40&sort=${_cmFeedSort}${mine ? '&mine=1' : ''}${bust}`;
-    const data = await fetch(qs).then(r => r.ok ? r.json() : { total: 0, items: [] });
-    if (seq !== _cmReqSeq) return;
-    const items = (data && data.items) || [];
-    const total = (data && data.total) || 0;
-    const list = items.length
-      ? `<div class="rv-cards">${items.map(r => reviewCardHtml(r, false)).join('')}</div>`
-      : (mine
-          ? cmEmptyHtml('아직 등록한 후기가 없어요', '다녀온 곳의 블로그 후기를 등록해보세요.')
-          : cmEmptyHtml('아직 후기가 없어요', '첫 후기를 남겨보세요.'));
-    body.innerHTML = cmFeedInfoHtml() + cmFeedTopHtml(total) + list;
-  } catch (e) {
-    if (seq !== _cmReqSeq) return;
-    body.innerHTML = cmEmptyHtml('불러오지 못했어요', '잠시 후 다시 시도해주세요.');
+      if (offset === 0 && !posts.length) {
+        listEl.innerHTML = '<div class="cm-empty"><p class="cm-empty-title">아직 인사가 없어요</p><p class="cm-empty-desc">첫 인사를 남겨보세요. 이웃을 맺고 함께 소통해요.</p></div>';
+        return 0;
+      }
+      listEl.insertAdjacentHTML('beforeend', posts.map(seoichuPostHtml).join(''));
+      return posts.length;
+    });
+    return;
   }
+
+  // 후기 피드
+  const mine = _cmFeedMine;
+  if (mine && !currentUser) {
+    body.innerHTML = cmFeedInfoHtml() + cmEmptyHtml('로그인이 필요해요', '내가 등록한 후기를 모아볼 수 있어요.', true);
+    return;
+  }
+  body.innerHTML = cmFeedInfoHtml() + cmFeedTopHtml(0)
+    + '<div class="rv-cards" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
+  const listEl = document.getElementById('cmList');
+  const sentinel = document.getElementById('cmSentinel');
+  _cmInfinite = createInfiniteScroll(root, sentinel, async (offset) => {
+    const b = offset === 0 ? bust : '';
+    const qs = `/api/places?reviews=feed&limit=${CM_PAGE_SIZE}&offset=${offset}&sort=${_cmFeedSort}${mine ? '&mine=1' : ''}${b}`;
+    const data = await fetch(qs).then(r => r.ok ? r.json() : { total: 0, items: [] });
+    if (seq !== _cmReqSeq) return -1;  // stale
+    const items = (data && data.items) || [];
+    if (offset === 0) {
+      const cnt = document.querySelector('#cmBody .rv-count');
+      if (cnt) cnt.textContent = `총 ${Number((data && data.total) || 0).toLocaleString()}건`;
+      if (!items.length) {
+        listEl.innerHTML = mine
+          ? cmEmptyHtml('아직 등록한 후기가 없어요', '다녀온 곳의 블로그 후기를 등록해보세요.')
+          : cmEmptyHtml('아직 후기가 없어요', '첫 후기를 남겨보세요.');
+        return 0;
+      }
+    }
+    listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false)).join(''));
+    return items.length;
+  });
 }
 function cmEmptyHtml(title, desc, login) {
   return `<div class="cm-empty">
@@ -3006,31 +3055,45 @@ function openMyReviews() {
   renderMyReviews();
 }
 function closeMyReviews() {
+  if (_myRevInfinite) { _myRevInfinite.destroy(); _myRevInfinite = null; }
   closeSheetSlide('myReviewsOverlay', () => resetModalScroll('myReviewsOverlay'));
 }
-async function renderMyReviews() {
+function renderMyReviews() {
   const el = document.getElementById('myRevContent');
   if (!el) return;
-  el.innerHTML = '<div class="rv-loading">불러오는 중…</div>';
-  try {
-    const data = await fetch(`/api/places?reviews=feed&mine=1&sort=${_myRevSort}&_=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : { total: 0, items: [] });
-    const items = (data && data.items) || [];
-    const total = (data && data.total) || 0;
-    const label = _myRevSort === 'likes' ? '좋아요 순' : '최신 순';
-    const top = `<div class="rv-list-head">
-      <span class="rv-count">총 ${Number(total).toLocaleString()}건</span>
-      <div class="rv-sort-wrap">
-        <button class="rv-sort" onclick="event.stopPropagation();toggleSortMenu(this)"><span class="rv-sort-label">${label}</span><img class="rv-sort-caret" src="image/ic_arrow_01.svg" width="9" height="5" alt=""></button>
-        <div class="rv-sort-menu">
-          <button class="rv-sort-opt${_myRevSort !== 'likes' ? ' active' : ''}" onclick="setMyRevSort('latest')">최신 순</button>
-          <button class="rv-sort-opt${_myRevSort === 'likes' ? ' active' : ''}" onclick="setMyRevSort('likes')">좋아요 순</button>
-        </div>
+  if (_myRevInfinite) { _myRevInfinite.destroy(); _myRevInfinite = null; }
+  const root = document.getElementById('myRevBody');
+  const label = _myRevSort === 'likes' ? '좋아요 순' : '최신 순';
+  const top = `<div class="rv-list-head">
+    <span class="rv-count">총 0건</span>
+    <div class="rv-sort-wrap">
+      <button class="rv-sort" onclick="event.stopPropagation();toggleSortMenu(this)"><span class="rv-sort-label">${label}</span><img class="rv-sort-caret" src="image/ic_arrow_01.svg" width="9" height="5" alt=""></button>
+      <div class="rv-sort-menu">
+        <button class="rv-sort-opt${_myRevSort !== 'likes' ? ' active' : ''}" onclick="setMyRevSort('latest')">최신 순</button>
+        <button class="rv-sort-opt${_myRevSort === 'likes' ? ' active' : ''}" onclick="setMyRevSort('likes')">좋아요 순</button>
       </div>
-    </div>`;
-    el.innerHTML = top + (items.length
-      ? `<div class="rv-cards">${items.map(r => reviewCardHtml(r, false)).join('')}</div>`
-      : `<div class="cm-empty"><p class="cm-empty-title">아직 등록한 후기가 없어요</p><p class="cm-empty-desc">다녀온 곳의 블로그 후기를 등록해보세요.</p></div>`);
-  } catch (e) { el.innerHTML = '<div class="rv-loading">불러오지 못했어요.</div>'; }
+    </div>
+  </div>`;
+  el.innerHTML = top + '<div class="rv-cards" id="myRevList"></div><div class="cm-infinite" id="myRevSentinel"></div>';
+  const listEl = document.getElementById('myRevList');
+  const sentinel = document.getElementById('myRevSentinel');
+  const sort = _myRevSort;  // 이 렌더 기준 정렬 캡처(정렬 변경 시 재렌더로 새 컨트롤러)
+  _myRevInfinite = createInfiniteScroll(root, sentinel, async (offset) => {
+    const b = offset === 0 ? ('&_=' + Date.now()) : '';
+    const data = await fetch(`/api/places?reviews=feed&mine=1&limit=${CM_PAGE_SIZE}&offset=${offset}&sort=${sort}${b}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : { total: 0, items: [] });
+    if (sort !== _myRevSort) return -1;  // stale(정렬 바뀜)
+    const items = (data && data.items) || [];
+    if (offset === 0) {
+      const cnt = el.querySelector('.rv-count');
+      if (cnt) cnt.textContent = `총 ${Number((data && data.total) || 0).toLocaleString()}건`;
+      if (!items.length) {
+        listEl.innerHTML = '<div class="cm-empty"><p class="cm-empty-title">아직 등록한 후기가 없어요</p><p class="cm-empty-desc">다녀온 곳의 블로그 후기를 등록해보세요.</p></div>';
+        return 0;
+      }
+    }
+    listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false)).join(''));
+    return items.length;
+  });
 }
 function setMyRevSort(s) {
   document.querySelectorAll('.rv-sort-wrap.open').forEach(w => w.classList.remove('open'));
