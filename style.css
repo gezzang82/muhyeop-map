@@ -1512,6 +1512,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 }
 .place-picker-badge.ended { color: #999; background: #eee; }
 .place-picker-addr { font-size: 13px; color: #888; }
+.place-picker-hint { margin: 4px 8px 8px; padding: 0; font-size: 12px; color: #999; line-height: 1.4; }
 @media (max-width: 640px) {
   .banner-popup-overlay { align-items: flex-end; }
   .banner-popup {

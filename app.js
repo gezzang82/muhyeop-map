@@ -2291,21 +2291,49 @@ async function searchRegionViaLocalSearch(query) {
       showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
       return;
     }
-    const addr = items[0].roadAddress || items[0].address;
-    naver.maps.Service.geocode({ query: addr }, function(status, response) {
-      const item = response?.v2?.addresses?.[0];
-      if (status === naver.maps.Service.Status.OK && item) {
-        map.setCenter(new naver.maps.LatLng(parseFloat(item.y), parseFloat(item.x)));
-        map.setZoom(15);
-        // 매장명 검색이면 핀 위 '후기 등록' 말풍선(없는 매장 등록)
-        showSearchPin(parseFloat(item.y), parseFloat(item.x), { name: items[0].name, address: addr, category: items[0].category || '' });
-      } else {
-        showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
-      }
-    });
+    // 지점 여러 개(예: '스타벅스') → items[0] 임의 선택 대신 선택 목록으로. 선택 시 지오코딩→핀+후기등록 FAB.
+    if (items.length > 1) { showNaverPicker(items, query); return; }
+    focusNaverResult(items[0]);
   } catch (e) {
     showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
   }
+}
+// 네이버 검색 결과 1건 → 주소 지오코딩 후 핀+말풍선(매장명)+하단 후기등록 FAB(없는 매장 등록 진입).
+function focusNaverResult(it) {
+  const addr = it.roadAddress || it.address || it.name;
+  naver.maps.Service.geocode({ query: addr }, function(status, response) {
+    const item = response?.v2?.addresses?.[0];
+    if (status === naver.maps.Service.Status.OK && item) {
+      map.setCenter(new naver.maps.LatLng(parseFloat(item.y), parseFloat(item.x)));
+      map.setZoom(16);
+      showSearchPin(parseFloat(item.y), parseFloat(item.x), { name: it.name, address: addr, category: it.category || '' });
+    } else {
+      showToast('위치를 확인하지 못했어요.');
+    }
+  });
+}
+// 미등록 매장 다지점 선택 목록 — 등록 매장 picker(#placePickerOverlay) UI 재사용. '미등록' 배지 + 지역 붙이기 힌트.
+let _naverPickerItems = [];
+function showNaverPicker(items, query) {
+  _naverPickerItems = items;
+  const list = document.getElementById('placePickerList');
+  const titleEl = document.getElementById('placePickerTitle');
+  if (!list || !titleEl) return;
+  titleEl.textContent = `'${query}' ${items.length}곳`;
+  list.innerHTML = items.map((it, i) => {
+    const addr = it.roadAddress || it.address || '';
+    return `<button class="place-picker-item" onclick="pickNaverResult(${i})">
+        <span class="place-picker-item-top"><span class="place-picker-name">${rvEsc(it.name)}</span><span class="place-picker-badge ended">미등록</span></span>
+        <span class="place-picker-addr">${rvEsc(addr)}</span>
+      </button>`;
+  }).join('') + `<p class="place-picker-hint">찾는 지점이 없으면 지역을 붙여 검색해보세요 (예: ${rvEsc(query)} 강남)</p>`;
+  document.getElementById('placePickerOverlay').classList.add('show');
+}
+function pickNaverResult(i) {
+  const it = _naverPickerItems[i];
+  if (!it) return;
+  closePlacePicker();
+  focusNaverResult(it);
 }
 
 function searchRegionMobile() {
