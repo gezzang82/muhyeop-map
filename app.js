@@ -3154,6 +3154,7 @@ function renderMyPage() {
   const stickyAvatar = document.getElementById('myStickyAvatar');
   const avatarSrc = loggedIn ? (currentUser.profileImage || 'image/img_login_default_32.png') : 'image/img_login_guest.svg';
   if (stickyAvatar) stickyAvatar.src = avatarSrc;
+  show('myAvatarCam', loggedIn);  // 카메라 배지는 로그인 시만(클릭=사진 변경)
   if (loggedIn) {
     if (avatar) avatar.src = avatarSrc;
     set('myNick', currentUser.nickname || '');
@@ -4099,47 +4100,85 @@ function populateProfileFields() {
   _pendingProfileImage = undefined;
   const pimg = document.getElementById('profilePhotoImg');
   if (pimg) pimg.src = currentUser.profileImage || 'image/img_login_default_32.png';
-  const preset = document.getElementById('profilePhotoReset');
-  if (preset) preset.hidden = !currentUser.profileImage;
+  const pnick = document.getElementById('profileNickname');
+  if (pnick) pnick.textContent = currentUser.nickname || '';
   const pinput = document.getElementById('profilePhotoInput');
   if (pinput) pinput.value = '';
 }
 // 프로필 사진 변경 상태: undefined=변경없음 / ''=기본으로 / dataURI=새 이미지
 let _pendingProfileImage = undefined;
-// 정사각 center-crop(cover) — 찌부 없이 중앙을 정사각으로 잘라 256px JPEG 데이터URI로.
-function cropImageToSquareDataURL(file, size) {
+// 정사각 center-crop(cover) — 찌부 없이 중앙을 정사각으로 잘라 256px JPEG 데이터URI로. src=objectURL/dataURL 모두 처리.
+function cropSrcToSquareDataURL(src, size) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const url = URL.createObjectURL(file);
     img.onload = () => {
-      URL.revokeObjectURL(url);
       const s = Math.min(img.naturalWidth, img.naturalHeight);
       const sx = (img.naturalWidth - s) / 2, sy = (img.naturalHeight - s) / 2;
       const c = document.createElement('canvas'); c.width = size; c.height = size;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+      c.getContext('2d').drawImage(img, sx, sy, s, s, 0, 0, size, size);
       try { resolve(c.toDataURL('image/jpeg', 0.82)); } catch (e) { reject(e); }
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('이미지를 불러오지 못했어요.')); };
-    img.src = url;
+    img.onerror = () => reject(new Error('이미지를 불러오지 못했어요.'));
+    img.src = src;
   });
 }
-async function onProfilePhotoPick(e) {
-  const file = e.target.files && e.target.files[0];
-  if (!file) return;
-  if (!/^image\//.test(file.type)) { showToast('이미지 파일만 등록할 수 있어요.'); return; }
-  try {
-    const dataUrl = await cropImageToSquareDataURL(file, 256);
-    _pendingProfileImage = dataUrl;
-    const pimg = document.getElementById('profilePhotoImg'); if (pimg) pimg.src = dataUrl;
-    const preset = document.getElementById('profilePhotoReset'); if (preset) preset.hidden = false;
-  } catch (err) { showToast('이미지를 처리하지 못했어요.'); }
+function cropImageToSquareDataURL(file, size) {
+  const url = URL.createObjectURL(file);
+  return cropSrcToSquareDataURL(url, size).finally(() => URL.revokeObjectURL(url));
 }
-function resetProfilePhoto() {
-  _pendingProfileImage = '';   // 저장 시 기본 이미지로
-  const pimg = document.getElementById('profilePhotoImg'); if (pimg) pimg.src = 'image/img_login_default_32.png';
-  const preset = document.getElementById('profilePhotoReset'); if (preset) preset.hidden = true;
-  const pinput = document.getElementById('profilePhotoInput'); if (pinput) pinput.value = '';
+function applyPickedProfileImage(dataUrl) {
+  _pendingProfileImage = dataUrl;
+  const pimg = document.getElementById('profilePhotoImg'); if (pimg) pimg.src = dataUrl;
+}
+// 사진 선택 공통: 네이티브(Capacitor Camera) 있으면 '사진 라이브러리'만(3옵션 시트 없이), 없으면 파일선택(accept=image/*) 폴백.
+// 선택·크롭된 256px dataURL(JPEG) 또는 null(취소/실패) 반환. ⚠️ 라이브러리-only는 @capacitor/camera 설치된 네이티브 빌드에서만.
+function choosePhotoDataURL() {
+  return new Promise(async (resolve) => {
+    const Cam = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Camera;
+    const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    if (Cam && isNative) {
+      try {
+        const photo = await Cam.getPhoto({ source: 'PHOTOS', resultType: 'dataUrl', quality: 90 });
+        const raw = photo && (photo.dataUrl || (photo.base64String ? 'data:image/jpeg;base64,' + photo.base64String : ''));
+        if (!raw) return resolve(null);
+        return resolve(await cropSrcToSquareDataURL(raw, 256));
+      } catch (err) {
+        if (/cancel/i.test(String((err && err.message) || ''))) return resolve(null); // 사용자가 취소
+        // 그 외 오류 → 파일선택 폴백
+      }
+    }
+    const inp = document.getElementById('profilePhotoInput');
+    if (!inp) return resolve(null);
+    const onChange = async () => {
+      inp.removeEventListener('change', onChange);
+      const file = inp.files && inp.files[0];
+      inp.value = '';
+      if (!file) return resolve(null);
+      if (!/^image\//.test(file.type)) { showToast('이미지 파일만 등록할 수 있어요.'); return resolve(null); }
+      try { resolve(await cropImageToSquareDataURL(file, 256)); }
+      catch (e) { showToast('이미지를 처리하지 못했어요.'); resolve(null); }
+    };
+    inp.addEventListener('change', onChange);
+    inp.click();
+  });
+}
+// 회원정보관리 폼: 선택 → 미리보기만(실제 저장은 '저장' 버튼)
+async function pickProfilePhoto() {
+  const dataUrl = await choosePhotoDataURL();
+  if (dataUrl != null) applyPickedProfileImage(dataUrl);
+}
+// MY 페이지: 선택 → 즉시 저장(회원정보관리로 이동하지 않음). profileImage만 전송(서버가 부분 업데이트).
+async function pickMyPagePhoto() {
+  if (!currentUser) { if (typeof openLoginSheet === 'function') openLoginSheet(); return; }
+  const dataUrl = await choosePhotoDataURL();
+  if (dataUrl == null) return;
+  try {
+    const res = await fetch('/api/auth/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profileImage: dataUrl }) });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); showToast(j.error || '사진 저장에 실패했어요.'); return; }
+    currentUser.profileImage = dataUrl;
+    renderMyPage();
+    showToast('프로필 사진을 변경했어요.');
+  } catch (e) { showToast('사진 저장에 실패했어요.'); }
 }
 // 로그인 전/후 뷰 토글
 function showProfileMode(mode) {

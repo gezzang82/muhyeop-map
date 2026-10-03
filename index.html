@@ -271,15 +271,12 @@
         <!-- 로그인 후: 내 정보 -->
         <div id="profileLoggedIn">
         <div class="form-group profile-photo-group">
-          <label>프로필 사진 (선택)</label>
-          <div class="profile-photo-row">
-            <span class="profile-photo-preview"><img id="profilePhotoImg" src="image/img_login_default_32.png" alt="" width="72" height="72"></span>
-            <div class="profile-photo-actions">
-              <button type="button" class="profile-photo-btn" onclick="document.getElementById('profilePhotoInput').click()">사진 변경</button>
-              <button type="button" class="profile-photo-reset" id="profilePhotoReset" onclick="resetProfilePhoto()" hidden>기본 이미지로</button>
-            </div>
-            <input type="file" id="profilePhotoInput" accept="image/*" hidden onchange="onProfilePhotoPick(event)">
-          </div>
+          <button type="button" class="profile-avatar-edit" onclick="pickProfilePhoto()" aria-label="프로필 사진 변경">
+            <span class="profile-avatar"><img id="profilePhotoImg" src="image/img_login_default_32.png" alt="" width="80" height="80"></span>
+            <span class="profile-avatar-cam"><img src="image/ic_camera_badge_28.svg" width="28" height="28" alt=""></span>
+          </button>
+          <p class="profile-nickname" id="profileNickname"></p>
+          <input type="file" id="profilePhotoInput" accept="image/*" hidden>
         </div>
         <div class="form-group">
           <label>이메일 (선택)</label>
@@ -1156,7 +1153,10 @@
         <!-- 프로필/카드 (로그인 전·후 동일 레이아웃, 내용만 renderMyPage에서 스왑) -->
         <div class="mypage-account">
           <div class="mypage-profile">
-            <span class="mypage-avatar"><img id="myAvatarImg" src="image/img_login_default_32.png" alt="" width="64" height="64"></span>
+            <button type="button" class="mypage-avatar-edit" onclick="pickMyPagePhoto()" aria-label="프로필 사진 변경">
+              <span class="mypage-avatar"><img id="myAvatarImg" src="image/img_login_default_32.png" alt="" width="64" height="64"></span>
+              <span class="mypage-avatar-cam" id="myAvatarCam"><img src="image/ic_camera_badge_28.svg" width="24" height="24" alt=""></span>
+            </button>
             <div class="mypage-profile-text">
               <div class="mypage-name-row">
                 <span class="mypage-nick" id="myNick"></span>

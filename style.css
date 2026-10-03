@@ -3255,12 +3255,14 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .rv-selected-addr { margin: 0; font-size: 14px; color: #000; }
 .rv-selected-check { flex-shrink: 0; }
 /* 프로필 사진 (회원정보관리) — 원형, object-fit:cover로 찌부 없음 */
-.profile-photo-row { display: flex; align-items: center; gap: 16px; }
-.profile-photo-preview { flex-shrink: 0; width: 72px; height: 72px; border-radius: 50%; overflow: hidden; background: #eee; display: block; }
-.profile-photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.profile-photo-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.profile-photo-btn { padding: 8px 16px; border: 1px solid rgba(170,170,170,0.87); background: #fff; border-radius: 8px; font-size: 14px; color: #1a1a1a; cursor: pointer; }
-.profile-photo-reset { padding: 0; border: 0; background: none; font-size: 13px; color: #999; cursor: pointer; text-decoration: underline; }
+/* 프로필 사진: 중앙 아바타(80px) + 우하단 카메라 배지 + 닉네임 (Figma 1766-50450) */
+.profile-photo-group { display: flex; flex-direction: column; align-items: center; gap: 16px; padding-top: 16px; }
+.profile-avatar-edit { position: relative; width: 80px; height: 80px; padding: 0; border: 0; background: none; cursor: pointer; display: block; }
+.profile-avatar { display: block; width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background: #eee; }
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.profile-avatar-cam { position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; line-height: 0; }
+.profile-avatar-cam img { width: 28px; height: 28px; display: block; }
+.profile-nickname { margin: 0; font-size: 16px; font-weight: 600; color: #000; }
 
 /* PC: 후기 등록은 가운데 팝업 (signup 팝업과 동일 패턴) */
 @media (min-width: 641px) {
@@ -3522,8 +3524,12 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .mypage-logout { background: none; border: 0; padding: 0; font-size: 14px; color: #777; cursor: pointer; }
   .mypage-account { display: flex; flex-direction: column; gap: 16px; }
   .mypage-profile { display: flex; align-items: center; gap: 16px; }
+  /* 아바타 + 우하단 카메라 배지(24px, 회원정보관리 28px보다 작게) — 클릭 시 여기서 바로 사진 선택·저장 */
+  .mypage-avatar-edit { position: relative; flex-shrink: 0; width: 64px; height: 64px; padding: 0; border: 0; background: none; cursor: pointer; display: block; }
   .mypage-avatar { flex-shrink: 0; width: 64px; height: 64px; border-radius: 50%; overflow: hidden; background: #eee; display: block; }
   .mypage-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mypage-avatar-cam { position: absolute; right: -2px; bottom: -2px; width: 24px; height: 24px; line-height: 0; }
+  .mypage-avatar-cam img { width: 24px; height: 24px; display: block; }
   .mypage-profile-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .mypage-name-row { display: flex; align-items: center; gap: 8px; }
   .mypage-nick { font-size: 16px; font-weight: 600; color: #000; }
