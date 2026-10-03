@@ -223,6 +223,14 @@ function oauthLogin(provider) {
 function isNativeApp() {
   return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 }
+// 모바일 레이아웃 판정 — '뷰포트 너비'가 아니라 '기기(터치/마우스)' 기준.
+// 데스크톱(마우스)은 창을 아무리 좁혀도 PC 유지, 폰/태블릿(터치)은 항상 모바일, 네이티브 앱(터치 웹뷰)도 모바일.
+// CSS(style.css)의 `@media (hover: none) and (pointer: coarse)` 와 반드시 동일 기준이어야 함.
+function isMobileView() {
+  if (isNativeApp()) return true;
+  try { return window.matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) {}
+  return window.innerWidth <= 640; // 폴백(matchMedia 미지원 환경)
+}
 function openExternal(url) {
   if (!url) return;
   const B = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
@@ -554,7 +562,7 @@ function initAutumnLeaves() {
   if (!mapEl || mapEl.querySelector('.autumn-leaves')) return;
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  const isMobile = window.innerWidth <= 640;
+  const isMobile = isMobileView();
   // 안드로이드 앱은 저사양 기기 대비 '가볍게'(개수 축소 + CSS로 그림자/3D flutter 비활성, style.css .native-android)
   const isAndroidApp = document.documentElement.classList.contains('native-android');
   const leafCount = isAndroidApp ? 8 : (isMobile ? 12 : 20);
@@ -667,7 +675,7 @@ function initMap() {
   // PC: 사이드패널(제보/신고/소개/내정보)이 열려 지도가 어두워진 상태에서
   // 지도 영역을 클릭하면 패널을 닫고 자연스럽게 협찬찾기(지도)로 복귀
   document.getElementById('map').addEventListener('click', function(e) {
-    if (window.innerWidth <= 640) return;
+    if (isMobileView()) return;
     // PC 카드(매장 상세) 내부 클릭(신고하기 등)은 '지도 클릭'으로 보지 않음 — 방금 연 패널이 바로 닫히던 버그 방지
     if (e.target.closest('#pcCard')) return;
     const b = document.body.classList;
@@ -678,7 +686,7 @@ function initMap() {
   });
 
   // 모바일: 네이버 로고를 바텀시트 위로 올림
-  if (window.innerWidth <= 640) {
+  if (isMobileView()) {
     const liftNaverLogo = () => {
       const mapDiv = document.getElementById('map');
       const logoA = [...mapDiv.querySelectorAll('a')].find(a => {
@@ -700,7 +708,7 @@ function initMap() {
     closePcCard();
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
     // 모바일: 지도 터치 시 사이드바 닫기
-    if (window.innerWidth <= 640) {
+    if (isMobileView()) {
       const sidebar = document.getElementById('sidebar');
       sidebar.classList.remove('expanded');
       sidebar.classList.remove('expanded-full');
@@ -716,13 +724,13 @@ function initMap() {
     closePcCard();
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
     const sheet = document.getElementById('mobileSheet');
-    if (window.innerWidth <= 640 && sheet && sheet.classList.contains('show')) {
+    if (isMobileView() && sheet && sheet.classList.contains('show')) {
       closeMobileSheet();
     }
   });
 
   naver.maps.Event.addListener(map, 'zoom_changed', () => {
-    if (window.innerWidth > 640) closePcCard();
+    if (!isMobileView()) closePcCard();
   });
 
   // 지도 이동/줌이 멈추면(idle) 현재 보이는 영역 기준으로 하단 '모집 중인 협찬' 리스트 갱신 (연속 idle은 디바운스)
@@ -1148,7 +1156,7 @@ function renderMarkers() {
         icon: { content: `<div class="map-pin">${icon}</div>`, anchor: new naver.maps.Point(17, 17) }
       });
       naver.maps.Event.addListener(marker, 'click', () => {
-        if (window.innerWidth <= 640) openMobileSheet(place); else openPcCard(place);
+        if (isMobileView()) openMobileSheet(place); else openPcCard(place);
       });
       markers.push(marker);
       markerMap[place.id] = { marker };
@@ -1961,7 +1969,7 @@ let _lastFadeGradient = null;
 function updateSidebarListFade() {
   const list = document.getElementById('campaignList');
   if (!list) return;
-  if (window.innerWidth > 640) {
+  if (!isMobileView()) {
     if (_lastFadeGradient !== '') { list.style.webkitMaskImage = ''; list.style.maskImage = ''; _lastFadeGradient = ''; }
     return;
   }
@@ -2020,7 +2028,7 @@ function refreshOpenDetailCampaignPane(place) {
   if (!getActiveCampaigns(place.id).length) return;         // 새로 채울 캠페인 없음
   const livePane = document.querySelector('#rvTabBody .rv-pane-campaign');
   if (!livePane) return;
-  const html = (window.innerWidth <= 640) ? createMobileDetailContent(place) : createInfoContent(place);
+  const html = (isMobileView()) ? createMobileDetailContent(place) : createInfoContent(place);
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   const freshPane = tmp.querySelector('.rv-pane-campaign');
@@ -2040,7 +2048,7 @@ async function focusPlace(placeId, zoom) {
   // 현재 기준으로 우선 렌더(마커 없으면 회색핀이라도 만들어 아래 상세 오픈의 setSelectedMarker가 선택).
   if (!markerMap[placeId]) renderMarkers();
 
-  if (window.innerWidth <= 640) {
+  if (isMobileView()) {
     // 모바일: 바텀시트 열고 사이드바 닫기
     const sidebar = document.getElementById('sidebar');
     sidebar.classList.remove('expanded');
@@ -2438,7 +2446,7 @@ function ensureSidebarList() {
 
 function expandSidebar() {
   const sidebar = document.getElementById('sidebar');
-  if (window.innerWidth > 640 || sidebar.classList.contains('expanded')) return;
+  if (!isMobileView() || sidebar.classList.contains('expanded')) return;
   sidebar.style.transform = ''; sidebar.style.transition = '';
   // 닫힘 페이드가 도중이었을 수 있으니 리스트 불투명도 복원
   const listEl = document.getElementById('campaignList');
@@ -2452,7 +2460,7 @@ function expandSidebar() {
 }
 
 function toggleBottomSheet(e) {
-  if (window.innerWidth > 640) return;
+  if (!isMobileView()) return;
   if (Date.now() - _sidebarSwipeAt < 350) return; // 스와이프 직후 따라온 click → 탭 무시
   const sidebar = document.getElementById('sidebar');
   // 헤더 영역 클릭 시에만 토글 (리스트 스크롤은 방해 안 함)
@@ -2490,7 +2498,7 @@ function initSidebarScrollExpand() {
   list.addEventListener('scroll', () => {
     // 페이드(mask) 갱신은 프레임당 1회로 스로틀 → scroll 이벤트 폭주 시 과도한 스타일 계산 방지
     if (!_fadeRaf) _fadeRaf = requestAnimationFrame(() => { _fadeRaf = 0; updateSidebarListFade(); });
-    if (window.innerWidth > 640) return;
+    if (!isMobileView()) return;
     const sidebar = document.getElementById('sidebar');
     if (!sidebar.classList.contains('expanded')) return;
     // 한번 full 확장되면 닫기 전까지 유지 (scrollTop=0 돼도 축소 안 함)
@@ -3532,7 +3540,7 @@ function mlClampToRect(cx, cy, x, y, minX, maxX, minY, maxY) {
 function updateMyPlaceEdges() {
   const layer = ensureEdgeLayer(); if (!layer) return;
   // 모바일 전용(디자인 기준) · 로그인 + 저장장소 있을 때 · 확대 상태에서만(줌아웃 미표시)
-  if (!currentUser || !_myPlacesForMap.length || window.innerWidth > 640 || typeof map === 'undefined' || !map) { layer.innerHTML = ''; return; }
+  if (!currentUser || !_myPlacesForMap.length || !isMobileView() || typeof map === 'undefined' || !map) { layer.innerHTML = ''; return; }
   let bounds, size, zoom; try { bounds = map.getBounds(); size = map.getSize(); zoom = map.getZoom(); } catch (e) { layer.innerHTML = ''; return; }
   if (zoom < 12) { layer.innerHTML = ''; return; }   // 줌아웃(광역/전국)에선 표시 안 함
   const ne = bounds.getNE(), sw = bounds.getSW();
@@ -3605,6 +3613,8 @@ async function renderMyPlaces() {
   if (!items) return;
   const info = document.querySelector('#tabView-places .ml-info');
   const tv = document.getElementById('tabView-places');
+  // 인증 확인 전엔 아무것도 그리지 않음 — 로그인 유저가 열 때 로그인 CTA가 잠깐 떴다 사라지는 깜빡임 방지
+  if (!currentUser && !_authChecked) return;
   if (!currentUser) {
     // 로그인 전: 안내/노트 숨기고 캐릭터 empty-state만 (Figma 1750-46580). ml-noauth로 스크롤 없이 중앙 고정.
     if (tv) tv.classList.add('ml-noauth');
@@ -3644,7 +3654,7 @@ function mlCardHtml(p) {
   const catList = (p.categories && p.categories.length) ? p.categories : ['전체'];
   const catsHtml = catList.map(c => `<span class="ml-cat-tag">${mlEsc(c)}</span>`).join('');
   const cnt = (p._count != null) ? p._count : '–';
-  return `<div class="ml-card" onclick="openMlSetting('${p.kind}', ${p.id})">
+  return `<div class="ml-card" data-mlid="${p.id}" onclick="openMlSetting('${p.kind}', ${p.id})">
     <div class="ml-card-main">
       <div class="ml-card-name"><span class="ml-card-ico">${ML_KIND_ICON[p.kind] || ML_KIND_ICON.place}</span>${mlEsc(mlKindLabel(p))}<span class="chev">${ML_CHEVRON}</span></div>
       ${p.address ? `<div class="ml-card-addr">${mlEsc(p.address)}</div>` : ''}
@@ -3688,12 +3698,155 @@ function renderMlItems() {
   items.innerHTML = h;
 }
 
+// ===== PC 내 장소 — 좌측 레일 옆 패널에 모바일 내장소(#tabView-places) 재사용 노출 =====
+// (설계 1769-51903의 플로팅 설정 카드는 후속 정교화. 지금은 리스트+추가/수정 플로우를 PC에서 동작시킴)
+async function openPcMyPlaces() {
+  if (isMobileView()) return;
+  const ov = document.getElementById('mlSettingOverlay'); if (ov && !ov.hidden) ov.hidden = true;  // stale 설정 오버레이 정리
+  await renderMyPlaces();  // #mlItems 렌더(집/회사/여행지/추가행) + 모집수/벨 (완료 후 _myPlaces 채워짐)
+  pcPlaceShowDefault();    // 우측 3번째 컬럼 기본 상태(저장 장소 있으면 안내문구, 없으면 빈 패널)
+}
+function closePcMyPlaces() {
+  const ov = document.getElementById('mlSettingOverlay');
+  if (ov) ov.classList.remove('open');  // 열려있던 설정 오버레이 닫기
+  closePcPlaceSetting();                 // PC 설정 패널/지도 핀·원 정리(탭 이탈)
+}
+
+// ===== PC 집/장소 설정 (3번째 컬럼 패널 + 메인 지도 중앙 핀/반경 원/역지오코딩) =====
+let _pcPlaceCircle = null, _pcPlaceIdle = null, _pcPlaceGeoTimer = null;
+function pcPlaceRenderCats() {
+  const box = document.getElementById('pcPlaceCats'); if (!box || !_mlDraft) return;
+  const allOn = !(_mlDraft.categories && _mlDraft.categories.length);
+  let h = `<button class="ml-cat-chip${allOn ? ' on' : ''}" onclick="pcPlaceToggleCat('전체')">전체</button>`;
+  h += ML_CATS.map(c => `<button class="ml-cat-chip${_mlDraft.categories.indexOf(c) >= 0 ? ' on' : ''}" onclick="pcPlaceToggleCat('${mlEsc(c)}')">${mlEsc(c)}</button>`).join('');
+  box.innerHTML = h;
+}
+function pcPlaceToggleCat(c) {
+  if (!_mlDraft) return;
+  if (c === '전체') { _mlDraft.categories = []; }
+  else { const i = _mlDraft.categories.indexOf(c); if (i >= 0) _mlDraft.categories.splice(i, 1); else _mlDraft.categories.push(c); }
+  pcPlaceRenderCats();
+}
+function pcPlaceOnRadius(v) {
+  if (!_mlDraft) return;
+  v = Math.round(Number(v) * 10) / 10; // 0.1 단위(모바일 mlOnRadius와 동일)
+  _mlDraft.radiusKm = v;
+  const val = document.getElementById('pcPlaceRadVal'); if (val) val.textContent = v + 'km';
+  const el = document.getElementById('pcPlaceRadius');
+  if (el) { const pct = (v - 1) / 4 * 100; el.style.background = `linear-gradient(90deg,#e82a2d 0%,#e82a2d ${pct}%,#ededee ${pct}%)`; }
+  pcPlaceUpdateCircle();
+}
+function pcPlaceUpdateCircle() {
+  if (typeof map === 'undefined' || !map || typeof naver === 'undefined' || !naver.maps.Circle) return;
+  const c = map.getCenter();
+  const radiusM = ((_mlDraft && _mlDraft.radiusKm) || 3) * 1000;
+  if (!_pcPlaceCircle) _pcPlaceCircle = new naver.maps.Circle({ map: map, center: c, radius: radiusM, strokeColor: '#E82A2D', strokeOpacity: 0.5, strokeWeight: 1, fillColor: '#E82A2D', fillOpacity: 0.08 });
+  else { _pcPlaceCircle.setMap(map); _pcPlaceCircle.setCenter(c); _pcPlaceCircle.setRadius(radiusM); }
+}
+function pcPlaceFitRadius() {
+  try { if (_pcPlaceCircle) map.fitBounds(_pcPlaceCircle.getBounds(), 20); } catch (e) {}
+}
+function pcPlaceLiveAddr() {
+  if (typeof naver === 'undefined' || !naver.maps.Service || !_mlDraft) return;
+  const c = map.getCenter();
+  _mlDraft.lat = c.lat(); _mlDraft.lng = c.lng();
+  naver.maps.Service.reverseGeocode({ coords: c, orders: 'legalcode,admcode,roadaddr,addr' }, (status, response) => {
+    let dong = '';
+    if (status === naver.maps.Service.Status.OK) {
+      try { const reg = response.v2.results[0].region; dong = [reg.area1 && reg.area1.name, reg.area2 && reg.area2.name, reg.area3 && reg.area3.name].filter(Boolean).join(' '); } catch (e) {}
+      if (!dong) { try { dong = response.v2.address.jibunAddress || response.v2.address.roadAddress || ''; } catch (e) {} }
+    }
+    _mlDraft.address = dong;
+    const el = document.getElementById('pcPlaceAddr'); if (el) el.textContent = dong || '선택한 위치';
+  });
+}
+function openPcPlaceSetting(kind, id) {
+  const editing = _myPlaces.find(p => p.id === id) || null;
+  _mlDraft = editing
+    ? { id: editing.id, kind: editing.kind, name: editing.name, address: editing.address, lat: editing.lat, lng: editing.lng, radiusKm: editing.radiusKm || 3, categories: (editing.categories || []).slice(), alarmEnabled: !!editing.alarmEnabled }
+    : { kind: kind, name: kind === 'home' ? '집' : kind === 'work' ? '회사' : '', address: '', lat: null, lng: null, radiusKm: 3, categories: [], alarmEnabled: false };
+  const kLabel = kind === 'home' ? '집' : kind === 'work' ? '회사' : '장소';
+  document.getElementById('pcPlaceTitle').textContent = kLabel + ' 설정';
+  document.getElementById('pcPlaceAddrIco').innerHTML = ML_KIND_ICON[kind] || ML_KIND_ICON.place;
+  document.getElementById('pcPlaceAddr').textContent = _mlDraft.address || '지도를 움직여 위치를 맞춰주세요';
+  const nf = document.getElementById('pcPlaceNameField'); nf.hidden = (kind !== 'place');
+  const nameEl = document.getElementById('pcPlaceName'); nameEl.value = (kind === 'place') ? (_mlDraft.name || '') : ''; nameEl.classList.remove('input-error');
+  document.getElementById('pcPlaceRadius').value = _mlDraft.radiusKm;
+  pcPlaceOnRadius(_mlDraft.radiusKm);
+  document.getElementById('pcPlaceAlarm').checked = _mlDraft.alarmEnabled;
+  document.getElementById('pcPlaceDel').hidden = !editing;
+  document.getElementById('pcPlaceSaveBtn').textContent = editing ? '수정' : '저장';
+  pcPlaceRenderCats();
+  // 선택: 빈 상태(로고) 숨기고 설정 폼+지도 노출(CSS는 pc-place-editing 기준) + 선택 행 하이라이트
+  const form = document.getElementById('pcPlaceForm'); if (form) form.hidden = false;
+  pcPlaceSelectRow(editing ? editing.id : null);
+  document.body.classList.add('pc-place-editing');
+  if (editing && editing.lat != null) { try { map.setCenter(new naver.maps.LatLng(editing.lat, editing.lng)); } catch (e) {} }
+  setTimeout(() => {
+    try { naver.maps.Event.trigger(map, 'resize'); } catch (e) {}
+    pcPlaceUpdateCircle(); pcPlaceFitRadius(); pcPlaceLiveAddr();
+  }, 80);
+  if (!_pcPlaceIdle) {
+    _pcPlaceIdle = naver.maps.Event.addListener(map, 'idle', () => {
+      if (!document.body.classList.contains('pc-place-editing')) return;
+      pcPlaceUpdateCircle();
+      clearTimeout(_pcPlaceGeoTimer); _pcPlaceGeoTimer = setTimeout(pcPlaceLiveAddr, 150);
+    });
+  }
+}
+// 내 장소 선택 전 기본 상태 = 로고 워터마크(CSS가 `pc-place-editing` 없을 때 #pcPlaceEmpty 노출/지도·설정 숨김).
+// 폼 닫고 편집모드 해제 + 원/선택 정리만 하면 CSS가 빈 상태를 그림.
+function pcPlaceShowDefault() {
+  const form = document.getElementById('pcPlaceForm'); if (form) form.hidden = true;
+  document.body.classList.remove('pc-place-editing');
+  if (_pcPlaceCircle) { try { _pcPlaceCircle.setMap(null); } catch (e) {} }
+  pcPlaceClearSelected();
+}
+// 탭 이탈 등 완전 닫기 — 기본 상태와 동일 처리(빈 상태는 pc-myplaces-mode 벗어나면 CSS로 자동 숨김)
+function closePcPlaceSetting() { pcPlaceShowDefault(); }
+// 선택 행 하이라이트(디자인 1769-51903: 연한 회색 full-bleed)
+function pcPlaceClearSelected() {
+  document.querySelectorAll('#mlItems .ml-card.pc-selected').forEach(el => el.classList.remove('pc-selected'));
+}
+function pcPlaceSelectRow(id) {
+  pcPlaceClearSelected();
+  if (id == null) return;
+  const el = document.querySelector('#mlItems .ml-card[data-mlid="' + id + '"]');
+  if (el) el.classList.add('pc-selected');
+}
+async function pcPlaceSave() {
+  if (!_mlDraft || _mlDraft.lat == null) { showToast('지도에서 위치를 먼저 맞춰주세요'); return; }
+  if (_mlDraft.kind === 'place') {
+    const nm = (document.getElementById('pcPlaceName').value || '').trim();
+    if (!nm) { document.getElementById('pcPlaceName').classList.add('input-error'); showToast('장소명을 입력해주세요.'); return; }
+    if (nm.length > 8) { document.getElementById('pcPlaceName').classList.add('input-error'); showToast('장소명은 8자 이내로 입력해주세요.'); return; }
+    _mlDraft.name = nm;
+  }
+  _mlDraft.alarmEnabled = document.getElementById('pcPlaceAlarm').checked;
+  const btn = document.getElementById('pcPlaceSaveBtn'); if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/users?places=save', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(_mlDraft) });
+    if (btn) btn.disabled = false;
+    if (!res.ok) { const e = await res.json().catch(() => ({})); showToast(e.error === 'limit_reached' ? '내 장소는 최대 10개까지예요' : '저장에 실패했어요'); return; }
+    await renderMyPlaces();
+    loadMyPlaceMarkers();
+    pcPlaceShowDefault();  // 폼 닫고 기본 상태(안내문구)로 복귀
+  } catch (e) { if (btn) btn.disabled = false; showToast('저장에 실패했어요'); }
+}
+function pcPlaceDelete() {
+  if (!_mlDraft || !_mlDraft.id) return;
+  const id = _mlDraft.id;
+  showAlert('이 장소를 삭제할까요?', '저장한 반경·카테고리·알림 설정이 사라져요.', { twoButton: true, cancelText: '취소', confirmText: '삭제하기', header: '장소 삭제', align: 'left',
+    onConfirm: async () => { try { await fetch('/api/users?places=1&id=' + id, { method: 'DELETE', credentials: 'same-origin' }); await renderMyPlaces(); loadMyPlaceMarkers(); pcPlaceShowDefault(); } catch (e) {} } });
+}
+
 // ----- 설정(등록/수정) 화면 -----
 let _mlDraft = null;      // { id?, kind, name, address, lat, lng, radiusKm, categories[], alarmEnabled }
 let _mlMap = null;
 let _mlConfirmed = false; // 위치 선택(리버스지오코딩) 완료 여부
 let _mlEntryStep = 1;     // 진입점(1=신규 지도선택 / 2=편집 정보화면) — 뒤로/닫기 분기용
 function openMlSetting(kind, id) {
+  if (!isMobileView()) { openPcPlaceSetting(kind, id); return; }  // PC는 3번째 컬럼 설정 패널
   const editing = _myPlaces.find(p => p.id === id) || null;
   _mlDraft = editing
     ? { id: editing.id, kind: editing.kind, name: editing.name, address: editing.address, lat: editing.lat, lng: editing.lng, radiusKm: editing.radiusKm || 3, categories: (editing.categories || []).slice(), alarmEnabled: !!editing.alarmEnabled }
@@ -3813,7 +3966,7 @@ function mlStep1DoSearch() {
 function closeMlSetting() {
   const ov = document.getElementById('mlSettingOverlay');
   const done = () => { ov.hidden = true; ov.classList.remove('mlset-closing'); document.body.classList.remove('mlset-step2-mode'); };
-  if (window.innerWidth > 640 || ov.hidden) { done(); return; }
+  if (!isMobileView() || ov.hidden) { done(); return; }
   ov.classList.add('mlset-closing');
   setTimeout(done, 250);
 }
@@ -4034,6 +4187,7 @@ window.mlToggleBell = mlToggleBell;
 
 // ===== 간편로그인 =====
 let currentUser = null;
+let _authChecked = false; // /api/auth/me 응답 수신 여부 — 확인 전엔 로그인 CTA를 그리지 않아 깜빡임 방지
 
 async function refreshAuthUI() {
   try {
@@ -4043,6 +4197,7 @@ async function refreshAuthUI() {
   } catch (e) {
     currentUser = null;
   }
+  _authChecked = true;
   const loggedIn = !!currentUser;
   // 로그인 상태에 따라 갱신되는 탭들 먼저 처리 — 아래 PC/사이드메뉴/마커 로직 중 하나가 실패해도 항상 반영되도록 앞에 둠
   renderMyPage();       // MY 탭
@@ -4326,7 +4481,7 @@ function showProfileMode(mode) {
 // 모바일 내 정보 바텀시트 (비로그인 시 로그인 시트로 우회)
 // PC에서는 좌측 "내 정보" 탭 패널로 라우팅
 function openProfileSheet() {
-  if (window.innerWidth > 640) { switchPcTab('myinfo'); return; }
+  if (!isMobileView()) { switchPcTab('myinfo'); return; }
   if (!currentUser) { openLoginSheet(); return; }
   showProfileMode('in');
   populateProfileFields();
@@ -4351,7 +4506,7 @@ function openMyInfoPanel() {
 function closeSheetSlide(overlayId, after) {
   const ov = document.getElementById(overlayId);
   if (!ov) { if (after) after(); return; }
-  if (window.innerWidth > 640 || !ov.classList.contains('open')) {
+  if (!isMobileView() || !ov.classList.contains('open')) {
     ov.classList.remove('open'); if (after) after(); return;
   }
   ov.classList.add('sheet-closing');
@@ -4489,7 +4644,7 @@ function alertPopupConfirm() {
 
 // ===== 모달 =====
 function openAbout() {
-  if (window.innerWidth > 640) {
+  if (!isMobileView()) {
     switchPcTab('about');
     return;
   }
@@ -4503,7 +4658,7 @@ function openAbout() {
 function closeAbout() {
   closeSheetSlide('aboutOverlay', () => {
     resetModalScroll('aboutOverlay');
-    if (window.innerWidth > 640 && pcTabActive === 'about') switchPcTab('campaigns');
+    if (!isMobileView() && pcTabActive === 'about') switchPcTab('campaigns');
   });
 }
 
@@ -4516,7 +4671,7 @@ let reportSelectedReason = null;
 let reportContextPlaceId = null;        // 매장에서 신고 진입 시 그 매장 맥락 유지(대상 유형 고르면 이 매장으로 자동 스코프)
 
 function openReportModal() {
-  if (window.innerWidth > 640) {
+  if (!isMobileView()) {
     switchPcTab('reportissue');
     return;
   }
@@ -4534,7 +4689,7 @@ function openReportModalForPlace(placeId) {
 function closeReportModal() {
   closeSheetSlide('reportOverlay', () => {
     resetModalScroll('reportOverlay');
-    if (window.innerWidth > 640 && pcTabActive === 'reportissue') switchPcTab('campaigns');
+    if (!isMobileView() && pcTabActive === 'reportissue') switchPcTab('campaigns');
   });
 }
 function resetReportModal() {
@@ -4564,7 +4719,7 @@ function bindMobileScrollHeader(bodyId, scrollHeaderId, stickyHeaderId) {
   const stickyHeader = document.getElementById(stickyHeaderId);
   if (!body || !scrollHeader || !stickyHeader) return;
   const handler = () => {
-    if (window.innerWidth > 640) return;
+    if (!isMobileView()) return;
     const threshold = scrollHeader.offsetTop + scrollHeader.offsetHeight;
     stickyHeader.classList.toggle('show', body.scrollTop > threshold);
   };
@@ -4588,7 +4743,7 @@ function resetModalScroll(overlayId) {
 // 모바일 공통: 정적 .modal-header는 모바일에서 숨기고 .modal-scroll-header로 대체
 function syncMobileModalHeader(modalSelector) {
   const mh = document.querySelector(modalSelector + ' .modal-header');
-  if (mh) mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
+  if (mh) mh.style.display = isMobileView() ? 'none' : 'flex';
 }
 
 // 대상 유형별 신고 이유
@@ -4798,24 +4953,28 @@ function submitReport() {
 
 // ===== PC 탭 전환 =====
 function switchPcTab(tab) {
-  if (window.innerWidth <= 640) return;
+  if (isMobileView()) return;
 
-  const campaignsTab = document.getElementById('tabCampaigns');
-  const reportTab = document.getElementById('tabReport');
-  const reportIssueTab = document.getElementById('tabReportIssue');
-  const aboutTab = document.getElementById('tabAbout');
-  const myInfoTab = document.getElementById('tabMyInfo');
+  // 커뮤니티 PC는 디자인 준비 중 → 안내만 하고 현재 탭 유지(상태 변경 없음)
+  if (tab === 'community') {
+    showToast('커뮤니티 PC 화면은 준비 중이에요.<br>모바일에서 이용해주세요.');
+    return;
+  }
 
   pcTabActive = tab;
-  campaignsTab?.classList.toggle('active', tab === 'campaigns');
-  reportTab?.classList.toggle('active', tab === 'report');
-  reportIssueTab?.classList.toggle('active', tab === 'reportissue');
-  aboutTab?.classList.toggle('active', tab === 'about');
-  myInfoTab?.classList.toggle('active', tab === 'myinfo');
+  // 좌측 레일 active (홈/내장소/커뮤니티/MY)
+  document.getElementById('tabCampaigns')?.classList.toggle('active', tab === 'campaigns');
+  document.getElementById('tabMyPlaces')?.classList.toggle('active', tab === 'myplaces');
+  document.getElementById('tabCommunity')?.classList.toggle('active', tab === 'community');
+  document.getElementById('tabMyInfo')?.classList.toggle('active', tab === 'myinfo');
   document.body.classList.toggle('pc-report-mode', tab === 'report');
   document.body.classList.toggle('pc-reportissue-mode', tab === 'reportissue');
   document.body.classList.toggle('pc-about-mode', tab === 'about');
   document.body.classList.toggle('pc-myinfo-mode', tab === 'myinfo');
+  document.body.classList.toggle('pc-myplaces-mode', tab === 'myplaces');
+
+  // 내 장소 PC (좌측 리스트 패널 + 지도 + 플로팅 설정 카드)
+  if (tab === 'myplaces') { openPcMyPlaces(); } else { closePcMyPlaces(); }
 
   if (tab === 'report') {
     document.getElementById('modalOverlay').classList.add('open');
@@ -4861,7 +5020,7 @@ function searchRegionPC() {
 }
 
 function openModal() {
-  if (window.innerWidth > 640) {
+  if (!isMobileView()) {
     switchPcTab('report');
     return;
   }
@@ -4872,7 +5031,7 @@ function openModal() {
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
   resetModalScroll('modalOverlay');
-  if (window.innerWidth > 640 && pcTabActive === 'report') {
+  if (!isMobileView() && pcTabActive === 'report') {
     pcTabActive = 'campaigns';
     document.body.classList.remove('pc-report-mode');
     document.getElementById('tabCampaigns')?.classList.add('active');
@@ -4921,7 +5080,7 @@ function resetModal() {
   document.getElementById('modalStickyHeader').classList.remove('show');
   // 모바일: modal-header 숨기기 (step1-scroll-header가 대체)
   const _mh = document.querySelector('#modalOverlay .modal-header');
-  if (_mh) _mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
+  if (_mh) _mh.style.display = isMobileView() ? 'none' : 'flex';
   updateStepDots(1);
   const step1Body = document.getElementById('step1Body');
   if (step1Body) {
@@ -5101,7 +5260,7 @@ function goStep1() {
   document.getElementById('step2').style.display = 'none';
   document.getElementById('step1').style.display = 'block';
   const _mh = document.querySelector('#modalOverlay .modal-header');
-  if (_mh) _mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
+  if (_mh) _mh.style.display = isMobileView() ? 'none' : 'flex';
   document.getElementById('modalStickyHeader').classList.remove('show');
   updateStepDots(1);
   // step2 → step1: 스크롤 리스너 교체
@@ -5150,7 +5309,7 @@ function toggleHoliday(row) {
 }
 
 function handleStep1Scroll() {
-  if (window.innerWidth > 640) return;
+  if (!isMobileView()) return;
   const body = document.getElementById('step1Body');
   const header = document.getElementById('modalStickyHeader');
   const scrollHeader = document.getElementById('step1ScrollHeader');
@@ -5164,7 +5323,7 @@ function handleStep1Scroll() {
 }
 
 function handleStep2Scroll() {
-  if (window.innerWidth > 640) return;
+  if (!isMobileView()) return;
   const body = document.getElementById('step2Body');
   const header = document.getElementById('modalStickyHeader');
   const scrollHeader = document.getElementById('step2ScrollHeader');
@@ -5559,7 +5718,7 @@ function initSidebarSwipeToDismiss() {
   function peekH() { return 78 + (parseFloat(getComputedStyle(sidebar).paddingBottom) || 0); }
 
   function startDrag(y) {
-    if (window.innerWidth > 640) return false;
+    if (!isMobileView()) return false;
     startY = y; currentY = y; dragging = true; startTime = Date.now();
     if (sidebar.classList.contains('expanded')) {
       dragMode = 'collapse';
@@ -5841,7 +6000,7 @@ function initAppLoading() {
 function initSplash() {
   const SP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen;
   const splash = document.getElementById('appSplash');
-  const isMobile = window.innerWidth <= 640;
+  const isMobile = isMobileView();
   if (!splash || !isMobile) {
     if (splash) splash.remove();
     if (isNativeApp() && SP) SP.hide().catch(() => {}); // PC/스플래시 없음: 네이티브 스플래시 즉시 숨김
@@ -6103,9 +6262,9 @@ window.addEventListener('load', async function() {
   initPush(); // 앱 푸시 초기화(네이티브만, 백그라운드)
 });
 
-let _prevIsMobile = window.innerWidth <= 640;
+let _prevIsMobile = isMobileView();
 window.addEventListener('resize', function() {
-  const isMobile = window.innerWidth <= 640;
+  const isMobile = isMobileView();
 
   if (!_prevIsMobile && isMobile) {
     // PC → 모바일: pc-report-mode 해제
@@ -6149,7 +6308,7 @@ window.addEventListener('resize', function() {
 
   _prevIsMobile = isMobile;
 
-  if (openPcCardPlace && window.innerWidth > 640) {
+  if (openPcCardPlace && !isMobileView()) {
     panToCard(openPcCardPlace);
   }
 });

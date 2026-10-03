@@ -16,7 +16,7 @@
   overflow: hidden; transition: opacity 0.4s ease;
 }
 .app-splash.hide { opacity: 0; pointer-events: none; }
-@media (min-width: 641px) { .app-splash { display: none; } }
+@media (hover: hover) and (pointer: fine) { .app-splash { display: none; } }
 .splash-logo-group {
   position: absolute; top: 24%; left: 0; right: 0;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -102,7 +102,7 @@ img, a { -webkit-user-drag: none; user-drag: none; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   border: none;
   background: none;
   cursor: pointer;
@@ -115,6 +115,121 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 }
 .pc-nav-tab.active { color: #39395c; background: white; }
 .pc-nav-tab:hover:not(.active) { color: rgba(255,255,255,0.7); }
+/* 레일 아이콘: 모바일 GNB 아이콘을 mask로 쓰고 색은 currentColor(비활성 흰색 / 활성 네이비). 활성 시 _on(채움)으로 스왑 */
+.pc-nav-ico {
+  display: block; width: 32px; height: 32px;   /* 설계 슬롯 32px */
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: auto; mask-size: auto;     /* 글리프는 자연 크기로 중앙(설계 아트보드 배치와 동일) */
+}
+#tabCampaigns .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_home.svg); mask-image: url(image/ic_gnb_home.svg); }
+#tabCampaigns.active .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_home_on.svg); mask-image: url(image/ic_gnb_home_on.svg); }
+#tabMyPlaces .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_place.svg); mask-image: url(image/ic_gnb_place.svg); }
+#tabMyPlaces.active .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_place_on.svg); mask-image: url(image/ic_gnb_place_on.svg); }
+#tabCommunity .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_community.svg); mask-image: url(image/ic_gnb_community.svg); }
+#tabCommunity.active .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_community_on.svg); mask-image: url(image/ic_gnb_community_on.svg); }
+#tabMyInfo .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_my.svg); mask-image: url(image/ic_gnb_my.svg); }
+#tabMyInfo.active .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_my_on.svg); mask-image: url(image/ic_gnb_my_on.svg); }
+/* PC(마우스)는 창을 좁혀도 모바일로 바뀌지 않음(기기 기준). 좁으면 PC 레이아웃이 잘리지 않게 가로 스크롤.
+   레일72+리스트360+설정360+지도 ≈ 최소 1024. 폰/태블릿(터치)은 이 블록이 안 걸려 영향 없음. */
+@media (hover: hover) and (pointer: fine) {
+  html { overflow-x: auto; }
+  body { min-width: 1024px; }
+}
+/* PC 내 장소 — flex 3컬럼: 레일 | 내장소 리스트(360) | 집 설정 패널(360) | 지도(flex:1) */
+body.pc-myplaces-mode .sidebar { display: none !important; }
+body.pc-myplaces-mode .pc-nav { order: 0; }
+body.pc-myplaces-mode #tabView-places {
+  order: 1; display: flex !important; flex-direction: column;
+  position: static; width: 360px; flex-shrink: 0; height: 100%;
+  background: #fff; overflow: hidden;
+}
+/* 선택 전(기본): 로고 워터마크가 리스트 오른쪽 전체를 차지. 설정 컬럼·지도·지도컨트롤 숨김 */
+body.pc-myplaces-mode #pcPlaceEmpty { order: 2; display: flex; }
+body.pc-myplaces-mode #pcPlaceSetting { order: 3; display: none; }
+body.pc-myplaces-mode #map { order: 4; }
+/* 선택(편집) 시: 빈 상태 숨기고 설정 컬럼(360)+지도 노출 */
+body.pc-myplaces-mode.pc-place-editing #pcPlaceEmpty { display: none; }
+body.pc-myplaces-mode.pc-place-editing #pcPlaceSetting { display: flex; }
+body.pc-myplaces-mode:not(.pc-place-editing) #map { display: none; }
+body.pc-myplaces-mode:not(.pc-place-editing) .btn-zoom-group,
+body.pc-myplaces-mode:not(.pc-place-editing) .btn-my-location { display: none; }
+/* 내 장소에선 불필요한 홈 요소 숨김(총협찬수·채널칩·앱다운로드·라이브캐릭터) */
+body.pc-myplaces-mode .pc-stat-pill,
+body.pc-myplaces-mode .pc-chips-row { display: none !important; }
+body.pc-myplaces-mode .pc-app-download,
+body.pc-myplaces-mode .live-alert { display: none !important; }
+/* 지도 컨트롤(줌·내위치)을 지도 영역(패널 오른쪽)으로 이동 — 레일72+리스트360+설정360=792 */
+body.pc-myplaces-mode .btn-zoom-group { left: 812px; }
+body.pc-myplaces-mode .btn-my-location { left: 812px; }
+/* 내 장소 타이틀 = 홈 '모집 중인 협찬'과 동일(18px/600, top32·left20). PC 전용(모바일 불변) */
+body.pc-myplaces-mode #mlStickyHeader { display: none; }
+/* 스크롤 = 홈 '모집 중인 협찬'·MY와 동일한 PC 패턴: 타이틀만 고정 + 본문(안내+리스트+노트)이 함께 스크롤 (sticky 아님) */
+body.pc-myplaces-mode #tabView-places .ml-scroll { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+body.pc-myplaces-mode #tabView-places .ml-list { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; }
+/* 헤더 영역 = 홈 '모집 중인 협찬'(.sidebar-header)과 동일: 84px(패딩 32/20/20 + 32px 콘텐츠 행), 타이틀은 행 안에서 세로 중앙정렬 → top 37 */
+body.pc-myplaces-mode #tabView-places .ml-scroll-header { flex-shrink: 0; position: static; margin: 0; box-sizing: border-box; min-height: 84px; padding: 32px 20px 20px; display: flex; align-items: center; }
+body.pc-myplaces-mode #tabView-places .ml-scroll-header h2 { font-size: 18px; font-weight: 600; color: #000; }
+body.pc-myplaces-mode #tabView-places .ml-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 20px; display: block; }
+body.pc-myplaces-mode #tabView-places .ml-info { margin: 0 0 8px; }
+body.pc-myplaces-mode #tabView-places #mlItems { padding: 0; }
+body.pc-myplaces-mode #tabView-places .ml-note { padding: 12px 0 0; }
+/* 선택 전 빈 상태(로고 워터마크) — 리스트 오른쪽 전체(설정+지도 영역)를 덮음 (디자인 1769-54077) */
+.pc-place-empty { display: none; flex: 1; align-items: center; justify-content: center; background: #f7f9fa; }
+.pc-place-empty img { width: 120px; height: auto; }
+/* 집 설정 패널(3번째 컬럼) — 장소 선택 시에만 노출 */
+.pc-place-setting {
+  width: 360px; flex-shrink: 0; height: 100%;
+  background: #fff; border-left: 1px solid #eee;
+  display: none; flex-direction: column;
+  box-sizing: border-box;
+}
+.pc-place-setting[hidden] { display: none !important; }
+/* '집 설정' 타이틀 = 고정 영역, 내 장소 헤더와 동일(84px, 패딩 32/20/20 + 중앙정렬 → 타이틀 top 37/18px/600) */
+.pc-place-header { flex-shrink: 0; box-sizing: border-box; min-height: 84px; padding: 32px 20px 20px; display: flex; align-items: center; }
+.pc-place-title { font-size: 18px; font-weight: 600; color: #000; margin: 0; }
+/* 설정 폼(장소 선택 시) — 타이틀 아래 스크롤 본문 */
+.pc-place-form { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 20px 20px; box-sizing: border-box; overflow-y: auto; }
+.pc-place-form[hidden] { display: none !important; }
+/* 폼이 flex 컬럼이라 브라우저 높이가 낮으면 자식(주소박스 등)이 눌림 → shrink 금지(자연 높이 유지, 넘치면 폼 스크롤) */
+.pc-place-form > * { flex-shrink: 0; }
+.pc-place-addrbox { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 16px; background: #f5f5f5; border-radius: 8px; }
+.pc-place-addrbox .pc-place-addr-ico { flex-shrink: 0; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }
+.pc-place-addrbox .pc-place-addr-ico svg { width: 24px; height: 24px; }
+.pc-place-addr { font-size: 16px; color: #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-place-guide { display: flex; gap: 8px; margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: #555; }
+.pc-place-guide img { flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; }
+.pc-place-namefield { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+.pc-place-namefield[hidden] { display: none !important; }
+.pc-place-namefield label { font-size: 14px; color: #777; }
+.pc-place-namefield input { height: 48px; padding: 0 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; outline: none; }
+.pc-place-namefield input.input-error { border-color: #e82a2d; }
+.pc-place-row { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; }
+.pc-place-row > span:first-child { font-size: 14px; color: #777; }
+.pc-place-radval { font-size: 16px; font-weight: 700; color: #e82a2d; }
+/* 반경 슬라이더(레버)는 모바일과 동일 — .ml-set-slider/.ml-set-slider-box 재사용(알약형 썸+그립), 박스 간격만 */
+.pc-place-sliderbox { margin-top: 8px; }
+.pc-place-catlabel { margin-top: 28px; font-size: 14px; color: #777; }
+.pc-place-cats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pc-place-cats .ml-cat-chip { padding: 8px 16px; border: 1px solid #ddd; border-radius: 8px; background: #fff; font-size: 14px; color: #555; cursor: pointer; }
+.pc-place-cats .ml-cat-chip.on { border-color: #111; color: #111; font-weight: 700; }
+.pc-place-alarmrow { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; padding-top: 24px; border-top: 1px solid #eee; }
+.pc-place-alarmrow > span { font-size: 15px; color: #000; }
+/* 하단 삭제/저장 = 고정 푸터(스크롤 영역 밖). 버튼 위에 겹치는 페이드로 스크롤 콘텐츠가 흰색으로 사라짐(모바일과 동일 느낌) */
+.pc-place-actions { position: relative; flex-shrink: 0; display: flex; gap: 8px; padding: 12px 20px 24px; background: #fff; }
+.pc-place-actions::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 24px; background: linear-gradient(to top, #fff, rgba(255,255,255,0)); pointer-events: none; }
+.pc-place-del { width: 96px; flex-shrink: 0; height: 56px; border: 1px solid #ddd; border-radius: 8px; background: #fff; font-size: 16px; color: #555; cursor: pointer; }
+.pc-place-save { flex: 1; height: 56px; border: 0; border-radius: 8px; background: #e82a2d; color: #fff; font-size: 18px; font-weight: 700; cursor: pointer; }
+/* 설정 중 지도 중앙 고정 핀(비상호작용) */
+.pc-place-centerpin { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); z-index: 20; pointer-events: none; display: none; }
+body.pc-myplaces-mode.pc-place-editing .pc-place-centerpin { display: block; }
+/* 선택된 리스트 행 하이라이트(디자인 1769-51903, full-bleed: .ml-body 좌우패딩 20 상쇄) */
+/* 리스트 hover/선택 = 홈 '모집 중인 협찬'(.sidebar-card:hover)과 동일한 #fafaf7, full-bleed(.ml-body 좌우패딩 20 상쇄).
+   .ml-card/.ml-addrow가 width:100%라 음수 margin만 주면 안 늘고 왼쪽으로 밀려 벨 아이콘이 이동 → width:calc(100%+40px)로 양쪽 확장(내용 위치 고정) */
+body.pc-myplaces-mode #mlItems .ml-card:hover,
+body.pc-myplaces-mode #mlItems .ml-card.pc-selected { background: #fafaf7; width: calc(100% + 40px); margin: 0 -20px; padding: 16px 20px; }
+body.pc-myplaces-mode #mlItems .ml-addrow:hover { background: #fafaf7; width: calc(100% + 40px); margin: 0 -20px; padding: 0 20px; }
 
 .pc-nav-auth {
   display: flex;
@@ -246,7 +361,7 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 .login-provider-apple svg { color: #fff; }
 .login-modal-header-spacer { display: none; }
 /* PC: Figma 디자인(폭 320px, 타이틀 가운데정렬, 그림자)에 맞춤 */
-@media (min-width: 641px) {
+@media (hover: hover) and (pointer: fine) {
   .modal.login-modal { width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   .login-modal-header { padding-top: 20px; }
   .login-modal-header h2 { text-align: center; }
@@ -264,11 +379,11 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 .modal-overlay.withdraw-overlay .login-modal {
   transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .modal-overlay.withdraw-overlay .login-modal { transform: translateY(100%); }
   .modal-overlay.withdraw-overlay.open .login-modal { transform: translateY(0); }
 }
-@media (min-width: 641px) {
+@media (hover: hover) and (pointer: fine) {
   .modal-overlay.withdraw-overlay .login-modal { transform: scale(0.96); }
   .modal-overlay.withdraw-overlay.open .login-modal { transform: scale(1); }
 }
@@ -297,7 +412,7 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 .alert-popup.align-left .login-modal-header h2 { text-align: left; }
 
 /* PC 회원탈퇴 팝업: 타이틀 중앙정렬(X 없음) + 메시지/버튼 축소 (Figma 1169:2959) */
-@media (min-width: 641px) {
+@media (hover: hover) and (pointer: fine) {
   .withdraw-overlay .modal-close { display: none; }
   .withdraw-overlay .login-modal-header h2 { text-align: center; }
   .withdraw-overlay .withdraw-message { padding: 24px 20px; }
@@ -306,7 +421,7 @@ img, a { -webkit-user-drag: none; user-drag: none; }
   .withdraw-overlay .withdraw-btn { height: 48px; font-size: 16px; }
 }
 
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .modal-overlay.login-overlay { align-items: flex-end; }
   /* 간편 로그인: 아래에서 위로 슬라이드 인/아웃 */
   .login-overlay.open > .login-modal { animation: sheetSlideUp 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
@@ -370,7 +485,7 @@ img, a { -webkit-user-drag: none; user-drag: none; }
   font-size: 18px; font-weight: 700; color: #fff; cursor: pointer;
 }
 /* PC: 추가 정보 입력은 풀페이지 대신 Figma 디자인의 가운데 카드 팝업으로 (node 1178:12354) */
-@media (min-width: 641px) {
+@media (hover: hover) and (pointer: fine) {
   #signupInfoOverlay { background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
   #signupInfoOverlay .signup-page {
     flex: 0 1 auto; width: 360px; max-width: calc(100vw - 40px);
@@ -408,7 +523,7 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 .signup-done-content .signup-subtitle { text-align: center; }
 
 /* PC: 가입완료는 풀페이지 대신 가운데 팝업 + 캐릭터 이미지가 상단에 걸침 (node 1178:12682) */
-@media (min-width: 641px) {
+@media (hover: hover) and (pointer: fine) {
   #signupDoneOverlay { background: rgba(0,0,0,0.32); align-items: center; justify-content: center; }
   #signupDoneOverlay .signup-page {
     flex: 0 1 auto; width: 320px; max-width: calc(100vw - 40px);
@@ -539,7 +654,7 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 }
 .pc-chips-row::-webkit-scrollbar { display: none; }
 
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .pc-map-top { display: none; }
 }
 
@@ -775,8 +890,11 @@ body.pc-myinfo-mode #profileOverlay .modal {
 body.pc-myinfo-mode #profileOverlay .modal-sticky-header,
 body.pc-myinfo-mode #profileOverlay .modal-scroll-header { display: none !important; }
 body.pc-myinfo-mode #profileOverlay .modal-header {
-  padding: 37px 20px 20px !important;
-  align-items: flex-start !important;
+  /* 헤더 영역 = 홈 '모집 중인 협찬'·내 장소와 동일(84px, 타이틀 32px 행 중앙정렬 → top 37) */
+  box-sizing: border-box !important;
+  min-height: 84px !important;
+  padding: 32px 20px 20px !important;
+  align-items: center !important;
 }
 body.pc-myinfo-mode #profileOverlay .modal-header h2 {
   font-size: 18px !important;
@@ -1121,10 +1239,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .leaderboard-text { font-size: 14px; color: #1a1a1a; }
 .leaderboard-text strong { color: #E82A2D; font-weight: 700; }
 .leaderboard-banner.mobile-only { margin: 0 20px 16px; }
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .leaderboard-banner.pc-only { display: none !important; }
 }
-@media (min-width: 641px) {
+@media (hover: hover) and (pointer: fine) {
   .leaderboard-banner.mobile-only { display: none !important; }
 }
 
@@ -1513,7 +1631,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .place-picker-badge.ended { color: #999; background: #eee; }
 .place-picker-addr { font-size: 13px; color: #888; }
 .place-picker-hint { margin: 4px 8px 8px; padding: 0; font-size: 12px; color: #999; line-height: 1.4; }
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .banner-popup-overlay { align-items: flex-end; }
   .banner-popup {
     width: 100%; max-width: 100%;
@@ -1965,7 +2083,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .native-app .step2-scroll-header,
 .native-app .modal-scroll-header { padding-top: max(env(safe-area-inset-top), var(--and-sat, 0px)); }
 /* PC에서는 정적 .modal-header가 보이므로 스크롤 헤더는 숨김 (모바일에서만 노출) */
-@media (min-width: 641px) {
+@media (hover: hover) and (pointer: fine) {
   .profile-modal .modal-scroll-header { display: none; }
 }
 .step1-scroll-header h2,
@@ -2091,13 +2209,13 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* ===== 서비스 소개 모달 ===== */
 .about-modal { max-width: 460px; }
 .about-footer { display: none; }
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .about-footer { display: flex; }
 }
 .about-drag-handle {
   display: none;
 }
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .about-drag-handle {
     display: block;
     width: 36px; height: 4px;
@@ -2340,7 +2458,7 @@ body.pc-myinfo-mode #map::after { cursor: pointer; }
 .about-footer .btn-next:hover { background: #f5f5f5; }
 
 /* 모바일: 개인정보처리방침/이용약관은 메뉴에 있으므로 소개 화면에서는 숨김 */
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   #aboutOverlay .about-policy-links { display: none; }
 }
 
@@ -2359,7 +2477,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 
 .btn-about-mobile { display: none; }
 
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .btn-about { font-size: 11px; padding: 6px 10px; }
   .btn-about-mobile { display: none; }
 }
@@ -2368,7 +2486,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .mobile-sheet {
   display: none;
 }
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .mobile-sheet-overlay {
     display: none;
     position: fixed; inset: 0;
@@ -2559,7 +2677,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   pointer-events: auto;
 }
 .live-bubble strong { color: #006cff; font-weight: 700; }
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .live-alert {
     display: flex;
     flex-direction: column;
@@ -2632,7 +2750,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 }
 .toast.show { transform: translateY(0); }
 /* PC: 토스트를 텍스트 폭에 맞춰 가운데 정렬 + 좌우 패딩 24px (전체 폭으로 늘어나던 문제) */
-@media (min-width: 641px) {
+@media (hover: hover) and (pointer: fine) {
   .toast {
     left: 50%; right: auto;
     width: max-content; max-width: calc(100vw - 48px);
@@ -2926,11 +3044,11 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .mobile-chips-row .filter-chip--category { padding-right: 12px; }
 
 /* ===== 모바일 ===== */
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .pc-card { display: none !important; }
 }
 
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   /* PC 레이아웃 구조 해제 */
   body { flex-direction: column; }
   .pc-nav { display: none; }
@@ -3288,7 +3406,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .profile-nickname { margin: 0; font-size: 16px; font-weight: 600; color: #000; }
 
 /* PC: 후기 등록은 가운데 팝업 (signup 팝업과 동일 패턴) */
-@media (min-width: 641px) {
+@media (hover: hover) and (pointer: fine) {
   #reviewFormOverlay { background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
   #reviewFormOverlay .signup-page {
     flex: 0 1 auto; width: 420px; max-width: calc(100vw - 40px);
@@ -3335,7 +3453,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   text-underline-position: from-font;
 }
 
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   .sidebar-notice {
     font-size: 14px;
   }
@@ -3361,7 +3479,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .gnb { display: none; }
 .tab-view { display: none; }
 
-@media (max-width: 640px) {
+@media (hover: none) and (pointer: coarse) {
   /* 하단 고정 GNB (Figma 1685:59294 — 아이콘 32box, 선택=검정 채움+볼드) */
   .gnb {
     display: flex;

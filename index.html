@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=194">
+  <link rel="stylesheet" href="style.css?v=221">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -100,40 +100,20 @@
     </div>
     <div class="pc-nav-tabs">
       <button class="pc-nav-tab active" id="tabCampaigns" onclick="switchPcTab('campaigns')">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <g clip-path="url(#clip0_menu_campaign)">
-            <path d="M27.5967 12C28.0492 12.0001 28.9538 12.4501 29.4062 13.7998L30.7637 18.2998C31.216 19.6498 31.2161 20.9999 28.9541 21H29V30C29 30.5523 28.5523 31 28 31C27.4477 31 27 30.5523 27 30V21H23V29C23 30.1046 22.1046 31 21 31H13C11.8954 31 11 30.1045 11 29V21H11.0459C8.78394 20.9999 8.78395 19.6498 9.23631 18.2998L10.5937 13.7998C11.0461 12.4502 11.9508 12.0002 12.4033 12H27.5967ZM13 29H21V21H13V29ZM27 8C27.5523 8 28 8.44772 28 9C28 9.55228 27.5523 10 27 10H13C12.4477 9.99997 12 9.55226 12 9C12 8.44774 12.4477 8.00003 13 8H27Z" fill="currentColor"/>
-          </g>
-          <defs>
-            <clipPath id="clip0_menu_campaign"><rect width="40" height="40" fill="white"/></clipPath>
-          </defs>
-        </svg>
-        <span>협찬찾기</span>
+        <span class="pc-nav-ico"></span>
+        <span>홈</span>
       </button>
-      <button class="pc-nav-tab" id="tabReport" onclick="switchPcTab('report')">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 8C25.5228 8 30 12.4772 30 18C30 22.1564 27.9189 25.6724 25.5254 28.1855C24.3333 29.4372 23.086 30.4156 22.0322 31.0742C21.505 31.4037 21.0384 31.6449 20.6631 31.8008C20.2607 31.9678 20.0492 32 20 32C19.9508 32 19.7393 31.9678 19.3369 31.8008C18.9616 31.6449 18.495 31.4037 17.9678 31.0742C16.914 30.4156 15.6667 29.4372 14.4746 28.1855C12.0811 25.6724 10 22.1564 10 18C10 12.4772 14.4772 8 20 8Z" stroke="currentColor" stroke-width="2"/>
-          <path d="M20 11C23.866 11 27 14.134 27 18C27 21.866 23.866 25 20 25C16.134 25 13 21.866 13 18C13 14.134 16.134 11 20 11ZM20 14C19.4477 14 19 14.4477 19 15V17H17C16.4477 17 16 17.4477 16 18C16 18.5523 16.4477 19 17 19H19V21C19 21.5523 19.4477 22 20 22C20.5523 22 21 21.5523 21 21V19H23C23.5523 19 24 18.5523 24 18C24 17.4477 23.5523 17 23 17H21V15C21 14.4477 20.5523 14 20 14Z" fill="currentColor"/>
-        </svg>
-        <span>제보하기</span>
+      <button class="pc-nav-tab" id="tabMyPlaces" onclick="switchPcTab('myplaces')">
+        <span class="pc-nav-ico"></span>
+        <span>내 장소</span>
       </button>
-      <button class="pc-nav-tab" id="tabReportIssue" onclick="openReportModal()">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20.0002 10C24.9707 10.0001 29.0002 14.0295 29.0002 19V24H29.2062L29.299 24.0039C29.7595 24.0466 30.1363 24.4034 30.1974 24.8701L30.8517 29.8701C30.9252 30.4315 30.5204 30.9337 29.9719 30.9941L29.8605 31H10.1398L10.0285 30.9941C9.47984 30.9338 9.0751 30.4316 9.14862 29.8701L9.80292 24.8701C9.86812 24.3724 10.2922 24.0002 10.7941 24H11.0002V19C11.0002 14.0294 15.0296 10 20.0002 10ZM11.2795 29H28.7209L28.3283 26H11.6721L11.2795 29ZM8.00018 18C8.55241 18.0001 9.00018 18.4478 9.00018 19C9.00018 19.5522 8.55241 19.9999 8.00018 20H7.00018C6.4479 20 6.00018 19.5523 6.00018 19C6.00018 18.4477 6.4479 18 7.00018 18H8.00018ZM33.0002 18C33.5524 18.0001 34.0002 18.4478 34.0002 19C34.0002 19.5522 33.5524 19.9999 33.0002 20H32.0002C31.4479 20 31.0002 19.5523 31.0002 19C31.0002 18.4477 31.4479 18 32.0002 18H33.0002ZM17.0002 14C15.8956 14 15.0002 14.8954 15.0002 16C15.0002 17.1046 15.8956 18 17.0002 18C18.1047 17.9999 19.0002 17.1045 19.0002 16C19.0002 14.8955 18.1047 14.0001 17.0002 14ZM10.1008 9.10059C10.4913 8.71011 11.1243 8.71008 11.5148 9.10059L12.2219 9.80762C12.6124 10.1981 12.6123 10.8312 12.2219 11.2217C11.8313 11.6122 11.1983 11.6122 10.8078 11.2217L10.1008 10.5146C9.71024 10.1241 9.71024 9.49111 10.1008 9.10059ZM28.4855 9.10059C28.8761 8.71009 29.5091 8.71007 29.8996 9.10059C30.2901 9.4911 30.2901 10.1241 29.8996 10.5146L29.1926 11.2217C28.802 11.6122 28.169 11.6122 27.7785 11.2217C27.388 10.8312 27.388 10.1981 27.7785 9.80762L28.4855 9.10059ZM20.0002 5C20.5524 5.00008 21.0002 5.44777 21.0002 6V7C21.0002 7.55223 20.5524 7.99992 20.0002 8C19.4479 8 19.0002 7.55228 19.0002 7V6C19.0002 5.44772 19.4479 5 20.0002 5Z" fill="currentColor"/>
-        </svg>
-        <span>신고하기</span>
-      </button>
-      <button class="pc-nav-tab" id="tabAbout" onclick="openAbout()">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 7C22.7614 7 25 9.23858 25 12C25 14.4189 23.2822 16.4361 21 16.8994V17H24L29.4072 18.123C30.335 18.3159 31 19.1344 31 20.082V30.3486C30.9999 31.6773 29.7278 32.6365 28.4502 32.2715L24 31H16L10.5928 29.877C9.66497 29.6841 9 28.8656 9 27.918V17.6514C9.00006 16.3227 10.2722 15.3635 11.5498 15.7285L16 17H19V16.8994C16.7178 16.4361 15 14.4189 15 12C15 9.23858 17.2386 7 20 7ZM16 29H24V19H21V24C21 24.5523 20.5523 25 20 25C19.4477 25 19 24.5523 19 24V19H16V29Z" fill="currentColor"/>
-        </svg>
-        <span>무협맵 소개</span>
+      <button class="pc-nav-tab" id="tabCommunity" onclick="switchPcTab('community')">
+        <span class="pc-nav-ico"></span>
+        <span>커뮤니티</span>
       </button>
       <button class="pc-nav-tab" id="tabMyInfo" onclick="switchPcTab('myinfo')">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M23 21C27.4183 21 31 24.5817 31 29V30C31 31.1046 30.1046 32 29 32H11C9.89543 32 9 31.1046 9 30V29C9 24.5817 12.5817 21 17 21H23ZM20 8C23.3137 8 26 10.6863 26 14C26 17.3137 23.3137 20 20 20C16.6863 20 14 17.3137 14 14C14 10.6863 16.6863 8 20 8ZM20 10C17.7909 10 16 11.7909 16 14C16 16.2091 17.7909 18 20 18C22.2091 18 24 16.2091 24 14C24 11.7909 22.2091 10 20 10Z" fill="currentColor"/>
-        </svg>
-        <span>내 정보</span>
+        <span class="pc-nav-ico"></span>
+        <span>MY</span>
       </button>
     </div>
     <div class="pc-nav-auth" id="pcNavAuth">
@@ -473,8 +453,38 @@
     <div class="sidebar-list" id="campaignList"></div>
   </div>
 
+  <!-- 내 장소 선택 전 빈 상태: 로고 워터마크(리스트 오른쪽 전체, PC only, 디자인 1769-54077) -->
+  <div class="pc-place-empty" id="pcPlaceEmpty"><img src="image/img_muhyeop_pc_logo.svg" width="138" height="204" alt="무협맵"></div>
+  <!-- PC 집 설정 패널 (내 장소 3번째 컬럼, 장소 선택 시에만, PC only) -->
+  <aside class="pc-place-setting" id="pcPlaceSetting">
+    <!-- 타이틀: 고정 영역(내 장소와 동일한 84px 헤더) -->
+    <div class="pc-place-header"><h2 class="pc-place-title" id="pcPlaceTitle">집 설정</h2></div>
+    <!-- 선택 시: 설정 폼(스크롤 본문) -->
+    <div class="pc-place-form" id="pcPlaceForm" hidden>
+      <div class="pc-place-addrbox"><span class="pc-place-addr-ico" id="pcPlaceAddrIco"></span><span class="pc-place-addr" id="pcPlaceAddr">지도를 움직여 위치를 맞춰주세요</span></div>
+      <p class="pc-place-guide"><img src="image/ic_info_16.svg" width="16" height="16" alt="">오른쪽 지도에서 위치를 움직여 위치를 설정해주세요. 정확한 주소는 필요 없어요. 동네만 맞춰도 주변 협찬을 보여드려요.</p>
+      <div class="pc-place-row"><span>협찬 볼 반경</span><span class="pc-place-radval" id="pcPlaceRadVal">3km</span></div>
+      <div class="ml-set-slider-box pc-place-sliderbox"><input type="range" class="ml-set-slider" id="pcPlaceRadius" min="1" max="5" step="0.1" value="3" oninput="pcPlaceOnRadius(this.value)"></div>
+      <!-- 장소명 = 협찬 볼 반경 아래(모바일과 동일 순서), 여행지(place)만 노출 -->
+      <div class="pc-place-namefield" id="pcPlaceNameField" hidden>
+        <label>장소명</label>
+        <input type="text" id="pcPlaceName" maxlength="8" placeholder="예) 자주 가는 동네" oninput="this.classList.remove('input-error')">
+      </div>
+      <div class="pc-place-catlabel">카테고리</div>
+      <div class="pc-place-cats" id="pcPlaceCats"></div>
+      <div class="pc-place-alarmrow"><span>새 협찬 알림</span><label class="ml-switch"><input type="checkbox" id="pcPlaceAlarm"><span class="ml-switch-track"></span></label></div>
+    </div>
+    <!-- 하단 삭제/저장 = 고정 푸터(스크롤 안 됨) -->
+    <div class="pc-place-actions" id="pcPlaceActions">
+      <button class="pc-place-del" id="pcPlaceDel" onclick="pcPlaceDelete()" hidden>삭제</button>
+      <button class="pc-place-save" id="pcPlaceSaveBtn" onclick="pcPlaceSave()">저장</button>
+    </div>
+  </aside>
+
   <!-- 지도 영역 -->
   <div id="map">
+    <!-- PC 내 장소 설정 중 지도 중앙 핀 -->
+    <div class="pc-place-centerpin" id="pcPlaceCenterPin"><img src="image/ic_pin_28.svg" width="28" height="28" alt=""></div>
 
     <!-- 지도 로딩 실패 안내 (스크립트 미로드 / 인증 실패 시 노출) -->
     <div id="mapError" class="map-error" hidden>
@@ -1115,12 +1125,14 @@
     <div class="ml-scroll" id="mlScroll">
       <div class="ml-list">
         <div class="modal-scroll-header ml-scroll-header" id="mlScrollHeader"><h2>내 장소</h2></div>
-        <div class="ml-info">
-          <p class="ml-info-line">자주 가는 곳과 여행지를 저장하면, 그 주변 모집 중인 협찬을 한눈에 모아볼 수 있어요.</p>
-          <p class="ml-info-line">각 장소의 알림을 켜두면 주변에 새 협찬이 올라올 때 알려드려요. 휴대폰 알림이 켜져 있어야 받을 수 있어요.</p>
+        <div class="ml-body">
+          <div class="ml-info">
+            <p class="ml-info-line">자주 가는 곳과 여행지를 저장하면, 그 주변 모집 중인 협찬을 한눈에 모아볼 수 있어요.</p>
+            <p class="ml-info-line">각 장소의 알림을 켜두면 주변에 새 협찬이 올라올 때 알려드려요. 휴대폰 알림이 켜져 있어야 받을 수 있어요.</p>
+          </div>
+          <div id="mlItems"></div>
+          <div class="ml-note" id="mlNote"><span class="ml-note-ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#555555"/><rect x="7" y="3" width="2" height="7" rx="1" fill="white"/><circle cx="8" cy="12" r="1" fill="white"/></svg></span>내 장소는 최대 10개까지 등록 가능해요.</div>
         </div>
-        <div id="mlItems"></div>
-        <div class="ml-note" id="mlNote"><span class="ml-note-ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#555555"/><rect x="7" y="3" width="2" height="7" rx="1" fill="white"/><circle cx="8" cy="12" r="1" fill="white"/></svg></span>내 장소는 최대 10개까지 등록 가능해요.</div>
       </div>
     </div>
   </div>
@@ -1379,7 +1391,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=199"></script>
+  <script src="app.js?v=206"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
