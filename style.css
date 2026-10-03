@@ -2276,11 +2276,11 @@ body.pc-myinfo-mode #map::after { cursor: pointer; }
   background: rgba(232, 42, 45, 0.35); pointer-events: none;
   animation: searchPinRing 1.6s ease-out infinite;
 }
-/* 검색핀 위 '후기 등록' 말풍선 (매장명 검색 시) */
+/* 검색핀 위 말풍선 — 매장명만(후기 등록은 하단 플로팅 버튼으로 분리) */
 .search-pin-bubble {
   position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%);
-  z-index: 2; display: flex; align-items: center; gap: 8px;
-  padding: 7px 8px 7px 12px; border-radius: 999px; white-space: nowrap;
+  z-index: 2; display: flex; align-items: center;
+  padding: 7px 14px; border-radius: 999px; white-space: nowrap;
   background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.18); pointer-events: auto;
 }
 .search-pin-bubble::after {
@@ -2288,8 +2288,27 @@ body.pc-myinfo-mode #map::after { cursor: pointer; }
   width: 10px; height: 10px; background: #fff; border-radius: 0 0 2px 0;
   box-shadow: 2px 2px 4px rgba(0,0,0,0.08); clip-path: polygon(100% 0, 0 100%, 100% 100%); rotate: 45deg;
 }
-.search-pin-bubble .spb-name { font-size: 13px; font-weight: 600; color: #222; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
-.search-pin-bubble .spb-review-btn { flex-shrink: 0; padding: 5px 12px; border: 0; border-radius: 999px; background: #F51122; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+.search-pin-bubble .spb-name { font-size: 13px; font-weight: 600; color: #222; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+/* 하단 '후기 등록' 플로팅 버튼 (미등록 매장 검색 시, Figma 1768-50785) — 아래서 위로 슬라이드업.
+   내 위치 버튼(.btn-my-location, 44px, bottom:100px+gnb+safe)과 같은 선상(센터 정렬)에 오도록 +102px(40px 높이 보정) */
+.search-pin-review-fab {
+  position: fixed; left: 50%; z-index: 450;
+  bottom: calc(102px + var(--gnb-h, 0px) + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px)));
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px;
+  height: 40px; padding: 0 16px;
+  background: #fff; border: 1px solid #ddd; border-radius: 20px;
+  box-shadow: 0 2px 2px rgba(0,0,0,0.06);
+  color: #376bcb; font-size: 16px; font-weight: 700; cursor: pointer;
+}
+.search-pin-review-fab[hidden] { display: none; }
+.search-pin-review-fab img, .search-pin-review-fab svg { flex-shrink: 0; width: 16px; height: 16px; display: block; }
+.search-pin-review-fab.show { animation: fabSlideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes fabSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .search-pin-review-fab.show { animation: none; } }
 @keyframes searchPinDrop {
   0%   { transform: translateY(-64px); opacity: 0; }
   60%  { opacity: 1; }
@@ -2560,6 +2579,9 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
     pointer-events: none;
     transition: opacity 0.2s ease, visibility 0.2s ease;
   }
+  /* 바텀시트(사이드바) 확장 시 후기등록 FAB 숨김 (라이브 캐릭터와 동일) */
+  body:has(.sidebar.expanded) .search-pin-review-fab,
+  body:has(.sidebar.expanded-full) .search-pin-review-fab { display: none !important; }
   /* 앱: 콜랩스 바텀시트가 세이프에어리어만큼 커졌으므로 제보하기 캐릭터도 그만큼 위로 */
   .native-app .live-alert { bottom: calc(152px + max(env(safe-area-inset-bottom), var(--and-sab, 0px))); }
   .live-bubble {
@@ -3583,6 +3605,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   body.tab-active .mobile-map-overlay,
   body.tab-active .live-alert,
   body.tab-active .btn-my-location,
+  body.tab-active .search-pin-review-fab,
   body.tab-active .sidebar { display: none !important; }
 }
 

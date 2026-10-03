@@ -402,6 +402,7 @@ function getActiveCampaigns(placeId) {
 }
 
 function filterChannel(channel) {
+  resetMapSearch();  // 칩스 누르면 검색 핀·FAB 제거 + 검색어 리셋
   currentChannelFilter = channel;
   invalidateActiveCache();
   document.querySelectorAll('.filter-chip[data-channel]').forEach(btn => {
@@ -433,6 +434,7 @@ function openCategoryFilter() {
 }
 // 바텀시트에서 카테고리 선택됨(pickSelectItem에서 호출)
 function applyCategoryFilter(value) {
+  resetMapSearch();  // 칩스(카테고리) 누르면 검색 핀·FAB 제거 + 검색어 리셋
   currentCategoryFilter = (value === '전체') ? '' : value;
   updateCategoryChip();
   renderAll();
@@ -740,6 +742,12 @@ function initMap() {
   initSidebarScrollExpand();
   initSidebarSwipeToDismiss();
   initSheetSwipeToDismiss();
+  // 사용자가 검색창 포커스/검색/지도 드래그를 시작하면 늦게 오는 초기 위치이동을 취소(검색 중 지도 튐 방지)
+  ['regionSearchMobileOverlay', 'regionSearchPC', 'regionSearch'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('focus', () => { _suppressInitialLocation = true; });
+  });
+  try { naver.maps.Event.addListener(map, 'dragstart', () => { _suppressInitialLocation = true; }); } catch (e) {}
   // 첫 화면을 현재 위치 기준으로(전국 데이터 확보로 재활성화). 거부/실패/해외면 서울 기본 유지.
   tryInitialLocation();
   showBannerPopup();
@@ -770,9 +778,11 @@ function showSearchPin(lat, lng, store) {
   // 매 검색마다 재생성 → 바운스 드롭 인터랙션이 다시 재생됨
   clearSearchPin();
   _searchPinStore = store ? { name: store.name, address: store.address || '', lat: lat, lng: lng, category: store.category || '' } : null;
+  // 말풍선엔 매장명만. '후기 등록'은 하단 플로팅 버튼(아래서 위로 슬라이드업)으로 분리.
   const bubble = store
-    ? `<div class="search-pin-bubble"><span class="spb-name">${rvEsc(store.name)}</span><button class="spb-review-btn" onclick="searchPinReview()">후기 등록</button></div>`
+    ? `<div class="search-pin-bubble"><span class="spb-name">${rvEsc(store.name)}</span></div>`
     : '';
+  toggleSearchPinFab(!!store);
   searchPinMarker = new naver.maps.Marker({
     position: new naver.maps.LatLng(lat, lng),
     map,
@@ -792,13 +802,41 @@ function searchPinReview() {
 function clearSearchPin() {
   if (searchPinMarker) { searchPinMarker.setMap(null); searchPinMarker = null; }
   _searchPinStore = null;
+  toggleSearchPinFab(false);
+}
+// 하단 '후기 등록' 플로팅 버튼 — 미등록 매장 검색 시 아래서 위로 슬라이드업, 핀 해제 시 숨김.
+function toggleSearchPinFab(on) {
+  const fab = document.getElementById('searchPinReviewFab');
+  if (!fab) return;
+  if (on) {
+    fab.hidden = false;
+    fab.classList.remove('show'); void fab.offsetWidth;  // 애니메이션 재시작
+    fab.classList.add('show');
+  } else {
+    fab.hidden = true;
+    fab.classList.remove('show');
+  }
+}
+// 지도 검색창(모바일/PC/히든 프록시) 검색어 비우기
+function clearSearchInput() {
+  ['regionSearch', 'regionSearchPC', 'regionSearchMobile', 'regionSearchMobileTop', 'regionSearchMobileOverlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+// 검색 상태 초기화: 검색 핀+후기등록 FAB 제거 + 검색창 검색어 리셋 (핀 선택·바텀시트·칩스·GNB 등에서 호출)
+function resetMapSearch() {
+  clearSearchPin();
+  clearSearchInput();
 }
 
 // 최초 진입 시 내 위치로 지도 중심 이동 (권한 거부/실패 시 기본 위치 유지)
 // 첫 화면을 현재 위치 기준으로. 앱/웹 통합(getGeoPosition), 국내 밖이면 서울 기본 유지.
 // 거부/실패해도 조용히 서울 유지. 전국 데이터가 쌓여 서울 고정이던 이유는 해소됨.
+// 사용자가 이미 검색/지도조작을 시작했으면(_suppressInitialLocation) 늦게 온 위치로 재중심하지 않음(검색 중 튐 방지).
+let _suppressInitialLocation = false;
 function tryInitialLocation() {
   getGeoPosition().then(({ lat, lng }) => {
+    if (_suppressInitialLocation) return; // 사용자가 그새 검색/이동 시작 → 초기 위치이동 취소
     const inKorea = lat >= 33 && lat <= 39 && lng >= 124 && lng <= 132;
     if (!inKorea) return; // 해외 등 국내 밖이면 서울 기본 유지
     saveMapCenter(lat, lng); // 다음 방문 때 이 좌표로 바로 시작(서울 플래시 제거)
@@ -1961,6 +1999,8 @@ function getGeoPosition() {
   });
 }
 function moveToMyLocation() {
+  _suppressInitialLocation = true;  // 사용자 위치이동 시작 → 늦게 오는 초기 위치이동과 충돌 방지
+  resetMapSearch();  // 현재 위치 누르면 검색 핀·FAB 제거 + 검색어 리셋
   const btn = document.querySelector('.btn-my-location');
   if (btn) { btn.style.opacity = '0.4'; btn.disabled = true; }
   const restore = () => { if (btn) { btn.style.opacity = ''; btn.disabled = false; } };
@@ -2049,6 +2089,7 @@ function panToCard(place) {
 }
 
 function openPcCard(place) {
+  resetMapSearch();  // 다른 매장/상세를 열면 검색 핀·FAB 제거 + 검색어 리셋
   if (openPcCardPlaceId === place.id) { closePcCard(); return; }
   openPcCardPlaceId = place.id;
   openPcCardPlace = place;
@@ -2081,6 +2122,7 @@ function renderAll() {
 
 // ===== 지역 검색 =====
 async function searchRegion() {
+  _suppressInitialLocation = true;  // 검색 시작 → 늦게 오는 초기 위치이동 취소(검색 중 지도 튐 방지)
   const query = document.getElementById('regionSearch').value.trim();
   if (!query) return;
 
@@ -2415,6 +2457,7 @@ function toggleBottomSheet(e) {
   const sidebar = document.getElementById('sidebar');
   // 헤더 영역 클릭 시에만 토글 (리스트 스크롤은 방해 안 함)
   if (e.target.closest('.sidebar-list') || e.target.closest('.sidebar-card')) return;
+  resetMapSearch();  // 바텀시트(헤더) 누르면 검색 핀·FAB 제거 + 검색어 리셋
   const willExpand = !sidebar.classList.contains('expanded');
   const arrow = document.getElementById('sidebarArrow');
   if (willExpand) {
@@ -2857,6 +2900,7 @@ const GNB_TABS = ['home', 'places', 'community', 'my'];
 function switchTab(tab) {
   if (GNB_TABS.indexOf(tab) < 0) tab = 'home';
   hapticTap();
+  resetMapSearch();  // 하단 GNB 누르면 검색 핀·FAB 제거 + 검색어 리셋
   document.querySelectorAll('.gnb-tab').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-tab') === tab);
   });
@@ -5435,6 +5479,7 @@ function openNaverMap(name, address, lat, lng) {
 
 // ===== 모바일 바텀시트 =====
 function openMobileSheet(place) {
+  resetMapSearch();  // 다른 매장/상세를 열면 검색 핀·FAB 제거 + 검색어 리셋
   // 검색 키패드가 떠 있으면 먼저 닫아 바텀시트가 올바른 위치에 뜨도록
   if (document.activeElement && typeof document.activeElement.blur === 'function') {
     document.activeElement.blur();

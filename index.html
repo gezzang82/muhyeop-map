@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=189">
+  <link rel="stylesheet" href="style.css?v=194">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -606,6 +606,11 @@
       </div>
     </div>
   </div>
+
+  <!-- 미등록 매장 검색 시 하단 '후기 등록' 플로팅 버튼 (아래서 위로 슬라이드업) -->
+  <button class="search-pin-review-fab" id="searchPinReviewFab" hidden onclick="searchPinReview()">
+    <svg width="16" height="16" viewBox="16 12 24 24" fill="none"><path d="M20.5089 32.5206L20.502 32.5137C19.3677 32.4459 18.463 31.5412 18.3952 30.4069L18.389 30.4006L18.3883 30.2839L18.3835 29.5527C18.3835 29.5482 18.3835 29.5433 18.3835 29.5389L18.3517 24.0754L26.8335 32.5572L20.5089 32.5206ZM37.0742 18.0739C38.2457 19.2455 38.2456 21.145 37.0742 22.3166L27.8818 31.509L19.3965 23.0237L28.5889 13.8313C29.7605 12.6598 31.66 12.6598 32.8315 13.8313L37.0742 18.0739Z" fill="#376BCB"/></svg><span>후기 등록</span>
+  </button>
 
   <!-- 우측 슬라이드 메뉴 -->
   <div class="side-menu-overlay" id="sideMenuOverlay" onclick="closeSideMenu()">
@@ -1374,7 +1379,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=193"></script>
+  <script src="app.js?v=198"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
