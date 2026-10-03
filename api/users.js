@@ -36,6 +36,18 @@ async function handleSeoichuPost(req, res, db) {
   return res.status(201).json({ ok: true });
 }
 
+// 이웃찾기 글 삭제 — 로그인 + 본인 글만(DELETE ?seoichu=1&id=).
+async function handleSeoichuDelete(req, res, db) {
+  const session = readSession(req);
+  if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+  const id = Number(req.query.id);
+  if (!id) return res.status(400).json({ error: 'id가 필요해요.' });
+  await ensureSeoichuTable(db);
+  const r = await db.execute({ sql: "DELETE FROM seoichu_posts WHERE id = ? AND user_id = ?", args: [id, session.userId] });
+  if (!r.rowsAffected) return res.status(404).json({ error: '삭제할 글이 없거나 권한이 없어요.' });
+  return res.status(200).json({ ok: true });
+}
+
 // 앱 푸시(FCM) — 기기 토큰 + 관심위치 저장 테이블(로그인 안 해도 기기 단위). 설계: docs/product/16-push-notifications.md
 async function ensurePushTables(db) {
   try { await db.execute("CREATE TABLE IF NOT EXISTS push_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, device_id TEXT, platform TEXT, token TEXT UNIQUE, enabled INTEGER DEFAULT 1, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')))"); } catch (e) {}
@@ -247,6 +259,11 @@ module.exports = async function handler(req, res) {
     return handleSeoichuPost(req, res, db);
   }
 
+  // 서이추 글 삭제(DELETE) — GET 가드 이전. 로그인+본인만.
+  if (req.method === 'DELETE' && req.query.seoichu !== undefined) {
+    return handleSeoichuDelete(req, res, db);
+  }
+
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -291,7 +308,7 @@ module.exports = async function handler(req, res) {
     let rows = [];
     try {
       rows = (await db.execute({
-        sql: `SELECT s.id AS id, s.content AS content, s.created_at AS created_at,
+        sql: `SELECT s.id AS id, s.content AS content, s.created_at AS created_at, s.user_id AS user_id,
                      u.nickname AS nickname, u.provider AS provider,
                      u.url_platform AS url_platform, u.url_id AS url_id, u.profile_image AS profile_image
               FROM seoichu_posts s JOIN users u ON u.id = s.user_id
@@ -304,6 +321,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     return res.status(200).json(rows.map(x => ({
       id: x.id,
+      userId: x.user_id,  // 작성자 식별(클라에서 currentUser.id와 비교해 삭제버튼 노출 — 캐시 안전)
       nickname: x.nickname || '익명',
       provider: x.provider || '',
       urlPlatform: x.url_platform || '',

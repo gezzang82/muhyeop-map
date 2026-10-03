@@ -3098,18 +3098,37 @@ async function submitSeoichu() {
 function seoichuPostHtml(p) {
   const full = snsFullUrl(p.urlPlatform, p.urlId);
   const avatar = p.profileImage || 'image/img_login_default_32.png';
+  const mine = !!(currentUser && currentUser.id != null && p.userId === currentUser.id);  // 내 글만 삭제버튼
+  const trashBtn = mine
+    ? `<button class="cm-sc-trash" onclick="deleteSeoichu(${p.id})" aria-label="삭제"><img src="image/ic_trash_16_gray.svg" width="16" height="16" alt=""></button>`
+    : '';
   return `<div class="cm-sc-post">
     <div class="cm-sc-head">
       <span class="cm-sc-avatar"><img src="${rvEsc(avatar)}" alt="" width="40" height="40"></span>
       <div class="cm-sc-head-text">
-        <div class="cm-sc-nick-row"><span class="cm-sc-nick">${rvEsc(p.nickname)}</span><span class="cm-sc-time">${cmTimeAgo(p.createdAt)}</span></div>
-        <div class="cm-sc-linkrow"><img class="cm-sc-plat" src="${snsIconSrc(p.urlPlatform)}" width="12" height="12" alt="">${rvEsc(snsLinkText(p.urlPlatform, p.urlId))}</div>
+        <div class="cm-sc-nick-row"><span class="cm-sc-nick">${rvEsc(p.nickname)}</span><span class="cm-sc-time">${cmTimeAgo(p.createdAt)}</span>${trashBtn}</div>
+        <div class="cm-sc-linkrow"><img class="cm-sc-plat" src="${snsIconSrc(p.urlPlatform)}" width="12" height="12" alt=""><span class="cm-sc-linktext">${rvEsc(snsLinkText(p.urlPlatform, p.urlId))}</span></div>
       </div>
       <button class="cm-sc-cta" onclick="openExternal('${rvEsc(full)}')">방문하기</button>
     </div>
     <div class="cm-sc-divider"></div>
     <p class="cm-sc-content">${rvEsc(p.content)}</p>
   </div>`;
+}
+// 이웃찾기 내 글 삭제 — 후기 삭제와 동일한 확인 시트(showAlert 2버튼) 후 DELETE, 목록 새로고침(캐시 우회)
+function deleteSeoichu(id) {
+  showAlert('글을 삭제할까요?', '삭제하면 되돌릴 수 없어요.', {
+    twoButton: true, cancelText: '취소', confirmText: '삭제',
+    onConfirm: async () => {
+      try {
+        const res = await fetch('/api/users?seoichu=1&id=' + id, { method: 'DELETE' });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) { showToast(j.error || '삭제에 실패했어요.'); return; }
+        showToast('글을 삭제했어요.');
+        renderCommunity(true);
+      } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
+    }
+  });
 }
 // 상대 시간(UTC 저장값 → KST 기준 방금/N분/N시간/N일 전, 그 이상은 날짜)
 function cmTimeAgo(utc) {
