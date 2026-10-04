@@ -144,6 +144,8 @@ body.pc-myplaces-mode #tabView-places {
   order: 1; display: flex !important; flex-direction: column;
   position: static; width: 360px; flex-shrink: 0; height: 100%;
   background: #fff; overflow: hidden;
+  /* 리스트 패널 오른쪽 구분선(선택 전 빈 상태·선택 후 설정 모두 1px #eee). box-sizing으로 폭 유지 */
+  border-right: 1px solid #eee; box-sizing: border-box;
 }
 /* 선택 전(기본): 로고 워터마크가 리스트 오른쪽 전체를 차지. 설정 컬럼·지도·지도컨트롤 숨김 */
 body.pc-myplaces-mode #pcPlaceEmpty { order: 2; display: flex; }
@@ -177,13 +179,14 @@ body.pc-myplaces-mode #tabView-places #mlItems { padding: 0; }
 body.pc-myplaces-mode #tabView-places .ml-note { padding: 12px 0 0; }
 /* 선택 전 빈 상태(로고 워터마크) — 리스트 오른쪽 전체(설정+지도 영역)를 덮음 (디자인 1769-54077) */
 .pc-place-empty { display: none; flex: 1; align-items: center; justify-content: center; background: #f7f9fa; }
-.pc-place-empty img { width: 120px; height: auto; }
+.pc-place-empty img { width: 108px; height: auto; }
 /* 집 설정 패널(3번째 컬럼) — 장소 선택 시에만 노출 */
 .pc-place-setting {
   width: 360px; flex-shrink: 0; height: 100%;
-  background: #fff; border-left: 1px solid #eee;
+  background: #fff;
   display: none; flex-direction: column;
   box-sizing: border-box;
+  /* 구분선은 리스트 패널 border-right가 담당(이중선 방지로 여기 border-left 제거) */
 }
 .pc-place-setting[hidden] { display: none !important; }
 /* '집 설정' 타이틀 = 고정 영역, 내 장소 헤더와 동일(84px, 패딩 32/20/20 + 중앙정렬 → 타이틀 top 37/18px/600) */
@@ -874,6 +877,8 @@ body.pc-myinfo-mode #tabView-my {
   order: 1; display: flex !important; flex-direction: column;
   position: static; width: 360px; flex-shrink: 0; height: 100%;
   background: #f7f9fa; overflow: hidden;
+  /* 메뉴 패널과 우측 상세 영역 구분선(내 장소의 .pc-place-setting border-left와 동일 #eee). box-sizing으로 폭 유지 */
+  border-right: 1px solid #eee; box-sizing: border-box;
 }
 body.pc-myinfo-mode #tabView-my[hidden] { display: flex !important; }
 body.pc-myinfo-mode #myStickyHeader { display: none !important; }
@@ -921,7 +926,7 @@ body.pc-myinfo-mode .mypage-version-num { font-size: 14px; color: #777; }
 
 /* 오른쪽 상세 영역 빈 상태(로고 워터마크) — 레일72+패널360=432 오른쪽 전체 */
 .pc-my-empty { display: none; flex: 1; align-items: center; justify-content: center; background: #f7f9fa; }
-.pc-my-empty img { width: 138px; height: auto; }
+.pc-my-empty img { width: 108px; height: auto; }
 body.pc-myinfo-mode #pcMyEmpty { order: 2; display: flex; }
 
 /* MY 서브화면(회원정보관리/신고/알림/소개/공지/약관)을 오른쪽 상세 영역(left 432)에 채움 */
