@@ -786,18 +786,22 @@ function showSearchPin(lat, lng, store) {
   // 매 검색마다 재생성 → 바운스 드롭 인터랙션이 다시 재생됨
   clearSearchPin();
   _searchPinStore = store ? { name: store.name, address: store.address || '', lat: lat, lng: lng, category: store.category || '' } : null;
-  // 말풍선엔 매장명만. '후기 등록'은 하단 플로팅 버튼(아래서 위로 슬라이드업)으로 분리.
+  // 말풍선엔 매장명만. 후기 등록: 모바일=하단 플로팅 버튼(기존 유지), PC=핀 아래 버튼.
   const bubble = store
     ? `<div class="search-pin-bubble"><span class="spb-name">${rvEsc(store.name)}</span></div>`
     : '';
-  toggleSearchPinFab(!!store);
+  const pcReview = (store && !isMobileView())
+    ? `<button class="search-pin-review-pc" onclick="searchPinReview()"><svg width="16" height="16" viewBox="16 12 24 24" fill="none"><path d="M20.5089 32.5206L20.502 32.5137C19.3677 32.4459 18.463 31.5412 18.3952 30.4069L18.389 30.4006L18.3883 30.2839L18.3835 29.5527C18.3835 29.5482 18.3835 29.5433 18.3835 29.5389L18.3517 24.0754L26.8335 32.5572L20.5089 32.5206ZM37.0742 18.0739C38.2457 19.2455 38.2456 21.145 37.0742 22.3166L27.8818 31.509L19.3965 23.0237L28.5889 13.8313C29.7605 12.6598 31.66 12.6598 32.8315 13.8313L37.0742 18.0739Z" fill="#376BCB"/></svg><span>후기 등록</span></button>`
+    : '';
+  // 하단 FAB는 모바일에서만(PC는 핀 아래 버튼으로 대체)
+  toggleSearchPinFab(!!store && isMobileView());
   searchPinMarker = new naver.maps.Marker({
     position: new naver.maps.LatLng(lat, lng),
     map,
     zIndex: 900,
     clickable: false,
     icon: {
-      content: `<div class="search-pin">${bubble}<span class="search-pin-ring"></span><img src="image/ic_pin_28.svg" width="28" height="28" alt="검색 위치" draggable="false"></div>`,
+      content: `<div class="search-pin">${bubble}<span class="search-pin-ring"></span><img src="image/ic_pin_28.svg" width="28" height="28" alt="검색 위치" draggable="false">${pcReview}</div>`,
       anchor: new naver.maps.Point(14, 25)
     }
   });
@@ -3550,22 +3554,29 @@ function mlClampToRect(cx, cy, x, y, minX, maxX, minY, maxY) {
 }
 function updateMyPlaceEdges() {
   const layer = ensureEdgeLayer(); if (!layer) return;
-  // 모바일 전용(디자인 기준) · 로그인 + 저장장소 있을 때 · 확대 상태에서만(줌아웃 미표시)
-  if (!currentUser || !_myPlacesForMap.length || !isMobileView() || typeof map === 'undefined' || !map) { layer.innerHTML = ''; return; }
+  // 로그인 + 저장장소 있을 때 · 확대 상태에서만(줌아웃 미표시). 모바일·PC(홈) 공통.
+  if (!currentUser || !_myPlacesForMap.length || typeof map === 'undefined' || !map) { layer.innerHTML = ''; return; }
   let bounds, size, zoom; try { bounds = map.getBounds(); size = map.getSize(); zoom = map.getZoom(); } catch (e) { layer.innerHTML = ''; return; }
   if (zoom < 12) { layer.innerHTML = ''; return; }   // 줌아웃(광역/전국)에선 표시 안 함
   const ne = bounds.getNE(), sw = bounds.getSW();
   const neLat = ne.lat(), neLng = ne.lng(), swLat = sw.lat(), swLng = sw.lng();
   const W = size.width, H = size.height, cx = W / 2, cy = H / 2;
-  // 상단 검색·칩 / 하단 시트·GNB 회피 — 하드코딩 대신 실제 요소 위치를 측정해 모든 해상도·세이프에어리어·시트높이에 맞춤(측정 실패 시 상수 폴백)
+  // 상단 검색·칩 / 하단 시트·GNB 회피 — 하드코딩 대신 실제 요소 위치를 측정(측정 실패 시 상수 폴백).
+  // 모바일: 상단 .mobile-chips-row / 하단 바텀시트 .sidebar. PC(홈): 좌측 사이드바는 맵 밖이라 무관, 맵 위 .pc-map-top만 회피+하단 소폭.
   const iSide = 16;
   let iTop = 132, iBottom = 150;
   try {
     const mapRect = document.getElementById('map').getBoundingClientRect();
-    const chips = document.querySelector('.mobile-chips-row');
-    if (chips) { const r = chips.getBoundingClientRect(); if (r.height) iTop = (r.bottom - mapRect.top) + 12; }
-    const sheet = document.querySelector('.sidebar');
-    if (sheet) { const r = sheet.getBoundingClientRect(); if (r.height) iBottom = (mapRect.bottom - r.top) + 12; }
+    if (isMobileView()) {
+      const chips = document.querySelector('.mobile-chips-row');
+      if (chips) { const r = chips.getBoundingClientRect(); if (r.height) iTop = (r.bottom - mapRect.top) + 12; }
+      const sheet = document.querySelector('.sidebar');
+      if (sheet) { const r = sheet.getBoundingClientRect(); if (r.height) iBottom = (mapRect.bottom - r.top) + 12; }
+    } else {
+      const top = document.querySelector('.pc-map-top');
+      if (top) { const r = top.getBoundingClientRect(); iTop = (r.height ? (r.bottom - mapRect.top) : 20) + 12; } else { iTop = 24; }
+      iBottom = 24;
+    }
   } catch (e) {}
   const maxDist = Math.hypot(W, H) * 1.6;         // 화면(뷰포트) 상대 거리 — 가장자리 밖 약 1화면까지 유지(줌 따라 자동)
   const minX = iSide, maxX = W - iSide, minY = iTop, maxY = H - iBottom;
@@ -5026,12 +5037,6 @@ function submitReport() {
 function switchPcTab(tab) {
   if (isMobileView()) return;
 
-  // 커뮤니티 PC는 디자인 준비 중 → 안내만 하고 현재 탭 유지(상태 변경 없음)
-  if (tab === 'community') {
-    showToast('커뮤니티 PC 화면은 준비 중이에요.<br>모바일에서 이용해주세요.');
-    return;
-  }
-
   // 내 장소를 떠나기 전(아직 보이는 상태) 리스트 스크롤 리셋 → 재진입 시 display:none→flex 복원이 이전 스크롤을 되살리지 못하게(복원값=0)
   if (pcTabActive === 'myplaces' && tab !== 'myplaces') {
     const b = document.querySelector('#tabView-places .ml-body'); if (b) b.scrollTop = 0;
@@ -5048,9 +5053,16 @@ function switchPcTab(tab) {
   document.body.classList.toggle('pc-about-mode', tab === 'about');
   document.body.classList.toggle('pc-myinfo-mode', tab === 'myinfo');
   document.body.classList.toggle('pc-myplaces-mode', tab === 'myplaces');
+  document.body.classList.toggle('pc-community-mode', tab === 'community');
 
   // 내 장소 PC (좌측 리스트 패널 + 지도 + 플로팅 설정 카드)
   if (tab === 'myplaces') { openPcMyPlaces(); } else { closePcMyPlaces(); }
+
+  // 커뮤니티 PC (전체폭 콘텐츠 — 모바일 #tabView-community 재사용, 이웃찾기=masonry/후기=grid는 CSS)
+  if (tab === 'community') {
+    openCommunity();
+    const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+  }
 
   if (tab === 'report') {
     document.getElementById('modalOverlay').classList.add('open');
@@ -6358,6 +6370,13 @@ window.addEventListener('resize', function() {
       pcMyCloseSubs(null);
       document.getElementById('tabCampaigns')?.classList.add('active');
       document.getElementById('tabMyInfo')?.classList.remove('active');
+      pcTabActive = 'campaigns';
+    }
+    // PC → 모바일: pc-community-mode 해제
+    if (document.body.classList.contains('pc-community-mode')) {
+      document.body.classList.remove('pc-community-mode');
+      document.getElementById('tabCampaigns')?.classList.add('active');
+      document.getElementById('tabCommunity')?.classList.remove('active');
       pcTabActive = 'campaigns';
     }
   }

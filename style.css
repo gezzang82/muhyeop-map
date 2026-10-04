@@ -2465,6 +2465,19 @@ body.pc-myinfo-mode #map::after { cursor: pointer; }
   box-shadow: 2px 2px 4px rgba(0,0,0,0.08); clip-path: polygon(100% 0, 0 100%, 100% 100%); rotate: 45deg;
 }
 .search-pin-bubble .spb-name { font-size: 13px; font-weight: 600; color: #222; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+/* PC 검색핀 아래 '후기 등록' 버튼 (모바일은 하단 FAB 유지). 핀 바로 아래 중앙, 흰 알약 */
+.search-pin-review-pc {
+  position: absolute; left: 50%; top: 36px; transform: translateX(-50%);
+  z-index: 2; white-space: nowrap; pointer-events: auto;
+  display: flex; align-items: center; gap: 4px;
+  height: 34px; padding: 0 14px;
+  background: #fff; border: 1px solid #ddd; border-radius: 17px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.14);
+  color: #376bcb; font-size: 14px; font-weight: 700; cursor: pointer;
+  font-family: inherit;
+}
+.search-pin-review-pc svg { flex-shrink: 0; width: 16px; height: 16px; display: block; }
+.search-pin-review-pc:hover { background: #f7f9fa; }
 /* 하단 '후기 등록' 플로팅 버튼 (미등록 매장 검색 시, Figma 1768-50785) — 아래서 위로 슬라이드업.
    내 위치 버튼(.btn-my-location, 44px, bottom:100px+gnb+safe)과 같은 선상(센터 정렬)에 오도록 +102px(40px 높이 보정) */
 .search-pin-review-fab {
@@ -3536,6 +3549,92 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 :root { --gnb-h: 60px; }
 .gnb { display: none; }
 .tab-view { display: none; }
+
+/* ===== PC 커뮤니티: 레일 | 전체폭 콘텐츠 (Figma 1775-3032). 이웃찾기=masonry / 후기=grid.
+   모바일 .cm-* 는 @media(hover:none)라 PC엔 안 걸려 여기서 재지정(값은 모바일과 동일, 레이아웃만 PC) ===== */
+body.pc-community-mode .sidebar { display: none !important; }
+body.pc-community-mode .pc-map-top { display: none; }
+body.pc-community-mode #map { display: none !important; }
+body.pc-community-mode .btn-zoom-group,
+body.pc-community-mode .btn-my-location,
+body.pc-community-mode .pc-app-download,
+body.pc-community-mode .live-alert { display: none !important; }
+body.pc-community-mode .pc-nav { order: 0; }
+body.pc-community-mode #tabView-community {
+  order: 1; display: flex !important; flex-direction: column;
+  position: relative; flex: 1; min-width: 0; height: 100%;
+  background: #f7f9fa; overflow: hidden;
+}
+body.pc-community-mode #tabView-community[hidden] { display: flex !important; }
+body.pc-community-mode #cmStickyHeader { display: none !important; }
+body.pc-community-mode #cmScroll { flex: 1; min-height: 0; width: 100%; overflow-y: auto; }
+body.pc-community-mode .cm-inner { width: 100%; box-sizing: border-box; padding: 0 20px 48px; }
+/* 타이틀 = 상단 고정(내 장소·MY와 동일). sticky + 불투명 배경으로 스크롤 콘텐츠가 뒤로 사라짐. margin으로 좌우 패딩 상쇄해 full-bleed 배경 */
+body.pc-community-mode .cm-scroll-header { position: sticky; top: 0; z-index: 6; margin: 0 -20px; padding: 32px 20px 16px; background: #f7f9fa; display: flex; align-items: center; gap: 12px; }
+body.pc-community-mode .cm-scroll-header h2 { margin: 0; flex: 1; min-width: 0; font-size: 18px; font-weight: 600; color: #000; letter-spacing: normal; }
+body.pc-community-mode .cm-myrev-link { flex-shrink: 0; background: none; border: 0; padding: 0; font-size: 15px; color: #555; cursor: pointer; }
+body.pc-community-mode .cm-myrev-link[hidden] { display: none; }
+/* 세그먼트 */
+body.pc-community-mode .cm-seg { display: flex; gap: 6px; margin-bottom: 16px; }
+body.pc-community-mode .cm-seg-btn { flex: 0 0 auto; height: 40px; padding: 8px 16px; border-radius: 20px; border: 0; background: rgba(57,57,92,0.12); font-size: 16px; color: #39395c; cursor: pointer; }
+body.pc-community-mode .cm-seg-btn.active { background: #39395c; color: #fff; font-weight: 700; }
+/* 안내 배너 */
+body.pc-community-mode .cm-info-banner { position: relative; display: flex; align-items: flex-start; gap: 6px; background: #ededee; border-radius: 8px; padding: 12px; margin: 0 0 16px; overflow: visible; }
+body.pc-community-mode .cm-info-dot { flex-shrink: 0; width: 3px; height: 3px; border-radius: 50%; background: #111; margin-top: 7px; }
+body.pc-community-mode .cm-info-text { margin: 0; font-size: 14px; line-height: 18px; color: #111; }
+body.pc-community-mode .cm-info-char { position: absolute; right: 16px; bottom: calc(100% - 44px); width: 104px; height: 104px; object-fit: contain; pointer-events: none; }
+body.pc-community-mode .cm-info-plain { margin: 0 0 16px; }
+/* 글쓰기 박스 (이웃찾기) */
+body.pc-community-mode .cm-compose { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 16px 16px 12px; margin-bottom: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+body.pc-community-mode .cm-compose:focus-within { border-color: #39395c; }
+body.pc-community-mode .cm-compose-input { width: 100%; border: 0; resize: none; overflow-y: auto; min-height: 42px; max-height: 180px; font-size: 15px; line-height: 1.4; color: #000; background: transparent; outline: none; font-family: inherit; }
+body.pc-community-mode .cm-compose-input::placeholder { color: #bbb; }
+body.pc-community-mode .cm-compose-divider { height: 1px; background: #eee; margin: 12px 0; }
+body.pc-community-mode .cm-compose-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+body.pc-community-mode .cm-compose-blog { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.pc-community-mode .cm-compose-blog img { flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px; object-fit: cover; }
+body.pc-community-mode .cm-compose-btn { flex-shrink: 0; height: 32px; padding: 0 16px; border-radius: 8px; border: 0; background: #f51122; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
+body.pc-community-mode .cm-compose-btn:disabled { opacity: 0.5; }
+body.pc-community-mode .cm-compose-cta { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; min-height: 72px; padding: 12px 16px; }
+body.pc-community-mode .cm-compose-msg { margin: 0; font-size: 14px; color: #000; line-height: 1.4; }
+/* 이웃찾기 = 핀터레스트(masonry): CSS 멀티컬럼(열너비 300px 기준 자동 열수) */
+body.pc-community-mode .cm-sc-list { display: block; column-width: 300px; column-gap: 12px; }
+body.pc-community-mode .cm-sc-post { break-inside: avoid; margin: 0 0 12px; background: #fff; border-radius: 12px; padding: 12px 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+body.pc-community-mode .cm-sc-head { display: flex; align-items: center; gap: 12px; }
+body.pc-community-mode .cm-sc-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+body.pc-community-mode .cm-sc-avatar { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: #eee; }
+body.pc-community-mode .cm-sc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+body.pc-community-mode .cm-sc-nick-row { display: flex; align-items: center; gap: 6px; }
+body.pc-community-mode .cm-sc-nick { min-width: 0; font-size: 15px; font-weight: 500; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.pc-community-mode .cm-sc-time { flex-shrink: 0; font-size: 12px; color: #aaa; }
+body.pc-community-mode .cm-sc-trash { flex-shrink: 0; width: 16px; height: 16px; padding: 0; border: 0; background: none; cursor: pointer; line-height: 0; }
+body.pc-community-mode .cm-sc-trash img { width: 16px; height: 16px; display: block; }
+body.pc-community-mode .cm-sc-linkrow { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; color: #777; }
+body.pc-community-mode .cm-sc-linktext { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.pc-community-mode .cm-sc-plat { flex-shrink: 0; width: 12px; height: 12px; border-radius: 2px; object-fit: cover; }
+body.pc-community-mode .cm-sc-cta { flex-shrink: 0; height: 31px; padding: 0 12px; border-radius: 8px; border: 1px solid #aaa; background: #fff; color: #000; font-size: 13px; cursor: pointer; }
+body.pc-community-mode .cm-sc-divider { height: 1px; background: #eee; margin: 12px 0; }
+body.pc-community-mode .cm-sc-content { margin: 0; font-size: 15px; line-height: 21px; color: #222; white-space: pre-wrap; word-break: break-word; }
+/* 후기 = 균등 그리드 (전역 .rv-card 재사용, #cmBody 흰카드 스코프는 모바일 전용이라 PC 재지정) */
+body.pc-community-mode #cmBody .rv-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+body.pc-community-mode #cmBody .rv-card { align-items: center; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+body.pc-community-mode #cmBody .rv-card-excerpt { min-height: calc(1.4em * 2); }
+body.pc-community-mode .rv-list-head { margin-bottom: 12px; }
+/* 무한스크롤 sentinel (cm-spin 키프레임은 모바일 미디어쿼리 안이라 PC용 전역 정의) */
+@keyframes cm-spin-pc { to { transform: rotate(360deg); } }
+body.pc-community-mode .cm-infinite { min-height: 1px; }
+body.pc-community-mode .cm-infinite.loading { height: 48px; display: flex; align-items: center; justify-content: center; }
+body.pc-community-mode .cm-infinite.loading::after { content: ''; width: 20px; height: 20px; border: 2px solid #e5e5e5; border-top-color: #999; border-radius: 50%; animation: cm-spin-pc 0.7s linear infinite; }
+/* 빈 상태 */
+body.pc-community-mode .cm-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 56px 24px; }
+body.pc-community-mode .cm-empty-title { margin: 0; font-size: 16px; font-weight: 700; color: #333; }
+body.pc-community-mode .cm-empty-desc { margin: 0; font-size: 13px; color: #999; line-height: 1.5; }
+body.pc-community-mode .cm-empty-btn { margin-top: 8px; padding: 10px 20px; border-radius: 8px; border: 0; background: #F51122; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
+/* 우하단 플로팅: 이웃찾기=맨위버튼 / 후기=글쓰기 FAB (콘텐츠 우하단 고정) */
+body.pc-community-mode .cm-write-fab { position: fixed; right: 32px; bottom: 32px; z-index: 450; width: 56px; height: 56px; border-radius: 50%; border: 1px solid #ddd; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.18); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+body.pc-community-mode .cm-write-fab[hidden] { display: none; }
+body.pc-community-mode .cm-top-btn { position: fixed; right: 32px; bottom: 32px; z-index: 450; width: 44px; height: 44px; border-radius: 50%; border: 1px solid #eee; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+body.pc-community-mode .cm-top-btn[hidden] { display: none; }
 
 @media (hover: none) and (pointer: coarse) {
   /* 하단 고정 GNB (Figma 1685:59294 — 아이콘 32box, 선택=검정 채움+볼드) */
