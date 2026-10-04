@@ -102,8 +102,9 @@ module.exports = async function handler(req, res) {
           await db.execute({ sql: "INSERT INTO site_referrer (ref, cnt) VALUES (?, 1) ON CONFLICT(ref) DO UPDATE SET cnt = cnt + 1", args: [refKey] });
           await db.execute({ sql: "INSERT INTO site_referrer_daily (visit_date, ref, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, ref) DO UPDATE SET cnt = cnt + 1", args: [day, refKey] });
         }
-        // 접속 환경(app/mweb/pcweb) 일자별 집계 — 값이 이상하면 pcweb로 폴백
-        const plat = ({ app: 'app', mweb: 'mweb', pcweb: 'pcweb' })[String(req.body && req.body.platform)] || 'pcweb';
+        // 접속 환경(ios/android/app/mweb/pcweb) 일자별 집계 — 값이 이상하면 pcweb로 폴백
+        // 'app'은 iOS/안드 미구분 구버전 앱 호환(신버전은 ios/android로 세분)
+        const plat = ({ ios: 'ios', android: 'android', app: 'app', mweb: 'mweb', pcweb: 'pcweb' })[String(req.body && req.body.platform)] || 'pcweb';
         await db.execute({ sql: "INSERT INTO site_platform_daily (visit_date, platform, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, platform) DO UPDATE SET cnt = cnt + 1", args: [day, plat] });
       } catch (e) { /* 집계 실패는 무시 */ }
       return res.status(200).json({ ok: true });

@@ -29,7 +29,13 @@ function loadInitialData() {
       if (!isAdminPage && !_noTrack) {
         // 접속 환경: 앱(Capacitor WebView) / 모바일웹 / PC웹
         const _detectPlatform = () => {
-          try { if (window.Capacitor && (window.Capacitor.isNativePlatform ? window.Capacitor.isNativePlatform() : true)) return 'app'; } catch (e) {}
+          try {
+            if (window.Capacitor && (window.Capacitor.isNativePlatform ? window.Capacitor.isNativePlatform() : true)) {
+              // 네이티브 앱: iOS/안드 구분(Capacitor.getPlatform). 미상이면 'app'으로 폴백(구버전 호환)
+              const gp = (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
+              return gp === 'ios' ? 'ios' : gp === 'android' ? 'android' : 'app';
+            }
+          } catch (e) {}
           return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ? 'mweb' : 'pcweb';
         };
         // 공유 링크 채널 태그: muhyeop.com/?ref=kakao 처럼 붙여 공유하면 그 채널로 정확 집계(카톡 등 referrer 미전달 대응).

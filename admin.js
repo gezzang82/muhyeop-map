@@ -516,15 +516,15 @@ function renderReferrerDaily(rows) {
 }
 
 // 접속 환경(앱/모바일웹/PC웹) — 오늘 기준 막대
-const PLAT_LABELS = { app: '📱 앱', mweb: '🌐 모바일웹', pcweb: '💻 PC웹' };
+const PLAT_LABELS = { ios: '🍎 iOS 앱', android: '🤖 안드 앱', app: '📱 앱(구버전)', mweb: '🌐 모바일웹', pcweb: '💻 PC웹' };
 function renderPlatforms(list) {
   const el = document.getElementById('deviceStats');
   if (!el) return;
   if (!list || !list.length) { el.innerHTML = '<div class="empty-msg">아직 데이터가 없어요. (배포 후 방문부터 집계)</div>'; return; }
   const total = list.reduce((s, r) => s + (r.cnt || 0), 0) || 1;
   const max = Math.max(1, ...list.map(r => r.cnt || 0));
-  // app > mweb > pcweb 순 고정 정렬
-  const order = { app: 0, mweb: 1, pcweb: 2 };
+  // iOS > 안드 > 앱(구버전) > 모바일웹 > PC웹 순 고정 정렬
+  const order = { ios: 0, android: 1, app: 2, mweb: 3, pcweb: 4 };
   list = list.slice().sort((a, b) => (order[a.platform] ?? 9) - (order[b.platform] ?? 9));
   el.innerHTML = list.map(r => `
       <div class="stat-row">
