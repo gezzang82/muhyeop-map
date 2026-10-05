@@ -3634,6 +3634,8 @@ body.pc-community-mode .cm-infinite.loading { height: 48px; display: flex; align
 body.pc-community-mode .cm-infinite.loading::after { content: ''; width: 20px; height: 20px; border: 2px solid #e5e5e5; border-top-color: #999; border-radius: 50%; animation: cm-spin-pc 0.7s linear infinite; }
 /* 빈 상태 */
 body.pc-community-mode .cm-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 56px 24px; }
+/* 빈 상태가 리스트 컨테이너(grid=rv-cards / multicol=cm-sc-list)의 한 칸에 갇히지 않고 전체 폭 span → 중앙정렬 */
+body.pc-community-mode #cmBody .cm-empty { grid-column: 1 / -1; column-span: all; width: 100%; }
 body.pc-community-mode .cm-empty-title { margin: 0; font-size: 16px; font-weight: 700; color: #333; }
 body.pc-community-mode .cm-empty-desc { margin: 0; font-size: 13px; color: #999; line-height: 1.5; }
 body.pc-community-mode .cm-empty-btn { margin-top: 8px; padding: 10px 20px; border-radius: 8px; border: 0; background: #F51122; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
