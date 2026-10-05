@@ -832,7 +832,8 @@ function toggleSearchPinFab(on) {
 // 지도 검색창(모바일/PC/히든 프록시) 검색어 비우기
 function clearSearchInput() {
   ['regionSearch', 'regionSearchPC', 'regionSearchMobile', 'regionSearchMobileTop', 'regionSearchMobileOverlay'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
+    const el = document.getElementById(id);
+    if (el && el.value !== '') { el.value = ''; el.dispatchEvent(new Event('input')); }  // input 이벤트로 .btn-input-clear(X) 숨김 동기화(핀 선택 등 프로그램적 리셋 대응)
   });
 }
 // 검색 상태 초기화: 검색 핀+후기등록 FAB 제거 + 검색창 검색어 리셋 (핀 선택·바텀시트·칩스·GNB 등에서 호출)
@@ -1926,6 +1927,14 @@ function renderSidebar() {
   countEl.textContent = activePlaces.length;
 
   if (activePlaces.length === 0) {
+    // 캠페인 타일이 이 뷰로 아직 로드 전(초기/팬 직후)이면 '없어요' 대신 로딩 표시 → 빈 상태 깜빡임 방지.
+    // 타일을 다 받았는데도 0이면 진짜 빈 지역 → 안내 문구 노출.
+    const vb = viewBoundsWithMargin(0.4);
+    const tilesLoaded = vb ? _campaignTilesFor(vb).every(k => _loadedTiles.has(k)) : true;
+    if (!tilesLoaded) {
+      list.innerHTML = '<div class="sidebar-loading"></div>';
+      return;
+    }
     list.innerHTML = `
       <div class="empty-state">
         <img src="image/img_list_80.png" alt="" class="empty-img">

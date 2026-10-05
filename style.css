@@ -882,7 +882,7 @@ body.pc-myinfo-mode #tabView-my {
 }
 body.pc-myinfo-mode #tabView-my[hidden] { display: flex !important; }
 body.pc-myinfo-mode #myStickyHeader { display: none !important; }
-body.pc-myinfo-mode #myScroll { flex: 1; min-height: 0; width: 100%; overflow-y: auto; background: #fff; }
+body.pc-myinfo-mode #myScroll { flex: 1; min-height: 0; width: 100%; overflow-y: auto; background: #fff; display: flex; flex-direction: column; }
 /* 상단(회색 섬): 타이틀 + 프로필 + 인포카드 */
 body.pc-myinfo-mode .mypage-top { display: flex; flex-direction: column; gap: 24px; padding: 32px 20px 24px; background: #f7f9fa; }
 body.pc-myinfo-mode .mypage-header { display: flex; align-items: center; }
@@ -916,12 +916,12 @@ body.pc-myinfo-mode .mypage-stat-count { font-size: 14px; color: #000; }
 body.pc-myinfo-mode .mypage-stat-count b { font-size: 20px; font-weight: 700; margin-right: 2px; }
 body.pc-myinfo-mode .mypage-stat-sep { width: 1px; height: 16px; background: #eee; flex-shrink: 0; }
 /* 메뉴 블록(흰 영역, 아래로 채움) */
-body.pc-myinfo-mode .mypage-menu { background: #fff; padding: 40px 20px; display: flex; flex-direction: column; gap: 28px; }
+body.pc-myinfo-mode .mypage-menu { background: #fff; padding: 40px 20px; display: flex; flex-direction: column; gap: 28px; flex: 1 1 auto; }
 body.pc-myinfo-mode .mypage-menu-item { background: none; border: 0; padding: 0; text-align: left; font-size: 16px; color: #000; cursor: pointer; display: flex; align-items: center; font-family: inherit; }
 body.pc-myinfo-mode .mypage-menu-item:hover { color: #e82a2d; }
 body.pc-myinfo-mode .mypage-menu-item.mypage-version:hover { color: #000; }
 body.pc-myinfo-mode .mypage-menu-line { height: 1px; background: #eee; }
-body.pc-myinfo-mode .mypage-version { justify-content: space-between; cursor: default; }
+body.pc-myinfo-mode .mypage-version { cursor: default; }
 body.pc-myinfo-mode .mypage-version-num { font-size: 14px; color: #777; }
 
 /* 오른쪽 상세 영역 빈 상태(로고 워터마크) — 레일72+패널360=432 오른쪽 전체 */
@@ -2178,7 +2178,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .alarm-perm-btn { flex-shrink: 0; height: 36px; padding: 0 14px; border: none; border-radius: 8px; background: #e82a2d; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
 /* 안내 앞 글머리 dot(•) — 내 장소 .ml-info와 동일 */
 .alarm-info { position: relative; background: #ededee; border-radius: 8px; padding: 12px 12px 12px 24px; font-size: 14px; line-height: 1.5; color: #000; }
-.alarm-info::before { content: "•"; position: absolute; left: 12px; top: 12px; color: #999; }
+.alarm-info::before { content: "•"; position: absolute; left: 12px; top: 12px; color: inherit; }
 .alarm-list { display: flex; flex-direction: column; }
 .alarm-row { display: flex; align-items: center; gap: 16px; padding: 16px 0; }
 .alarm-row-label { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; color: #000; }
@@ -3500,12 +3500,16 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 }
 
 /* 모집 중인 협찬 리스트 상단 안내 문구 */
+/* 사이드바 캠페인 로딩(뷰 타일 로드 전) — '없어요' 깜빡임 대신 스피너 */
+.sidebar-loading { display: flex; align-items: center; justify-content: center; padding: 56px 0; }
+.sidebar-loading::after { content: ''; width: 24px; height: 24px; border: 2.5px solid #eee; border-top-color: #bbb; border-radius: 50%; animation: sb-spin 0.7s linear infinite; }
+@keyframes sb-spin { to { transform: rotate(360deg); } }
 .sidebar-notice {
   margin: 0 16px 8px;
   padding: 10px 12px;
   background: #f5f5f5;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: 14px;   /* 내 장소 .ml-info와 동일(기존 PC 12px → 14px 통일, 모바일은 원래 14px) */
   line-height: 1.5;
   color: #000;
   position: relative;
@@ -3516,18 +3520,12 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   position: absolute;
   left: 12px;
   top: 10px;
-  color: #999;
+  color: inherit;   /* dot = 폰트 컬러(텍스트와 동일) */
 }
 .sidebar-notice strong {
   font-weight: 700;
   text-decoration: underline;
   text-underline-position: from-font;
-}
-
-@media (hover: none) and (pointer: coarse) {
-  .sidebar-notice {
-    font-size: 14px;
-  }
 }
 
 /* 캠페인 내용 → 플랫폼 페이지 링크(웹=새탭, 앱=인앱 브라우저) */
@@ -3549,6 +3547,15 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 :root { --gnb-h: 60px; }
 .gnb { display: none; }
 .tab-view { display: none; }
+
+/* MY 메뉴 하단 약관 링크줄 + 버전 (모바일·PC 공용, #tabView-my 안에서만 노출, Figma 1744-46228) */
+.mypage-foot { margin-top: auto; display: flex; flex-direction: column; gap: 16px; padding-top: 24px; }
+.mypage-policy-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mypage-policy-link { background: none; border: 0; padding: 0; font-family: inherit; font-size: 14px; color: #777; cursor: pointer; }
+.mypage-policy-link.strong { font-weight: 700; }
+.mypage-policy-dot { flex-shrink: 0; width: 3px; height: 3px; border-radius: 50%; background: #ccc; }
+.mypage-foot .mypage-version { display: flex; gap: 28px; font-size: 14px; color: #777; }
+.mypage-foot .mypage-version-num { font-size: 14px; color: #777; }
 
 /* ===== PC 커뮤니티: 레일 | 전체폭 콘텐츠 (Figma 1775-3032). 이웃찾기=masonry / 후기=grid.
    모바일 .cm-* 는 @media(hover:none)라 PC엔 안 걸려 여기서 재지정(값은 모바일과 동일, 레이아웃만 PC) ===== */
@@ -3818,7 +3825,7 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   /* 상단(프로필/카드)은 고정, 하단 메뉴영역만 스크롤 */
   .tab-view.mypage { background: #f7f9fa; overflow: hidden; }
   /* 전체 콘텐츠가 함께 스크롤(다른 서브화면과 동일). 하단은 흰색으로 채워지게 스크롤 컨테이너 bg 흰색 */
-  .mypage-scroll { width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; }
+  .mypage-scroll { width: 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; display: flex; flex-direction: column; }
   /* 상단 여백은 내 장소(.ml-list padding-top:20px)와 동일하게 맞춤 */
   .mypage-top { flex-shrink: 0; display: flex; flex-direction: column; gap: 24px; padding: 20px 20px 24px; background: #f7f9fa; }
   .native-app .mypage-top { padding-top: calc(20px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
@@ -3855,7 +3862,7 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   /* display:inline-flex가 [hidden] 기본(display:none)을 덮어써 로그인 상태에서도 보이던 문제 → [hidden]일 때 명시적으로 숨김 */
   .mypage-login-link[hidden] { display: none; }
   .mypage-login-link img { width: 4px; height: 8px; display: block; }
-  .mypage-menu { background: #fff; padding: 32px 20px 40px; display: flex; flex-direction: column; gap: 28px; }
+  .mypage-menu { background: #fff; padding: 32px 20px 40px; display: flex; flex-direction: column; gap: 28px; flex: 1 1 auto; }
   .mypage-menu-item { background: none; border: 0; padding: 0; text-align: left; font-size: 16px; color: #000; cursor: pointer; display: flex; align-items: center; font-family: inherit; }
   .mypage-menu-item, .mypage-menu-line { flex-shrink: 0; }   /* 메뉴가 뷰보다 길면 flex가 1px 라인을 0으로 줄여 안 보이던 문제 → 압축 금지(대신 스크롤) */
   .mypage-menu-line { height: 1px; background: #eee; }
@@ -3901,7 +3908,7 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
 /* 안내 문구 — 바텀시트 '.sidebar-notice'와 동일 스타일 */
 .ml-info { margin: 0 0 8px; padding: 10px 14px; background: #f5f5f5; border-radius: 10px; font-size: 14px; line-height: 1.5; color: #000; display: flex; flex-direction: column; gap: 6px; }
 .ml-info-line { position: relative; margin: 0; padding-left: 12px; }
-.ml-info-line::before { content: "•"; position: absolute; left: 0; top: 0; color: #999; }
+.ml-info-line::before { content: "•"; position: absolute; left: 0; top: 0; color: inherit; }
 .ml-note { display: flex; align-items: center; gap: 6px; color: #555; font-size: 14px; margin-top: 16px; }
 .ml-note-ic { flex-shrink: 0; display: inline-flex; align-items: center; }
 

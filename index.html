@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=233">
+  <link rel="stylesheet" href="style.css?v=237">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -1213,10 +1213,17 @@
         <div class="mypage-menu-line"></div>
         <button class="mypage-menu-item" onclick="openAbout()">무협맵 소개</button>
         <button class="mypage-menu-item" onclick="openNoticeFeed()">이벤트·공지</button>
-        <button class="mypage-menu-item" onclick="openPolicy('terms')">이용약관</button>
-        <button class="mypage-menu-item" onclick="openPolicy('privacy')">개인정보처리방침</button>
-        <button class="mypage-menu-item" onclick="openPolicy('operation')">운영정책</button>
-        <div class="mypage-menu-item mypage-version"><span>버전</span><span class="mypage-version-num">ver 0.1</span></div>
+        <!-- 약관류는 하단 작은 링크줄로 분리(Figma 1744-46228). 운영정책 유지 -->
+        <div class="mypage-foot">
+          <div class="mypage-policy-row">
+            <button class="mypage-policy-link strong" onclick="openPolicy('privacy')">개인정보처리방침</button>
+            <span class="mypage-policy-dot"></span>
+            <button class="mypage-policy-link" onclick="openPolicy('terms')">이용약관</button>
+            <span class="mypage-policy-dot"></span>
+            <button class="mypage-policy-link" onclick="openPolicy('operation')">운영정책</button>
+          </div>
+          <div class="mypage-version"><span>버전</span><span class="mypage-version-num">ver 0.1</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1394,7 +1401,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=215"></script>
+  <script src="app.js?v=217"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
