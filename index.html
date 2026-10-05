@@ -1141,11 +1141,12 @@
     <div class="modal-sticky-header" id="cmStickyHeader"><span>커뮤니티</span></div>
     <div class="cm-scroll" id="cmScroll">
       <div class="cm-inner">
-        <div class="modal-scroll-header cm-scroll-header" id="cmScrollHeader"><h2>커뮤니티</h2><button class="cm-myrev-link" id="cmMyRevLink" onclick="openMyReviews()" hidden>내 후기</button></div>
-        <!-- 세그먼트: 이웃찾기(활성화) / 후기(콘텐츠) -->
+        <div class="modal-scroll-header cm-scroll-header" id="cmScrollHeader"><h2>커뮤니티</h2></div>
+        <!-- 세그먼트: 이웃찾기 / 후기(전체) / 내 후기(mine) -->
         <div class="cm-seg" id="cmSeg" role="tablist">
           <button class="cm-seg-btn active" data-seg="seoichu" onclick="setCommunitySeg('seoichu')">이웃찾기</button>
           <button class="cm-seg-btn" data-seg="feed" onclick="setCommunitySeg('feed')">후기</button>
+          <button class="cm-seg-btn" data-seg="myreviews" onclick="setCommunitySeg('myreviews')">내 후기</button>
         </div>
         <!-- 카테고리 필터(후기/내 후기 세그먼트만) -->
         <div class="cm-chips" id="cmChips" hidden></div>
@@ -1399,7 +1400,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=217"></script>
+  <script src="app.js?v=218"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

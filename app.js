@@ -1636,7 +1636,7 @@ async function deleteMyReview(reviewId) {
         if (_detailPlaceId != null) loadReviews(_detailPlaceId);
         // 커뮤니티 후기 피드 / 내 후기 화면에서 삭제한 경우도 목록 갱신
         const cmv = document.getElementById('tabView-community');
-        if (cmv && !cmv.hidden && _cmSeg === 'feed') renderCommunity(true);
+        if (cmv && !cmv.hidden && (_cmSeg === 'feed' || _cmSeg === 'myreviews')) renderCommunity(true);
         const mro = document.getElementById('myReviewsOverlay');
         if (mro && mro.classList.contains('open')) renderMyReviews();
       } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
@@ -3027,11 +3027,10 @@ function setCommunitySeg(seg) {
 function updateCommunitySegUI() {
   document.querySelectorAll('#cmSeg .cm-seg-btn').forEach(b =>
     b.classList.toggle('active', b.getAttribute('data-seg') === _cmSeg));
-  const isFeed = (_cmSeg === 'feed');
+  const isReview = (_cmSeg === 'feed' || _cmSeg === 'myreviews');  // 후기 계열 세그먼트
   const chips = document.getElementById('cmChips'); if (chips) chips.hidden = true;  // 카테고리 칩 폐지(정렬로 대체)
-  const link = document.getElementById('cmMyRevLink'); if (link) link.hidden = !isFeed;   // '내 후기'는 후기에서만
-  const fab = document.getElementById('cmWriteFab'); if (fab) fab.hidden = !isFeed;         // 후기작성 FAB는 후기에서만
-  const top = document.getElementById('cmTopBtn'); if (top && isFeed) top.hidden = true;    // 후기에선 탑버튼 안 씀
+  const fab = document.getElementById('cmWriteFab'); if (fab) fab.hidden = !isReview;        // 후기작성 FAB는 후기/내후기에서
+  const top = document.getElementById('cmTopBtn'); if (top && isReview) top.hidden = true;   // 후기 계열에선 탑버튼 안 씀
 }
 async function renderCommunity(fresh) {
   const body = document.getElementById('cmBody');
@@ -3061,13 +3060,13 @@ async function renderCommunity(fresh) {
     return;
   }
 
-  // 후기 피드
-  const mine = _cmFeedMine;
+  // 후기 피드 — feed(전체) / myreviews(내 후기=mine)
+  const mine = (_cmSeg === 'myreviews');
   if (mine && !currentUser) {
-    body.innerHTML = cmFeedInfoHtml() + cmEmptyHtml('로그인이 필요해요', '내가 등록한 후기를 모아볼 수 있어요.', true);
+    body.innerHTML = cmFeedInfoHtml(mine) + cmEmptyHtml('로그인이 필요해요', '내가 등록한 후기를 모아볼 수 있어요.', true);
     return;
   }
-  body.innerHTML = cmFeedInfoHtml() + cmFeedTopHtml(0)
+  body.innerHTML = cmFeedInfoHtml(mine) + cmFeedTopHtml(0)
     + '<div class="rv-cards" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
   const listEl = document.getElementById('cmList');
   const sentinel = document.getElementById('cmSentinel');
@@ -3113,9 +3112,10 @@ function cmInfoBannerHtml() {
   </div>`;
 }
 
-// 후기 안내 배너(캐릭터 없음)
-function cmFeedInfoHtml() {
-  return `<div class="cm-info-banner cm-info-plain"><span class="cm-info-dot"></span><p class="cm-info-text">블로그 체험 후기를 공유하는 화면입니다.</p></div>`;
+// 후기 안내 배너(캐릭터 없음). mine=내 후기 세그먼트
+function cmFeedInfoHtml(mine) {
+  const txt = mine ? '내가 등록한 블로그 체험 후기예요.' : '블로그 체험 후기를 공유하는 화면입니다.';
+  return `<div class="cm-info-banner cm-info-plain"><span class="cm-info-dot"></span><p class="cm-info-text">${txt}</p></div>`;
 }
 // 후기 총건수 + 정렬 — 지도 상세 후기 pane과 동일 컴포넌트(rv-list-head/rv-sort) 재사용.
 function cmFeedTopHtml(total) {
