@@ -16,7 +16,7 @@
     (function () {
       // ⚠️ 스토어 출시 후 아래 URL을 채우면 기기별로 해당 스토어로 보냄. 비어 있으면 웹(muhyeop.com)으로 폴백.
       var IOS_URL = 'https://apps.apple.com/app/id6794363402';   // 무협맵 App Store(라이브)
-      var AOS_URL = '';   // Play 출시 후: https://play.google.com/store/apps/details?id=com.muhyeop.app
+      var AOS_URL = 'https://play.google.com/store/apps/details?id=com.muhyeop.app';   // 무협맵 Google Play(라이브)
       var WEB_URL = 'https://muhyeop.com/';
       var ua = navigator.userAgent || '';
       var isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document); // iPadOS 데스크톱모드 포함

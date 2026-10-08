@@ -2,6 +2,9 @@
 
 ## 2026-10
 
+### Phase1 배포는 안드로이드 Play 정식 오픈 후 (2026-10-05)
+Phase1(`feat/gnb-phase1` — PC MY·커뮤니티(3탭)·내장소·검색핀 후기버튼·홈 엣지화살표·`/app` 스토어 라우팅·각종 UI 수정)은 **커밋만 유지하고, 안드로이드가 Google Play에 정식 오픈된 뒤 한 번에 운영 배포**한다. iOS는 이미 라이브(App Store id6794363402)라 `/app`의 iOS 라우팅은 준비됨. **안드 오픈 시 순서**: ①Play 리스트 라이브 확인 ②`app.html`의 `AOS_URL` 채움 ③`feat/gnb-phase1`→main 머지 ④`vercel --prod`. (iOS/안드 방문 플랫폼 세분·정책 Android 문구는 이미 main 배포 완료.)
+
 ### 런칭 이벤트(후기 등록 랭킹)를 Phase 2로 이동 (2026-10-03)
 후기 등록 랭킹 1·2·3등(가입/이메일 필수) 런칭 이벤트를 **Phase 1에서 제외, Phase 2로 미룸**. Phase 1은 구조(GNB·내장소·커뮤니티·MY)와 핵심 UX 마무리에 집중하고, 이벤트는 런칭 시점/운영 리소스에 맞춰 Phase 2에서 진행. API(`/api/users?leaderboard=1`)는 살아있고 클라 `LEADERBOARD_ENABLED=false`로 꺼둔 상태 유지(켜면 노출). → **Phase 1은 코드상 기능 완료**(남은 건 네이티브 빌드 묶음: @capacitor/camera·keyboard, Phase 2: 알림 실발송·런칭 이벤트).
 

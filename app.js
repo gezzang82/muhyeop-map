@@ -3029,6 +3029,10 @@ function updateCommunitySegUI() {
     b.classList.toggle('active', b.getAttribute('data-seg') === _cmSeg));
   const isReview = (_cmSeg === 'feed' || _cmSeg === 'myreviews');  // 후기 계열 세그먼트
   const chips = document.getElementById('cmChips'); if (chips) chips.hidden = true;  // 카테고리 칩 폐지(정렬로 대체)
+  // '내 후기'(본인 후기)는 로그인 시에만. PC=세그먼트 줄 우측 텍스트 링크(후기/내후기에서만, 활성 시 강조) / 모바일=우상단 링크(오버레이)
+  const myRev = document.querySelector('#cmSeg .cm-seg-myrev');
+  if (myRev) { myRev.hidden = !(currentUser && isReview); myRev.classList.toggle('on', _cmSeg === 'myreviews'); }  // PC 우측 링크: 로그인+후기계열, 내후기 보는 중이면 강조
+  const link = document.getElementById('cmMyRevLink'); if (link) link.hidden = !(_cmSeg === 'feed' && isMobileView() && !!currentUser);  // 모바일 링크: 후기탭+로그인만
   const fab = document.getElementById('cmWriteFab'); if (fab) fab.hidden = !isReview;        // 후기작성 FAB는 후기/내후기에서
   const top = document.getElementById('cmTopBtn'); if (top && isReview) top.hidden = true;   // 후기 계열에선 탑버튼 안 씀
 }
@@ -4397,15 +4401,10 @@ async function confirmLogout() {
   await doLogout();
 }
 async function doLogout() {
-  await fetch('/api/auth/logout', { method: 'POST' });
+  try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
   currentUser = null;
-  renderMyPage();   // MY 탭 즉시 로그아웃 반영(refreshAuthUI 비동기 대기 없이 — 반쪽 갱신 방지)
-  refreshAuthUI();
-  // 제보 모달이 열려 있으면 '내 이름 남기기'를 즉시 비로그인 상태로 갱신
-  const modalOpen = document.getElementById('modalOverlay');
-  if (modalOpen && (modalOpen.classList.contains('open') || modalOpen.classList.contains('show'))) {
-    syncFounderSection();
-  }
+  // 로그아웃 후 홈으로 이동 + 전체 새로고침(비로그인 상태로 깨끗하게 초기화). replace로 뒤로가기 시 로그인 상태 복귀 방지.
+  window.location.replace('/');
 }
 
 function formatJoinDate(raw) {

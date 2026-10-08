@@ -2397,6 +2397,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .intro-card-text p { margin: 0; }
 .intro-card-center-text { margin: 0; color: #555; font-size: 16px; line-height: 22px; letter-spacing: -0.64px; }
 .intro-card-img { display: block; height: 180px; width: auto; object-fit: contain; }
+.intro-card-img--community { height: auto; max-width: 100%; max-height: 200px; }   /* 커뮤니티 일러스트: 박스 넘침 방지(가로 cap) + 높이 축소 */
 
 .intro-steps { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 16px; }
 .intro-step { display: flex; flex-direction: column; gap: 8px; }
@@ -3582,9 +3583,14 @@ body.pc-community-mode .cm-scroll-header h2 { margin: 0; flex: 1; min-width: 0; 
 body.pc-community-mode .cm-myrev-link { flex-shrink: 0; background: none; border: 0; padding: 0; font-size: 15px; color: #555; cursor: pointer; }
 body.pc-community-mode .cm-myrev-link[hidden] { display: none; }
 /* 세그먼트 */
-body.pc-community-mode .cm-seg { display: flex; gap: 6px; margin-bottom: 16px; }
+body.pc-community-mode .cm-seg { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; }
 body.pc-community-mode .cm-seg-btn { flex: 0 0 auto; height: 40px; padding: 8px 16px; border-radius: 20px; border: 0; background: rgba(57,57,92,0.12); font-size: 16px; color: #39395c; cursor: pointer; }
 body.pc-community-mode .cm-seg-btn.active { background: #39395c; color: #fff; font-weight: 700; }
+/* '내 후기' — 세그먼트 줄 우측 끝 텍스트 링크(탭 아님). 내 후기 보는 중이면 강조 */
+body.pc-community-mode .cm-seg-myrev { margin-left: auto; flex-shrink: 0; background: none; border: 0; padding: 0; font-family: inherit; font-size: 15px; color: #777; cursor: pointer; }
+body.pc-community-mode .cm-seg-myrev.on { color: #39395c; font-weight: 700; }
+body.pc-community-mode .cm-seg-myrev:hover { color: #39395c; }
+body.pc-community-mode .cm-seg-myrev[hidden] { display: none; }
 /* 안내 배너 */
 body.pc-community-mode .cm-info-banner { position: relative; display: flex; align-items: flex-start; gap: 6px; background: #ededee; border-radius: 8px; padding: 12px; margin: 0 0 16px; overflow: visible; }
 body.pc-community-mode .cm-info-dot { flex-shrink: 0; width: 3px; height: 3px; border-radius: 50%; background: #111; margin-top: 7px; }
@@ -3731,6 +3737,7 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   /* 세그먼트 토글 */
   .cm-seg { display: flex; gap: 6px; margin-bottom: 16px; }
   .cm-seg-btn { flex: 0 0 auto; height: 40px; padding: 8px 16px; border-radius: 20px; border: 0; background: rgba(57,57,92,0.12); font-size: 16px; color: #39395c; cursor: pointer; }
+  .cm-seg-btn--pc { display: none; }   /* '내 후기' 탭은 PC 전용(모바일은 우상단 링크+오버레이) */
   .cm-seg-btn.active { background: #39395c; color: #fff; font-weight: 700; }
   /* 이웃찾기 안내 배너(캐릭터 + 문구) */
   .cm-info-banner { position: relative; display: flex; align-items: flex-start; gap: 6px; background: #ededee; border-radius: 8px; padding: 12px; margin: 0 0 16px; }
