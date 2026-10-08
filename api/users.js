@@ -1,6 +1,52 @@
 const { getDb } = require('./_db');
 const { requireAdmin } = require('./auth/_admin');
 const { readSession } = require('./auth/_session');
+const { enforceRateLimit } = require('./_ratelimit');
+
+// 서이추 글 테이블 보장(최초 1회)
+async function ensureSeoichuTable(db) {
+  try {
+    await db.execute(`CREATE TABLE IF NOT EXISTS seoichu_posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      hidden INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')))`);
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_seoichu_created ON seoichu_posts(created_at)");
+  } catch (e) {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN profile_image TEXT"); } catch (e) {}
+}
+
+// 서이추 글쓰기(공개 아님 — 로그인 + 블로그 등록자만). content 200자 제한, 레이트리밋.
+async function handleSeoichuPost(req, res, db) {
+  const session = readSession(req);
+  if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+  if (!await enforceRateLimit(req, res, { name: 'seoichu', limit: 10, windowSec: 300 })) return;
+  await ensureSeoichuTable(db);
+  // SNS(블로그/인스타) 등록 여부 확인 — 이웃찾기는 블로그·인스타 모두 가능
+  const u = (await db.execute({ sql: "SELECT url_platform, url_id FROM users WHERE id = ?", args: [session.userId] })).rows[0];
+  if (!u || !u.url_id || (u.url_platform !== '블로그' && u.url_platform !== '인스타그램')) {
+    return res.status(400).json({ error: 'SNS 계정을 먼저 등록해주세요.', needBlog: true });
+  }
+  const content = String((req.body && req.body.content) || '').replace(/\s*\n\s*/g, ' ').trim().slice(0, 100);
+  if (!content) return res.status(400).json({ error: '내용을 입력해주세요.' });
+  const { hasProfanity } = require('./_profanity');
+  if (hasProfanity(content)) return res.status(400).json({ error: '부적절한 표현이 포함되어 있어요. 수정 후 다시 등록해주세요.' });
+  await db.execute({ sql: "INSERT INTO seoichu_posts (user_id, content) VALUES (?, ?)", args: [session.userId, content] });
+  return res.status(201).json({ ok: true });
+}
+
+// 이웃찾기 글 삭제 — 로그인 + 본인 글만(DELETE ?seoichu=1&id=).
+async function handleSeoichuDelete(req, res, db) {
+  const session = readSession(req);
+  if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+  const id = Number(req.query.id);
+  if (!id) return res.status(400).json({ error: 'id가 필요해요.' });
+  await ensureSeoichuTable(db);
+  const r = await db.execute({ sql: "DELETE FROM seoichu_posts WHERE id = ? AND user_id = ?", args: [id, session.userId] });
+  if (!r.rowsAffected) return res.status(404).json({ error: '삭제할 글이 없거나 권한이 없어요.' });
+  return res.status(200).json({ ok: true });
+}
 
 // 앱 푸시(FCM) — 기기 토큰 + 관심위치 저장 테이블(로그인 안 해도 기기 단위). 설계: docs/product/16-push-notifications.md
 async function ensurePushTables(db) {
@@ -63,6 +109,106 @@ async function handlePushPost(req, res, db, kind) {
   return res.status(400).json({ error: 'unknown push action' });
 }
 
+// ===== 내 장소(집/회사/여행지) — 로그인 계정 기반. Phase1. docs/product/17-travel-pins.md =====
+async function ensureUserPlacesTable(db) {
+  try {
+    await db.execute("CREATE TABLE IF NOT EXISTS user_places (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, kind TEXT NOT NULL, name TEXT, address TEXT, lat REAL, lng REAL, radius_km REAL DEFAULT 3, categories TEXT, alarm_enabled INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')))");
+  } catch (e) {}
+  try { await db.execute("CREATE INDEX IF NOT EXISTS idx_user_places_user ON user_places(user_id)"); } catch (e) {}
+}
+
+function toUserPlace(row) {
+  let cats = [];
+  try { cats = row.categories ? JSON.parse(row.categories) : []; } catch (e) { cats = []; }
+  return {
+    id: row.id,
+    kind: row.kind,                              // home | work | place
+    name: row.name || '',
+    address: row.address || '',
+    lat: row.lat, lng: row.lng,
+    radiusKm: Number(row.radius_km || 3),
+    categories: Array.isArray(cats) ? cats : [],
+    alarmEnabled: !!row.alarm_enabled,
+  };
+}
+
+// 내 장소 CRUD (로그인 필수). GET=목록 / POST=저장(신규·수정) / DELETE=삭제
+async function handleUserPlaces(req, res, db) {
+  const session = readSession(req);
+  const userId = (session && session.userId) ? session.userId : null;
+  if (!userId) return res.status(401).json({ error: 'login_required' });
+  await ensureUserPlacesTable(db);
+
+  if (req.method === 'GET') {
+    const r = await db.execute({
+      // 집→회사→나머지(등록순) 정렬
+      sql: "SELECT * FROM user_places WHERE user_id=? ORDER BY CASE kind WHEN 'home' THEN 0 WHEN 'work' THEN 1 ELSE 2 END, id ASC",
+      args: [userId],
+    });
+    return res.status(200).json(r.rows.map(toUserPlace));
+  }
+
+  if (req.method === 'DELETE') {
+    const id = Number(req.query.id);
+    if (!id) return res.status(400).json({ error: 'id required' });
+    await db.execute({ sql: "DELETE FROM user_places WHERE id=? AND user_id=?", args: [id, userId] });
+    return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === 'POST') {
+    const body = req.body || {};
+    const kind = (['home', 'work', 'place'].indexOf(body.kind) >= 0) ? body.kind : null;
+    if (!kind) return res.status(400).json({ error: 'kind required (home|work|place)' });
+    const la = Number(body.lat), ln = Number(body.lng);
+    if (!isFinite(la) || !isFinite(ln) || la < 33 || la > 39 || ln < 124 || ln > 132) {
+      return res.status(400).json({ error: 'invalid coords' });
+    }
+    let radius = Number(body.radiusKm);
+    if (!(radius >= 1 && radius <= 5)) radius = 3;
+    const name = String(body.name || (kind === 'home' ? '집' : kind === 'work' ? '회사' : '')).trim().slice(0, 40);
+    const address = String(body.address || '').trim().slice(0, 200);
+    let cats = [];
+    if (Array.isArray(body.categories)) cats = body.categories.filter(c => typeof c === 'string').slice(0, 12);
+    const catsJson = JSON.stringify(cats);
+    const alarm = (body.alarmEnabled === true || body.alarmEnabled === 1) ? 1 : 0;
+    const id = Number(body.id);
+
+    if (id) {
+      // 수정(본인 소유만)
+      const own = (await db.execute({ sql: "SELECT id FROM user_places WHERE id=? AND user_id=?", args: [id, userId] })).rows[0];
+      if (!own) return res.status(404).json({ error: 'not found' });
+      await db.execute({
+        sql: "UPDATE user_places SET kind=?, name=?, address=?, lat=?, lng=?, radius_km=?, categories=?, alarm_enabled=?, updated_at=datetime('now') WHERE id=? AND user_id=?",
+        args: [kind, name, address, la, ln, radius, catsJson, alarm, id, userId],
+      });
+      return res.status(200).json({ ok: true, id });
+    }
+
+    // 신규: 집/회사는 1개만(있으면 기존 것을 갱신)
+    if (kind === 'home' || kind === 'work') {
+      const ex = (await db.execute({ sql: "SELECT id FROM user_places WHERE user_id=? AND kind=? LIMIT 1", args: [userId, kind] })).rows[0];
+      if (ex) {
+        await db.execute({
+          sql: "UPDATE user_places SET name=?, address=?, lat=?, lng=?, radius_km=?, categories=?, alarm_enabled=?, updated_at=datetime('now') WHERE id=?",
+          args: [name, address, la, ln, radius, catsJson, alarm, ex.id],
+        });
+        return res.status(200).json({ ok: true, id: ex.id });
+      }
+    }
+    // 최대 10개 제한
+    const cnt = (await db.execute({ sql: "SELECT COUNT(*) AS n FROM user_places WHERE user_id=?", args: [userId] })).rows[0];
+    if (Number(cnt.n || 0) >= 10) return res.status(400).json({ error: 'limit_reached' });
+    const ins = await db.execute({
+      sql: "INSERT INTO user_places (user_id, kind, name, address, lat, lng, radius_km, categories, alarm_enabled) VALUES (?,?,?,?,?,?,?,?,?)",
+      args: [userId, kind, name, address, la, ln, radius, catsJson, alarm],
+    });
+    return res.status(200).json({ ok: true, id: Number(ins.lastInsertRowid) });
+  }
+
+  res.setHeader('Allow', 'GET, POST, DELETE');
+  return res.status(405).json({ error: 'Method Not Allowed' });
+}
+
 function toUser(row) {
   return {
     id: row.id,
@@ -84,9 +230,38 @@ function toUser(row) {
 module.exports = async function handler(req, res) {
   const db = getDb();
 
+  // ⚠️ 개발 전용 미리보기 로그인 — dev.db(file:)일 때만 동작, 운영(libsql://)에선 완전 무효(404).
+  // LAN(http) 프리뷰에서 OAuth 콜백이 운영도메인으로 가 로그인 불가한 문제 우회. non-Secure 쿠키(http용).
+  if (req.query.devlogin !== undefined) {
+    if (!String(process.env.TURSO_DATABASE_URL || '').startsWith('file:')) return res.status(404).json({ error: 'not found' });
+    try { await db.execute("INSERT INTO users (provider, provider_user_id, nickname) VALUES ('dev','dev-preview','미리보기') ON CONFLICT(provider, provider_user_id) DO NOTHING"); } catch (e) {}
+    const u = (await db.execute("SELECT id, nickname, provider FROM users WHERE provider='dev' AND provider_user_id='dev-preview'")).rows[0];
+    const crypto = require('crypto');
+    const payload = { userId: Number(u.id), nickname: u.nickname, provider: u.provider, exp: Date.now() + 30 * 24 * 3600 * 1000 };
+    const p64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const sig = crypto.createHmac('sha256', process.env.SESSION_SECRET || '').update(p64).digest('base64url');
+    res.setHeader('Set-Cookie', `mhm_session=${p64}.${sig}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${30 * 24 * 3600}`);
+    res.statusCode = 302; res.setHeader('Location', '/'); return res.end();
+  }
+
   // 앱 푸시 토큰/관심위치 등록(공개, 기기 단위) — GET 전용 가드보다 먼저.
   if (req.method === 'POST' && req.query.push) {
     return handlePushPost(req, res, db, req.query.push);
+  }
+
+  // 내 장소(집/회사/여행지) CRUD — 로그인 계정 기반. GET/POST/DELETE 모두 여기서(GET 가드 이전).
+  if (req.query.places !== undefined) {
+    return handleUserPlaces(req, res, db);
+  }
+
+  // 서이추 글쓰기(POST) — GET 가드 이전. 로그인+블로그 필요.
+  if (req.method === 'POST' && req.query.seoichu !== undefined) {
+    return handleSeoichuPost(req, res, db);
+  }
+
+  // 서이추 글 삭제(DELETE) — GET 가드 이전. 로그인+본인만.
+  if (req.method === 'DELETE' && req.query.seoichu !== undefined) {
+    return handleSeoichuDelete(req, res, db);
   }
 
   if (req.method !== 'GET') {
@@ -122,6 +297,39 @@ module.exports = async function handler(req, res) {
     const top = result.rows[0];
     if (!top) return res.status(200).json({ nickname: '', count: 0 });
     return res.status(200).json({ nickname: top.nickname || '', count: Number(top.count) });
+  }
+
+  // 서이추 게시판 글 목록(공개) — 블로그 등록자가 쓴 글만. 프사·닉·작성시간·작성글·블로그.
+  // GET ?seoichu=1&limit=&offset=. 커뮤니티 '서이추' 세그먼트.
+  if (req.query.seoichu !== undefined) {
+    await ensureSeoichuTable(db);
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 30));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+    let rows = [];
+    try {
+      rows = (await db.execute({
+        sql: `SELECT s.id AS id, s.content AS content, s.created_at AS created_at, s.user_id AS user_id,
+                     u.nickname AS nickname, u.provider AS provider,
+                     u.url_platform AS url_platform, u.url_id AS url_id, u.profile_image AS profile_image
+              FROM seoichu_posts s JOIN users u ON u.id = s.user_id
+              WHERE COALESCE(s.hidden,0)=0 AND u.url_id IS NOT NULL AND u.url_id <> '' AND u.url_platform IN ('블로그','인스타그램')
+              ORDER BY s.created_at DESC, s.id DESC
+              LIMIT ? OFFSET ?`,
+        args: [limit, offset]
+      })).rows;
+    } catch (e) { rows = []; }
+    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    return res.status(200).json(rows.map(x => ({
+      id: x.id,
+      userId: x.user_id,  // 작성자 식별(클라에서 currentUser.id와 비교해 삭제버튼 노출 — 캐시 안전)
+      nickname: x.nickname || '익명',
+      provider: x.provider || '',
+      urlPlatform: x.url_platform || '',
+      urlId: x.url_id || '',
+      profileImage: x.profile_image || '',
+      content: x.content || '',
+      createdAt: x.created_at || ''
+    })));
   }
 
   // 전체 회원 목록(이메일 등 PII 포함)은 관리자만

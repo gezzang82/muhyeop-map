@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>무협맵 앱 다운로드</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #f7f9fa; }
+    .wrap { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; color: #555; text-align: center; padding: 24px; }
+    .wrap img { width: 72px; height: 72px; border-radius: 16px; }
+    a { color: #e82a2d; font-weight: 700; text-decoration: none; }
+  </style>
+  <script>
+    (function () {
+      // ⚠️ 스토어 출시 후 아래 URL을 채우면 기기별로 해당 스토어로 보냄. 비어 있으면 웹(muhyeop.com)으로 폴백.
+      var IOS_URL = 'https://apps.apple.com/app/id6794363402';   // 무협맵 App Store(라이브)
+      var AOS_URL = 'https://play.google.com/store/apps/details?id=com.muhyeop.app';   // 무협맵 Google Play(라이브)
+      var WEB_URL = 'https://muhyeop.com/';
+      var ua = navigator.userAgent || '';
+      var isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document); // iPadOS 데스크톱모드 포함
+      var isAndroid = /Android/i.test(ua);
+      var target = WEB_URL;
+      if (isIOS && IOS_URL) target = IOS_URL;
+      else if (isAndroid && AOS_URL) target = AOS_URL;
+      // 즉시 이동(히스토리에 /app 안 남김)
+      location.replace(target);
+    })();
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <img src="image/app_icon.png" alt="무협맵">
+    <p>무협맵으로 이동 중…<br>잠시만 기다려주세요.</p>
+    <p><a href="https://muhyeop.com/">무협맵 바로가기</a></p>
+  </div>
+</body>
+</html>

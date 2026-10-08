@@ -146,6 +146,15 @@ module.exports = async function handler(req, res) {
         todayMemberReturning = Number(mr.n || 0);
       } catch (e) {}
 
+      // 오늘 방문한 로그인 회원 수(당일 가입 포함) → 비회원 추정 = UV − 로그인회원.
+      // ⚠️ 추정치: UV는 IP+일 기준이라 오차 있고, '회원이 로그아웃 상태로 방문'은 비회원에 섞임.
+      let todayMemberTotal = 0;
+      try {
+        const mt = (await db.execute({ sql: "SELECT COUNT(*) AS n FROM user_visits WHERE visit_date = ?", args: [day] })).rows[0] || {};
+        todayMemberTotal = Number(mt.n || 0);
+      } catch (e) {}
+      const todayNonMemberEst = Math.max(0, Number(today.uv || 0) - todayMemberTotal);
+
       // 기간별 시계열: PV=SUM(pv)(site_daily), UV=COUNT(DISTINCT visitor_key)(site_visitor, 기간 내 진짜 고유)
       const period = req.query.period === 'week' ? 'week' : req.query.period === 'month' ? 'month' : 'day';
       let series;
@@ -182,6 +191,7 @@ module.exports = async function handler(req, res) {
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
         todayDwell: dwellAvg(today), todayDwellCount: Number(today.dwell_count || 0),
         todayMemberReturning,
+        todayMemberTotal, todayNonMemberEst,
         period, series,
         referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
         todayReferrers: todayRefRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
@@ -288,6 +298,54 @@ module.exports = async function handler(req, res) {
       })));
     }
 
+    // 커뮤니티 후기 피드(공개): GET ?reviews=feed&mine=1&sort=latest|likes&limit=&offset=
+    //  매장(이름·카테고리) 조인 + 작성자 닉/블로그. mine=1은 로그인 본인 후기만. 반환={total, items}.
+    if (req.method === 'GET' && action === 'feed') {
+      const limit = Math.min(60, Math.max(1, Number(req.query.limit) || 30));
+      const offset = Math.max(0, Number(req.query.offset) || 0);
+      const mine = req.query.mine !== undefined;
+      const order = req.query.sort === 'likes' ? 'r.like_count DESC, r.id DESC' : 'r.created_at DESC, r.id DESC';
+      const where = ['COALESCE(r.hidden,0)=0', 'COALESCE(p.hidden,0)=0'];
+      const wargs = [];
+      if (mine) {
+        if (!session) return res.status(200).json({ total: 0, items: [] }); // 비로그인 '내 후기' 빈 목록
+        where.push('r.user_id = ?'); wargs.push(session.userId);
+      }
+      const whereSql = where.join(' AND ');
+      const totalRow = (await db.execute({
+        sql: `SELECT COUNT(*) AS n FROM reviews r JOIN places p ON p.id = r.place_id WHERE ${whereSql}`,
+        args: wargs
+      })).rows[0] || {};
+      const r = await db.execute({
+        sql: `SELECT r.*, p.name AS place_name, p.category AS place_category,
+                     COALESCE(NULLIF(u.nickname,''),
+                       (SELECT u2.nickname FROM users u2 WHERE u2.url_platform='블로그' AND u2.url_id=r.blog_id AND NULLIF(u2.nickname,'') IS NOT NULL ORDER BY u2.id DESC LIMIT 1)
+                     ) AS user_nickname
+              FROM reviews r
+              JOIN places p ON p.id = r.place_id
+              LEFT JOIN users u ON u.id = r.user_id
+              WHERE ${whereSql}
+              ORDER BY ${order}
+              LIMIT ? OFFSET ?`,
+        args: [...wargs, limit, offset]
+      });
+      if (!mine) res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600');
+      // 좋아요 상태(하트 채움) — 로그인 시 내가 누른 것
+      let likedSet = new Set();
+      if (session && r.rows.length) {
+        const ids = r.rows.map(x => x.id);
+        const lk = await db.execute({ sql: `SELECT review_id FROM review_likes WHERE voter_key = ? AND review_id IN (${ids.map(() => '?').join(',')})`, args: ['u' + session.userId, ...ids] });
+        likedSet = new Set(lk.rows.map(x => x.review_id));
+      }
+      const items = r.rows.map(row => {
+        const rv = toReview(row, likedSet.has(row.id));
+        rv.placeName = row.place_name || '';
+        rv.mine = !!(session && row.user_id != null && row.user_id === session.userId);  // 본인 후기(삭제 뱃지)
+        return rv;
+      });
+      return res.status(200).json({ total: Number(totalRow.n || 0), items });
+    }
+
     // 목록: GET ?reviews=list&placeId=&sort=latest|likes
     if (req.method === 'GET') {
       const placeId = Number(req.query.placeId);
@@ -338,28 +396,69 @@ module.exports = async function handler(req, res) {
       }));
     }
 
-    // 검증(미저장 미리보기): POST ?reviews=validate { url, placeId }
+    // 검증(미저장 미리보기): POST ?reviews=validate { url, placeId } 또는 { url, placeName }(신규 매장)
     if (req.method === 'POST' && action === 'validate') {
       // 외부 블로그 fetch 남용 방지: IP당 1분에 20회
       if (!await enforceRateLimit(req, res, { name: 'review', limit: 20, windowSec: 60 })) return;
-      const { url, placeId } = req.body || {};
-      const pr = await db.execute({ sql: 'SELECT name FROM places WHERE id = ?', args: [Number(placeId)] });
-      if (!pr.rows[0]) return res.status(404).json({ error: '매장을 찾을 수 없어요.' });
-      const result = await validateAndExtract(url, pr.rows[0]?.name || '');
+      const { url, placeId, placeName } = req.body || {};
+      let name = '';
+      if (placeId) {
+        const pr = await db.execute({ sql: 'SELECT name FROM places WHERE id = ?', args: [Number(placeId)] });
+        if (!pr.rows[0]) return res.status(404).json({ error: '매장을 찾을 수 없어요.' });
+        name = pr.rows[0].name || '';
+      } else if (placeName) {
+        name = String(placeName).slice(0, 100);
+      } else {
+        return res.status(400).json({ error: 'placeId 또는 placeName이 필요합니다.' });
+      }
+      const result = await validateAndExtract(url, name);
       return res.status(result.ok ? 200 : 400).json(result);
     }
 
-    // 등록: POST ?reviews=create { url, placeId } (로그인 필요)
+    // 등록: POST ?reviews=create { url, placeId } 또는 { url, newPlace:{name,address,lat,lng,naverCategory} }(없는 매장 생성)
     if (req.method === 'POST' && action === 'create') {
       if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
       // 후기 등록 스팸 방지: IP당 1분에 15회
       if (!await enforceRateLimit(req, res, { name: 'review', limit: 15, windowSec: 60 })) return;
-      const { url, placeId } = req.body || {};
-      const pid = Number(placeId);
-      const pr = await db.execute({ sql: 'SELECT name FROM places WHERE id = ?', args: [pid] });
-      if (!pr.rows[0]) return res.status(404).json({ error: '매장을 찾을 수 없어요.' });
-      const result = await validateAndExtract(url, pr.rows[0].name);
+      const { url, placeId, newPlace } = req.body || {};
+      let pid = Number(placeId) || 0;
+      let placeName = '';
+      if (pid) {
+        const pr = await db.execute({ sql: 'SELECT name FROM places WHERE id = ?', args: [pid] });
+        if (!pr.rows[0]) return res.status(404).json({ error: '매장을 찾을 수 없어요.' });
+        placeName = pr.rows[0].name;
+      } else if (newPlace && newPlace.name && newPlace.lat != null && newPlace.lng != null) {
+        placeName = String(newPlace.name).slice(0, 100);
+      } else {
+        return res.status(400).json({ error: 'placeId 또는 newPlace가 필요합니다.' });
+      }
+      // 검증 먼저 — 실패하면 매장을 만들지 않음(orphan 방지)
+      const result = await validateAndExtract(url, placeName);
       if (!result.ok) return res.status(400).json(result);
+      // 신규 매장: 좌표 범위 확인 → 같은 이름+좌표 있으면 재사용, 없으면 생성(카테고리 자동분류)
+      if (!pid) {
+        const lat = Number(newPlace.lat), lng = Number(newPlace.lng);
+        if (!(lat >= 33 && lat <= 39.5 && lng >= 124 && lng <= 132)) {
+          return res.status(400).json({ error: '매장 위치(좌표)가 올바르지 않아요.' });
+        }
+        const dup = await db.execute({
+          sql: "SELECT id FROM places WHERE REPLACE(name,' ','') = REPLACE(?,' ','') AND ABS(lat - ?) < 0.0007 AND ABS(lng - ?) < 0.0007 LIMIT 1",
+          args: [placeName, lat, lng]
+        });
+        if (dup.rows[0]) {
+          pid = Number(dup.rows[0].id);
+        } else {
+          let category = '기타';
+          try { const { categoryByKeyword } = require('./_scrape'); category = categoryByKeyword(String(newPlace.naverCategory || '') + ' ' + placeName, placeName) || '기타'; } catch (e) {}
+          let femail = '';
+          try { const er = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [session.userId] }); femail = er.rows[0]?.email || ''; } catch (e) {}
+          const insP = await db.execute({
+            sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id) VALUES (?,?,?,?,?,?,?,?,?)`,
+            args: [placeName, String(newPlace.address || ''), lat, lng, category, session.nickname || '', femail, '', session.userId]
+          });
+          pid = Number(insP.lastInsertRowid);
+        }
+      }
       const d = result.data;
       const dup = await db.execute({ sql: 'SELECT id FROM reviews WHERE place_id = ? AND log_no = ? AND COALESCE(hidden,0)=0', args: [pid, d.logNo] });
       if (dup.rows.length) return res.status(409).json({ error: '이미 등록된 후기예요.' });

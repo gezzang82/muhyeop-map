@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=71">
+  <link rel="stylesheet" href="style.css?v=242">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -100,40 +100,20 @@
     </div>
     <div class="pc-nav-tabs">
       <button class="pc-nav-tab active" id="tabCampaigns" onclick="switchPcTab('campaigns')">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <g clip-path="url(#clip0_menu_campaign)">
-            <path d="M27.5967 12C28.0492 12.0001 28.9538 12.4501 29.4062 13.7998L30.7637 18.2998C31.216 19.6498 31.2161 20.9999 28.9541 21H29V30C29 30.5523 28.5523 31 28 31C27.4477 31 27 30.5523 27 30V21H23V29C23 30.1046 22.1046 31 21 31H13C11.8954 31 11 30.1045 11 29V21H11.0459C8.78394 20.9999 8.78395 19.6498 9.23631 18.2998L10.5937 13.7998C11.0461 12.4502 11.9508 12.0002 12.4033 12H27.5967ZM13 29H21V21H13V29ZM27 8C27.5523 8 28 8.44772 28 9C28 9.55228 27.5523 10 27 10H13C12.4477 9.99997 12 9.55226 12 9C12 8.44774 12.4477 8.00003 13 8H27Z" fill="currentColor"/>
-          </g>
-          <defs>
-            <clipPath id="clip0_menu_campaign"><rect width="40" height="40" fill="white"/></clipPath>
-          </defs>
-        </svg>
-        <span>협찬찾기</span>
+        <span class="pc-nav-ico"></span>
+        <span>홈</span>
       </button>
-      <button class="pc-nav-tab" id="tabReport" onclick="switchPcTab('report')">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 8C25.5228 8 30 12.4772 30 18C30 22.1564 27.9189 25.6724 25.5254 28.1855C24.3333 29.4372 23.086 30.4156 22.0322 31.0742C21.505 31.4037 21.0384 31.6449 20.6631 31.8008C20.2607 31.9678 20.0492 32 20 32C19.9508 32 19.7393 31.9678 19.3369 31.8008C18.9616 31.6449 18.495 31.4037 17.9678 31.0742C16.914 30.4156 15.6667 29.4372 14.4746 28.1855C12.0811 25.6724 10 22.1564 10 18C10 12.4772 14.4772 8 20 8Z" stroke="currentColor" stroke-width="2"/>
-          <path d="M20 11C23.866 11 27 14.134 27 18C27 21.866 23.866 25 20 25C16.134 25 13 21.866 13 18C13 14.134 16.134 11 20 11ZM20 14C19.4477 14 19 14.4477 19 15V17H17C16.4477 17 16 17.4477 16 18C16 18.5523 16.4477 19 17 19H19V21C19 21.5523 19.4477 22 20 22C20.5523 22 21 21.5523 21 21V19H23C23.5523 19 24 18.5523 24 18C24 17.4477 23.5523 17 23 17H21V15C21 14.4477 20.5523 14 20 14Z" fill="currentColor"/>
-        </svg>
-        <span>제보하기</span>
+      <button class="pc-nav-tab" id="tabMyPlaces" onclick="switchPcTab('myplaces')">
+        <span class="pc-nav-ico"></span>
+        <span>내 장소</span>
       </button>
-      <button class="pc-nav-tab" id="tabReportIssue" onclick="openReportModal()">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20.0002 10C24.9707 10.0001 29.0002 14.0295 29.0002 19V24H29.2062L29.299 24.0039C29.7595 24.0466 30.1363 24.4034 30.1974 24.8701L30.8517 29.8701C30.9252 30.4315 30.5204 30.9337 29.9719 30.9941L29.8605 31H10.1398L10.0285 30.9941C9.47984 30.9338 9.0751 30.4316 9.14862 29.8701L9.80292 24.8701C9.86812 24.3724 10.2922 24.0002 10.7941 24H11.0002V19C11.0002 14.0294 15.0296 10 20.0002 10ZM11.2795 29H28.7209L28.3283 26H11.6721L11.2795 29ZM8.00018 18C8.55241 18.0001 9.00018 18.4478 9.00018 19C9.00018 19.5522 8.55241 19.9999 8.00018 20H7.00018C6.4479 20 6.00018 19.5523 6.00018 19C6.00018 18.4477 6.4479 18 7.00018 18H8.00018ZM33.0002 18C33.5524 18.0001 34.0002 18.4478 34.0002 19C34.0002 19.5522 33.5524 19.9999 33.0002 20H32.0002C31.4479 20 31.0002 19.5523 31.0002 19C31.0002 18.4477 31.4479 18 32.0002 18H33.0002ZM17.0002 14C15.8956 14 15.0002 14.8954 15.0002 16C15.0002 17.1046 15.8956 18 17.0002 18C18.1047 17.9999 19.0002 17.1045 19.0002 16C19.0002 14.8955 18.1047 14.0001 17.0002 14ZM10.1008 9.10059C10.4913 8.71011 11.1243 8.71008 11.5148 9.10059L12.2219 9.80762C12.6124 10.1981 12.6123 10.8312 12.2219 11.2217C11.8313 11.6122 11.1983 11.6122 10.8078 11.2217L10.1008 10.5146C9.71024 10.1241 9.71024 9.49111 10.1008 9.10059ZM28.4855 9.10059C28.8761 8.71009 29.5091 8.71007 29.8996 9.10059C30.2901 9.4911 30.2901 10.1241 29.8996 10.5146L29.1926 11.2217C28.802 11.6122 28.169 11.6122 27.7785 11.2217C27.388 10.8312 27.388 10.1981 27.7785 9.80762L28.4855 9.10059ZM20.0002 5C20.5524 5.00008 21.0002 5.44777 21.0002 6V7C21.0002 7.55223 20.5524 7.99992 20.0002 8C19.4479 8 19.0002 7.55228 19.0002 7V6C19.0002 5.44772 19.4479 5 20.0002 5Z" fill="currentColor"/>
-        </svg>
-        <span>신고하기</span>
-      </button>
-      <button class="pc-nav-tab" id="tabAbout" onclick="openAbout()">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 7C22.7614 7 25 9.23858 25 12C25 14.4189 23.2822 16.4361 21 16.8994V17H24L29.4072 18.123C30.335 18.3159 31 19.1344 31 20.082V30.3486C30.9999 31.6773 29.7278 32.6365 28.4502 32.2715L24 31H16L10.5928 29.877C9.66497 29.6841 9 28.8656 9 27.918V17.6514C9.00006 16.3227 10.2722 15.3635 11.5498 15.7285L16 17H19V16.8994C16.7178 16.4361 15 14.4189 15 12C15 9.23858 17.2386 7 20 7ZM16 29H24V19H21V24C21 24.5523 20.5523 25 20 25C19.4477 25 19 24.5523 19 24V19H16V29Z" fill="currentColor"/>
-        </svg>
-        <span>무협맵 소개</span>
+      <button class="pc-nav-tab" id="tabCommunity" onclick="switchPcTab('community')">
+        <span class="pc-nav-ico"></span>
+        <span>커뮤니티</span>
       </button>
       <button class="pc-nav-tab" id="tabMyInfo" onclick="switchPcTab('myinfo')">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M23 21C27.4183 21 31 24.5817 31 29V30C31 31.1046 30.1046 32 29 32H11C9.89543 32 9 31.1046 9 30V29C9 24.5817 12.5817 21 17 21H23ZM20 8C23.3137 8 26 10.6863 26 14C26 17.3137 23.3137 20 20 20C16.6863 20 14 17.3137 14 14C14 10.6863 16.6863 8 20 8ZM20 10C17.7909 10 16 11.7909 16 14C16 16.2091 17.7909 18 20 18C22.2091 18 24 16.2091 24 14C24 11.7909 22.2091 10 20 10Z" fill="currentColor"/>
-        </svg>
-        <span>내 정보</span>
+        <span class="pc-nav-ico"></span>
+        <span>MY</span>
       </button>
     </div>
     <div class="pc-nav-auth" id="pcNavAuth">
@@ -151,7 +131,7 @@
       <!-- 로그인 후 -->
       <div class="pc-nav-my-user" id="pcNavMyUser" style="display:none">
         <button class="pc-nav-my" onclick="switchPcTab('myinfo')" aria-label="내 정보">
-          <span class="pc-nav-my-avatar"><img src="image/img_login_default_32.png" alt="" width="32" height="32"></span>
+          <span class="pc-nav-my-avatar"><img src="image/img_profile_login.png?v=2" alt="" width="32" height="32"></span>
           <span class="pc-nav-my-name" id="pcNavMyName"></span>
         </button>
         <button class="pc-nav-my-btn" id="pcNavMyLogout" onclick="logout()">로그아웃</button>
@@ -249,15 +229,17 @@
   <div class="modal-overlay" id="profileOverlay" onclick="closeProfileSheet()">
     <div class="modal profile-modal" onclick="event.stopPropagation()">
       <div class="modal-sticky-header" id="profileStickyHeader">
-        <span>내 정보</span>
+        <button class="mlset-back" onclick="closeProfileSheet()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>회원정보관리</span>
       </div>
       <div class="modal-header">
-        <h2>내 정보</h2>
+        <h2>회원정보관리</h2>
         <button class="profile-withdraw-link" onclick="deleteAccount()">회원 탈퇴</button>
       </div>
       <div class="modal-body" id="profileBody">
         <div class="modal-scroll-header" id="profileScrollHeader">
-          <h2>내 정보</h2>
+          <button class="mlset-back" onclick="closeProfileSheet()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>회원정보관리</h2>
           <button class="profile-withdraw-link" onclick="deleteAccount()">회원 탈퇴</button>
         </div>
         <!-- 로그인 전: 로그인 유도 (PC 내 정보 패널 전용 / 모바일은 openProfileSheet가 로그인 시트로 우회) -->
@@ -268,35 +250,13 @@
         </div>
         <!-- 로그인 후: 내 정보 -->
         <div id="profileLoggedIn">
-        <div class="myinfo-card">
-          <div class="myinfo-card-user">
-            <img src="" alt="" width="16" height="16" id="myinfoProviderIcon">
-            <span class="myinfo-nick" id="myinfoNick"></span>
-          </div>
-          <div class="myinfo-rows">
-            <div class="myinfo-row">
-              <span class="myinfo-label">가입일</span>
-              <span class="myinfo-value" id="myinfoJoined">-</span>
-            </div>
-            <div class="myinfo-row">
-              <span class="myinfo-label">접속일 수</span>
-              <span class="myinfo-value"><b id="myinfoVisitCount">0</b>일</span>
-            </div>
-          </div>
-          <div class="myinfo-stats">
-            <div class="myinfo-stat">
-              <div class="myinfo-stat-label"><img src="image/ic_menu_report_16.svg" width="16" height="16" alt="">협찬 제보</div>
-              <div class="myinfo-stat-value"><b id="myinfoReportCount">0</b>건</div>
-            </div>
-            <div class="myinfo-stat">
-              <div class="myinfo-stat-label"><img src="image/ic_menu_review_16.svg" width="16" height="16" alt="">후기 등록</div>
-              <div class="myinfo-stat-value"><b id="myinfoReviewCount">0</b>건</div>
-            </div>
-            <div class="myinfo-stat">
-              <div class="myinfo-stat-label"><img src="image/ic_menu_helpful_16.svg" width="16" height="16" alt="">도움돼요</div>
-              <div class="myinfo-stat-value"><b id="myinfoHelpfulCount">0</b>건</div>
-            </div>
-          </div>
+        <div class="form-group profile-photo-group">
+          <button type="button" class="profile-avatar-edit" onclick="pickProfilePhoto()" aria-label="프로필 사진 변경">
+            <span class="profile-avatar"><img id="profilePhotoImg" src="image/img_profile_login.png?v=2" alt="" width="80" height="80"></span>
+            <span class="profile-avatar-cam"><img src="image/ic_camera_badge_28.svg" width="28" height="28" alt=""></span>
+          </button>
+          <p class="profile-nickname" id="profileNickname"></p>
+          <input type="file" id="profilePhotoInput" accept="image/*" hidden>
         </div>
         <div class="form-group">
           <label>이메일 (선택)</label>
@@ -320,12 +280,97 @@
             <input type="text" id="profileUrlId" class="url-id-input" placeholder="아이디 입력">
           </div>
         </div>
-        <div class="guest-hint"><img src="image/ic_info_16.svg" alt="" width="16" height="16"><span>SNS계정을 등록하면 제보·신고할 때 링크를 다시 입력하지 않아도 돼요.</span></div>
+        <div class="guest-hint"><img src="image/ic_info_16.svg" alt="" width="16" height="16"><span>SNS 계정을 미리 등록해두면 협찬 활동 시 링크를 매번 입력하지 않아도 자동으로 채워져요.</span></div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeProfileSheet()">닫기</button>
         <button class="btn-submit" onclick="saveProfile()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 알림설정 (MY → 알림설정) — 모바일 시트. 토글은 Phase2에서 푸시 배선, 지금은 UI + 권한 배너만 동작 -->
+  <div class="modal-overlay" id="alarmOverlay" onclick="closeMyAlarmSetting()">
+    <div class="modal profile-modal alarm-modal" onclick="event.stopPropagation()">
+      <div class="modal-sticky-header" id="alarmStickyHeader">
+        <button class="mlset-back" onclick="closeMyAlarmSetting()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>알림설정</span>
+      </div>
+      <div class="modal-header">
+        <h2>알림설정</h2>
+      </div>
+      <div class="modal-body" id="alarmBody">
+        <div class="modal-scroll-header" id="alarmScrollHeader">
+          <button class="mlset-back" onclick="closeMyAlarmSetting()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>알림설정</h2>
+        </div>
+        <!-- 기기(OS) 알림 권한 꺼짐 안내 — 꺼진 상태에서만 노출 -->
+        <div class="alarm-perm-banner" id="alarmPermBanner" style="display:none">
+          <div class="alarm-perm-text"><b>휴대폰 알림이 꺼져 있어 알림을 받을 수 없어요.</b><br>아래 설정을 바꿔도 기기 알림을 먼저 켜야 적용돼요.</div>
+          <button class="alarm-perm-btn" onclick="openAlarmPermSettings()">설정에서 켜기</button>
+        </div>
+        <div class="alarm-info">장소별 ON/OFF는 '내 장소' 탭 각 카드에서 하실 수 있어요.</div>
+        <div class="alarm-list">
+          <div class="alarm-row">
+            <span class="alarm-row-label">전체 알림 받기</span>
+            <label class="ml-switch"><input type="checkbox" id="alarmAll" checked onchange="onAlarmToggle()"><span class="ml-switch-track"></span></label>
+          </div>
+          <div class="alarm-divider"></div>
+          <div class="alarm-row">
+            <span class="alarm-row-label">내 장소 신규 협찬</span>
+            <label class="ml-switch"><input type="checkbox" id="alarmNewCampaign" checked onchange="onAlarmToggle()"><span class="ml-switch-track"></span></label>
+          </div>
+          <div class="alarm-divider"></div>
+          <div class="alarm-row">
+            <span class="alarm-row-label">이벤트·공지</span>
+            <label class="ml-switch"><input type="checkbox" id="alarmEvent" checked onchange="onAlarmToggle()"><span class="ml-switch-track"></span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 이벤트·공지 피드 (MY → 이벤트·공지). 한 테이블(type) 피드형 + 상단 필터 -->
+  <div class="modal-overlay" id="noticeOverlay" onclick="closeNoticeFeed()">
+    <div class="modal profile-modal notice-modal" onclick="event.stopPropagation()">
+      <div class="modal-sticky-header" id="noticeStickyHeader">
+        <button class="mlset-back" onclick="closeNoticeFeed()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>이벤트·공지</span>
+      </div>
+      <div class="modal-header">
+        <h2>이벤트·공지</h2>
+      </div>
+      <div class="modal-body" id="noticeBody">
+        <div class="modal-scroll-header" id="noticeScrollHeader">
+          <button class="mlset-back" onclick="closeNoticeFeed()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>이벤트·공지</h2>
+        </div>
+        <div class="notice-filter" id="noticeFilter">
+          <button class="notice-chip active" data-nf="all" onclick="setNoticeFilter('all')">전체</button>
+          <button class="notice-chip" data-nf="notice" onclick="setNoticeFilter('notice')">공지</button>
+          <button class="notice-chip" data-nf="event" onclick="setNoticeFilter('event')">이벤트</button>
+        </div>
+        <div class="notice-feed" id="noticeFeed"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 이벤트·공지 상세 -->
+  <div class="modal-overlay" id="noticeDetailOverlay" onclick="closeNoticeDetail()">
+    <div class="modal profile-modal notice-modal" onclick="event.stopPropagation()">
+      <div class="modal-sticky-header" id="noticeDtStickyHeader">
+        <button class="mlset-back" onclick="closeNoticeDetail()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>이벤트·공지</span>
+      </div>
+      <div class="modal-header">
+        <h2>이벤트·공지</h2>
+      </div>
+      <div class="modal-body" id="noticeDtBody">
+        <div class="modal-scroll-header" id="noticeDtScrollHeader">
+          <button class="mlset-back" onclick="closeNoticeDetail()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>이벤트·공지</h2>
+        </div>
+        <div class="notice-detail" id="noticeDetail"></div>
       </div>
     </div>
   </div>
@@ -334,8 +379,17 @@
   <div class="fullpage-overlay" id="reviewFormOverlay">
     <div class="signup-page">
       <div class="signup-content">
-        <div class="signup-title-wrap"><h2>후기 등록</h2></div>
-        <div class="form-group">
+        <div class="signup-title-wrap rv-form-head"><button class="mlset-back" onclick="closeReviewForm()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h2>후기 등록</h2></div>
+        <!-- 매장명 검색/선택 (제보 step1 매장검색 재사용. 매장 상세에서 열면 이미 선택돼 숨김) -->
+        <div class="form-group" id="rvStoreGroup" hidden>
+          <label>매장명 <span class="rv-required">*</span></label>
+          <div class="rv-url-row">
+            <input type="search" id="rvStoreSearch" autocomplete="off" placeholder="매장명으로 검색" enterkeyhint="search" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();rvSearchStores();}">
+            <button class="rv-verify-btn" type="button" onclick="rvSearchStores()">검색</button>
+          </div>
+          <div class="place-results-list rv-store-results" id="rvStoreResults"></div>
+        </div>
+        <div class="form-group" id="reviewUrlGroup">
           <label>네이버 블로그 URL <span class="rv-required">*</span></label>
           <div class="rv-url-row">
             <input type="url" id="reviewUrl" inputmode="url" autocomplete="off" placeholder="URL 입력해주세요">
@@ -343,12 +397,22 @@
           </div>
           <span class="field-error-msg" id="reviewFormError"></span>
         </div>
-        <div class="signup-hint"><img src="image/ic_info_16.svg" alt="" width="16" height="16"><span>후기는 네이버 블로그만 등록이 가능합니다.</span></div>
+        <div class="signup-hint" id="reviewUrlHint"><img src="image/ic_info_16.svg" alt="" width="16" height="16"><span>후기는 네이버 블로그만 등록이 가능합니다.</span></div>
         <div id="reviewPreview"></div>
       </div>
       <div class="signup-footer">
-        <button class="signup-btn-cancel" onclick="closeReviewForm()">취소</button>
-        <button class="signup-btn-confirm" id="reviewSubmitBtn" onclick="submitReview()">등록하기</button>
+        <button class="signup-btn-confirm rv-submit-full" id="reviewSubmitBtn" onclick="submitReview()">등록하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 내 후기 (후기 화면 '내 후기' 링크 → 별도 서브화면) -->
+  <div class="modal-overlay" id="myReviewsOverlay" onclick="closeMyReviews()">
+    <div class="modal myrev-modal" onclick="event.stopPropagation()">
+      <div class="modal-sticky-header" id="myRevStickyHeader"><button class="mlset-back" onclick="closeMyReviews()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span>내 후기</span></div>
+      <div class="modal-body" id="myRevBody">
+        <div class="modal-scroll-header" id="myRevScrollHeader"><button class="mlset-back" onclick="closeMyReviews()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h2>내 후기</h2></div>
+        <div id="myRevContent"></div>
       </div>
     </div>
   </div>
@@ -357,15 +421,13 @@
   <div class="modal-overlay" id="policyOverlay" onclick="closePolicy()">
     <div class="modal policy-modal" onclick="event.stopPropagation()">
       <div class="modal-sticky-header" id="policyStickyHeader">
+        <button class="mlset-back" onclick="closePolicy()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <span id="policyStickyTitle"></span>
       </div>
       <div class="modal-header">
         <h2 id="policyTitle"></h2>
       </div>
       <div class="modal-body" id="policyBody"></div>
-      <div class="modal-footer policy-footer">
-        <button class="btn-next" onclick="closePolicy()" style="width:100%">닫기</button>
-      </div>
     </div>
   </div>
 
@@ -391,8 +453,41 @@
     <div class="sidebar-list" id="campaignList"></div>
   </div>
 
+  <!-- 내 장소 선택 전 빈 상태: 로고 워터마크(리스트 오른쪽 전체, PC only, 디자인 1769-54077) -->
+  <div class="pc-place-empty" id="pcPlaceEmpty"><img src="image/img_muhyeop_pc_logo.svg" width="138" height="204" alt="무협맵"></div>
+  <!-- PC 집 설정 패널 (내 장소 3번째 컬럼, 장소 선택 시에만, PC only) -->
+  <aside class="pc-place-setting" id="pcPlaceSetting">
+    <!-- 타이틀: 고정 영역(내 장소와 동일한 84px 헤더) -->
+    <div class="pc-place-header"><h2 class="pc-place-title" id="pcPlaceTitle">집 설정</h2></div>
+    <!-- 선택 시: 설정 폼(스크롤 본문) -->
+    <div class="pc-place-form" id="pcPlaceForm" hidden>
+      <div class="pc-place-addrbox"><span class="pc-place-addr-ico" id="pcPlaceAddrIco"></span><span class="pc-place-addr" id="pcPlaceAddr">지도를 움직여 위치를 맞춰주세요</span></div>
+      <p class="pc-place-guide"><img src="image/ic_info_16.svg" width="16" height="16" alt="">오른쪽 지도에서 위치를 움직여 위치를 설정해주세요. 정확한 주소는 필요 없어요. 동네만 맞춰도 주변 협찬을 보여드려요.</p>
+      <div class="pc-place-row"><span>협찬 볼 반경</span><span class="pc-place-radval" id="pcPlaceRadVal">3km</span></div>
+      <div class="ml-set-slider-box pc-place-sliderbox"><input type="range" class="ml-set-slider" id="pcPlaceRadius" min="1" max="5" step="0.1" value="3" oninput="pcPlaceOnRadius(this.value)"></div>
+      <!-- 장소명 = 협찬 볼 반경 아래(모바일과 동일 순서), 여행지(place)만 노출 -->
+      <div class="pc-place-namefield" id="pcPlaceNameField" hidden>
+        <label>장소명</label>
+        <input type="text" id="pcPlaceName" maxlength="8" placeholder="예) 자주 가는 동네" oninput="this.classList.remove('input-error')">
+      </div>
+      <div class="pc-place-catlabel">카테고리</div>
+      <div class="pc-place-cats" id="pcPlaceCats"></div>
+      <div class="pc-place-alarmrow"><span>새 협찬 알림</span><label class="ml-switch"><input type="checkbox" id="pcPlaceAlarm"><span class="ml-switch-track"></span></label></div>
+    </div>
+    <!-- 하단 삭제/저장 = 고정 푸터(스크롤 안 됨) -->
+    <div class="pc-place-actions" id="pcPlaceActions">
+      <button class="pc-place-del" id="pcPlaceDel" onclick="pcPlaceDelete()" hidden>삭제</button>
+      <button class="pc-place-save" id="pcPlaceSaveBtn" onclick="pcPlaceSave()">저장</button>
+    </div>
+  </aside>
+
+  <!-- PC MY: 서브화면 미선택 시 오른쪽 상세 영역 빈 상태(로고 워터마크, PC only) -->
+  <div class="pc-my-empty" id="pcMyEmpty"><img src="image/img_muhyeop_pc_logo.svg" width="138" height="204" alt="무협맵"></div>
+
   <!-- 지도 영역 -->
   <div id="map">
+    <!-- PC 내 장소 설정 중 지도 중앙 핀 -->
+    <div class="pc-place-centerpin" id="pcPlaceCenterPin"><img src="image/ic_pin_28.svg" width="28" height="28" alt=""></div>
 
     <!-- 지도 로딩 실패 안내 (스크립트 미로드 / 인증 실패 시 노출) -->
     <div id="mapError" class="map-error" hidden>
@@ -472,7 +567,6 @@
           <svg class="mobile-search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11 2.5C15.9706 2.5 20 6.52944 20 11.5C20 13.3146 19.4609 15.0025 18.5371 16.416L21.7178 19.5967C22.3032 20.1825 22.3034 21.1321 21.7178 21.7178C21.1321 22.3034 20.1825 22.3032 19.5967 21.7178L16.5 18.6211C14.9788 19.7977 13.072 20.5 11 20.5C6.02944 20.5 2 16.4706 2 11.5C2 6.52944 6.02944 2.5 11 2.5ZM11 5.5C7.68629 5.5 5 8.18629 5 11.5C5 14.8137 7.68629 17.5 11 17.5C14.3137 17.5 17 14.8137 17 11.5C17 8.18629 14.3137 5.5 11 5.5Z" fill="currentColor"/></svg>
           <input type="search" id="regionSearchMobileOverlay" placeholder="지역, 매장명, 역명으로 검색" enterkeyhint="search" autocomplete="off" onkeydown="if(event.key==='Enter' && !event.isComposing){event.preventDefault();searchRegionMobileOverlay();}">
         </div>
-        <button class="mobile-icon-btn mobile-icon-add" onclick="openSideMenu()" title="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 14C9.5523 14 10 14.4477 10 15V23C10 23.5523 9.5523 24 9 24H1C0.4477 24 0 23.5523 0 23V15C0 14.4477 0.4477 14 1 14H9ZM23 14C23.5523 14 24 14.4477 24 15V23C24 23.5523 23.5523 24 23 24H15C14.4477 24 14 23.5523 14 23V15C14 14.4477 14.4477 14 15 14H23ZM9 0C9.5523 0 10 0.4477 10 1V9C10 9.5523 9.5523 10 9 10H1C0.4477 10 0 9.5523 0 9V1C0 0.4477 0.4477 0 1 0H9ZM23 0C23.5523 0 24 0.4477 24 1V9C24 9.5523 23.5523 10 23 10H15C14.4477 10 14 9.5523 14 9V1C14 0.4477 14.4477 0 15 0H23Z" fill="#E82A2D"/></svg></button>
       </div>
       <div class="mobile-chips-row">
         <button class="filter-chip filter-chip--category" data-category-chip onclick="openCategoryFilter()">          <span class="cat-chip-label">카테고리</span>
@@ -501,13 +595,12 @@
         <div class="pc-app-dl-title">
           <span>무협맵</span>
           <img src="image/ic_appstore_20.svg" width="20" height="20" alt="App Store">
-          <!-- 안드로이드(구글플레이) 출시 전까지 숨김 -->
-          <img src="image/ic_googleplay_20.svg" width="20" height="20" alt="Google Play" style="display:none">
+          <img src="image/ic_googleplay_20.svg" width="20" height="20" alt="Google Play">
         </div>
         <p class="pc-app-dl-desc">모바일 앱으로 다운로드 받으세요!</p>
       </div>
       <div class="pc-app-dl-qr" aria-label="무협맵 QR 코드">
-        <img src="image/qr_muhyeop.png?v=2" alt="무협맵 QR 코드" class="pc-app-dl-qr-img">
+        <img src="image/qr_muhyeop.png?v=3" alt="무협맵 QR 코드" class="pc-app-dl-qr-img">
       </div>
     </div>
   </div>
@@ -525,6 +618,11 @@
       </div>
     </div>
   </div>
+
+  <!-- 미등록 매장 검색 시 하단 '후기 등록' 플로팅 버튼 (아래서 위로 슬라이드업) -->
+  <button class="search-pin-review-fab" id="searchPinReviewFab" hidden onclick="searchPinReview()">
+    <svg width="16" height="16" viewBox="16 12 24 24" fill="none"><path d="M20.5089 32.5206L20.502 32.5137C19.3677 32.4459 18.463 31.5412 18.3952 30.4069L18.389 30.4006L18.3883 30.2839L18.3835 29.5527C18.3835 29.5482 18.3835 29.5433 18.3835 29.5389L18.3517 24.0754L26.8335 32.5572L20.5089 32.5206ZM37.0742 18.0739C38.2457 19.2455 38.2456 21.145 37.0742 22.3166L27.8818 31.509L19.3965 23.0237L28.5889 13.8313C29.7605 12.6598 31.66 12.6598 32.8315 13.8313L37.0742 18.0739Z" fill="#376BCB"/></svg><span>후기 등록</span>
+  </button>
 
   <!-- 우측 슬라이드 메뉴 -->
   <div class="side-menu-overlay" id="sideMenuOverlay" onclick="closeSideMenu()">
@@ -584,24 +682,30 @@
   <!-- 서비스 소개 모달 -->
   <div class="modal-overlay" id="aboutOverlay" onclick="closeAbout()">
     <div class="modal about-modal" onclick="event.stopPropagation()">
-      <div class="about-drag-handle" onclick="closeAbout()"></div>
-      <div class="modal-header">
-        <h2>무협맵 소개</h2>
-        <button class="modal-close" onclick="closeAbout()">✕</button>
+      <div class="modal-sticky-header" id="aboutStickyHeader">
+        <button class="mlset-back" onclick="closeAbout()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>무협맵 소개</span>
       </div>
-      <div class="modal-body">
+      <div class="modal-header">
+        <button class="mlset-back" onclick="closeAbout()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <h2>무협맵 소개</h2>
+      </div>
+      <div class="modal-body" id="aboutBody">
+        <div class="modal-scroll-header" id="aboutScrollHeader">
+          <button class="mlset-back" onclick="closeAbout()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>무협맵 소개</h2>
+        </div>
         <div class="intro">
           <!-- 01. 히어로 -->
           <section class="intro-hero">
             <div class="intro-hero-title-group">
-              <span class="intro-badge">무협맵 소개</span>
               <h3 class="intro-hero-title">흩어진 협찬을 모아<br>지도 위에 담았습니다</h3>
               <p class="intro-hero-sub">여러 플랫폼에 흩어진 협찬 정보를<br>지도 위에서 한 번에 확인하세요.</p>
             </div>
             <img src="image/hero-image.png?v=2" alt="무협맵 캐릭터" class="intro-hero-img">
             <div class="intro-hero-desc">
-              <p>무협맵은 다양한 협찬 정보를<br>지도 기반으로 모아 보여주는 서비스입니다.</p>
-              <p>또한 실제 방문 후기까지 함께 확인하며<br>원하는 협찬을 더욱 쉽게 찾을 수 있습니다.</p>
+              <p>무협맵은 여러 플랫폼에 흩어진 협찬을<br>지도 위에 모아 보여주는 서비스입니다.</p>
+              <p>자주 가는 곳을 저장해 주변 협찬을 한눈에 보고,<br>실제 방문 후기까지 함께 확인하세요.</p>
             </div>
           </section>
 
@@ -611,7 +715,7 @@
               <span class="intro-tag intro-tag--red">왜 무협맵인가?</span>
               <div class="intro-card-text">
                 <p>협찬을 신청하거나 방문할 지역이 정해졌다면, 주변에 어떤 협찬이 있는지 하나씩 검색하는 것은 번거롭습니다.</p>
-                <p>무협맵은 지도 위에서 주변 협찬을 함께 탐색하고 실제 후기를 확인하며 더욱 효율적인 방문 동선을 계획할 수 있도록 도와줍니다.</p>
+                <p>무협맵은 지도 위에서 주변 협찬을 함께 탐색하고 실제 후기를 확인하며, 자주 가는 곳을 중심으로 더 효율적인 방문을 계획할 수 있도록 도와줍니다.</p>
               </div>
             </section>
 
@@ -621,9 +725,9 @@
                 <li class="intro-step">
                   <div class="intro-step-head">
                     <span class="intro-step-badge">1</span>
-                    <strong>원하는 지역 탐색</strong>
+                    <strong>지역 또는 내 장소 탐색</strong>
                   </div>
-                  <p>검색하거나 지도를 이동해 원하는 지역의 협찬을 찾아보세요.</p>
+                  <p>검색하거나, 자주 가는 곳(집·회사·여행지)을 저장해 그 주변의 협찬을 모아보세요.</p>
                 </li>
                 <li class="intro-step">
                   <div class="intro-step-head">
@@ -635,18 +739,25 @@
                 <li class="intro-step">
                   <div class="intro-step-head">
                     <span class="intro-step-badge">3</span>
-                    <strong>내 채널에 맞게 보기</strong>
+                    <strong>채널·카테고리로 필터</strong>
                   </div>
-                  <p>블로그, 클립, 인스타그램, 유튜브 등 운영 중인 채널에 맞는 협찬만 확인할 수 있습니다.</p>
+                  <p>블로그·클립·인스타그램·유튜브 채널과 음식점·카페·뷰티 등 카테고리로 원하는 협찬만 볼 수 있습니다.</p>
+                </li>
+                <li class="intro-step">
+                  <div class="intro-step-head">
+                    <span class="intro-step-badge">4</span>
+                    <strong>커뮤니티에서 소통</strong>
+                  </div>
+                  <p>체험단 이웃을 찾아 소통하고, 다녀온 곳의 블로그 후기를 공유해보세요.</p>
                 </li>
               </ol>
             </section>
 
             <section class="intro-card intro-card--blue intro-card--center">
-              <img src="image/hero-image_02.png" alt="" class="intro-card-img intro-card-img--report">
+              <img src="image/hero-image_04.png" alt="" class="intro-card-img intro-card-img--community">
               <div class="intro-card-group">
-                <span class="intro-tag intro-tag--dark">협찬 제보하기</span>
-                <p class="intro-card-center-text">새로운 협찬 정보를 알고 계신가요?<br>무협맵에 없는 협찬이나 변경된 정보를<br>직접 제보해 주세요.<br>여러분의 제보는 더 정확한 협찬 지도를 만드는 데<br>도움이 됩니다.</p>
+                <span class="intro-tag intro-tag--dark">커뮤니티</span>
+                <p class="intro-card-center-text">체험단 이웃을 찾아 서로 소통하고,<br>다녀온 곳의 블로그 후기를 공유해보세요.<br>이웃찾기와 후기로<br>함께 성장하는 공간입니다.</p>
               </div>
             </section>
 
@@ -654,15 +765,15 @@
               <img src="image/hero-image_03.png" alt="" class="intro-card-img intro-card-img--grow">
               <div class="intro-card-group">
                 <span class="intro-tag intro-tag--dark">함께 만드는 협찬 지도</span>
-                <p class="intro-card-center-text">무협맵의 협찬 정보는<br>운영자 등록과 사용자 제보를 통해 함께 만들어집니다.<br>또한 실제 방문 후기가 계속 쌓이며 더 많은 사람들이 믿고 사용할 수 있는 협찬 지도로 성장합니다.</p>
+                <p class="intro-card-center-text">무협맵의 협찬 정보는 운영자가 꾸준히 모으고,<br>여기에 실제 방문 후기가 계속 쌓이며<br>더 많은 사람들이 믿고 사용할 수 있는<br>협찬 지도로 성장합니다.</p>
               </div>
             </section>
           </div>
 
           <!-- 03. 안내 -->
           <ul class="intro-legal">
-            <li>무협맵은 협찬 정보를 탐색하기 위한 지도 기반 서비스 입니다.</li>
-            <li>협찬 신청 및 진행은 각 플랫폼에서 이루어지며 모집 조건과 상세 내용은 반드시 해당 플랫폼에서 다시 확인해 주세요.</li>
+            <li>무협맵은 협찬 정보를 탐색하기 위한 지도 기반 서비스입니다.</li>
+            <li>협찬 신청 및 진행은 각 플랫폼에서 이루어지며, 모집 조건과 상세 내용은 반드시 해당 플랫폼에서 다시 확인해 주세요.</li>
           </ul>
 
           <!-- 04. 문의하기 -->
@@ -678,11 +789,10 @@
             <button onclick="openPolicy('privacy')">개인정보처리방침</button>
             <span class="about-policy-sep">|</span>
             <button onclick="openPolicy('terms')">이용약관</button>
+            <span class="about-policy-sep">|</span>
+            <button onclick="openPolicy('operation')">운영정책</button>
           </div>
         </div>
-      </div>
-      <div class="modal-footer about-footer">
-        <button class="btn-next" onclick="closeAbout()" style="width:100%">닫기</button>
       </div>
     </div>
   </div>
@@ -691,6 +801,7 @@
   <div class="modal-overlay" id="reportOverlay" onclick="closeReportModal()">
     <div class="modal report-modal" onclick="event.stopPropagation()">
       <div class="modal-sticky-header" id="reportStickyHeader">
+        <button class="mlset-back" onclick="closeReportModal()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <span>신고하기</span>
       </div>
       <div class="modal-header">
@@ -698,6 +809,7 @@
       </div>
       <div class="modal-body" id="reportBody">
         <div class="modal-scroll-header" id="reportScrollHeader">
+          <button class="mlset-back" onclick="closeReportModal()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <h2>신고하기</h2>
         </div>
         <div class="form-group">
@@ -739,7 +851,6 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeReportModal()">취소</button>
         <button class="btn-next" onclick="submitReport()">제출하기</button>
       </div>
     </div>
@@ -1003,6 +1114,202 @@
   </div>
   <div id="mobileSheetOverlay" class="mobile-sheet-overlay" onclick="closeMobileSheet()"></div>
 
+  <!-- 하단 GNB (모바일 전용) — Phase 1, 아이콘 image/ic_gnb_*.svg (Figma 1685:59294) -->
+  <nav class="gnb" id="gnb" aria-label="하단 내비게이션">
+    <button class="gnb-tab active" data-tab="home" onclick="switchTab('home')" aria-label="홈">
+      <span class="gnb-ico"></span><span class="gnb-label">홈</span>
+    </button>
+    <button class="gnb-tab" data-tab="places" onclick="switchTab('places')" aria-label="내 장소">
+      <span class="gnb-ico"></span><span class="gnb-label">내 장소</span>
+    </button>
+    <button class="gnb-tab" data-tab="community" onclick="switchTab('community')" aria-label="커뮤니티">
+      <span class="gnb-ico"></span><span class="gnb-label">커뮤니티</span>
+    </button>
+    <button class="gnb-tab" data-tab="my" onclick="switchTab('my')" aria-label="MY">
+      <span class="gnb-ico"></span><span class="gnb-label">MY</span>
+    </button>
+  </nav>
+
+  <!-- 탭 뷰 컨테이너 (홈 외 — Phase 1 뼈대, 내용은 다음 슬라이스에서 채움) -->
+  <div class="tab-view" id="tabView-places" hidden>
+    <div class="modal-sticky-header" id="mlStickyHeader"><span>내 장소</span></div>
+    <div class="ml-scroll" id="mlScroll">
+      <div class="ml-list">
+        <div class="modal-scroll-header ml-scroll-header" id="mlScrollHeader"><h2>내 장소</h2></div>
+        <div class="ml-body">
+          <div class="ml-info">
+            <p class="ml-info-line">자주 가는 곳·여행지를 저장하면 주변 협찬을 한눈에 모아보고, 알림도 받을 수 있어요.</p>
+          </div>
+          <div id="mlItems"></div>
+          <div class="ml-note" id="mlNote"><span class="ml-note-ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#555555"/><rect x="7" y="3" width="2" height="7" rx="1" fill="white"/><circle cx="8" cy="12" r="1" fill="white"/></svg></span>내 장소는 최대 10개까지 등록 가능해요.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tab-view community" id="tabView-community" hidden>
+    <div class="modal-sticky-header" id="cmStickyHeader"><span>커뮤니티</span></div>
+    <div class="cm-scroll" id="cmScroll">
+      <div class="cm-inner">
+        <!-- 모바일: '내 후기'는 우상단 링크(오버레이). PC: 세그먼트 3번째 탭(아래 myreviews, CSS로 모바일 숨김) -->
+        <div class="modal-scroll-header cm-scroll-header" id="cmScrollHeader"><h2>커뮤니티</h2><button class="cm-myrev-link" id="cmMyRevLink" onclick="openMyReviews()" hidden>내 후기</button></div>
+        <!-- 세그먼트: 이웃찾기 / 후기(전체) / 내 후기(mine, PC 전용) -->
+        <div class="cm-seg" id="cmSeg" role="tablist">
+          <button class="cm-seg-btn active" data-seg="seoichu" onclick="setCommunitySeg('seoichu')">이웃찾기</button>
+          <button class="cm-seg-btn" data-seg="feed" onclick="setCommunitySeg('feed')">후기</button>
+          <button class="cm-seg-myrev cm-seg-btn--pc" data-seg="myreviews" onclick="setCommunitySeg('myreviews')">내 후기</button>
+        </div>
+        <!-- 카테고리 필터(후기/내 후기 세그먼트만) -->
+        <div class="cm-chips" id="cmChips" hidden></div>
+        <div class="cm-body" id="cmBody"></div>
+      </div>
+    </div>
+    <button class="cm-top-btn" id="cmTopBtn" onclick="cmScrollTop()" aria-label="맨 위로" hidden>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 18.5V6M6 12L12 6L18 12" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="cm-write-fab" id="cmWriteFab" onclick="openReviewRegister(function(){ renderCommunity(true); })" aria-label="후기 작성" hidden>
+      <svg width="22" height="22" viewBox="16 12 24 24" fill="none"><path d="M20.5089 32.5206L20.502 32.5137C19.3677 32.4459 18.463 31.5412 18.3952 30.4069L18.389 30.4006L18.3883 30.2839L18.3835 29.5527C18.3835 29.5482 18.3835 29.5433 18.3835 29.5389L18.3517 24.0754L26.8335 32.5572L20.5089 32.5206ZM37.0742 18.0739C38.2457 19.2455 38.2456 21.145 37.0742 22.3166L27.8818 31.509L19.3965 23.0237L28.5889 13.8313C29.7605 12.6598 31.66 12.6598 32.8315 13.8313L37.0742 18.0739Z" fill="#376BCB"/></svg>
+    </button>
+  </div>
+  <!-- MY 탭 (Figma 1728-44131). 로그인 후 화면. 로그인 전 화면은 디자인 확정 후 교체 예정(현재 임시 CTA). -->
+  <div class="tab-view mypage" id="tabView-my" hidden>
+    <div class="modal-sticky-header mypage-sticky" id="myStickyHeader"><span>MY</span><img class="mypage-sticky-avatar" id="myStickyAvatar" src="image/img_profile_login.png?v=2" alt="" width="32" height="32"></div>
+    <div class="mypage-scroll" id="myScroll">
+      <div class="mypage-top">
+        <div class="mypage-header" id="myScrollHeader">
+          <h1 class="mypage-title">MY</h1>
+          <button class="mypage-logout" id="myLogout" onclick="logout()">로그아웃</button>
+        </div>
+        <!-- 프로필/카드 (로그인 전·후 동일 레이아웃, 내용만 renderMyPage에서 스왑) -->
+        <div class="mypage-account">
+          <div class="mypage-profile">
+            <button type="button" class="mypage-avatar-edit" onclick="pickMyPagePhoto()" aria-label="프로필 사진 변경">
+              <span class="mypage-avatar"><img id="myAvatarImg" src="image/img_profile_login.png?v=2" alt="" width="64" height="64"></span>
+              <span class="mypage-avatar-cam" id="myAvatarCam"><img src="image/ic_camera_badge_28.svg" width="24" height="24" alt=""></span>
+            </button>
+            <div class="mypage-profile-text">
+              <div class="mypage-name-row">
+                <span class="mypage-nick" id="myNick"></span>
+                <img class="mypage-provider" id="myProvider" src="image/ic_login_naver_16.svg" width="16" height="16" alt="">
+              </div>
+              <p class="mypage-days" id="myDays"></p>
+              <button class="mypage-login-link" id="myLoginLink" onclick="openLoginSheet()" hidden>간편 로그인<img src="image/ic_chevron_right_gray.svg" width="4" height="8" alt=""></button>
+            </div>
+          </div>
+          <div class="mypage-infocard">
+            <div class="mypage-info-row"><span class="mypage-info-label">이메일</span><span class="mypage-info-value" id="myEmail">-</span></div>
+            <div class="mypage-info-row"><span class="mypage-info-label">나의 SNS계정</span><span class="mypage-info-value" id="mySns">-</span></div>
+            <div class="mypage-info-divider"></div>
+            <div class="mypage-stats">
+              <div class="mypage-stat">
+                <img src="image/ic_menu_review_16.svg" width="16" height="16" alt="">
+                <span class="mypage-stat-label">후기</span>
+                <span class="mypage-stat-count"><b id="myReviewCnt">0</b>건</span>
+              </div>
+              <span class="mypage-stat-sep"></span>
+              <div class="mypage-stat">
+                <img src="image/ic_menu_helpful_16.svg" width="16" height="16" alt="">
+                <span class="mypage-stat-label">좋아요</span>
+                <span class="mypage-stat-count"><b id="myHelpfulCnt">0</b>건</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mypage-menu">
+        <button class="mypage-menu-item" onclick="openProfileSheet()">회원정보관리</button>
+        <button class="mypage-menu-item" onclick="openReportModal()">신고하기</button>
+        <button class="mypage-menu-item" onclick="openMyAlarmSetting()">알림설정</button>
+        <div class="mypage-menu-line"></div>
+        <button class="mypage-menu-item" onclick="openAbout()">무협맵 소개</button>
+        <button class="mypage-menu-item" onclick="openNoticeFeed()">이벤트·공지</button>
+        <!-- 약관류는 하단 작은 링크줄로 분리(Figma 1744-46228). 운영정책 유지 -->
+        <div class="mypage-foot">
+          <div class="mypage-policy-row">
+            <button class="mypage-policy-link strong" onclick="openPolicy('privacy')">개인정보처리방침</button>
+            <span class="mypage-policy-dot"></span>
+            <button class="mypage-policy-link" onclick="openPolicy('terms')">이용약관</button>
+            <span class="mypage-policy-dot"></span>
+            <button class="mypage-policy-link" onclick="openPolicy('operation')">운영정책</button>
+          </div>
+          <div class="mypage-version"><span>버전</span><span class="mypage-version-num">ver 0.1</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 내 장소 설정(등록/수정) — 전체 스크롤 + 스크롤 시 컴팩트 헤더(제보/신고 동일), Phase1 -->
+  <div class="ml-setting-overlay" id="mlSettingOverlay" hidden>
+    <!-- STEP 1: 지도로 위치 선택 (전체 지도) -->
+    <div class="mlset-step mlset-step1" id="mlStep1" hidden>
+      <div class="mlset-s1-top">
+        <div class="mlset-search" onclick="var s=document.getElementById('mlStep1Search'); s.focus(); s.select();">
+          <svg class="mlset-search-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11 2.5C15.9706 2.5 20 6.52944 20 11.5C20 13.3146 19.4609 15.0025 18.5371 16.416L21.7178 19.5967C22.3032 20.1825 22.3034 21.1321 21.7178 21.7178C21.1321 22.3034 20.1825 22.3032 19.5967 21.7178L16.5 18.6211C14.9788 19.7977 13.072 20.5 11 20.5C6.02944 20.5 2 16.4706 2 11.5C2 6.52944 6.02944 2.5 11 2.5ZM11 5.5C7.68629 5.5 5 8.18629 5 11.5C5 14.8137 7.68629 17.5 11 17.5C14.3137 17.5 17 14.8137 17 11.5C17 8.18629 14.3137 5.5 11 5.5Z" fill="currentColor"/></svg>
+          <input type="search" id="mlStep1Search" class="mlset-search-input" placeholder="지역, 매장명, 역명으로 검색" autocomplete="off" enterkeyhint="search"
+                 onfocus="this.select()" onkeydown="if(event.key==='Enter' && !event.isComposing){event.preventDefault();mlStep1DoSearch();}">
+        </div>
+        <button class="mlset-s1-close" onclick="mlStep1Close()" aria-label="닫기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="#111" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="mlset-s1-mapslot" id="mlStep1Mapslot"></div>
+      <div class="mlset-s1-card">
+        <div class="ml-set-addr"><span class="ml-set-addr-ico" id="mlSetAddrIco"></span><span id="mlSetAddrText">지도를 움직여 위치를 맞춰주세요</span></div>
+        <button class="ml-set-select" id="mlSetSelectBtn" onclick="mlConfirmLocation()">이 위치를 집으로 선택</button>
+        <div class="ml-set-hint"><span class="ml-set-hint-ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#555555"/><rect x="7" y="3" width="2" height="7" rx="1" fill="white"/><circle cx="8" cy="12" r="1" fill="white"/></svg></span><span>정확한 주소는 필요 없어요. 동네만 맞춰도 주변 협찬을 보여드려요.</span></div>
+      </div>
+    </div>
+    <!-- STEP 2: 정보 선택 — 전체 스크롤 + 스크롤 시 컴팩트 sticky 헤더(제보/신고/내장소와 동일 컴포넌트) -->
+    <div class="mlset-step mlset-step2" id="mlStep2" hidden>
+      <div class="modal-sticky-header mlset-s2-sticky" id="mlSetS2Sticky">
+        <button class="mlset-back" onclick="mlStep2Back()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span id="mlSetStickyTitle">집 설정</span>
+      </div>
+      <div class="mlset-s2-scroll" id="mlSetS2Scroll">
+        <div class="modal-scroll-header mlset-s2-scrollheader" id="mlSetS2ScrollHeader">
+          <button class="mlset-back" onclick="mlStep2Back()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2 id="mlSetTitle">집 설정</h2>
+        </div>
+        <div class="mlset-s2-body">
+          <div class="mlset-s2-mapslot" id="mlStep2Mapslot"></div>
+          <div class="mlset-s2-addrbox">
+            <span class="ml-set-addr-ico" id="mlSetAddrIco2"></span>
+            <span class="mlset-addr-text" id="mlSetAddrText2">주소</span>
+            <button class="mlset-addr-change" onclick="mlBackToStep1()">변경</button>
+          </div>
+          <div class="ml-set-radius">
+            <div class="ml-set-radius-head"><span class="ml-set-radius-label">협찬 볼 반경</span><span class="ml-set-radius-val" id="mlSetRadiusVal">3km</span></div>
+            <div class="ml-set-slider-box"><input type="range" id="mlSetRadius" class="ml-set-slider" min="1" max="5" step="0.1" value="3" oninput="mlOnRadius(this.value)"></div>
+          </div>
+          <div class="ml-set-field" id="mlSetNameField" hidden>
+            <label class="ml-set-flabel">장소명 <span class="ml-req">*</span></label>
+            <input type="text" id="mlSetName" class="ml-set-input" placeholder="장소명을 입력해주세요 (최대 8자)" maxlength="8" autocomplete="off" oninput="mlClearNameError()">
+            <span class="field-error-msg" id="mlNameError"></span>
+          </div>
+          <div class="ml-set-cats">
+            <div class="ml-set-cats-label">카테고리</div>
+            <div class="ml-set-cats-chips" id="mlSetCats"></div>
+          </div>
+          <div class="ml-set-divider"></div>
+          <div class="ml-set-alarm">
+            <span class="ml-set-alarm-label">새 협찬 알림</span>
+            <label class="ml-switch"><input type="checkbox" id="mlSetAlarm"><span class="ml-switch-track"></span></label>
+          </div>
+        </div>
+      </div>
+      <div class="mlset-s2-actions">
+        <button class="ml-set-delete" id="mlSetDelete" hidden onclick="mlDelete()">삭제</button>
+        <button class="ml-set-save" onclick="mlSave()">저장</button>
+      </div>
+    </div>
+    <!-- 지도 1개(단일 인스턴스) — step 전환 시 위 두 슬롯 사이로 이동 -->
+    <div class="ml-set-map-wrap" id="mlMapWrap">
+      <div id="mlSetMap" class="ml-set-map"></div>
+      <div class="ml-set-centerpin" aria-hidden="true">
+        <span class="ml-set-pin-bubble"><span class="ml-set-pin-ico" id="mlSetPinIco"></span></span>
+        <img class="ml-set-pin-dot" src="image/ml_pin_dot.svg" alt="">
+      </div>
+      <button class="ml-set-myloc" id="mlSetMyloc" onclick="mlSettingMyLocation()" aria-label="현재 위치"><img src="image/ic_local_20.svg" width="20" height="20" alt="내 위치"></button>
+    </div>
+  </div>
+
   <!-- 공지/이벤트 배너 팝업 -->
   <div id="bannerPopupOverlay" class="banner-popup-overlay" onclick="closeBannerPopup()">
     <div class="banner-popup" onclick="event.stopPropagation()">
@@ -1065,12 +1372,31 @@
     </div>
   </div>
 
+  <!-- 로그아웃 확인 바텀시트 (회원탈퇴와 동일 스타일) -->
+  <div class="modal-overlay login-overlay withdraw-overlay" id="logoutConfirmOverlay" onclick="closeLogoutConfirm()">
+    <div class="modal login-modal" onclick="event.stopPropagation()">
+      <div class="login-modal-handle-wrap"></div>
+      <div class="login-modal-header">
+        <h2>로그아웃</h2>
+        <button class="modal-close" onclick="closeLogoutConfirm()"><img src="image/ic_popup_close_16.svg" alt="닫기" width="16" height="16"></button>
+      </div>
+      <div class="withdraw-message">
+        <p class="withdraw-message-title">로그아웃 하시겠어요?</p>
+        <p class="withdraw-message-desc">다시 이용하려면 간편 로그인으로 들어올 수 있어요.</p>
+      </div>
+      <div class="withdraw-actions">
+        <button class="withdraw-btn withdraw-btn-cancel" onclick="closeLogoutConfirm()">취소</button>
+        <button class="withdraw-btn withdraw-btn-danger" onclick="confirmLogout()">로그아웃</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 공통 알림 팝업 (탈퇴하기 팝업과 동일 스타일) -->
   <div class="modal-overlay login-overlay withdraw-overlay alert-popup" id="alertPopupOverlay" onclick="closeAlertPopup()">
     <div class="modal login-modal" onclick="event.stopPropagation()">
       <div class="login-modal-handle-wrap"></div>
       <div class="login-modal-header">
-        <h2>알림</h2>
+        <h2 id="alertPopupHeader">알림</h2>
       </div>
       <div class="withdraw-message">
         <p class="withdraw-message-title" id="alertPopupMain"></p>
@@ -1084,7 +1410,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=95"></script>
+  <script src="app.js?v=223"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

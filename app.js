@@ -150,6 +150,20 @@ let map;
   setTimeout(setAppHeight, 800);
 })();
 
+// 바텀시트 최대확장(expanded-full) 시 상단이 칩스 줄을 덮지 않게 — 칩스 실제 하단을 측정해 --sheet-top-max에 반영.
+// getBoundingClientRect가 상단 세이프에어리어까지 반영하므로 전 해상도/노치에서 자동으로 맞음(측정 실패 시 CSS 폴백).
+function setSheetTopMax() {
+  try {
+    const chips = document.querySelector('.mobile-chips-row');
+    if (!chips) return;
+    const b = chips.getBoundingClientRect().bottom;
+    if (b > 0) document.documentElement.style.setProperty('--sheet-top-max', Math.round(b + 12) + 'px');
+  } catch (e) {}
+}
+window.addEventListener('load', setSheetTopMax);
+window.addEventListener('resize', setSheetTopMax);
+window.addEventListener('orientationchange', function () { setSheetTopMax(); setTimeout(setSheetTopMax, 300); });
+
 let markers = [];
 let markerCluster = null;
 let openInfoWindow = null;
@@ -214,6 +228,14 @@ function oauthLogin(provider) {
 // 앱에서는 외부 링크를 시스템 Safari로 튕기지 않고 앱 내부(iOS SFSafariViewController)에서 연다.
 function isNativeApp() {
   return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+// 모바일 레이아웃 판정 — '뷰포트 너비'가 아니라 '기기(터치/마우스)' 기준.
+// 데스크톱(마우스)은 창을 아무리 좁혀도 PC 유지, 폰/태블릿(터치)은 항상 모바일, 네이티브 앱(터치 웹뷰)도 모바일.
+// CSS(style.css)의 `@media (hover: none) and (pointer: coarse)` 와 반드시 동일 기준이어야 함.
+function isMobileView() {
+  if (isNativeApp()) return true;
+  try { return window.matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) {}
+  return window.innerWidth <= 640; // 폴백(matchMedia 미지원 환경)
 }
 function openExternal(url) {
   if (!url) return;
@@ -394,6 +416,7 @@ function getActiveCampaigns(placeId) {
 }
 
 function filterChannel(channel) {
+  resetMapSearch();  // 칩스 누르면 검색 핀·FAB 제거 + 검색어 리셋
   currentChannelFilter = channel;
   invalidateActiveCache();
   document.querySelectorAll('.filter-chip[data-channel]').forEach(btn => {
@@ -425,6 +448,7 @@ function openCategoryFilter() {
 }
 // 바텀시트에서 카테고리 선택됨(pickSelectItem에서 호출)
 function applyCategoryFilter(value) {
+  resetMapSearch();  // 칩스(카테고리) 누르면 검색 핀·FAB 제거 + 검색어 리셋
   currentCategoryFilter = (value === '전체') ? '' : value;
   updateCategoryChip();
   renderAll();
@@ -544,7 +568,7 @@ function initAutumnLeaves() {
   if (!mapEl || mapEl.querySelector('.autumn-leaves')) return;
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  const isMobile = window.innerWidth <= 640;
+  const isMobile = isMobileView();
   // 안드로이드 앱은 저사양 기기 대비 '가볍게'(개수 축소 + CSS로 그림자/3D flutter 비활성, style.css .native-android)
   const isAndroidApp = document.documentElement.classList.contains('native-android');
   const leafCount = isAndroidApp ? 8 : (isMobile ? 12 : 20);
@@ -657,7 +681,7 @@ function initMap() {
   // PC: 사이드패널(제보/신고/소개/내정보)이 열려 지도가 어두워진 상태에서
   // 지도 영역을 클릭하면 패널을 닫고 자연스럽게 협찬찾기(지도)로 복귀
   document.getElementById('map').addEventListener('click', function(e) {
-    if (window.innerWidth <= 640) return;
+    if (isMobileView()) return;
     // PC 카드(매장 상세) 내부 클릭(신고하기 등)은 '지도 클릭'으로 보지 않음 — 방금 연 패널이 바로 닫히던 버그 방지
     if (e.target.closest('#pcCard')) return;
     const b = document.body.classList;
@@ -668,7 +692,7 @@ function initMap() {
   });
 
   // 모바일: 네이버 로고를 바텀시트 위로 올림
-  if (window.innerWidth <= 640) {
+  if (isMobileView()) {
     const liftNaverLogo = () => {
       const mapDiv = document.getElementById('map');
       const logoA = [...mapDiv.querySelectorAll('a')].find(a => {
@@ -690,7 +714,7 @@ function initMap() {
     closePcCard();
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
     // 모바일: 지도 터치 시 사이드바 닫기
-    if (window.innerWidth <= 640) {
+    if (isMobileView()) {
       const sidebar = document.getElementById('sidebar');
       sidebar.classList.remove('expanded');
       sidebar.classList.remove('expanded-full');
@@ -706,13 +730,13 @@ function initMap() {
     closePcCard();
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
     const sheet = document.getElementById('mobileSheet');
-    if (window.innerWidth <= 640 && sheet && sheet.classList.contains('show')) {
+    if (isMobileView() && sheet && sheet.classList.contains('show')) {
       closeMobileSheet();
     }
   });
 
   naver.maps.Event.addListener(map, 'zoom_changed', () => {
-    if (window.innerWidth > 640) closePcCard();
+    if (!isMobileView()) closePcCard();
   });
 
   // 지도 이동/줌이 멈추면(idle) 현재 보이는 영역 기준으로 하단 '모집 중인 협찬' 리스트 갱신 (연속 idle은 디바운스)
@@ -732,6 +756,12 @@ function initMap() {
   initSidebarScrollExpand();
   initSidebarSwipeToDismiss();
   initSheetSwipeToDismiss();
+  // 사용자가 검색창 포커스/검색/지도 드래그를 시작하면 늦게 오는 초기 위치이동을 취소(검색 중 지도 튐 방지)
+  ['regionSearchMobileOverlay', 'regionSearchPC', 'regionSearch'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('focus', () => { _suppressInitialLocation = true; });
+  });
+  try { naver.maps.Event.addListener(map, 'dragstart', () => { _suppressInitialLocation = true; }); } catch (e) {}
   // 첫 화면을 현재 위치 기준으로(전국 데이터 확보로 재활성화). 거부/실패/해외면 서울 기본 유지.
   tryInitialLocation();
   showBannerPopup();
@@ -755,30 +785,77 @@ function showMyLocationMarker(lat, lng) {
 }
 
 // 검색 결과 위치 핀 (image/ic_pin_28.svg) — 검색할 때마다 위치 갱신, 다른 검색/선택 시 제거
+// store 인자가 있으면(매장명 검색) 핀 위에 '후기 등록' 말풍선 노출 → 없는 매장도 후기 등록(3번째 진입점)
 let searchPinMarker = null;
-function showSearchPin(lat, lng) {
+let _searchPinStore = null;
+function showSearchPin(lat, lng, store) {
   // 매 검색마다 재생성 → 바운스 드롭 인터랙션이 다시 재생됨
   clearSearchPin();
+  _searchPinStore = store ? { name: store.name, address: store.address || '', lat: lat, lng: lng, category: store.category || '' } : null;
+  // 말풍선엔 매장명만. 후기 등록: 모바일=하단 플로팅 버튼(기존 유지), PC=핀 아래 버튼.
+  const bubble = store
+    ? `<div class="search-pin-bubble"><span class="spb-name">${rvEsc(store.name)}</span></div>`
+    : '';
+  const pcReview = (store && !isMobileView())
+    ? `<button class="search-pin-review-pc" onclick="searchPinReview()"><svg width="16" height="16" viewBox="16 12 24 24" fill="none"><path d="M20.5089 32.5206L20.502 32.5137C19.3677 32.4459 18.463 31.5412 18.3952 30.4069L18.389 30.4006L18.3883 30.2839L18.3835 29.5527C18.3835 29.5482 18.3835 29.5433 18.3835 29.5389L18.3517 24.0754L26.8335 32.5572L20.5089 32.5206ZM37.0742 18.0739C38.2457 19.2455 38.2456 21.145 37.0742 22.3166L27.8818 31.509L19.3965 23.0237L28.5889 13.8313C29.7605 12.6598 31.66 12.6598 32.8315 13.8313L37.0742 18.0739Z" fill="#376BCB"/></svg><span>후기 등록</span></button>`
+    : '';
+  // 하단 FAB는 모바일에서만(PC는 핀 아래 버튼으로 대체)
+  toggleSearchPinFab(!!store && isMobileView());
   searchPinMarker = new naver.maps.Marker({
     position: new naver.maps.LatLng(lat, lng),
     map,
     zIndex: 900,
     clickable: false,
     icon: {
-      content: '<div class="search-pin"><span class="search-pin-ring"></span><img src="image/ic_pin_28.svg" width="28" height="28" alt="검색 위치" draggable="false"></div>',
+      content: `<div class="search-pin">${bubble}<span class="search-pin-ring"></span><img src="image/ic_pin_28.svg" width="28" height="28" alt="검색 위치" draggable="false">${pcReview}</div>`,
       anchor: new naver.maps.Point(14, 25)
     }
   });
 }
+function searchPinReview() {
+  if (!_searchPinStore) return;
+  if (!currentUser) { openLoginSheet(); return; }
+  openReviewRegisterForPlace(_searchPinStore);
+}
 function clearSearchPin() {
   if (searchPinMarker) { searchPinMarker.setMap(null); searchPinMarker = null; }
+  _searchPinStore = null;
+  toggleSearchPinFab(false);
+}
+// 하단 '후기 등록' 플로팅 버튼 — 미등록 매장 검색 시 아래서 위로 슬라이드업, 핀 해제 시 숨김.
+function toggleSearchPinFab(on) {
+  const fab = document.getElementById('searchPinReviewFab');
+  if (!fab) return;
+  if (on) {
+    fab.hidden = false;
+    fab.classList.remove('show'); void fab.offsetWidth;  // 애니메이션 재시작
+    fab.classList.add('show');
+  } else {
+    fab.hidden = true;
+    fab.classList.remove('show');
+  }
+}
+// 지도 검색창(모바일/PC/히든 프록시) 검색어 비우기
+function clearSearchInput() {
+  ['regionSearch', 'regionSearchPC', 'regionSearchMobile', 'regionSearchMobileTop', 'regionSearchMobileOverlay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value !== '') { el.value = ''; el.dispatchEvent(new Event('input')); }  // input 이벤트로 .btn-input-clear(X) 숨김 동기화(핀 선택 등 프로그램적 리셋 대응)
+  });
+}
+// 검색 상태 초기화: 검색 핀+후기등록 FAB 제거 + 검색창 검색어 리셋 (핀 선택·바텀시트·칩스·GNB 등에서 호출)
+function resetMapSearch() {
+  clearSearchPin();
+  clearSearchInput();
 }
 
 // 최초 진입 시 내 위치로 지도 중심 이동 (권한 거부/실패 시 기본 위치 유지)
 // 첫 화면을 현재 위치 기준으로. 앱/웹 통합(getGeoPosition), 국내 밖이면 서울 기본 유지.
 // 거부/실패해도 조용히 서울 유지. 전국 데이터가 쌓여 서울 고정이던 이유는 해소됨.
+// 사용자가 이미 검색/지도조작을 시작했으면(_suppressInitialLocation) 늦게 온 위치로 재중심하지 않음(검색 중 튐 방지).
+let _suppressInitialLocation = false;
 function tryInitialLocation() {
   getGeoPosition().then(({ lat, lng }) => {
+    if (_suppressInitialLocation) return; // 사용자가 그새 검색/이동 시작 → 초기 위치이동 취소
     const inKorea = lat >= 33 && lat <= 39 && lng >= 124 && lng <= 132;
     if (!inKorea) return; // 해외 등 국내 밖이면 서울 기본 유지
     saveMapCenter(lat, lng); // 다음 방문 때 이 좌표로 바로 시작(서울 플래시 제거)
@@ -811,13 +888,16 @@ function startBannerAuto() {
   _bannerAuto = setInterval(() => { setBannerSlide((_bannerIdx + 1) % n); }, 5000);
 }
 
-function showBannerPopup() {
-  if (_bannerShown) return; // 이미 띄웠으면(조기 노출 등) 중복 렌더/슬라이드 리셋 방지
+// force=true: 메뉴 '이벤트·공지'에서 수동 호출 — 중복/'오늘 그만 보기' 가드를 무시하고 재노출
+function showBannerPopup(force) {
+  if (!force && _bannerShown) return; // 이미 띄웠으면(조기 노출 등) 중복 렌더/슬라이드 리셋 방지
   const active = getActiveBanners();
-  if (!active.length) return;
-  const dismissedDate = localStorage.getItem('bannerDismissedDate');
-  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
-  if (dismissedDate === todayStr) return;
+  if (!active.length) { if (force && typeof showToast === 'function') showToast('등록된 공지·이벤트가 없어요.'); return; }
+  if (!force) {
+    const dismissedDate = localStorage.getItem('bannerDismissedDate');
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+    if (dismissedDate === todayStr) return;
+  }
 
   _bannerShown = true;
   _bannerSlides = active;
@@ -829,9 +909,15 @@ function showBannerPopup() {
   // 슬라이드(이미지) 렌더
   track.innerHTML = active.map(b => `<img class="banner-slide" src="${b.imageUrl}" alt="공지/이벤트" draggable="false">`).join('');
   Array.from(track.querySelectorAll('.banner-slide')).forEach((img, i) => {
-    const link = active[i].linkUrl;
-    img.style.cursor = link ? 'pointer' : 'default';
-    img.onclick = () => { if (!_bannerDragged && link) openExternal(link); };
+    const b = active[i];
+    const clickable = !!(b.noticeId || b.linkUrl);
+    img.style.cursor = clickable ? 'pointer' : 'default';
+    // 연결된 공지(noticeId) 있으면 팝업 닫고 이벤트·공지 상세로, 없으면 기존처럼 외부 링크
+    img.onclick = () => {
+      if (_bannerDragged) return;
+      if (b.noticeId) { closeBannerPopup(); openNoticeDetail(b.noticeId); }
+      else if (b.linkUrl) openExternal(b.linkUrl);
+    };
   });
   // 점 인디케이터 (배너 2개 이상일 때만)
   if (active.length > 1) {
@@ -1017,6 +1103,9 @@ function renderMarkers() {
   markerMap = {};
   selectedMarkerId = null;
 
+  // 내 장소 모드(PC): 지도에 매장(음식점 등 카테고리) 핀은 미노출 — 내 장소 핀/반경만 보이게
+  if (document.body.classList.contains('pc-myplaces-mode')) return;
+
   // 매장 중심: 진행 중 캠페인 있는(컬러) 핀은 항상 노출.
   // 캠페인 없는(회색) 핀은 많이 확대(네이버 스케일 20m ≈ zoom 19)했을 때만 노출해 저줌 클러터 방지.
   const showGrayPins = map.getZoom() >= GRAY_PIN_MIN_ZOOM;
@@ -1041,7 +1130,7 @@ function renderMarkers() {
   if (!renderMarkers._idleBound) {
     renderMarkers._idleBound = true;
     let _t;
-    naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_t); _t = setTimeout(() => { renderMarkers(); loadCampaignsForView(); }, 120); });
+    naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_t); _t = setTimeout(() => { renderMarkers(); loadCampaignsForView(); updateMyPlaceEdges(); }, 120); });
     loadCampaignsForView(); // 초기 뷰 캠페인 로드(첫 렌더 시 1회; 이후 idle에서 갱신)
   }
 
@@ -1081,7 +1170,7 @@ function renderMarkers() {
         icon: { content: `<div class="map-pin">${icon}</div>`, anchor: new naver.maps.Point(17, 17) }
       });
       naver.maps.Event.addListener(marker, 'click', () => {
-        if (window.innerWidth <= 640) openMobileSheet(place); else openPcCard(place);
+        if (isMobileView()) openMobileSheet(place); else openPcCard(place);
       });
       markers.push(marker);
       markerMap[place.id] = { marker };
@@ -1338,10 +1427,12 @@ function createMobileDetailContent(place) {
 // ===== 후기(리뷰) 탭 + 리스트 + 등록 =====
 let _detailPlaceId = null, _detailTab = 'campaign', _reviewSort = 'latest', _reviewLoaded = false;
 let _reviewFormPlaceId = null, _reviewValidated = false;
+let _reviewFormNewPlace = null;   // 없는 매장 후기 등록 시 {name,address,lat,lng,naverCategory}
+let _reviewAfterSubmit = null;    // 등록 성공 후 콜백(커뮤니티 새로고침 등)
 
 function rvEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function rvHeart() { return '<img class="rv-heart-off" src="image/ic_good_def.svg" width="16" height="14" alt=""><img class="rv-heart-on" src="image/ic_good_sel.svg" width="16" height="14" alt="">'; }
-function fmtReviewDate(s) { const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : ''; }
+function fmtReviewDate(s) { const m = String(s || '').match(/(\d{4})[-.](\d{1,2})[-.](\d{1,2})/); return m ? `${m[1].slice(2)}.${m[2].padStart(2, '0')}.${m[3].padStart(2, '0')}` : ''; }
 
 // 라이브버블(후기 등록 알림) 클릭 등에서 상세를 '후기 탭'으로 강제로 열 때 사용(1회성). initDetailTabs가 소비 후 리셋.
 let _forceReviewTab = false;
@@ -1478,7 +1569,7 @@ function setReviewSort(placeId, sort) {
 }
 
 function reviewCardHtml(r, isPreview) {
-  const date = fmtReviewDate(r.postDate || r.createdAt);
+  const date = fmtReviewDate(r.postDate) || fmtReviewDate(r.createdAt);
   // 본인이 올린 후기에만 삭제 뱃지(썸네일 우하단) 노출
   const delBadge = (!isPreview && r.mine)
     ? `<button class="rv-del" onclick="event.stopPropagation();deleteMyReview(${r.id})" aria-label="후기 삭제"><img src="image/ic_trash_16.svg" width="16" height="16" alt=""></button>`
@@ -1549,6 +1640,11 @@ async function deleteMyReview(reviewId) {
         if (!res.ok) { showToast('삭제에 실패했어요.'); return; }
         showToast('후기를 삭제했어요.');
         if (_detailPlaceId != null) loadReviews(_detailPlaceId);
+        // 커뮤니티 후기 피드 / 내 후기 화면에서 삭제한 경우도 목록 갱신
+        const cmv = document.getElementById('tabView-community');
+        if (cmv && !cmv.hidden && (_cmSeg === 'feed' || _cmSeg === 'myreviews')) renderCommunity(true);
+        const mro = document.getElementById('myReviewsOverlay');
+        if (mro && mro.classList.contains('open')) renderMyReviews();
       } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
     }
   });
@@ -1575,22 +1671,163 @@ function rvSetError(msg) {
   if (msg) { err.textContent = msg; err.classList.add('show'); if (input) input.classList.add('input-error'); }
   else { err.textContent = ''; err.classList.remove('show'); if (input) input.classList.remove('input-error'); }
 }
-function openReviewForm(placeId) {
-  if (!currentUser) { openLoginSheet(); return; }
-  _reviewFormPlaceId = placeId;
+// 공통 폼 초기화 + 오픈
+function rvOpenFormBase() {
   _reviewValidated = false;
   document.getElementById('reviewUrl').value = '';
   document.getElementById('reviewPreview').innerHTML = '';
-  // 직전 등록 성공/401 후 disabled로 남은 버튼을 항상 초기화(두 번째 등록이 안 되던 버그 방지)
-  const sb = document.getElementById('reviewSubmitBtn'); if (sb) sb.disabled = false;
+  const sb = document.getElementById('reviewSubmitBtn'); if (sb) { sb.disabled = false; sb.style.display = ''; }
   rvSetError('');
   document.getElementById('reviewFormOverlay').classList.add('open');
 }
+// 매장 상세(기존 매장)에서 후기 등록 — 매장 이미 선택됨, 매장명 검색 숨김
+function openReviewForm(placeId) {
+  if (!currentUser) { openLoginSheet(); return; }
+  _reviewFormPlaceId = placeId;
+  _reviewFormNewPlace = null;
+  _reviewAfterSubmit = null;
+  document.getElementById('rvStoreGroup').hidden = true;
+  rvShowUrlStep(true);                                   // 기존 매장 → URL 바로
+  rvOpenFormBase();
+}
+// 커뮤니티 '후기등록' 버튼 — 매장명 검색부터(URL은 선택 후 노출)
+function openReviewRegister(afterSubmit) {
+  if (!currentUser) { openLoginSheet(); return; }
+  _reviewFormPlaceId = null;
+  _reviewFormNewPlace = null;
+  _reviewAfterSubmit = afterSubmit || null;
+  document.getElementById('rvStoreGroup').hidden = false;
+  document.getElementById('rvStoreSearch').value = '';
+  document.getElementById('rvStoreResults').innerHTML = '';
+  rvShowUrlStep(false);                                  // 매장 선택 전엔 URL 숨김
+  rvOpenFormBase();
+}
+// 홈 검색핀 말풍선 '후기등록' — 매장 미리 선택(신규 매장 후보)
+function openReviewRegisterForPlace(place, afterSubmit) {
+  if (!currentUser) { openLoginSheet(); return; }
+  _reviewFormPlaceId = place.id || null;
+  _reviewFormNewPlace = place.id ? null : { name: place.name, address: place.address || '', lat: place.lat, lng: place.lng, naverCategory: place.category || '' };
+  _reviewAfterSubmit = afterSubmit || null;
+  document.getElementById('rvStoreGroup').hidden = false;
+  document.getElementById('rvStoreSearch').value = place.name || '';
+  rvRenderSelected({ name: place.name, address: place.address || '' });
+  rvShowUrlStep(true);                                   // 선택된 상태 → URL 노출
+  rvOpenFormBase();
+}
 function closeReviewForm() {
-  document.getElementById('reviewFormOverlay').classList.remove('open');
-  resetModalScroll('reviewFormOverlay');
+  closeSheetSlide('reviewFormOverlay', () => resetModalScroll('reviewFormOverlay'));
+}
+// URL/힌트/등록버튼은 매장 선택 후에만 노출(디자인). off면 등록 footer도 숨김.
+function rvShowUrlStep(on) {
+  const g = document.getElementById('reviewUrlGroup'); if (g) g.hidden = !on;
+  const h = document.getElementById('reviewUrlHint'); if (h) h.hidden = !on;
+  const ov = document.getElementById('reviewFormOverlay'); if (ov) ov.classList.toggle('rv-url-off', !on);
+  if (!on) {
+    _reviewValidated = false;
+    const u = document.getElementById('reviewUrl'); if (u) u.value = '';
+    document.getElementById('reviewPreview').innerHTML = '';
+    rvSetError('');
+  }
+}
+// 선택된 매장 = 연파랑 박스 + 파란 체크(디자인 1758:50009)
+function rvRenderSelected(store) {
+  const box = document.getElementById('rvStoreResults');
+  if (!box) return;
+  box.innerHTML = `<div class="rv-selected-box">
+    <div class="rv-selected-text">
+      <p class="rv-selected-name">${rvEsc(store.name)}</p>
+      <p class="rv-selected-addr">${rvEsc(store.address || '')}</p>
+    </div>
+    <svg class="rv-selected-check" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5L10 17.5L19 7" stroke="#006cff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>`;
+}
+// 제보하기와 동일: 우리 DB 매장(in-memory places) 우선 → 네이버 결과 → 더보기(10개 단위) 페이지네이션
+let _rvNaverResults = [], _rvQuery = '', _rvVisibleCount = 10;
+const RV_PAGE_SIZE = 10;
+async function rvSearchStores() {
+  const q = document.getElementById('rvStoreSearch').value.trim();
+  const box = document.getElementById('rvStoreResults');
+  _reviewFormPlaceId = null; _reviewFormNewPlace = null;
+  rvShowUrlStep(false);
+  if (!q) { box.innerHTML = ''; return; }
+  _rvQuery = q; _rvNaverResults = []; _rvVisibleCount = RV_PAGE_SIZE;
+  box.innerHTML = '<div class="search-hint">검색 중…</div>';
+  try {
+    _rvNaverResults = await fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []);
+  } catch (e) { _rvNaverResults = []; }
+  rvRenderResults();
+}
+// DB 매장(기존) + 네이버(신규) 통합 렌더(.place-result-item), 더보기 포함
+function rvRenderResults() {
+  const box = document.getElementById('rvStoreResults');
+  if (!box) return;
+  const normalize = s => String(s || '').replace(/\s/g, '').toLowerCase();
+  const nq = normalize(_rvQuery);
+  const existing = (typeof places !== 'undefined' ? places : []).filter(p => {
+    const np = normalize(p.name); return nq && (np.includes(nq) || nq.includes(np));
+  });
+  const naver = Array.isArray(_rvNaverResults) ? _rvNaverResults : [];
+  const combined = [
+    ...existing.map(p => ({ type: 'existing', place: p })),
+    ...naver.map((item, i) => ({ type: 'naver', item, index: i }))
+  ];
+  if (!combined.length) { box.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
+  const rows = combined.slice(0, _rvVisibleCount).map(e => {
+    if (e.type === 'existing') {
+      const p = e.place;
+      return `<div class="place-result-item" onclick="rvPickExisting(${p.id})"><div class="place-result-info"><div class="place-result-name">${rvEsc(p.name)}</div><div class="place-result-addr">${rvEsc(p.address || '')}</div></div><span class="place-result-check">✓</span></div>`;
+    }
+    const addr = e.item.roadAddress || e.item.address || '';
+    return `<div class="place-result-item" onclick="rvPickNaver(${e.index})"><div class="place-result-info"><div class="place-result-name">${rvEsc(e.item.name)}</div><div class="place-result-addr">${rvEsc(addr)}</div></div><span class="place-result-check">✓</span></div>`;
+  }).join('');
+  const more = combined.length > _rvVisibleCount
+    ? `<div class="place-result-more-wrap"><div class="place-result-more" onclick="rvLoadMore()">더보기</div></div>` : '';
+  box.innerHTML = rows + more;
+}
+function rvLoadMore() { _rvVisibleCount += RV_PAGE_SIZE; rvRenderResults(); }
+// 기존 DB 매장 선택 → placeId(기존, 좌표 지오코딩 불필요) + 선택 박스 + URL
+function rvPickExisting(placeId) {
+  const p = (typeof places !== 'undefined' ? places : []).find(x => x.id === placeId);
+  if (!p) return;
+  _reviewFormPlaceId = placeId; _reviewFormNewPlace = null;
+  rvRenderSelected({ name: p.name, address: p.address || '' });
+  rvShowUrlStep(true);
+  setTimeout(() => { const u = document.getElementById('reviewUrl'); if (u) u.focus(); }, 0);
+}
+// 네이버 결과 선택 → 주소 지오코딩 → 신규 매장 후보(newPlace) + 선택 박스 + URL
+async function rvPickNaver(index) {
+  const it = (Array.isArray(_rvNaverResults) ? _rvNaverResults : [])[index];
+  if (!it) return;
+  const box = document.getElementById('rvStoreResults');
+  box.innerHTML = '<div class="search-hint">위치 확인 중…</div>';
+  const addr = it.roadAddress || it.address || it.name;
+  try {
+    const coord = await new Promise((resolve) => {
+      if (!(naver && naver.maps && naver.maps.Service)) return resolve(null);
+      naver.maps.Service.geocode({ query: addr }, (status, response) => {
+        if (status === naver.maps.Service.Status.OK && response.v2.addresses && response.v2.addresses[0]) {
+          const a = response.v2.addresses[0];
+          resolve({ lat: Number(a.y), lng: Number(a.x) });
+        } else resolve(null);
+      });
+    });
+    if (!coord) { rvRenderResults(); rvSetError('위치를 확인하지 못했어요. 다른 매장을 선택해주세요.'); return; }
+    _reviewFormPlaceId = null;
+    _reviewFormNewPlace = { name: it.name, address: addr, lat: coord.lat, lng: coord.lng, naverCategory: it.category || '' };
+    rvRenderSelected({ name: it.name, address: addr });
+    rvShowUrlStep(true);
+    setTimeout(() => { const u = document.getElementById('reviewUrl'); if (u) u.focus(); }, 0);
+  } catch (e) { rvRenderResults(); }
+}
+// validate/create에 보낼 매장 식별 payload
+function rvStorePayload() {
+  if (_reviewFormPlaceId) return { placeId: _reviewFormPlaceId };
+  if (_reviewFormNewPlace) return { newPlace: _reviewFormNewPlace, placeName: _reviewFormNewPlace.name };
+  return null;
 }
 async function validateReviewUrl() {
+  const store = rvStorePayload();
+  if (!store) { rvSetError('매장을 먼저 선택해주세요.'); return; }
   const url = document.getElementById('reviewUrl').value.trim();
   const preview = document.getElementById('reviewPreview');
   rvSetError('');
@@ -1600,16 +1837,18 @@ async function validateReviewUrl() {
   try {
     const res = await fetch('/api/places?reviews=validate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, placeId: _reviewFormPlaceId })
+      body: JSON.stringify(Object.assign({ url }, { placeId: store.placeId, placeName: store.placeName }))
     });
     const data = await res.json();
-    if (!data.ok) { preview.innerHTML = ''; rvSetError(data.reason || '검증에 실패했어요.'); return; }
+    if (!data.ok) { preview.innerHTML = ''; rvSetError(data.reason || data.error || '검증에 실패했어요.'); return; }
     const previewAuthor = (currentUser && currentUser.nickname) || data.data.author;
     preview.innerHTML = `<p class="rv-preview-label">이 후기로 등록할까요?</p>` + reviewCardHtml(Object.assign({ likeCount: 0, liked: false, createdAt: '' }, data.data, { author: previewAuthor }), true);
     _reviewValidated = true;
   } catch (e) { preview.innerHTML = ''; rvSetError('검증 중 오류가 발생했어요.'); }
 }
 async function submitReview() {
+  const store = rvStorePayload();
+  if (!store) { rvSetError('매장을 먼저 선택해주세요.'); return; }
   if (!_reviewValidated) { validateReviewUrl(); return; }
   const url = document.getElementById('reviewUrl').value.trim();
   const btn = document.getElementById('reviewSubmitBtn');
@@ -1617,18 +1856,19 @@ async function submitReview() {
   try {
     const res = await fetch('/api/places?reviews=create', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, placeId: _reviewFormPlaceId })
+      body: JSON.stringify(Object.assign({ url }, store.placeId ? { placeId: store.placeId } : { newPlace: store.newPlace }))
     });
     if (res.status === 401) { btn.disabled = false; openLoginSheet(); return; }
     const data = await res.json();
     if (!res.ok) { rvSetError(data.error || data.reason || '등록에 실패했어요.'); btn.disabled = false; return; }
     closeReviewForm();
     showToast('후기가 등록되었어요!');
-    if (_detailPlaceId === _reviewFormPlaceId) {
+    if (_reviewFormPlaceId && _detailPlaceId === _reviewFormPlaceId) {
       _reviewLoaded = true;
       switchDetailTab(_reviewFormPlaceId, 'review');
       loadReviews(_reviewFormPlaceId);
     }
+    if (typeof _reviewAfterSubmit === 'function') { try { _reviewAfterSubmit(); } catch (e) {} }
   } catch (e) { rvSetError('등록 중 오류가 발생했어요.'); btn.disabled = false; }
 }
 
@@ -1693,11 +1933,18 @@ function renderSidebar() {
   countEl.textContent = activePlaces.length;
 
   if (activePlaces.length === 0) {
+    // 캠페인 타일이 이 뷰로 아직 로드 전(초기/팬 직후)이면 '없어요' 대신 로딩 표시 → 빈 상태 깜빡임 방지.
+    // 타일을 다 받았는데도 0이면 진짜 빈 지역 → 안내 문구 노출.
+    const vb = viewBoundsWithMargin(0.4);
+    const tilesLoaded = vb ? _campaignTilesFor(vb).every(k => _loadedTiles.has(k)) : true;
+    if (!tilesLoaded) {
+      list.innerHTML = '<div class="sidebar-loading"></div>';
+      return;
+    }
     list.innerHTML = `
       <div class="empty-state">
         <img src="image/img_list_80.png" alt="" class="empty-img">
-        <p>모집 중인 협찬이 없어요.<br>첫번째로 제보해 보세요!</p>
-        <button class="empty-state-btn" onclick="openModal()">제보하기</button>
+        <p>이 지역엔 모집 중인 협찬이 없어요.<br>지도를 옮겨 다른 지역을 둘러보세요.</p>
       </div>`;
     return;
   }
@@ -1744,7 +1991,7 @@ let _lastFadeGradient = null;
 function updateSidebarListFade() {
   const list = document.getElementById('campaignList');
   if (!list) return;
-  if (window.innerWidth > 640) {
+  if (!isMobileView()) {
     if (_lastFadeGradient !== '') { list.style.webkitMaskImage = ''; list.style.maskImage = ''; _lastFadeGradient = ''; }
     return;
   }
@@ -1782,6 +2029,8 @@ function getGeoPosition() {
   });
 }
 function moveToMyLocation() {
+  _suppressInitialLocation = true;  // 사용자 위치이동 시작 → 늦게 오는 초기 위치이동과 충돌 방지
+  resetMapSearch();  // 현재 위치 누르면 검색 핀·FAB 제거 + 검색어 리셋
   const btn = document.querySelector('.btn-my-location');
   if (btn) { btn.style.opacity = '0.4'; btn.disabled = true; }
   const restore = () => { if (btn) { btn.style.opacity = ''; btn.disabled = false; } };
@@ -1801,7 +2050,7 @@ function refreshOpenDetailCampaignPane(place) {
   if (!getActiveCampaigns(place.id).length) return;         // 새로 채울 캠페인 없음
   const livePane = document.querySelector('#rvTabBody .rv-pane-campaign');
   if (!livePane) return;
-  const html = (window.innerWidth <= 640) ? createMobileDetailContent(place) : createInfoContent(place);
+  const html = (isMobileView()) ? createMobileDetailContent(place) : createInfoContent(place);
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   const freshPane = tmp.querySelector('.rv-pane-campaign');
@@ -1821,7 +2070,7 @@ async function focusPlace(placeId, zoom) {
   // 현재 기준으로 우선 렌더(마커 없으면 회색핀이라도 만들어 아래 상세 오픈의 setSelectedMarker가 선택).
   if (!markerMap[placeId]) renderMarkers();
 
-  if (window.innerWidth <= 640) {
+  if (isMobileView()) {
     // 모바일: 바텀시트 열고 사이드바 닫기
     const sidebar = document.getElementById('sidebar');
     sidebar.classList.remove('expanded');
@@ -1870,6 +2119,7 @@ function panToCard(place) {
 }
 
 function openPcCard(place) {
+  resetMapSearch();  // 다른 매장/상세를 열면 검색 핀·FAB 제거 + 검색어 리셋
   if (openPcCardPlaceId === place.id) { closePcCard(); return; }
   openPcCardPlaceId = place.id;
   openPcCardPlace = place;
@@ -1902,6 +2152,7 @@ function renderAll() {
 
 // ===== 지역 검색 =====
 async function searchRegion() {
+  _suppressInitialLocation = true;  // 검색 시작 → 늦게 오는 초기 위치이동 취소(검색 중 지도 튐 방지)
   const query = document.getElementById('regionSearch').value.trim();
   if (!query) return;
 
@@ -1911,7 +2162,9 @@ async function searchRegion() {
   // 지역명·주소접미(동·읍·면·리·로·길·가 / 구·시·군 / 주요상권)면 그 위치로 이동(네이버 geocode/지역검색).
   //  역명은 아래에서 네이버 지역검색 '카테고리(지하철·전철…)'로 감지 — 패턴 대신 네이버가 진짜 역인지 판단.
   const KNOWN_AREAS = new Set(['홍대', '강남', '성수', '이태원', '건대', '신촌', '잠실', '명동', '연남', '망원', '압구정', '청담', '을지로', '종로', '서면', '동성로', '해운대', '광안리', '판교', '가로수길', '경리단길']);
-  const isRegionLike = q2.length <= 8 && (/(동|읍|면|리|로|길|가|거리)$/.test(q2) || (/(구|시|군)$/.test(q2) && q2.length >= 3) || KNOWN_AREAS.has(q2));
+  // 광역시·도 이름(시/구/군 접미 없이도 지역): '대전'·'서울'·'경기' 등 → 그 위치로 지도 이동
+  const KNOWN_REGIONS = new Set(['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주', '충청', '전라']);
+  const isRegionLike = q2.length <= 8 && (/(동|읍|면|리|로|길|가|거리)$/.test(q2) || (/(구|시|군|도)$/.test(q2) && q2.length >= 3) || KNOWN_AREAS.has(q2) || KNOWN_REGIONS.has(q2));
   if (isRegionLike) { clearSearchPin(); geocodeRegion(query); return; }
 
   // 등록된 매장명과 정확히 일치하는 매장 찾기
@@ -1929,6 +2182,12 @@ async function searchRegion() {
     // 같은 이름 매장이 여러 곳(예: '온담' 서울·인천) → 주소가 적힌 선택 목록 팝업
     showPlacePicker(placeMatches, query);
     return;
+  }
+
+  // 짧은 한글 검색어(시/군/동 등 지역명 가능성)는 매장 부분일치 리스트보다 먼저 '지역 이동' 시도.
+  //  '군산'처럼 시/구/군 접미 없는 시·군명 대응(200+개라 목록 대신 지오코딩으로 판별). 매장명은 지오코딩이 안 돼 아래 매장검색으로 넘어감.
+  if (q2.length >= 2 && q2.length <= 5 && /^[가-힣]+$/.test(q2)) {
+    if (await tryRegionByGeocode(query)) return;
   }
 
   // 역명 후보('역'으로 끝남) → 네이버 지역검색 카테고리가 교통(지하철·전철…)이면 진짜 역 → 그 위치로 이동+핀.
@@ -2012,6 +2271,39 @@ async function searchPlacesOnServer(query) {
   geocodeRegion(query); // 등록 매장 아님 → 지역/주소 검색
 }
 
+// 지오코딩 결과 주소의 행정단위로 적절한 줌 산출(도/광역시=넓게, 동/리=확대). 시 단위도 CAMPAIGN_MIN_ZOOM(11) 이상이라 캠페인 로드됨.
+function regionZoom(item) {
+  const s = (item && (item.roadAddress || item.jibunAddress)) || '';
+  if (/(광역시|특별시|특별자치시|특별자치도|도)$/.test(s)) return 11; // 도·광역시 = 전체
+  if (/(동|가|리)$/.test(s)) return 14;   // 동/리 = 동네
+  if (/(읍|면|구)$/.test(s)) return 13;   // 읍/면/구
+  if (/시$/.test(s)) return 12;           // 시
+  return 13;
+}
+
+// 짧은 한글 검색어를 네이버 지오코딩으로 해석 → 행정구역(일산·군산·성수 등)이면 그 위치로 이동+핀 → true.
+//   매장명(백소정·온담 등)은 지오코딩이 count 0이라 false → 아래 매장 검색으로 넘어감.
+function tryRegionByGeocode(query) {
+  return new Promise(resolve => {
+    try {
+      naver.maps.Service.geocode({ query: query }, function(status, response) {
+        const it = response?.v2?.addresses?.[0];
+        if (status === naver.maps.Service.Status.OK && it) {
+          const y = parseFloat(it.y), x = parseFloat(it.x);
+          if (y >= 33 && y <= 39 && x >= 124 && x <= 132) { // 한국 좌표 범위 안일 때만
+            clearSearchPin();
+            map.setCenter(new naver.maps.LatLng(y, x));
+            map.setZoom(regionZoom(it));
+            showSearchPin(y, x);
+            resolve(true); return;
+          }
+        }
+        resolve(false);
+      });
+    } catch (e) { resolve(false); }
+  });
+}
+
 // 주소/지역명 → 지도 이동(등록 매장이 아닐 때). (구 searchRegion 내부 trySearch 분리)
 function geocodeRegion(query) {
   function trySearch(q, fallback) {
@@ -2019,7 +2311,7 @@ function geocodeRegion(query) {
       const items = response?.v2?.addresses;
       if (status === naver.maps.Service.Status.OK && items?.length) {
         map.setCenter(new naver.maps.LatLng(parseFloat(items[0].y), parseFloat(items[0].x)));
-        map.setZoom(15);
+        map.setZoom(regionZoom(items[0]));
         showSearchPin(parseFloat(items[0].y), parseFloat(items[0].x));
       } else if (fallback) {
         trySearch(fallback, null);
@@ -2029,7 +2321,7 @@ function geocodeRegion(query) {
       }
     });
   }
-  const alreadyPrefixed = /^서울|^경기|^인천|^부산|^대구|^광주|^대전/.test(query);
+  const alreadyPrefixed = /^(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|충청|전북|전남|전라|경북|경남|제주)/.test(query);
   trySearch(query, alreadyPrefixed ? null : '서울 ' + query);
 }
 
@@ -2071,20 +2363,49 @@ async function searchRegionViaLocalSearch(query) {
       showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
       return;
     }
-    const addr = items[0].roadAddress || items[0].address;
-    naver.maps.Service.geocode({ query: addr }, function(status, response) {
-      const item = response?.v2?.addresses?.[0];
-      if (status === naver.maps.Service.Status.OK && item) {
-        map.setCenter(new naver.maps.LatLng(parseFloat(item.y), parseFloat(item.x)));
-        map.setZoom(15);
-        showSearchPin(parseFloat(item.y), parseFloat(item.x));
-      } else {
-        showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
-      }
-    });
+    // 지점 여러 개(예: '스타벅스') → items[0] 임의 선택 대신 선택 목록으로. 선택 시 지오코딩→핀+후기등록 FAB.
+    if (items.length > 1) { showNaverPicker(items, query); return; }
+    focusNaverResult(items[0]);
   } catch (e) {
     showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
   }
+}
+// 네이버 검색 결과 1건 → 주소 지오코딩 후 핀+말풍선(매장명)+하단 후기등록 FAB(없는 매장 등록 진입).
+function focusNaverResult(it) {
+  const addr = it.roadAddress || it.address || it.name;
+  naver.maps.Service.geocode({ query: addr }, function(status, response) {
+    const item = response?.v2?.addresses?.[0];
+    if (status === naver.maps.Service.Status.OK && item) {
+      map.setCenter(new naver.maps.LatLng(parseFloat(item.y), parseFloat(item.x)));
+      map.setZoom(16);
+      showSearchPin(parseFloat(item.y), parseFloat(item.x), { name: it.name, address: addr, category: it.category || '' });
+    } else {
+      showToast('위치를 확인하지 못했어요.');
+    }
+  });
+}
+// 미등록 매장 다지점 선택 목록 — 등록 매장 picker(#placePickerOverlay) UI 재사용. '미등록' 배지 + 지역 붙이기 힌트.
+let _naverPickerItems = [];
+function showNaverPicker(items, query) {
+  _naverPickerItems = items;
+  const list = document.getElementById('placePickerList');
+  const titleEl = document.getElementById('placePickerTitle');
+  if (!list || !titleEl) return;
+  titleEl.textContent = `'${query}' ${items.length}곳`;
+  list.innerHTML = items.map((it, i) => {
+    const addr = it.roadAddress || it.address || '';
+    return `<button class="place-picker-item" onclick="pickNaverResult(${i})">
+        <span class="place-picker-item-top"><span class="place-picker-name">${rvEsc(it.name)}</span><span class="place-picker-badge ended">미등록</span></span>
+        <span class="place-picker-addr">${rvEsc(addr)}</span>
+      </button>`;
+  }).join('') + `<p class="place-picker-hint">찾는 지점이 없으면 지역을 붙여 검색해보세요 (예: ${rvEsc(query)} 강남)</p>`;
+  document.getElementById('placePickerOverlay').classList.add('show');
+}
+function pickNaverResult(i) {
+  const it = _naverPickerItems[i];
+  if (!it) return;
+  closePlacePicker();
+  focusNaverResult(it);
 }
 
 function searchRegionMobile() {
@@ -2147,7 +2468,7 @@ function ensureSidebarList() {
 
 function expandSidebar() {
   const sidebar = document.getElementById('sidebar');
-  if (window.innerWidth > 640 || sidebar.classList.contains('expanded')) return;
+  if (!isMobileView() || sidebar.classList.contains('expanded')) return;
   sidebar.style.transform = ''; sidebar.style.transition = '';
   // 닫힘 페이드가 도중이었을 수 있으니 리스트 불투명도 복원
   const listEl = document.getElementById('campaignList');
@@ -2155,16 +2476,18 @@ function expandSidebar() {
   const arrow = document.getElementById('sidebarArrow');
   if (arrow) arrow.textContent = '﹀';
   setNaverLogoVisible(false);
+  setSheetTopMax();
   animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); ensureSidebarList(); });
   setTimeout(updateSidebarListFade, 400);
 }
 
 function toggleBottomSheet(e) {
-  if (window.innerWidth > 640) return;
+  if (!isMobileView()) return;
   if (Date.now() - _sidebarSwipeAt < 350) return; // 스와이프 직후 따라온 click → 탭 무시
   const sidebar = document.getElementById('sidebar');
   // 헤더 영역 클릭 시에만 토글 (리스트 스크롤은 방해 안 함)
   if (e.target.closest('.sidebar-list') || e.target.closest('.sidebar-card')) return;
+  resetMapSearch();  // 바텀시트(헤더) 누르면 검색 핀·FAB 제거 + 검색어 리셋
   const willExpand = !sidebar.classList.contains('expanded');
   const arrow = document.getElementById('sidebarArrow');
   if (willExpand) {
@@ -2172,6 +2495,7 @@ function toggleBottomSheet(e) {
     sidebar.style.transform = ''; sidebar.style.transition = '';
     if (arrow) arrow.textContent = '﹀';
     setNaverLogoVisible(false);
+    setSheetTopMax();
     // 여는 애니메이션은 transform 기반(FLIP)으로 — height 트랜지션은 저사양에서 버벅임
     animateSidebarHeightChange(sidebar, () => { sidebar.classList.add('expanded'); ensureSidebarList(); });
   } else {
@@ -2196,16 +2520,24 @@ function initSidebarScrollExpand() {
   list.addEventListener('scroll', () => {
     // 페이드(mask) 갱신은 프레임당 1회로 스로틀 → scroll 이벤트 폭주 시 과도한 스타일 계산 방지
     if (!_fadeRaf) _fadeRaf = requestAnimationFrame(() => { _fadeRaf = 0; updateSidebarListFade(); });
-    if (window.innerWidth > 640) return;
+    if (!isMobileView()) return;
     const sidebar = document.getElementById('sidebar');
     if (!sidebar.classList.contains('expanded')) return;
     // 한번 full 확장되면 닫기 전까지 유지 (scrollTop=0 돼도 축소 안 함)
     if (list.scrollTop > 10 && !sidebar.classList.contains('expanded-full')) {
       // 스크롤 '도중'이라 CSS height 트랜지션(0.35s)을 돌리면 매 프레임 리스트 재레이아웃+스크롤
       // 관성이 겹쳐 심하게 버벅임 → 트랜지션을 억제해 즉시 전체높이로(스크롤 위치는 유지).
+      setSheetTopMax();
       sidebar.style.transition = 'none';
       sidebar.classList.add('expanded-full');
-      requestAnimationFrame(() => { sidebar.style.transition = ''; }); // 닫기 애니메이션용 트랜지션 복원
+      requestAnimationFrame(() => {
+        sidebar.style.transition = ''; // 닫기 애니메이션용 트랜지션 복원
+        // 콘텐츠가 전체높이보다 짧으면(몇 건) 스크롤 여지가 사라지는데, scroll 이벤트가 안 떠
+        // 페이드 마스크가 '스크롤됨(상단 16px 페이드)' 상태로 굳어 맨 위 안내문구가 반쯤 가려짐
+        // → 맨 위로 되돌리고 페이드 재계산(리스트가 길면 scrollTop 유지, 페이드만 갱신).
+        if (list.scrollHeight <= list.clientHeight + 4) list.scrollTop = 0;
+        updateSidebarListFade();
+      });
     }
   }, { passive: true });
 }
@@ -2473,6 +2805,51 @@ const POLICY_CONTENT = {
         <p>본 방침은 운영상·법령상 필요에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.</p>
       </div>`
   },
+  operation: {
+    title: '운영정책',
+    body: `
+      <p>시행일: 2026-06-19</p>
+      <p>본 운영정책은 무협맵(이하 '서비스') 내 장소·협찬 정보의 등록, 중복 처리, 신고 및 분쟁 처리 기준을 정합니다. 이용약관의 하위 정책으로, 이용약관과 충돌하는 내용이 있을 경우 이용약관이 우선합니다.</p>
+      <div class="about-section">
+        <div class="about-section-title">1. 서비스의 성격</div>
+        <p class="about-desc">무협맵은 여러 협찬 플랫폼(레뷰, 리뷰노트, 미블 등)에 흩어진 협찬 모집 정보를 지도 위에서 한눈에 볼 수 있도록 큐레이션하는 서비스입니다. 서비스는 협찬 캠페인의 운영 주체가 아니며, 신청·당첨·이행 등 협찬 진행은 각 플랫폼 및 업체와 이용자 간에 별도로 이루어집니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">2. 장소(Place) 등록 기준</div>
+        <p class="about-desc">1. 장소는 실제로 존재하는 매장/공간이어야 하며, 허위 장소 등록은 금지됩니다.<br>
+        2. 장소 등록 시 장소명, 주소(도로명주소 기준 지오코딩 좌표), 카테고리를 필수로 입력합니다.<br>
+        3. 동일 장소가 이미 등록되어 있는 경우: 이름 유사도(포함관계) 기준으로 "이미 등록된 장소" 목록을 안내하고, 선택한 주소 좌표가 기존 장소와 50m 이내이면 중복 등록 경고를 표시합니다.<br>
+        4. 주소 검색은 건물(도로명주소) 단위까지만 식별되며, 층/호 등 상세 단위는 구분하지 않습니다. 같은 건물에 입점한 서로 다른 매장은 경고 확인 후 별개 장소로 등록할 수 있습니다.<br>
+        5. 한 번 등록된 장소의 이름·주소는 임의로 변경되지 않으며, 동일 장소에 대한 추가 협찬 제보는 기존 장소에 캠페인으로 귀속됩니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">3. 협찬(Campaign) 등록 기준</div>
+        <p class="about-desc">1. 협찬 등록 시 채널(블로그/클립/인스타그램/유튜브 등 복수 선택 가능), 모집 플랫폼, 협찬 내용, 모집 마감일을 필수로 입력합니다.<br>
+        2. 협찬 신청 링크는 선택 입력 사항입니다. 로그인이 필요하거나 신뢰하기 어려운 링크는 등록을 보류할 수 있습니다.<br>
+        3. 마감일이 지난 협찬은 지도 핀 및 목록에서 자동으로 비노출됩니다.<br>
+        4. 동일 장소에 복수의 협찬이 동시에 진행 중인 경우 모두 노출됩니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">4. 최초 제보자(Founder) 표시</div>
+        <p class="about-desc">1. 특정 장소를 최초로 등록한 이용자는 해당 장소에 "최초 제보자"로 영구 표시됩니다(닉네임 및 선택적으로 입력한 SNS/블로그 링크).<br>
+        2. 최초 제보자 표시는 변경·이전되지 않으며, 동일 장소에 추가되는 협찬 제보자는 별도로 표시되지 않습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">5. 신고 및 비노출 처리</div>
+        <p class="about-desc">1. 다음에 해당하는 정보는 신고 대상입니다: 허위 장소, 종료된 협찬을 마감일 변경 없이 방치, 부적절한 콘텐츠, 타인의 권리를 침해하는 정보.<br>
+        2. 신고가 누적되어 일정 기준을 초과하는 경우 서비스 운영자가 사전 통지 없이 해당 정보를 비노출 처리할 수 있습니다.<br>
+        3. 비노출 처리에 이의가 있는 경우 고객센터를 통해 소명할 수 있으며, 소명이 합리적인 경우 재노출됩니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">6. 정보 오류 정정</div>
+        <p class="about-desc">1. 등록된 정보(주소, 영업 종료 여부, 협찬 내용 등)가 실제와 다른 경우 누구나 정정을 제보할 수 있습니다.<br>
+        2. 정정 제보가 다수 접수되거나 명백한 오류(예: 폐업 확인)가 확인되면 운영자가 직접 수정·비노출 처리할 수 있습니다.</p>
+      </div>
+      <div class="about-section">
+        <div class="about-section-title">7. 정책의 변경</div>
+        <p class="about-desc">운영정책은 서비스 운영 방식 변경에 따라 수정될 수 있으며, 변경 시 서비스 내 공지를 통해 안내합니다.</p>
+      </div>`
+  },
   terms: {
     title: '이용약관',
     body: `
@@ -2513,12 +2890,13 @@ const POLICY_CONTENT = {
 function openPolicy(type) {
   const data = POLICY_CONTENT[type];
   if (!data) return;
+  if (isPcMyInfo()) pcMyCloseSubs('policyOverlay');  // PC MY: 오른쪽 상세에 약관만
   document.getElementById('policyTitle').textContent = data.title;        // PC 정적 헤더
   document.getElementById('policyStickyTitle').textContent = data.title;  // 모바일 스크롤 시 sticky 헤더
   document.getElementById('policyStickyHeader').classList.remove('show');
   const body = document.getElementById('policyBody');
   // 모바일: 제보하기처럼 큰 타이틀(scroll-header)이 본문 위에서 스크롤되어 사라지고 sticky가 등장
-  body.innerHTML = `<div class="modal-scroll-header" id="policyScrollHeader"><h2>${data.title}</h2></div>` + data.body;
+  body.innerHTML = `<div class="modal-scroll-header" id="policyScrollHeader"><button class="mlset-back" onclick="closePolicy()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h2>${data.title}</h2></div>` + data.body;
   const ov = document.getElementById('policyOverlay');
   ov.classList.add('open');
   void ov.offsetHeight;   // display:none→flex 반영 후에 리셋해야 브라우저의 스크롤 복원을 막음
@@ -2526,8 +2904,7 @@ function openPolicy(type) {
   bindMobileScrollHeader('policyBody', 'policyScrollHeader', 'policyStickyHeader');
 }
 function closePolicy() {
-  document.getElementById('policyOverlay').classList.remove('open');
-  resetModalScroll('policyOverlay');
+  closeSheetSlide('policyOverlay', () => resetModalScroll('policyOverlay'));
 }
 
 // ===== 우측 슬라이드 메뉴 =====
@@ -2538,8 +2915,1333 @@ function closeSideMenu() {
   document.getElementById('sideMenuOverlay').classList.remove('open');
 }
 
+// ===== 하단 GNB 탭 전환 (Phase 1 뼈대, 모바일 전용) =====
+// home = 기존 지도 화면 유지, 그 외 = tab-view 오버레이(현재 placeholder).
+// body.tab-active 클래스로 홈 외 탭에서 지도 크롬(상단검색/캐릭터/현재위치/시트) 숨김.
+// 탭 선택 시 가벼운 햅틱. 네이티브 앱(Capacitor Haptics) 우선 → 안드 웹은 navigator.vibrate 폴백.
+// iOS 웹(WKWebView)은 웹 진동 API 미지원이라 Haptics 플러그인이 앱에 추가되면 그때부터 동작(앱 재빌드 필요).
+function hapticTap() {
+  try {
+    const P = window.Capacitor && window.Capacitor.Plugins;
+    if (P && P.Haptics && typeof P.Haptics.impact === 'function') { P.Haptics.impact({ style: 'LIGHT' }); return; }
+    if (navigator.vibrate) navigator.vibrate(10);
+  } catch (e) {}
+}
+const GNB_TABS = ['home', 'places', 'community', 'my'];
+function switchTab(tab) {
+  if (GNB_TABS.indexOf(tab) < 0) tab = 'home';
+  hapticTap();
+  resetMapSearch();  // 하단 GNB 누르면 검색 핀·FAB 제거 + 검색어 리셋
+  document.querySelectorAll('.gnb-tab').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+  });
+  GNB_TABS.forEach(function (t) {
+    if (t === 'home') return;
+    const v = document.getElementById('tabView-' + t);
+    if (v) v.hidden = (t !== tab);
+  });
+  document.body.classList.toggle('tab-active', tab !== 'home');
+  if (tab === 'places') {
+    renderMyPlaces();
+    // 제보/신고와 동일: 스크롤 시 컴팩트 sticky 헤더 노출 (스크롤러는 #mlScroll)
+    bindMobileScrollHeader('mlScroll', 'mlScrollHeader', 'mlStickyHeader');
+    const sh = document.getElementById('mlStickyHeader'); if (sh) sh.classList.remove('show');
+    const sc = document.getElementById('mlScroll'); if (sc) sc.scrollTop = 0;
+  }
+  if (tab === 'community') {
+    bindMobileScrollHeader('cmScroll', 'cmScrollHeader', 'cmStickyHeader');
+    const sh = document.getElementById('cmStickyHeader'); if (sh) sh.classList.remove('show');
+    const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+    openCommunity();
+  }
+  if (tab === 'my') {
+    // MY 탭: 기존 '메뉴'를 흡수(로그인/내정보/신고/소개/약관 등). 제보하기는 제외(후기+매장등록으로 대체 방향).
+    // 다른 서브화면과 동일하게 전체 콘텐츠가 스크롤되고, 큰 'MY'(scroll-header)가 사라지면 compact sticky 등장.
+    renderMyPage();
+    const sticky = document.getElementById('myStickyHeader'); if (sticky) sticky.classList.remove('show');
+    const sc = document.getElementById('myScroll'); if (sc) sc.scrollTop = 0;
+    bindMobileScrollHeader('myScroll', 'myScrollHeader', 'myStickyHeader');
+  }
+}
+
+// ===== 커뮤니티 탭 =====
+// 서이추-first(활성화) + 후기-boost(품질). 단일 메인 + 세그먼트([서이추][후기][내 후기]).
+//  - 서이추: 프로필(블로그/인스타 링크 보유 회원) 카드 → 이웃추가 CTA. 허들 0(후기 불필요), 후기 쓴 사람 우대.
+//  - 후기: 전체 후기 피드(매소리 포스트잇). - 내 후기: 로그인 본인 후기만.
+// 설계/결정: docs/product/17-travel-pins.md · 06-decision-log(2026-10-02).
+let _cmSeg = 'seoichu';
+let _cmFeedSort = 'likes';   // 후기 정렬: 'likes'(좋아요 순) | 'latest'(최신 순)
+let _cmFeedMine = false;     // 후기 '내 후기' 필터
+let _cmReqSeq = 0;           // 비동기 레이스 가드
+
+// ===== 무한 스크롤(20개씩, 하단 도달 시 자동 append) — 이웃찾기·후기·내 후기 공용 (결정 2026-10-03) =====
+const CM_PAGE_SIZE = 20;
+let _cmInfinite = null, _myRevInfinite = null;  // 활성 컨트롤러(재렌더 시 destroy)
+// sentinelEl이 보이면 loadPage(offset)를 호출. loadPage는 append 후 '받은 개수'를 반환(에러는 -1).
+// 20개 미만이면 끝. 짧은 목록이면 재관찰로 연속 로드. destroy()로 해제.
+function createInfiniteScroll(rootEl, sentinelEl, loadPage) {
+  let offset = 0, loading = false, hasMore = true, dead = false;
+  async function next() {
+    if (loading || !hasMore || dead) return;
+    loading = true;
+    sentinelEl.classList.add('loading');
+    let count = -1;
+    try { count = await loadPage(offset); } catch (e) { count = -1; }
+    loading = false;
+    if (dead) return;
+    sentinelEl.classList.remove('loading');
+    if (count < 0) return;                 // 에러 — 다음 교차 때 재시도
+    offset += count;
+    if (count < CM_PAGE_SIZE) { hasMore = false; return; }
+    io.unobserve(sentinelEl); io.observe(sentinelEl);  // 짧은 목록: 아직 보이면 재발화
+  }
+  const io = new IntersectionObserver((entries) => {
+    if (entries.some(e => e.isIntersecting)) next();
+  }, { root: rootEl, rootMargin: '200px' });
+  io.observe(sentinelEl);
+  next();  // 첫 페이지 즉시(loading 플래그로 IO 초기콜백과 중복 방지)
+  return { destroy() { dead = true; io.disconnect(); } };
+}
+
+function openCommunity() {
+  bindCmTopBtn();
+  updateCommunitySegUI();
+  renderCommunity();
+}
+// 우하단 플로팅: 이웃찾기=스크롤 투 탑(↑), 후기=후기작성(연필 FAB)
+let _cmTopBound = false;
+function bindCmTopBtn() {
+  if (_cmTopBound) return;
+  const sc = document.getElementById('cmScroll');
+  const btn = document.getElementById('cmTopBtn');
+  if (!sc || !btn) return;
+  sc.addEventListener('scroll', function () { btn.hidden = (_cmSeg !== 'seoichu') || sc.scrollTop < 300; }, { passive: true });
+  _cmTopBound = true;
+}
+function cmScrollTop() {
+  const sc = document.getElementById('cmScroll');
+  if (sc) sc.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function setCommunitySeg(seg) {
+  if (seg === _cmSeg) return;
+  _cmSeg = seg;
+  updateCommunitySegUI();
+  renderCommunity();
+  const sc = document.getElementById('cmScroll'); if (sc) { sc.scrollTop = 0; }
+  const top = document.getElementById('cmTopBtn'); if (top) top.hidden = true;
+}
+function updateCommunitySegUI() {
+  document.querySelectorAll('#cmSeg .cm-seg-btn').forEach(b =>
+    b.classList.toggle('active', b.getAttribute('data-seg') === _cmSeg));
+  const isReview = (_cmSeg === 'feed' || _cmSeg === 'myreviews');  // 후기 계열 세그먼트
+  const chips = document.getElementById('cmChips'); if (chips) chips.hidden = true;  // 카테고리 칩 폐지(정렬로 대체)
+  // '내 후기'(본인 후기)는 로그인 시에만. PC=세그먼트 줄 우측 텍스트 링크(후기/내후기에서만, 활성 시 강조) / 모바일=우상단 링크(오버레이)
+  const myRev = document.querySelector('#cmSeg .cm-seg-myrev');
+  if (myRev) { myRev.hidden = !(currentUser && isReview); myRev.classList.toggle('on', _cmSeg === 'myreviews'); }  // PC 우측 링크: 로그인+후기계열, 내후기 보는 중이면 강조
+  const link = document.getElementById('cmMyRevLink'); if (link) link.hidden = !(_cmSeg === 'feed' && isMobileView() && !!currentUser);  // 모바일 링크: 후기탭+로그인만
+  const fab = document.getElementById('cmWriteFab'); if (fab) fab.hidden = !isReview;        // 후기작성 FAB는 후기/내후기에서
+  const top = document.getElementById('cmTopBtn'); if (top && isReview) top.hidden = true;   // 후기 계열에선 탑버튼 안 씀
+}
+async function renderCommunity(fresh) {
+  const body = document.getElementById('cmBody');
+  if (!body) return;
+  const seq = ++_cmReqSeq;
+  const bust = fresh ? ('&_=' + Date.now()) : '';   // 등록 직후엔 엣지/브라우저 캐시 우회(첫 페이지에만)
+  if (_cmInfinite) { _cmInfinite.destroy(); _cmInfinite = null; }
+  const root = document.getElementById('cmScroll');
+
+  if (_cmSeg === 'seoichu') {
+    body.innerHTML = cmInfoBannerHtml() + seoichuComposeHtml()
+      + '<div class="cm-sc-list" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
+    const listEl = document.getElementById('cmList');
+    const sentinel = document.getElementById('cmSentinel');
+    _cmInfinite = createInfiniteScroll(root, sentinel, async (offset) => {
+      const b = offset === 0 ? bust : '';
+      const list = await fetch(`/api/users?seoichu=1&limit=${CM_PAGE_SIZE}&offset=${offset}${b}`).then(r => r.ok ? r.json() : []);
+      if (seq !== _cmReqSeq) return -1;  // stale
+      const posts = Array.isArray(list) ? list : [];
+      if (offset === 0 && !posts.length) {
+        listEl.innerHTML = '<div class="cm-empty"><p class="cm-empty-title">아직 인사가 없어요</p><p class="cm-empty-desc">첫 인사를 남겨보세요. 이웃을 맺고 함께 소통해요.</p></div>';
+        return 0;
+      }
+      listEl.insertAdjacentHTML('beforeend', posts.map(seoichuPostHtml).join(''));
+      return posts.length;
+    });
+    return;
+  }
+
+  // 후기 피드 — feed(전체) / myreviews(내 후기=mine)
+  const mine = (_cmSeg === 'myreviews');
+  if (mine && !currentUser) {
+    body.innerHTML = cmFeedInfoHtml(mine) + cmEmptyHtml('로그인이 필요해요', '내가 등록한 후기를 모아볼 수 있어요.', true);
+    return;
+  }
+  body.innerHTML = cmFeedInfoHtml(mine) + cmFeedTopHtml(0)
+    + '<div class="rv-cards" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
+  const listEl = document.getElementById('cmList');
+  const sentinel = document.getElementById('cmSentinel');
+  _cmInfinite = createInfiniteScroll(root, sentinel, async (offset) => {
+    const b = offset === 0 ? bust : '';
+    const qs = `/api/places?reviews=feed&limit=${CM_PAGE_SIZE}&offset=${offset}&sort=${_cmFeedSort}${mine ? '&mine=1' : ''}${b}`;
+    const data = await fetch(qs).then(r => r.ok ? r.json() : { total: 0, items: [] });
+    if (seq !== _cmReqSeq) return -1;  // stale
+    const items = (data && data.items) || [];
+    if (offset === 0) {
+      const cnt = document.querySelector('#cmBody .rv-count');
+      if (cnt) cnt.textContent = `총 ${Number((data && data.total) || 0).toLocaleString()}건`;
+      if (!items.length) {
+        listEl.innerHTML = mine
+          ? cmEmptyHtml('아직 등록한 후기가 없어요', '다녀온 곳의 블로그 후기를 등록해보세요.')
+          : cmEmptyHtml('아직 후기가 없어요', '첫 후기를 남겨보세요.');
+        return 0;
+      }
+    }
+    listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false)).join(''));
+    return items.length;
+  });
+}
+function cmEmptyHtml(title, desc, login) {
+  return `<div class="cm-empty">
+    <p class="cm-empty-title">${rvEsc(title)}</p>
+    <p class="cm-empty-desc">${rvEsc(desc)}</p>
+    ${login ? '<button class="cm-empty-btn" onclick="openLoginSheet()">로그인</button>' : ''}
+  </div>`;
+}
+// SNS(블로그/인스타) 아이콘·링크 헬퍼
+function snsIconSrc(platform) { return platform === '인스타그램' ? 'image/ic_instagram_20.png' : 'image/ic_naver_blog_20.png'; }
+function snsLinkText(platform, id) { return (URL_PLATFORM_DOMAINS[platform] || 'blog.naver.com/') + id; }
+function snsFullUrl(platform, id) { return 'https://' + (URL_PLATFORM_DOMAINS[platform] || 'blog.naver.com/') + id; }
+function hasSns(u) { return u && u.urlId && (u.urlPlatform === '블로그' || u.urlPlatform === '인스타그램'); }
+
+// 이웃찾기 상단 안내 배너(캐릭터 + 문구)
+function cmInfoBannerHtml() {
+  return `<div class="cm-info-banner">
+    <img class="cm-info-char" src="image/img_community_01.png" alt="" width="104" height="104">
+    <span class="cm-info-dot"></span>
+    <p class="cm-info-text">체험단 이웃들과 매일매일 소통해요!</p>
+  </div>`;
+}
+
+// 후기 안내 배너(캐릭터 없음). mine=내 후기 세그먼트
+function cmFeedInfoHtml(mine) {
+  const txt = mine ? '내가 등록한 블로그 체험 후기예요.' : '블로그 체험 후기를 공유하는 화면입니다.';
+  return `<div class="cm-info-banner cm-info-plain"><span class="cm-info-dot"></span><p class="cm-info-text">${txt}</p></div>`;
+}
+// 후기 총건수 + 정렬 — 지도 상세 후기 pane과 동일 컴포넌트(rv-list-head/rv-sort) 재사용.
+function cmFeedTopHtml(total) {
+  const label = _cmFeedSort === 'likes' ? '좋아요 순' : '최신 순';
+  return `<div class="rv-list-head">
+    <span class="rv-count">총 ${Number(total).toLocaleString()}건</span>
+    <div class="rv-sort-wrap">
+      <button class="rv-sort" onclick="event.stopPropagation();toggleSortMenu(this)">
+        <span class="rv-sort-label">${label}</span>
+        <img class="rv-sort-caret" src="image/ic_arrow_01.svg" width="9" height="5" alt="">
+      </button>
+      <div class="rv-sort-menu">
+        <button class="rv-sort-opt${_cmFeedSort !== 'likes' ? ' active' : ''}" onclick="setCmSort('latest')">최신 순</button>
+        <button class="rv-sort-opt${_cmFeedSort === 'likes' ? ' active' : ''}" onclick="setCmSort('likes')">좋아요 순</button>
+      </div>
+    </div>
+  </div>`;
+}
+function setCmSort(s) {
+  document.querySelectorAll('.rv-sort-wrap.open').forEach(w => w.classList.remove('open'));
+  if (s === _cmFeedSort) return;
+  _cmFeedSort = s;
+  renderCommunity();
+}
+// '내 후기' — 후기 화면 링크 → 별도 서브화면(백버튼). 후기 카드/정렬은 기존 컴포넌트 재사용.
+let _myRevSort = 'likes';
+function openMyReviews() {
+  if (!currentUser) { openLoginSheet(); return; }
+  syncMobileModalHeader('#myReviewsOverlay');
+  bindMobileScrollHeader('myRevBody', 'myRevScrollHeader', 'myRevStickyHeader');
+  const sticky = document.getElementById('myRevStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('myRevBody'); if (body) body.scrollTop = 0;
+  document.getElementById('myReviewsOverlay').classList.add('open');
+  renderMyReviews();
+}
+function closeMyReviews() {
+  if (_myRevInfinite) { _myRevInfinite.destroy(); _myRevInfinite = null; }
+  closeSheetSlide('myReviewsOverlay', () => resetModalScroll('myReviewsOverlay'));
+}
+function renderMyReviews() {
+  const el = document.getElementById('myRevContent');
+  if (!el) return;
+  if (_myRevInfinite) { _myRevInfinite.destroy(); _myRevInfinite = null; }
+  const root = document.getElementById('myRevBody');
+  const label = _myRevSort === 'likes' ? '좋아요 순' : '최신 순';
+  const top = `<div class="rv-list-head">
+    <span class="rv-count">총 0건</span>
+    <div class="rv-sort-wrap">
+      <button class="rv-sort" onclick="event.stopPropagation();toggleSortMenu(this)"><span class="rv-sort-label">${label}</span><img class="rv-sort-caret" src="image/ic_arrow_01.svg" width="9" height="5" alt=""></button>
+      <div class="rv-sort-menu">
+        <button class="rv-sort-opt${_myRevSort !== 'likes' ? ' active' : ''}" onclick="setMyRevSort('latest')">최신 순</button>
+        <button class="rv-sort-opt${_myRevSort === 'likes' ? ' active' : ''}" onclick="setMyRevSort('likes')">좋아요 순</button>
+      </div>
+    </div>
+  </div>`;
+  el.innerHTML = top + '<div class="rv-cards" id="myRevList"></div><div class="cm-infinite" id="myRevSentinel"></div>';
+  const listEl = document.getElementById('myRevList');
+  const sentinel = document.getElementById('myRevSentinel');
+  const sort = _myRevSort;  // 이 렌더 기준 정렬 캡처(정렬 변경 시 재렌더로 새 컨트롤러)
+  _myRevInfinite = createInfiniteScroll(root, sentinel, async (offset) => {
+    const b = offset === 0 ? ('&_=' + Date.now()) : '';
+    const data = await fetch(`/api/places?reviews=feed&mine=1&limit=${CM_PAGE_SIZE}&offset=${offset}&sort=${sort}${b}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : { total: 0, items: [] });
+    if (sort !== _myRevSort) return -1;  // stale(정렬 바뀜)
+    const items = (data && data.items) || [];
+    if (offset === 0) {
+      const cnt = el.querySelector('.rv-count');
+      if (cnt) cnt.textContent = `총 ${Number((data && data.total) || 0).toLocaleString()}건`;
+      if (!items.length) {
+        listEl.innerHTML = '<div class="cm-empty"><p class="cm-empty-title">아직 등록한 후기가 없어요</p><p class="cm-empty-desc">다녀온 곳의 블로그 후기를 등록해보세요.</p></div>';
+        return 0;
+      }
+    }
+    listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false)).join(''));
+    return items.length;
+  });
+}
+function setMyRevSort(s) {
+  document.querySelectorAll('.rv-sort-wrap.open').forEach(w => w.classList.remove('open'));
+  if (s === _myRevSort) return;
+  _myRevSort = s;
+  renderMyReviews();
+}
+
+// 글쓰기 영역: 로그인 + SNS(블로그/인스타) 등록자만. 아니면 안내 CTA.
+function seoichuComposeHtml() {
+  if (!currentUser) {
+    return `<div class="cm-compose cm-compose-cta">
+      <p class="cm-compose-msg">로그인하고 SNS를 등록하면 인사를 남길 수 있어요.</p>
+      <button class="cm-compose-btn" onclick="openLoginSheet()">로그인</button>
+    </div>`;
+  }
+  if (!hasSns(currentUser)) {
+    return `<div class="cm-compose cm-compose-cta">
+      <p class="cm-compose-msg">SNS(블로그·인스타)를 등록하면 인사를 남길 수 있어요.</p>
+      <button class="cm-compose-btn" onclick="openProfileSheet()">SNS 등록</button>
+    </div>`;
+  }
+  return `<div class="cm-compose">
+    <textarea id="cmSeoichuInput" class="cm-compose-input" maxlength="100" rows="2" oninput="cmComposeInput(this)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();}" placeholder="인사를 남겨보세요.&#10;예) 이웃 환영해요! 함께 소통해요)"></textarea>
+    <div class="cm-compose-divider"></div>
+    <div class="cm-compose-foot">
+      <span class="cm-compose-blog"><img src="${snsIconSrc(currentUser.urlPlatform)}" width="16" height="16" alt="">${rvEsc(snsLinkText(currentUser.urlPlatform, currentUser.urlId))}</span>
+      <button class="cm-compose-btn" onclick="submitSeoichu()">등록</button>
+    </div>
+  </div>`;
+}
+// 입력 줄 수에 따라 textarea 높이 자동 확장(길면 줄바꿈 wrap으로 박스가 늘어남)
+function cmAutoGrow(ta) {
+  if (!ta) return;
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+}
+// 글쓰기 입력: 줄바꿈(붙여넣기 포함) 제거 + 자동 높이. 엔터 키 입력은 onkeydown에서 차단.
+function cmComposeInput(ta) {
+  if (!ta) return;
+  if (ta.value.indexOf('\n') >= 0) {
+    const pos = ta.selectionStart;
+    ta.value = ta.value.replace(/\s*\n\s*/g, ' ');
+    try { ta.setSelectionRange(pos, pos); } catch (e) {}
+  }
+  cmAutoGrow(ta);
+}
+async function submitSeoichu() {
+  const ta = document.getElementById('cmSeoichuInput');
+  if (!ta) return;
+  const content = (ta.value || '').trim();
+  if (!content) { showToast('내용을 입력해주세요.'); return; }
+  const btn = document.querySelector('.cm-compose .cm-compose-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/users?seoichu=post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(j.error || '등록에 실패했어요.'); if (j.needBlog) openProfileSheet(); return; }
+    ta.value = '';
+    renderCommunity(true);  // 캐시 우회로 새로고침(내 글 맨 위)
+  } catch (e) { showToast('등록에 실패했어요.'); }
+  finally { if (btn) btn.disabled = false; }
+}
+// 이웃찾기 글 카드: 아바타 · 닉/시간 · SNS 링크 / 내용 + 방문하기 CTA (블로그·인스타 공통).
+function seoichuPostHtml(p) {
+  const full = snsFullUrl(p.urlPlatform, p.urlId);
+  const avatar = p.profileImage || 'image/img_profile_login.png?v=2';
+  const mine = !!(currentUser && currentUser.id != null && p.userId === currentUser.id);  // 내 글만 삭제버튼
+  const trashBtn = mine
+    ? `<button class="cm-sc-trash" onclick="deleteSeoichu(${p.id})" aria-label="삭제"><img src="image/ic_trash_16_gray.svg" width="16" height="16" alt=""></button>`
+    : '';
+  return `<div class="cm-sc-post">
+    <div class="cm-sc-head">
+      <span class="cm-sc-avatar"><img src="${rvEsc(avatar)}" alt="" width="40" height="40"></span>
+      <div class="cm-sc-head-text">
+        <div class="cm-sc-nick-row"><span class="cm-sc-nick">${rvEsc(p.nickname)}</span><span class="cm-sc-time">${cmTimeAgo(p.createdAt)}</span>${trashBtn}</div>
+        <div class="cm-sc-linkrow"><img class="cm-sc-plat" src="${snsIconSrc(p.urlPlatform)}" width="12" height="12" alt=""><span class="cm-sc-linktext">${rvEsc(snsLinkText(p.urlPlatform, p.urlId))}</span></div>
+      </div>
+      <button class="cm-sc-cta" onclick="openExternal('${rvEsc(full)}')">방문하기</button>
+    </div>
+    <div class="cm-sc-divider"></div>
+    <p class="cm-sc-content">${rvEsc(p.content)}</p>
+  </div>`;
+}
+// 이웃찾기 내 글 삭제 — 후기 삭제와 동일한 확인 시트(showAlert 2버튼) 후 DELETE, 목록 새로고침(캐시 우회)
+function deleteSeoichu(id) {
+  showAlert('글을 삭제할까요?', '삭제하면 되돌릴 수 없어요.', {
+    twoButton: true, cancelText: '취소', confirmText: '삭제',
+    onConfirm: async () => {
+      try {
+        const res = await fetch('/api/users?seoichu=1&id=' + id, { method: 'DELETE' });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) { showToast(j.error || '삭제에 실패했어요.'); return; }
+        showToast('글을 삭제했어요.');
+        renderCommunity(true);
+      } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
+    }
+  });
+}
+// 상대 시간(UTC 저장값 → KST 기준 방금/N분/N시간/N일 전, 그 이상은 날짜)
+function cmTimeAgo(utc) {
+  if (!utc) return '';
+  const t = Date.parse(String(utc).replace(' ', 'T') + 'Z');
+  if (isNaN(t)) return '';
+  const diff = Date.now() - t;
+  if (diff < 60000) return '방금';
+  if (diff < 3600000) return Math.floor(diff / 60000) + '분 전';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + '시간 전';
+  if (diff < 7 * 86400000) return Math.floor(diff / 86400000) + '일 전';
+  const d = new Date(t + 9 * 3600000);
+  return `${d.getUTCMonth() + 1}.${d.getUTCDate()}`;
+}
+// MY 탭 데이터 렌더. 로그인 전·후 동일 레이아웃, 내용만 스왑(Figma 1728-44131 로그인후 / 1731-45047 로그인전).
+function renderMyPage() {
+  const loggedIn = !!currentUser;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
+  const logoutBtn = document.getElementById('myLogout');
+  if (logoutBtn) logoutBtn.style.display = loggedIn ? '' : 'none';
+  const avatar = document.getElementById('myAvatarImg');
+  const stickyAvatar = document.getElementById('myStickyAvatar');
+  const avatarSrc = loggedIn ? (currentUser.profileImage || 'image/img_profile_login.png?v=2') : 'image/img_profile_logout.png';
+  if (stickyAvatar) stickyAvatar.src = avatarSrc;
+  show('myAvatarCam', loggedIn);  // 카메라 배지는 로그인 시만(클릭=사진 변경)
+  if (loggedIn) {
+    if (avatar) avatar.src = avatarSrc;
+    set('myNick', currentUser.nickname || '');
+    const prov = document.getElementById('myProvider'); if (prov) { prov.src = providerIconSrc(currentUser.provider); prov.hidden = false; }
+    const d = mypageDaysSince(currentUser.createdAt);
+    set('myDays', d > 0 ? `무협맵을 만난지 ${d}일째 되는 날이에요.` : '무협맵에 오신 걸 환영해요.');
+    show('myDays', true); show('myLoginLink', false);
+    set('myEmail', currentUser.email || '미등록');
+    const p = currentUser.urlPlatform, uid = currentUser.urlId;
+    set('mySns', (p && uid && URL_PLATFORM_DOMAINS[p]) ? (URL_PLATFORM_DOMAINS[p] + uid) : '미등록');
+    set('myReviewCnt', currentUser.reviewCount || 0);
+    set('myHelpfulCnt', currentUser.helpfulCount || 0);
+  } else {
+    if (avatar) avatar.src = 'image/img_profile_logout.png';
+    set('myNick', '로그인하고 시작해보세요.');
+    show('myProvider', false);
+    show('myDays', false); show('myLoginLink', true);
+    set('myEmail', '-'); set('mySns', '-'); set('myReviewCnt', '-'); set('myHelpfulCnt', '-');
+  }
+}
+// 가입일(UTC)부터 오늘까지 KST 기준 일수(가입 첫날=1일째).
+function mypageDaysSince(createdAt) {
+  if (!createdAt) return 0;
+  const t = Date.parse(String(createdAt).replace(' ', 'T') + 'Z');
+  if (isNaN(t)) return 0;
+  const createdKstDay = Math.floor((t + 9 * 3600 * 1000) / 86400000);
+  const nowKstDay = Math.floor((Date.now() + 9 * 3600 * 1000) / 86400000);
+  return (nowKstDay - createdKstDay) + 1;
+}
+// 알림설정 (MY → 알림설정). 모바일 시트. 토글은 Phase2에서 푸시(push_prefs/브로드캐스트 수신)에 배선 예정 — 지금은 UI + OS 권한 배너만 동작.
+function openMyAlarmSetting() {
+  if (isPcMyInfo()) pcMyCloseSubs('alarmOverlay');  // PC MY: 오른쪽 상세에 알림설정만
+  syncMobileModalHeader('#alarmOverlay');
+  bindMobileScrollHeader('alarmBody', 'alarmScrollHeader', 'alarmStickyHeader');
+  const sticky = document.getElementById('alarmStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('alarmBody'); if (body) body.scrollTop = 0;
+  ['alarmAll', 'alarmNewCampaign', 'alarmEvent'].forEach(id => { const cb = document.getElementById(id); if (cb) cb.checked = getAlarmPref(id); });
+  refreshAlarmPermBanner();
+  applyAlarmGate();
+  document.getElementById('alarmOverlay').classList.add('open');
+}
+function closeMyAlarmSetting() {
+  closeSheetSlide('alarmOverlay', () => resetModalScroll('alarmOverlay'));
+}
+// OS(기기) 알림 권한이 꺼져 있으면 상단 배너 노출(앱 전용). 권한 허용/웹이면 숨김 — 평소엔 안 거슬리게.
+async function refreshAlarmPermBanner() {
+  const banner = document.getElementById('alarmPermBanner'); if (!banner) return;
+  const P = pushPlugin();
+  if (!isNativeApp() || !P) { banner.style.display = 'none'; return; }
+  try {
+    const perm = await P.checkPermissions();
+    banner.style.display = (perm && perm.receive === 'granted') ? 'none' : '';
+  } catch (e) { banner.style.display = 'none'; }
+}
+// 배너 '설정에서 켜기': 권한 요청 → 여전히 거부면 기기 설정 안내(iOS는 한번 거부 시 앱에서 재요청 불가)
+async function openAlarmPermSettings() {
+  const P = pushPlugin(); if (!P) return;
+  try {
+    let perm = await P.checkPermissions();
+    if (perm.receive !== 'granted') perm = await P.requestPermissions();
+    if (perm && perm.receive === 'granted') { await P.register(); refreshAlarmPermBanner(); }
+    else { showToast('휴대폰 설정 > 무협맵 > 알림에서 켜주세요.'); }
+  } catch (e) {}
+}
+// '전체 알림 받기' OFF면 하위 토글(내 장소 신규협찬·이벤트·공지)을 dim+비활성(게이트).
+// 지금은 클라 UI만 — 실제 발송 억제(서버 push_prefs/수신 플래그)는 Phase2.
+function applyAlarmGate() {
+  const all = document.getElementById('alarmAll'); if (!all) return;
+  const on = all.checked;
+  ['alarmNewCampaign', 'alarmEvent'].forEach(id => {
+    const cb = document.getElementById(id); if (!cb) return;
+    cb.disabled = !on;
+    const row = cb.closest('.alarm-row');
+    if (row) row.classList.toggle('alarm-row-disabled', !on);
+  });
+}
+// 알림설정 토글 상태를 localStorage에 저장 — master 상태를 내 장소 벨 게이트가 읽는다. 실제 발송 배선은 Phase2.
+function getAlarmPref(key) { try { return localStorage.getItem('mh_' + key) !== '0'; } catch (e) { return true; } } // 기본 ON
+function setAlarmPref(key, on) { try { localStorage.setItem('mh_' + key, on ? '1' : '0'); } catch (e) {} }
+// 내 장소 '신규 협찬' 알림이 실효 상태인지 = 전체 알림 ON && 내 장소 신규협찬 ON
+function isMyPlaceAlarmActive() { return getAlarmPref('alarmAll') && getAlarmPref('alarmNewCampaign'); }
+// 토글 변경: 상태 저장 + 하위 게이트 재적용 + 내 장소 벨 즉시 반영. (발송 억제=Phase2 서버)
+function onAlarmToggle() {
+  ['alarmAll', 'alarmNewCampaign', 'alarmEvent'].forEach(id => { const cb = document.getElementById(id); if (cb) setAlarmPref(id, cb.checked); });
+  applyAlarmGate();
+  if (typeof renderMlItems === 'function') renderMlItems();
+}
+
+// ===== 이벤트·공지 피드 (MY → 이벤트·공지). 한 테이블(type) 피드형 + 상단 필터(전체/공지/이벤트) =====
+let _notices = null;         // 목록 캐시(세션)
+let _noticeFilter = 'all';   // all | notice | event
+function noticeDateFmt(s) { return (s || '').slice(0, 10).replace(/-/g, '.'); }
+function noticeTypeLabel(t) { return t === 'event' ? '이벤트' : '공지'; }
+
+async function openNoticeFeed() {
+  if (isPcMyInfo()) pcMyCloseSubs('noticeOverlay');  // PC MY: 오른쪽 상세에 이벤트·공지만
+  syncMobileModalHeader('#noticeOverlay');
+  bindMobileScrollHeader('noticeBody', 'noticeScrollHeader', 'noticeStickyHeader');
+  const sticky = document.getElementById('noticeStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('noticeBody'); if (body) body.scrollTop = 0;
+  document.getElementById('noticeOverlay').classList.add('open');
+  const feed = document.getElementById('noticeFeed');
+  if (_notices === null) {
+    if (feed) feed.innerHTML = '<div class="notice-empty">불러오는 중…</div>';
+    try { const r = await fetch('/api/notices', { credentials: 'same-origin' }); _notices = r.ok ? await r.json() : []; }
+    catch (e) { _notices = []; }
+  }
+  renderNoticeFeed();
+}
+function closeNoticeFeed() { closeSheetSlide('noticeOverlay', () => resetModalScroll('noticeOverlay')); }
+function setNoticeFilter(f) {
+  _noticeFilter = f;
+  document.querySelectorAll('#noticeFilter .notice-chip').forEach(c => c.classList.toggle('active', c.dataset.nf === f));
+  renderNoticeFeed();
+}
+function renderNoticeFeed() {
+  const feed = document.getElementById('noticeFeed'); if (!feed) return;
+  const list = (_notices || []).filter(n => _noticeFilter === 'all' || n.type === _noticeFilter);
+  if (!list.length) { feed.innerHTML = '<div class="notice-empty">등록된 소식이 없어요.</div>'; return; }
+  feed.innerHTML = list.map(n => {
+    const excerpt = mlEsc((n.body || '').replace(/\s+/g, ' ').trim().slice(0, 60));
+    const img = n.imageUrl ? `<div class="notice-card-img"><img src="${n.imageUrl}" alt="" draggable="false"></div>` : '';
+    return `<button class="notice-card" onclick="openNoticeDetail(${n.id})">${img}<div class="notice-card-main">`
+      + `<div class="notice-card-top"><span class="notice-badge nb-${n.type}">${noticeTypeLabel(n.type)}</span><span class="notice-card-date">${noticeDateFmt(n.publishedAt)}</span></div>`
+      + `<div class="notice-card-title">${mlEsc(n.title)}</div>`
+      + (excerpt ? `<div class="notice-card-excerpt">${excerpt}</div>` : '')
+      + `</div></button>`;
+  }).join('');
+}
+async function openNoticeDetail(id) {
+  if (isPcMyInfo()) pcMyCloseSubs('noticeDetailOverlay');  // PC MY: 피드 위에 상세를 오른쪽 상세로 교체
+  syncMobileModalHeader('#noticeDetailOverlay');
+  bindMobileScrollHeader('noticeDtBody', 'noticeDtScrollHeader', 'noticeDtStickyHeader');
+  const sticky = document.getElementById('noticeDtStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('noticeDtBody'); if (body) body.scrollTop = 0;
+  const box = document.getElementById('noticeDetail'); if (box) box.innerHTML = '<div class="notice-empty">불러오는 중…</div>';
+  document.getElementById('noticeDetailOverlay').classList.add('open');
+  let n = (_notices || []).find(x => x.id === id);
+  if (!n) { try { const r = await fetch('/api/notices?id=' + id, { credentials: 'same-origin' }); if (r.ok) n = await r.json(); } catch (e) {} }
+  if (!n) { if (box) box.innerHTML = '<div class="notice-empty">소식을 불러오지 못했어요.</div>'; return; }
+  const period = (n.type === 'event' && (n.periodStart || n.periodEnd)) ? `<div class="notice-dt-period">기간 ${noticeDateFmt(n.periodStart)} ~ ${noticeDateFmt(n.periodEnd)}</div>` : '';
+  const img = n.imageUrl ? `<img class="notice-dt-img" src="${n.imageUrl}" alt="" draggable="false">` : '';
+  const cta = n.linkUrl ? `<a class="notice-dt-cta" href="${n.linkUrl}" target="_blank" rel="noopener">자세히 보기</a>` : '';
+  if (box) box.innerHTML = `<div class="notice-dt-top"><span class="notice-badge nb-${n.type}">${noticeTypeLabel(n.type)}</span><span class="notice-card-date">${noticeDateFmt(n.publishedAt)}</span></div>`
+    + `<h2 class="notice-dt-title">${mlEsc(n.title)}</h2>${period}${img}`
+    + `<div class="notice-dt-body">${mlEsc(n.body || '').replace(/\n/g, '<br>')}</div>${cta}`;
+}
+function closeNoticeDetail() {
+  // PC MY: 상세 닫으면 오른쪽 상세 영역에 피드로 복귀
+  if (isPcMyInfo()) { document.getElementById('noticeDetailOverlay').classList.remove('open'); openNoticeFeed(); return; }
+  closeSheetSlide('noticeDetailOverlay', () => resetModalScroll('noticeDetailOverlay'));
+}
+window.switchTab = switchTab;
+window.openMyAlarmSetting = openMyAlarmSetting;
+
+// ===== 내 장소(집/회사/여행지) — Phase1 ① (목록/등록/수정/삭제) =====
+const ML_CATS = ['음식점', '카페', '뷰티', '헤어', '숙박/여가', '문화', '사진관', '의류', '안경/잡화', '운동', '기타'];
+// Figma 디자인 아이콘(ic_home_24/ic_company_24/ic_pin_24/alarm) 실제 path — currentColor로 색 제어
+const ML_KIND_ICON = {
+  home: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.8379 5.83037C11.5332 5.33389 12.4668 5.33389 13.1621 5.83037L18.1621 9.40166C18.6877 9.77709 19 10.3837 19 11.0296V17.0003C18.9998 18.1047 18.1045 19.0003 17 19.0003H7C5.89553 19.0003 5.00015 18.1047 5 17.0003V11.0296C5 10.3837 5.3123 9.77709 5.83789 9.40166L10.8379 5.83037ZM11 15.0003C10.4477 15.0003 10 15.448 10 16.0003V18.0003H14V16.0003C14 15.448 13.5523 15.0003 13 15.0003H11Z" fill="currentColor"/></svg>',
+  work: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M17 5C18.1046 5 19 5.89543 19 7V19H5V7C5 5.89543 5.89543 5 7 5H17ZM11 15C10.4477 15 10 15.4477 10 16V18H14V16C14 15.4477 13.5523 15 13 15H11ZM8 11V13H10V11H8ZM11 11V13H13V11H11ZM14 11V13H16V11H14ZM8 8V10H10V8H8ZM11 8V10H13V8H11ZM14 8V10H16V8H14Z" fill="currentColor"/></svg>',
+  place: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 4C15.866 4 19 7.13401 19 11C19 16.7272 13.2727 20.5449 12 20.5449C10.7273 20.5449 5.00004 16.7272 5 11C5 7.13401 8.13401 4 12 4ZM15.166 8.98926C14.8623 8.68582 14.3701 8.68582 14.0664 8.98926L11.3164 11.7393L10.2168 10.6396C9.91306 10.3359 9.42093 10.3359 9.11719 10.6396C8.8136 10.9434 8.81351 11.4346 9.11719 11.7383L10.7666 13.3877C11.0703 13.6914 11.5634 13.6924 11.8672 13.3887L15.167 10.0889C15.4704 9.78517 15.4694 9.29291 15.166 8.98926Z" fill="currentColor"/></svg>',
+};
+// Figma Vector 6 — 얇은 chevron(>) . currentColor
+const ML_CHEVRON = '<svg width="6" height="10" viewBox="0 0 5 9" fill="none"><path d="M0.5 0.5L4.5 4.5L0.5 8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function mlBellSvg(on) {
+  return on
+    ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.9023 18.75C14.569 20.0435 13.3976 21 12 21C10.6024 21 9.43095 20.0435 9.09766 18.75H14.9023ZM12 3C12.8284 3 13.5 3.67157 13.5 4.5C13.5 4.56288 13.4948 4.6247 13.4873 4.68555C16.0816 5.34717 18 7.69965 18 10.5V15L18.1533 15.0078C18.9097 15.0846 19.5 15.7233 19.5 16.5C19.5 17.3284 18.8284 18 18 18H6C5.17157 18 4.5 17.3284 4.5 16.5C4.5 15.6716 5.17157 15 6 15V10.5C6 7.69998 7.91788 5.34749 10.5117 4.68555C10.5042 4.62474 10.5 4.56284 10.5 4.5C10.5 3.67157 11.1716 3 12 3Z" fill="currentColor"/></svg>'
+    : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.9023 18.75C14.5691 20.0435 13.3976 20.9999 12 21C10.6024 21 9.43097 20.0435 9.09766 18.75H14.9023ZM18.3799 3.53027C18.6728 3.23763 19.1476 3.23746 19.4404 3.53027C19.7331 3.82309 19.733 4.29795 19.4404 4.59082L4.59083 19.4404C4.29797 19.7332 3.82314 19.7331 3.53028 19.4404C3.23743 19.1476 3.23751 18.6728 3.53028 18.3799L18.3799 3.53027ZM17.6563 8.49512C17.8785 9.12211 18 9.79686 18 10.5V15L18.1533 15.0078C18.9097 15.0847 19.5 15.7234 19.5 16.5C19.5 17.3284 18.8284 17.9999 18 18H8.15235L17.6563 8.49512ZM12 3C12.8284 3.00007 13.5 3.67161 13.5 4.5C13.5 4.56288 13.4948 4.6247 13.4873 4.68555C14.4073 4.9202 15.2419 5.36814 15.9365 5.97266L4.68555 17.2236C4.56719 17.0091 4.50001 16.7624 4.50001 16.5C4.50001 15.6716 5.17158 15 6.00001 15V10.5C6.00001 7.69998 7.91788 5.34749 10.5117 4.68555C10.5042 4.62474 10.5 4.56284 10.5 4.5C10.5 3.67157 11.1716 3 12 3Z" fill="currentColor"/></svg>';
+}
+function mlEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+// dev/LAN 호스트 여부(운영 muhyeop.com이 아니면 dev 미리보기 로그인 버튼 노출)
+function mlIsDevHost() { const h = location.hostname; return /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) || (h.indexOf('muhyeop.com') < 0 && h !== ''); }
+function mlKindLabel(p) { return p.kind === 'home' ? '집' : p.kind === 'work' ? '회사' : (p.name || '장소'); }
+
+let _myPlaces = [];
+// 홈 지도용 내 장소 마커(집/회사/여행지). 클러스터링/줌 게이트와 무관하게 항상 표시(축소해도 보임).
+const ML_MAP_ICON = { home: 'image/ml_map_home.svg', work: 'image/ml_map_company.svg', place: 'image/ml_map_place.svg' };
+let _myPlaceMarkers = [];
+let _selMyMarker = null;
+let _myMarkerDeselectBound = false;
+// 내 장소 아이콘 글리프(흰색, 30뷰박스 cx15 기준 — 카테고리 아이콘과 동일 좌표계)
+const ML_PIN_GLYPH = {
+  home: '<path d="M13.7764 8.94709C14.4969 8.38971 15.5031 8.38971 16.2236 8.94709L20.2236 12.0428C20.713 12.4215 20.9999 13.0051 21 13.6238V18.9998C21 20.1044 20.1046 20.9998 19 20.9998H11C9.89543 20.9998 9 20.1044 9 18.9998V13.6238C9.00012 13.0051 9.28698 12.4215 9.77637 12.0428L13.7764 8.94709ZM14 16.9998C13.4478 16.9998 13.0001 17.4476 13 17.9998V19.9998H17V17.9998C16.9999 17.4476 16.5522 16.9998 16 16.9998H14Z" fill="white"/>',
+  work: '<path d="M19 9C20.1046 9 21 9.89543 21 11V21H9V11C9 9.89543 9.89543 9 11 9H19ZM14 17C13.4477 17 13 17.4477 13 18V20H17V18C17 17.4477 16.5523 17 16 17H14ZM11 14V16H13V14H11ZM14 14V16H16V14H14ZM17 14V16H19V14H17ZM11 11V13H13V11H11ZM14 11V13H16V11H14ZM17 11V13H19V11H17Z" fill="white"/>',
+  place: '<path d="M15 8.18178C18.3137 8.18178 21 10.8681 21 14.1818C21 19.0908 16.0909 22.3634 15 22.3634C13.9091 22.3634 9.00004 19.0908 9 14.1818C9 10.8681 11.6863 8.18178 15 8.18178ZM17.7139 12.4572C17.4535 12.1972 17.0307 12.197 16.7705 12.4572L14.4141 14.8146L13.4717 13.8722C13.2113 13.6119 12.7887 13.6119 12.5283 13.8722C12.2683 14.1325 12.2683 14.5543 12.5283 14.8146L13.9424 16.2296C14.2027 16.4898 14.6254 16.4897 14.8857 16.2296L17.7139 13.4005C17.9742 13.1402 17.9742 12.7175 17.7139 12.4572Z" fill="white"/>',
+};
+// 선택된 내 장소 핀: 물방울(teardrop) 48px — 카테고리 선택 핀과 동일 형태
+function getMyPinSelected(kind) {
+  const icon = ML_PIN_GLYPH[kind] || ML_PIN_GLYPH.place;
+  return `<svg class="map-pin-svg" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">`
+    + `<path d="M24 3.55675C28.5005 3.55684 32.8171 5.38047 36 8.63194H35.999C38.8639 11.5548 40.3793 14.8561 40.7793 18.3009C41.1758 21.7042 40.4635 25.0858 39.1445 28.212C36.533 34.4156 31.3755 40.005 26.457 43.631C25.7434 44.1586 24.8842 44.4444 24 44.4444C23.1152 44.4444 22.255 44.1583 21.541 43.63V43.629C16.6229 40.0028 11.4656 34.4127 8.85254 28.212C7.53549 25.0857 6.8255 21.7044 7.21973 18.2999V18.2989C7.61974 14.8559 9.13549 11.5565 12 8.63194L12.001 8.63097C15.1946 5.37825 19.5047 3.55254 24 3.55675Z" fill="#39395C" stroke="#fff" stroke-width="1.77778"/>`
+    + `<g transform="translate(3 1) scale(1.4)">${icon}</g>`
+    + `</svg>`;
+}
+function myPinContent(kind, selected, name) {
+  if (selected) {
+    // 여행지(place)는 선택 시 장소명 말풍선 노출(집/회사는 없음)
+    const bubble = (kind === 'place' && name) ? `<span class="ml-pin-name">${mlEsc(name)}</span>` : '';
+    return `<div class="map-pin map-pin-selected ml-named-pin">${bubble}${getMyPinSelected(kind)}</div>`;
+  }
+  const icon = ML_MAP_ICON[kind] || ML_MAP_ICON.place;
+  return `<div class="map-pin"><img class="map-pin-svg" src="${icon}" width="34" height="34" alt=""></div>`;
+}
+function deselectMyPlaceMarker() {
+  if (_selMyMarker) {
+    try { _selMyMarker.setIcon({ content: myPinContent(_selMyMarker._mlKind, false), anchor: new naver.maps.Point(17, 17) }); } catch (e) {}
+    _selMyMarker = null;
+  }
+}
+function selectMyPlaceMarker(mk) {
+  if (_selMyMarker && _selMyMarker !== mk) deselectMyPlaceMarker();
+  try { mk.setIcon({ content: myPinContent(mk._mlKind, true, mk._mlName), anchor: new naver.maps.Point(24, 45) }); } catch (e) {}
+  _selMyMarker = mk;
+}
+// 선택 시 그 위치로 확대(주변 협찬 확인). 반경 클수록 살짝 덜 확대.
+function focusMyPlaceData(la, ln, r) {
+  let z = 15; if (r >= 4) z = 14; else if (r <= 1) z = 16;
+  try {
+    const c = new naver.maps.LatLng(la, ln);
+    if (typeof map.morph === 'function') map.morph(c, z); else { map.setCenter(c); map.setZoom(z); }
+  } catch (e) { try { map.setCenter(new naver.maps.LatLng(la, ln)); } catch (e2) {} }
+}
+function focusMyPlace(mk) { focusMyPlaceData(mk._mlLat, mk._mlLng, mk._mlRadius || 3); }
+function focusMyPlaceByIndex(i) { const p = _myPlacesForMap[i]; if (p) focusMyPlaceData(p.lat, p.lng, p.radiusKm || 3); }
+window.focusMyPlaceByIndex = focusMyPlaceByIndex;
+
+// ===== 화면 밖 내 장소 엣지 인디케이터 (일정 거리 안일 때만; 멀리 이탈하면 숨김) =====
+let _myPlacesForMap = [];
+let _mlEdgeLayer = null, _mlEdgeBound = false;
+function ensureEdgeLayer() {
+  const mapEl = document.getElementById('map'); if (!mapEl) return null;
+  if (!_mlEdgeLayer || !mapEl.contains(_mlEdgeLayer)) {
+    _mlEdgeLayer = document.createElement('div');
+    _mlEdgeLayer.id = 'mlEdgeLayer'; _mlEdgeLayer.className = 'ml-edge-layer';
+    mapEl.appendChild(_mlEdgeLayer);
+  }
+  return _mlEdgeLayer;
+}
+function mlClampToRect(cx, cy, x, y, minX, maxX, minY, maxY) {
+  const dx = x - cx, dy = y - cy; let t = 1;
+  if (dx > 0) t = Math.min(t, (maxX - cx) / dx); else if (dx < 0) t = Math.min(t, (minX - cx) / dx);
+  if (dy > 0) t = Math.min(t, (maxY - cy) / dy); else if (dy < 0) t = Math.min(t, (minY - cy) / dy);
+  if (!isFinite(t) || t < 0) t = 0;
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+function updateMyPlaceEdges() {
+  const layer = ensureEdgeLayer(); if (!layer) return;
+  // 로그인 + 저장장소 있을 때 · 확대 상태에서만(줌아웃 미표시). 모바일·PC(홈) 공통.
+  if (!currentUser || !_myPlacesForMap.length || typeof map === 'undefined' || !map) { layer.innerHTML = ''; return; }
+  let bounds, size, zoom; try { bounds = map.getBounds(); size = map.getSize(); zoom = map.getZoom(); } catch (e) { layer.innerHTML = ''; return; }
+  if (zoom < 12) { layer.innerHTML = ''; return; }   // 줌아웃(광역/전국)에선 표시 안 함
+  const ne = bounds.getNE(), sw = bounds.getSW();
+  const neLat = ne.lat(), neLng = ne.lng(), swLat = sw.lat(), swLng = sw.lng();
+  const W = size.width, H = size.height, cx = W / 2, cy = H / 2;
+  // 상단 검색·칩 / 하단 시트·GNB 회피 — 하드코딩 대신 실제 요소 위치를 측정(측정 실패 시 상수 폴백).
+  // 모바일: 상단 .mobile-chips-row / 하단 바텀시트 .sidebar. PC(홈): 좌측 사이드바는 맵 밖이라 무관, 맵 위 .pc-map-top만 회피+하단 소폭.
+  const iSide = 16;
+  let iTop = 132, iBottom = 150;
+  try {
+    const mapRect = document.getElementById('map').getBoundingClientRect();
+    if (isMobileView()) {
+      const chips = document.querySelector('.mobile-chips-row');
+      if (chips) { const r = chips.getBoundingClientRect(); if (r.height) iTop = (r.bottom - mapRect.top) + 12; }
+      const sheet = document.querySelector('.sidebar');
+      if (sheet) { const r = sheet.getBoundingClientRect(); if (r.height) iBottom = (mapRect.bottom - r.top) + 12; }
+    } else {
+      const top = document.querySelector('.pc-map-top');
+      if (top) { const r = top.getBoundingClientRect(); iTop = (r.height ? (r.bottom - mapRect.top) : 20) + 12; } else { iTop = 24; }
+      iBottom = 24;
+    }
+  } catch (e) {}
+  const maxDist = Math.hypot(W, H) * 1.6;         // 화면(뷰포트) 상대 거리 — 가장자리 밖 약 1화면까지 유지(줌 따라 자동)
+  const minX = iSide, maxX = W - iSide, minY = iTop, maxY = H - iBottom;
+  let html = '';
+  _myPlacesForMap.forEach((p, i) => {
+    if (!p.lat || !p.lng) return;
+    const x = (p.lng - swLng) / (neLng - swLng) * W;
+    const y = (neLat - p.lat) / (neLat - swLat) * H;
+    if (x >= 0 && x <= W && y >= 0 && y <= H) return;   // 화면 안 → 일반 핀으로 보임
+    if (Math.hypot(x - cx, y - cy) > maxDist) return;   // 멀리 이탈 → 숨김
+    const cl = mlClampToRect(cx, cy, x, y, minX, maxX, minY, maxY);
+    // 닿은 변 판정
+    const atL = cl.x <= minX + 0.5, atR = cl.x >= maxX - 0.5, atT = cl.y <= minY + 0.5, atB = cl.y >= maxY - 0.5;
+    // 장소 방향을 가리키는 화살표 방향(가장 뚜렷한 축)
+    let dir;
+    if ((atL || atR) && (atT || atB)) dir = Math.abs(x - cx) > Math.abs(y - cy) ? (atL ? 'left' : 'right') : (atT ? 'up' : 'down');
+    else if (atL) dir = 'left'; else if (atR) dir = 'right'; else if (atT) dir = 'up'; else dir = 'down';
+    // 칩을 안쪽으로 정렬(잘림 방지)
+    let tx = '-50%', ty = '-50%';
+    if (atL) tx = '0'; else if (atR) tx = '-100%';
+    if (atT) ty = '0'; else if (atB) ty = '-100%';
+    const ico = ML_KIND_ICON[p.kind] || ML_KIND_ICON.place;
+    const label = p.kind === 'home' ? '집' : p.kind === 'work' ? '회사' : (p.name || '장소');
+    html += `<button class="ml-edge-chip dir-${dir}" style="left:${Math.round(cl.x)}px;top:${Math.round(cl.y)}px;transform:translate(${tx},${ty})" onclick="focusMyPlaceByIndex(${i})"><span class="ml-edge-bg"></span><span class="ml-edge-ico">${ico}</span><span class="ml-edge-label">${mlEsc(label)}</span></button>`;
+  });
+  layer.innerHTML = html;
+}
+async function loadMyPlaceMarkers() {
+  if (typeof naver === 'undefined' || !naver.maps || typeof map === 'undefined' || !map) return;
+  _myPlaceMarkers.forEach(m => { try { m.setMap(null); } catch (e) {} });
+  _myPlaceMarkers = []; _selMyMarker = null;
+  if (!currentUser) { _myPlacesForMap = []; updateMyPlaceEdges(); return; }
+  let places = [];
+  try { const r = await fetch('/api/users?places=1', { credentials: 'same-origin' }); if (!r.ok) return; places = await r.json(); } catch (e) { return; }
+  _myPlacesForMap = places;
+  places.forEach(p => {
+    if (!p.lat || !p.lng) return;
+    try {
+      const mk = new naver.maps.Marker({
+        position: new naver.maps.LatLng(p.lat, p.lng), map: map,
+        icon: { content: myPinContent(p.kind, false), anchor: new naver.maps.Point(17, 17) },
+        zIndex: 1000,
+      });
+      mk._mlKind = p.kind; mk._mlLat = p.lat; mk._mlLng = p.lng; mk._mlRadius = p.radiusKm || 3; mk._mlName = p.name || '';
+      naver.maps.Event.addListener(mk, 'click', () => { selectMyPlaceMarker(mk); focusMyPlace(mk); });
+      _myPlaceMarkers.push(mk);
+    } catch (e) {}
+  });
+  // 지도 빈 곳/다른 곳 클릭 시 선택 해제(카테고리 핀과 동일 거동)
+  if (!_myMarkerDeselectBound) { _myMarkerDeselectBound = true; try { naver.maps.Event.addListener(map, 'click', deselectMyPlaceMarker); } catch (e) {} }
+  updateMyPlaceEdges();
+}
+async function renderMyPlaces() {
+  const items = document.getElementById('mlItems');
+  const note = document.getElementById('mlNote');
+  if (!items) return;
+  const info = document.querySelector('#tabView-places .ml-info');
+  const tv = document.getElementById('tabView-places');
+  // 인증 확인 전엔 아무것도 그리지 않음 — 로그인 유저가 열 때 로그인 CTA가 잠깐 떴다 사라지는 깜빡임 방지
+  if (!currentUser && !_authChecked) return;
+  if (!currentUser) {
+    // 로그인 전: 안내/노트 숨기고 캐릭터 empty-state만 (Figma 1750-46580). ml-noauth로 스크롤 없이 중앙 고정.
+    if (tv) tv.classList.add('ml-noauth');
+    if (info) info.style.display = 'none';
+    if (note) note.style.display = 'none';
+    const devBtn = mlIsDevHost()
+      ? '<button class="ml-login-dev" onclick="location.href=\'/api/users?devlogin=1\'">🔧 미리보기 로그인 (dev)</button>'
+      : '';
+    items.innerHTML = '<div class="ml-login">'
+      + '<img class="ml-login-img" src="image/img_my_local_pin.png" alt="" width="200" height="200">'
+      + '<div class="ml-login-cta">'
+      + '<div class="ml-login-texts">'
+      + '<p class="ml-login-text">내 장소를 저장하고<br>협찬을 놓치지 마세요.</p>'
+      + '<p class="ml-login-sub">집·회사·자주 가는 동네 주변의 모집 중인 협찬과<br>새 소식을 한눈에 확인할 수 있어요.</p>'
+      + '</div>'
+      + '<button class="ml-login-btn" onclick="openLoginSheet()">간편 로그인</button></div>'
+      + devBtn + '</div>';
+    return;
+  }
+  if (tv) tv.classList.remove('ml-noauth');
+  if (info) info.style.display = '';
+  if (note) note.style.display = '';
+  try {
+    const res = await fetch('/api/users?places=1', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('load');
+    _myPlaces = await res.json();
+  } catch (e) { _myPlaces = []; }
+  renderMlItems();
+  mlFetchCounts();
+}
+function mlAddRowHtml(kind, label) {
+  return `<button class="ml-addrow" onclick="openMlSetting('${kind}')">
+    <span class="ml-addrow-ico">${ML_KIND_ICON[kind]}</span>
+    <span class="ml-addrow-textwrap"><span class="ml-addrow-label">${label}</span><span class="ml-addrow-chev">${ML_CHEVRON}</span></span></button>`;
+}
+function mlCardHtml(p) {
+  const catList = (p.categories && p.categories.length) ? p.categories : ['전체'];
+  const catsHtml = catList.map(c => `<span class="ml-cat-tag">${mlEsc(c)}</span>`).join('');
+  const cnt = (p._count != null) ? p._count : '–';
+  return `<div class="ml-card" data-mlid="${p.id}" onclick="openMlSetting('${p.kind}', ${p.id})">
+    <div class="ml-card-main">
+      <div class="ml-card-name"><span class="ml-card-ico">${ML_KIND_ICON[p.kind] || ML_KIND_ICON.place}</span>${mlEsc(mlKindLabel(p))}<span class="chev">${ML_CHEVRON}</span></div>
+      ${p.address ? `<div class="ml-card-addr">${mlEsc(p.address)}</div>` : ''}
+      <div class="ml-card-meta" id="mlMeta-${p.id}">모집 중 <b><span class="ml-count">${cnt}</span>건</b> · 반경 ${p.radiusKm || 3}km</div>
+      <div class="ml-card-cats">${catsHtml}</div>
+    </div>
+    <button class="ml-card-bell${p.alarmEnabled ? ' on' : ''}${isMyPlaceAlarmActive() ? '' : ' ml-card-bell-off'}" onclick="event.stopPropagation();mlToggleBell(${p.id})" aria-label="알림">${mlBellSvg(!!p.alarmEnabled)}</button>
+  </div>`;
+}
+// 장소 반경 → bbox(대략). 1°lat≈111km, lng는 위도 보정.
+function mlBbox(lat, lng, r) {
+  const dLat = r / 111;
+  const dLng = r / (111 * Math.max(0.1, Math.cos(lat * Math.PI / 180)));
+  return [lng - dLng, lat - dLat, lng + dLng, lat + dLat];
+}
+// 각 장소 반경 내 활성 캠페인 수(모집 N건)를 병렬 조회해 카드에 채움.
+async function mlFetchCounts() {
+  await Promise.all(_myPlaces.map(async p => {
+    if (!p.lat || !p.lng) return;
+    const [w, s, e, n] = mlBbox(p.lat, p.lng, p.radiusKm || 3);
+    try {
+      const res = await fetch(`/api/campaigns?count=active&bbox=${w},${s},${e},${n}`, { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const j = await res.json();
+      p._count = Number(j.count || 0);
+      const el = document.getElementById('mlMeta-' + p.id);
+      if (el) { const b = el.querySelector('.ml-count'); if (b) b.textContent = p._count; }
+    } catch (e) {}
+  }));
+}
+function renderMlItems() {
+  const items = document.getElementById('mlItems');
+  const home = _myPlaces.find(p => p.kind === 'home');
+  const work = _myPlaces.find(p => p.kind === 'work');
+  const places = _myPlaces.filter(p => p.kind === 'place');
+  let h = '';
+  h += home ? mlCardHtml(home) : mlAddRowHtml('home', '집 추가');
+  h += work ? mlCardHtml(work) : mlAddRowHtml('work', '회사 추가');
+  places.forEach(p => { h += mlCardHtml(p); });
+  h += mlAddRowHtml('place', '장소 추가');
+  items.innerHTML = h;
+}
+
+// ===== PC 내 장소 — 좌측 레일 옆 패널에 모바일 내장소(#tabView-places) 재사용 노출 =====
+// (설계 1769-51903의 플로팅 설정 카드는 후속 정교화. 지금은 리스트+추가/수정 플로우를 PC에서 동작시킴)
+async function openPcMyPlaces() {
+  if (isMobileView()) return;
+  const ov = document.getElementById('mlSettingOverlay'); if (ov && !ov.hidden) ov.hidden = true;  // stale 설정 오버레이 정리
+  try { renderMarkers(); } catch (e) {}  // 홈에서 그려둔 매장 핀 제거(renderMarkers 가드가 pc-myplaces-mode면 미생성)
+  await renderMyPlaces();  // #mlItems 렌더(집/회사/여행지/추가행) + 모집수/벨 (완료 후 _myPlaces 채워짐)
+  // 재진입 시 리스트 스크롤 맨 위로(홈 갔다 오면 display:none→flex 복원으로 이전 스크롤이 남던 것 방지).
+  // 즉시 + 다음 프레임(브라우저 스크롤 복원 이후)에 한 번 더 → 복원이 리셋을 덮지 않게.
+  const resetMlScroll = () => { const b = document.querySelector('#tabView-places .ml-body'); if (b) b.scrollTop = 0; };
+  resetMlScroll();
+  requestAnimationFrame(resetMlScroll);
+  pcPlaceShowDefault();    // 우측 3번째 컬럼 기본 상태(로고 빈 상태)
+}
+function closePcMyPlaces() {
+  const ov = document.getElementById('mlSettingOverlay');
+  if (ov) ov.classList.remove('open');  // 열려있던 설정 오버레이 닫기
+  closePcPlaceSetting();                 // PC 설정 패널/지도 핀·원 정리(탭 이탈)
+}
+
+// ===== PC 집/장소 설정 (3번째 컬럼 패널 + 메인 지도 중앙 핀/반경 원/역지오코딩) =====
+let _pcPlaceCircle = null, _pcPlaceIdle = null, _pcPlaceGeoTimer = null;
+function pcPlaceRenderCats() {
+  const box = document.getElementById('pcPlaceCats'); if (!box || !_mlDraft) return;
+  const allOn = !(_mlDraft.categories && _mlDraft.categories.length);
+  let h = `<button class="ml-cat-chip${allOn ? ' on' : ''}" onclick="pcPlaceToggleCat('전체')">전체</button>`;
+  h += ML_CATS.map(c => `<button class="ml-cat-chip${_mlDraft.categories.indexOf(c) >= 0 ? ' on' : ''}" onclick="pcPlaceToggleCat('${mlEsc(c)}')">${mlEsc(c)}</button>`).join('');
+  box.innerHTML = h;
+}
+function pcPlaceToggleCat(c) {
+  if (!_mlDraft) return;
+  if (c === '전체') { _mlDraft.categories = []; }
+  else { const i = _mlDraft.categories.indexOf(c); if (i >= 0) _mlDraft.categories.splice(i, 1); else _mlDraft.categories.push(c); }
+  pcPlaceRenderCats();
+}
+function pcPlaceOnRadius(v) {
+  if (!_mlDraft) return;
+  v = Math.round(Number(v) * 10) / 10; // 0.1 단위(모바일 mlOnRadius와 동일)
+  _mlDraft.radiusKm = v;
+  const val = document.getElementById('pcPlaceRadVal'); if (val) val.textContent = v + 'km';
+  const el = document.getElementById('pcPlaceRadius');
+  if (el) { const pct = (v - 1) / 4 * 100; el.style.background = `linear-gradient(90deg,#e82a2d 0%,#e82a2d ${pct}%,#ededee ${pct}%)`; }
+  pcPlaceUpdateCircle();
+}
+function pcPlaceUpdateCircle() {
+  if (typeof map === 'undefined' || !map || typeof naver === 'undefined' || !naver.maps.Circle) return;
+  const c = map.getCenter();
+  const radiusM = ((_mlDraft && _mlDraft.radiusKm) || 3) * 1000;
+  if (!_pcPlaceCircle) _pcPlaceCircle = new naver.maps.Circle({ map: map, center: c, radius: radiusM, strokeColor: '#E82A2D', strokeOpacity: 0.5, strokeWeight: 1, fillColor: '#E82A2D', fillOpacity: 0.08 });
+  else { _pcPlaceCircle.setMap(map); _pcPlaceCircle.setCenter(c); _pcPlaceCircle.setRadius(radiusM); }
+}
+function pcPlaceFitRadius() {
+  try { if (_pcPlaceCircle) map.fitBounds(_pcPlaceCircle.getBounds(), 20); } catch (e) {}
+}
+function pcPlaceLiveAddr() {
+  if (typeof naver === 'undefined' || !naver.maps.Service || !_mlDraft) return;
+  const c = map.getCenter();
+  _mlDraft.lat = c.lat(); _mlDraft.lng = c.lng();
+  naver.maps.Service.reverseGeocode({ coords: c, orders: 'legalcode,admcode,roadaddr,addr' }, (status, response) => {
+    let dong = '';
+    if (status === naver.maps.Service.Status.OK) {
+      try { const reg = response.v2.results[0].region; dong = [reg.area1 && reg.area1.name, reg.area2 && reg.area2.name, reg.area3 && reg.area3.name].filter(Boolean).join(' '); } catch (e) {}
+      if (!dong) { try { dong = response.v2.address.jibunAddress || response.v2.address.roadAddress || ''; } catch (e) {} }
+    }
+    _mlDraft.address = dong;
+    const el = document.getElementById('pcPlaceAddr'); if (el) el.textContent = dong || '선택한 위치';
+  });
+}
+function openPcPlaceSetting(kind, id) {
+  const editing = _myPlaces.find(p => p.id === id) || null;
+  _mlDraft = editing
+    ? { id: editing.id, kind: editing.kind, name: editing.name, address: editing.address, lat: editing.lat, lng: editing.lng, radiusKm: editing.radiusKm || 3, categories: (editing.categories || []).slice(), alarmEnabled: !!editing.alarmEnabled }
+    : { kind: kind, name: kind === 'home' ? '집' : kind === 'work' ? '회사' : '', address: '', lat: null, lng: null, radiusKm: 3, categories: [], alarmEnabled: false };
+  const kLabel = kind === 'home' ? '집' : kind === 'work' ? '회사' : '장소';
+  document.getElementById('pcPlaceTitle').textContent = kLabel + ' 설정';
+  document.getElementById('pcPlaceAddrIco').innerHTML = ML_KIND_ICON[kind] || ML_KIND_ICON.place;
+  document.getElementById('pcPlaceAddr').textContent = _mlDraft.address || '지도를 움직여 위치를 맞춰주세요';
+  const nf = document.getElementById('pcPlaceNameField'); nf.hidden = (kind !== 'place');
+  const nameEl = document.getElementById('pcPlaceName'); nameEl.value = (kind === 'place') ? (_mlDraft.name || '') : ''; nameEl.classList.remove('input-error');
+  document.getElementById('pcPlaceRadius').value = _mlDraft.radiusKm;
+  pcPlaceOnRadius(_mlDraft.radiusKm);
+  document.getElementById('pcPlaceAlarm').checked = _mlDraft.alarmEnabled;
+  document.getElementById('pcPlaceDel').hidden = !editing;
+  document.getElementById('pcPlaceSaveBtn').textContent = editing ? '수정' : '저장';
+  pcPlaceRenderCats();
+  // 선택: 빈 상태(로고) 숨기고 설정 폼+지도 노출(CSS는 pc-place-editing 기준) + 선택 행 하이라이트
+  const form = document.getElementById('pcPlaceForm'); if (form) form.hidden = false;
+  pcPlaceSelectRow(editing ? editing.id : null);
+  document.body.classList.add('pc-place-editing');
+  pcPlaceToggleMyMarkers(false);  // 설정 중엔 저장된 내 장소 핀 숨김(중앙 핀+반경만)
+  if (editing && editing.lat != null) { try { map.setCenter(new naver.maps.LatLng(editing.lat, editing.lng)); } catch (e) {} }
+  setTimeout(() => {
+    try { naver.maps.Event.trigger(map, 'resize'); } catch (e) {}
+    pcPlaceUpdateCircle(); pcPlaceFitRadius(); pcPlaceLiveAddr();
+  }, 80);
+  if (!_pcPlaceIdle) {
+    _pcPlaceIdle = naver.maps.Event.addListener(map, 'idle', () => {
+      if (!document.body.classList.contains('pc-place-editing')) return;
+      pcPlaceUpdateCircle();
+      clearTimeout(_pcPlaceGeoTimer); _pcPlaceGeoTimer = setTimeout(pcPlaceLiveAddr, 150);
+    });
+  }
+}
+// 내 장소 선택 전 기본 상태 = 로고 워터마크(CSS가 `pc-place-editing` 없을 때 #pcPlaceEmpty 노출/지도·설정 숨김).
+// 폼 닫고 편집모드 해제 + 원/선택 정리만 하면 CSS가 빈 상태를 그림.
+function pcPlaceShowDefault() {
+  const form = document.getElementById('pcPlaceForm'); if (form) form.hidden = true;
+  document.body.classList.remove('pc-place-editing');
+  if (_pcPlaceCircle) { try { _pcPlaceCircle.setMap(null); } catch (e) {} }
+  pcPlaceClearSelected();
+  pcPlaceToggleMyMarkers(true);  // 설정 종료: 저장된 내 장소 핀 복원
+}
+// 설정 중엔 지금 잡는 장소의 중앙 핀+반경만 보이게, 저장된 내 장소 핀(집 등)은 숨김(결정: 숨김)
+function pcPlaceToggleMyMarkers(show) {
+  if (!Array.isArray(_myPlaceMarkers)) return;
+  _myPlaceMarkers.forEach(m => { try { m.setMap(show ? map : null); } catch (e) {} });
+}
+// 탭 이탈 등 완전 닫기 — 기본 상태와 동일 처리(빈 상태는 pc-myplaces-mode 벗어나면 CSS로 자동 숨김)
+function closePcPlaceSetting() { pcPlaceShowDefault(); }
+// 선택 행 하이라이트(디자인 1769-51903: 연한 회색 full-bleed)
+function pcPlaceClearSelected() {
+  document.querySelectorAll('#mlItems .ml-card.pc-selected').forEach(el => el.classList.remove('pc-selected'));
+}
+function pcPlaceSelectRow(id) {
+  pcPlaceClearSelected();
+  if (id == null) return;
+  const el = document.querySelector('#mlItems .ml-card[data-mlid="' + id + '"]');
+  if (el) el.classList.add('pc-selected');
+}
+async function pcPlaceSave() {
+  if (!_mlDraft || _mlDraft.lat == null) { showToast('지도에서 위치를 먼저 맞춰주세요'); return; }
+  if (_mlDraft.kind === 'place') {
+    const nm = (document.getElementById('pcPlaceName').value || '').trim();
+    if (!nm) { document.getElementById('pcPlaceName').classList.add('input-error'); showToast('장소명을 입력해주세요.'); return; }
+    if (nm.length > 8) { document.getElementById('pcPlaceName').classList.add('input-error'); showToast('장소명은 8자 이내로 입력해주세요.'); return; }
+    _mlDraft.name = nm;
+  }
+  _mlDraft.alarmEnabled = document.getElementById('pcPlaceAlarm').checked;
+  const btn = document.getElementById('pcPlaceSaveBtn'); if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/users?places=save', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(_mlDraft) });
+    if (btn) btn.disabled = false;
+    if (!res.ok) { const e = await res.json().catch(() => ({})); showToast(e.error === 'limit_reached' ? '내 장소는 최대 10개까지예요' : '저장에 실패했어요'); return; }
+    await renderMyPlaces();
+    loadMyPlaceMarkers();
+    pcPlaceShowDefault();  // 폼 닫고 기본 상태(안내문구)로 복귀
+  } catch (e) { if (btn) btn.disabled = false; showToast('저장에 실패했어요'); }
+}
+function pcPlaceDelete() {
+  if (!_mlDraft || !_mlDraft.id) return;
+  const id = _mlDraft.id;
+  showAlert('이 장소를 삭제할까요?', '저장한 반경·카테고리·알림 설정이 사라져요.', { twoButton: true, cancelText: '취소', confirmText: '삭제하기', header: '장소 삭제', align: 'left',
+    onConfirm: async () => { try { await fetch('/api/users?places=1&id=' + id, { method: 'DELETE', credentials: 'same-origin' }); await renderMyPlaces(); loadMyPlaceMarkers(); pcPlaceShowDefault(); } catch (e) {} } });
+}
+
+// ----- 설정(등록/수정) 화면 -----
+let _mlDraft = null;      // { id?, kind, name, address, lat, lng, radiusKm, categories[], alarmEnabled }
+let _mlMap = null;
+let _mlConfirmed = false; // 위치 선택(리버스지오코딩) 완료 여부
+let _mlEntryStep = 1;     // 진입점(1=신규 지도선택 / 2=편집 정보화면) — 뒤로/닫기 분기용
+function openMlSetting(kind, id) {
+  if (!isMobileView()) { openPcPlaceSetting(kind, id); return; }  // PC는 3번째 컬럼 설정 패널
+  const editing = _myPlaces.find(p => p.id === id) || null;
+  _mlDraft = editing
+    ? { id: editing.id, kind: editing.kind, name: editing.name, address: editing.address, lat: editing.lat, lng: editing.lng, radiusKm: editing.radiusKm || 3, categories: (editing.categories || []).slice(), alarmEnabled: !!editing.alarmEnabled }
+    : { kind: kind, name: kind === 'home' ? '집' : kind === 'work' ? '회사' : '', address: '', lat: null, lng: null, radiusKm: 3, categories: [], alarmEnabled: false };
+  _mlConfirmed = !!(editing && editing.lat);
+  const kLabel = kind === 'home' ? '집' : kind === 'work' ? '회사' : '장소';
+  document.getElementById('mlSetTitle').textContent = kLabel + ' 설정';
+  document.getElementById('mlSetStickyTitle').textContent = kLabel + ' 설정';
+  document.getElementById('mlSetSelectBtn').textContent = kind === 'place' ? '이 위치로 선택' : `이 위치를 ${kLabel}으로 선택`;
+  const icon = ML_KIND_ICON[kind] || ML_KIND_ICON.place;
+  document.getElementById('mlSetAddrIco').innerHTML = icon;
+  document.getElementById('mlSetAddrIco2').innerHTML = icon;
+  document.getElementById('mlSetPinIco').innerHTML = icon;
+  document.getElementById('mlSetAddrText').textContent = _mlDraft.address || '지도를 움직여 위치를 맞춰주세요';
+  document.getElementById('mlSetAddrText2').textContent = _mlDraft.address || '선택한 위치';
+  // 장소명 입력: 여행지(place)만 노출
+  const nameField = document.getElementById('mlSetNameField');
+  nameField.hidden = (kind !== 'place');
+  document.getElementById('mlSetName').value = (kind === 'place') ? (_mlDraft.name || '') : '';
+  mlClearNameError();
+  document.getElementById('mlSetRadius').value = _mlDraft.radiusKm;
+  mlOnRadius(_mlDraft.radiusKm);
+  document.getElementById('mlSetAlarm').checked = _mlDraft.alarmEnabled;
+  document.getElementById('mlSetDelete').hidden = !editing;
+  const saveBtn = document.querySelector('.ml-set-save');
+  if (saveBtn) { saveBtn.textContent = editing ? '수정' : '저장'; saveBtn.disabled = false; }
+  const s1search = document.getElementById('mlStep1Search'); if (s1search) s1search.value = '';
+  mlRenderCats();
+  document.getElementById('mlSettingOverlay').hidden = false;
+  // 중심 좌표: 편집중이면 저장위치, 아니면 현재 지도 중심(또는 서울)
+  let center;
+  try { center = (_mlDraft.lat) ? new naver.maps.LatLng(_mlDraft.lat, _mlDraft.lng) : (map ? map.getCenter() : new naver.maps.LatLng(37.5665, 126.978)); }
+  catch (e) { center = new naver.maps.LatLng(37.5665, 126.978); }
+  mlInitSetMap(center);
+  // 편집(위치 있음)이면 바로 정보(step2)가 진입점, 신규면 지도선택(step1)이 진입점
+  _mlEntryStep = (editing && editing.lat) ? 2 : 1;
+  mlShowStep(_mlEntryStep);
+}
+// step1 X(닫기): 편집에서 '변경'으로 들어온 경우(진입점 step2)면 step2로 복귀, 신규면 전체 닫기
+function mlStep1Close() { if (_mlEntryStep === 2) mlShowStep(2); else closeMlSetting(); }
+// step2 뒤로(‹): 편집 진입(step2가 루트)이면 전체 닫기, 신규(step1→step2)면 step1로
+function mlStep2Back() { if (_mlEntryStep === 2) closeMlSetting(); else mlShowStep(1); }
+// 단계 전환 — 지도 1개(#mlMapWrap)를 해당 step 슬롯으로 이동 + 드래그 가능여부 토글 + 리레이아웃
+function mlShowStep(n) {
+  const wrap = document.getElementById('mlMapWrap');
+  const slot = document.getElementById(n === 1 ? 'mlStep1Mapslot' : 'mlStep2Mapslot');
+  if (wrap && slot && wrap.parentElement !== slot) slot.appendChild(wrap);
+  document.getElementById('mlStep1').hidden = (n !== 1);
+  document.getElementById('mlStep2').hidden = (n !== 2);
+  document.body.classList.toggle('mlset-step2-mode', n === 2);
+  // step1: 하단 패널 높이를 CSS 변수로 → 현재위치 버튼이 패널 위로 뜨게
+  if (n === 1) {
+    const panel = document.querySelector('#mlStep1 .mlset-s1-card');
+    const s1 = document.getElementById('mlStep1');
+    if (panel && s1) s1.style.setProperty('--mlset-panel-h', panel.offsetHeight + 'px');
+  }
+  // step2: 전체 스크롤 + 스크롤 시 컴팩트 sticky 헤더(제보/신고와 동일)
+  if (n === 2) {
+    const sc = document.getElementById('mlSetS2Scroll'); if (sc) sc.scrollTop = 0;
+    const sticky = document.getElementById('mlSetS2Sticky'); if (sticky) sticky.classList.remove('show');
+    bindMobileScrollHeader('mlSetS2Scroll', 'mlSetS2ScrollHeader', 'mlSetS2Sticky');
+  }
+  if (_mlMap) {
+    try { _mlMap.setOptions({ draggable: n === 1, pinchZoom: n === 1, scrollWheel: n === 1, disableKineticPan: n !== 1, disableDoubleClickZoom: n !== 1, disableDoubleTapZoom: n !== 1 }); } catch (e) {}
+  }
+  setTimeout(() => {
+    try {
+      naver.maps.Event.trigger(_mlMap, 'resize');
+      if (_mlDraft && _mlDraft.lat) _mlMap.setCenter(new naver.maps.LatLng(_mlDraft.lat, _mlDraft.lng));
+    } catch (e) {}
+    mlPositionNaverLogo(n === 1);
+    mlUpdateRadiusCircle(); // step2 반경 원 표시+줌맞춤 / step1 숨김
+    setTimeout(() => { mlPositionNaverLogo(n === 1); mlUpdateRadiusCircle(); }, 250); // 네이버 resize 재배치 뒤 한 번 더
+  }, 60);
+}
+function mlBackToStep1() { mlShowStep(1); }
+// 네이버 로고(지도 좌하단 고정 컨트롤)를 step1 하단 패널 위로 올림. step2(미리보기)에선 원위치(하단).
+function mlPositionNaverLogo(lift) {
+  try {
+    const img = document.querySelector('#mlSetMap img[src*="naver-logo"]');
+    if (!img) return;
+    let el = img;
+    for (let i = 0; i < 5; i++) {
+      el = el.parentElement;
+      if (!el || el.id === 'mlSetMap') { el = null; break; }
+      if (getComputedStyle(el).position === 'absolute') break;
+    }
+    if (!el) return;
+    // step1: 지도가 패널 라운드선까지라 하단이 곧 패널 위 → 작은 오프셋이면 패널 위로 노출. step2 미리보기: 하단.
+    el.style.setProperty('top', 'auto', 'important');
+    el.style.setProperty('bottom', (lift ? 26 : 6) + 'px', 'important');
+  } catch (e) {}
+}
+// step1 검색 — 지역/주소는 geocode, 매장/역 등은 지역검색(POI) 폴백 → 피커 지도 재중심
+function mlStep1DoSearch() {
+  const q = (document.getElementById('mlStep1Search').value || '').trim();
+  if (!q || !_mlMap || !naver.maps.Service) return;
+  const recenter = (y, x, z) => { try { _mlMap.setCenter(new naver.maps.LatLng(y, x)); _mlMap.setZoom(z); } catch (e) {} };
+  naver.maps.Service.geocode({ query: q }, (status, resp) => {
+    const it = resp && resp.v2 && resp.v2.addresses && resp.v2.addresses[0];
+    if (status === naver.maps.Service.Status.OK && it) {
+      const y = parseFloat(it.y), x = parseFloat(it.x);
+      if (y >= 33 && y <= 39 && x >= 124 && x <= 132) { recenter(y, x, 15); return; }
+    }
+    // 폴백: 네이버 지역검색(POI/역/매장) → 그 주소 geocode
+    fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => (r.ok ? r.json() : [])).then(items => {
+      const top = Array.isArray(items) ? items[0] : null;
+      const addr = top && (top.roadAddress || top.address);
+      if (addr) naver.maps.Service.geocode({ query: addr }, (s2, r2) => {
+        const a = r2 && r2.v2 && r2.v2.addresses && r2.v2.addresses[0];
+        if (s2 === naver.maps.Service.Status.OK && a) recenter(parseFloat(a.y), parseFloat(a.x), 16);
+      });
+      else if (typeof showToast === 'function') showToast('검색 결과가 없어요');
+    }).catch(() => {});
+  });
+}
+function closeMlSetting() {
+  const ov = document.getElementById('mlSettingOverlay');
+  const done = () => { ov.hidden = true; ov.classList.remove('mlset-closing'); document.body.classList.remove('mlset-step2-mode'); };
+  if (!isMobileView() || ov.hidden) { done(); return; }
+  ov.classList.add('mlset-closing');
+  setTimeout(done, 250);
+}
+let _mlIdleBound = false, _mlLiveTimer = null;
+function mlInitSetMap(center) {
+  const el = document.getElementById('mlSetMap');
+  if (!el || typeof naver === 'undefined' || !naver.maps) return;
+  if (!_mlMap) {
+    _mlMap = new naver.maps.Map(el, { center: center, zoom: 15, mapDataControl: false, scaleControl: false, logoControl: true, logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT }, mapTypeControl: false, zoomControl: false });
+  } else {
+    _mlMap.setCenter(center);
+  }
+  // 지도 이동 멈출 때마다(step1에서만) 중심 주소를 실시간 갱신 — 디바운스로 과호출 방지
+  if (!_mlIdleBound) {
+    _mlIdleBound = true;
+    naver.maps.Event.addListener(_mlMap, 'idle', () => {
+      const s1 = document.getElementById('mlStep1');
+      if (!s1 || s1.hidden || document.getElementById('mlSettingOverlay').hidden) return;
+      mlPositionNaverLogo(true); // 패널 위로 유지(resize/이동 후 재적용)
+      clearTimeout(_mlLiveTimer);
+      _mlLiveTimer = setTimeout(mlLiveUpdateAddr, 400);
+    });
+  }
+  // 숨김 컨테이너에서 만들어졌을 수 있어 표시 후 리레이아웃
+  setTimeout(() => { try { naver.maps.Event.trigger(_mlMap, 'resize'); _mlMap.setCenter(center); } catch (e) {} }, 60);
+}
+function mlOnRadius(v) {
+  v = Math.round(Number(v) * 10) / 10; // 0.1 단위
+  _mlDraft.radiusKm = v;
+  document.getElementById('mlSetRadiusVal').textContent = v + 'km';
+  // 슬라이더 왼쪽 빨강 채움(1~5 → 0~100%)
+  const el = document.getElementById('mlSetRadius');
+  if (el) { const pct = (v - 1) / 4 * 100; el.style.background = `linear-gradient(90deg, #e82a2d 0%, #e82a2d ${pct}%, #ededee ${pct}%)`; }
+  mlUpdateRadiusCircle();
+}
+// step2 미리보기 지도에 '협찬 볼 반경'을 빨간 원으로 표시 + 그 원이 꽉 차도록 줌 자동조절
+let _mlCircle = null, _mlFitTimer = null;
+// 지오 반경 원(naver.maps.Circle) + fitBounds로 미리보기에 맞춰 줌. 얇고 연한 빨강.
+function mlUpdateRadiusCircle() {
+  if (!_mlMap || typeof naver === 'undefined' || !naver.maps || !naver.maps.Circle) return;
+  const step2 = document.getElementById('mlStep2');
+  const show = step2 && !step2.hidden && _mlDraft && _mlDraft.lat != null;
+  if (!show) { if (_mlCircle) _mlCircle.setMap(null); return; }
+  const center = new naver.maps.LatLng(_mlDraft.lat, _mlDraft.lng);
+  const radiusM = (_mlDraft.radiusKm || 3) * 1000;
+  if (!_mlCircle) {
+    _mlCircle = new naver.maps.Circle({ map: _mlMap, center: center, radius: radiusM, strokeColor: '#E82A2D', strokeOpacity: 0.5, strokeWeight: 1, fillColor: '#E82A2D', fillOpacity: 0.06 });
+  } else {
+    _mlCircle.setMap(_mlMap); _mlCircle.setCenter(center); _mlCircle.setRadius(radiusM);
+  }
+  // 반경이 미리보기에 꽉 차도록 줌 맞춤(드래그 중 과도한 재줌 방지로 디바운스)
+  clearTimeout(_mlFitTimer);
+  _mlFitTimer = setTimeout(() => { try { _mlMap.fitBounds(_mlCircle.getBounds(), 12); } catch (e) {} }, 110);
+}
+// 카테고리: '전체'(=필터 없음) + 개별. 전체 선택 시 개별 해제, 개별 선택 시 전체 자동 해제.
+function mlRenderCats() {
+  const box = document.getElementById('mlSetCats');
+  const allOn = !(_mlDraft.categories && _mlDraft.categories.length);
+  let h = `<button class="ml-cat-chip${allOn ? ' on' : ''}" onclick="mlToggleCat('전체')">전체</button>`;
+  h += ML_CATS.map(c =>
+    `<button class="ml-cat-chip${_mlDraft.categories.indexOf(c) >= 0 ? ' on' : ''}" onclick="mlToggleCat('${mlEsc(c)}')">${mlEsc(c)}</button>`
+  ).join('');
+  box.innerHTML = h;
+}
+function mlToggleCat(c) {
+  if (c === '전체') { _mlDraft.categories = []; mlRenderCats(); return; }
+  const i = _mlDraft.categories.indexOf(c);
+  if (i >= 0) _mlDraft.categories.splice(i, 1); else _mlDraft.categories.push(c);
+  mlRenderCats();
+}
+function mlUpdateSaveState() {
+  const btn = document.querySelector('.ml-set-save');
+  if (btn) btn.disabled = !_mlConfirmed;
+}
+function mlReverseGeocode(cb) {
+  if (!_mlMap || !naver.maps.Service) { cb(null); return; }
+  const c = _mlMap.getCenter(); // 지도가 패널 라운드까지만 → 중심=핀 위치. 픽셀 변환 불필요
+  naver.maps.Service.reverseGeocode({ coords: c, orders: 'legalcode,admcode,roadaddr,addr' }, (status, response) => {
+    if (status !== naver.maps.Service.Status.OK) { cb({ lat: c.lat(), lng: c.lng(), address: '' }); return; }
+    let dong = '';
+    try {
+      const reg = response.v2.results[0].region;
+      dong = [reg.area1 && reg.area1.name, reg.area2 && reg.area2.name, reg.area3 && reg.area3.name].filter(Boolean).join(' ');
+    } catch (e) {}
+    if (!dong) { try { dong = response.v2.address.jibunAddress || response.v2.address.roadAddress || ''; } catch (e) {} }
+    cb({ lat: c.lat(), lng: c.lng(), address: dong });
+  });
+}
+// step1 지도 이동 시 버튼 위 주소 실시간 갱신(확정 전 미리보기)
+function mlLiveUpdateAddr() {
+  mlReverseGeocode(r => {
+    if (!r) return;
+    const el = document.getElementById('mlSetAddrText');
+    if (el) el.textContent = r.address || '선택한 위치';
+  });
+}
+function mlConfirmLocation() {
+  mlReverseGeocode(r => {
+    if (!r) return;
+    _mlDraft.lat = r.lat; _mlDraft.lng = r.lng; _mlDraft.address = r.address;
+    const addr = r.address || '선택한 위치';
+    document.getElementById('mlSetAddrText').textContent = addr;
+    document.getElementById('mlSetAddrText2').textContent = addr;
+    _mlConfirmed = true;
+    mlShowStep(2); // 정보 입력 단계로
+  });
+}
+function mlSettingMyLocation() {
+  if (!_mlMap) return;
+  const secure = (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+  if (!navigator.geolocation || !secure) {
+    if (typeof showToast === 'function') showToast(secure ? '이 브라우저에서 위치를 쓸 수 없어요' : '현재 위치는 배포(https)에서 동작해요');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos => {
+    try { _mlMap.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude)); } catch (e) {}
+  }, () => {
+    if (typeof showToast === 'function') showToast('위치 권한을 허용해주세요');
+  }, { enableHighAccuracy: true, timeout: 8000 });
+}
+// 장소명 인라인 에러(입력행 아래 빨간 메시지 + 빨간 테두리) — 제보/후기 field-error 패턴 재사용
+function mlSetNameError(msg) {
+  const err = document.getElementById('mlNameError');
+  const input = document.getElementById('mlSetName');
+  if (err) { err.textContent = msg; err.classList.add('show'); }
+  if (input) { input.classList.add('input-error'); input.focus(); }
+}
+function mlClearNameError() {
+  const err = document.getElementById('mlNameError');
+  const input = document.getElementById('mlSetName');
+  if (err) { err.textContent = ''; err.classList.remove('show'); }
+  if (input) input.classList.remove('input-error');
+}
+async function mlSave() {
+  if (!_mlConfirmed || !_mlDraft.lat) { if (typeof showToast === 'function') showToast('지도에서 위치를 먼저 선택해주세요'); return; }
+  // 여행지(place)는 장소명 필수(최대 8자) — 입력행 아래 빨간 노티(제보/후기와 동일 field-error 패턴)
+  if (_mlDraft.kind === 'place') {
+    const nm = (document.getElementById('mlSetName').value || '').trim();
+    if (!nm) { mlSetNameError('장소명을 입력해주세요.'); return; }
+    if (nm.length > 8) { mlSetNameError('장소명은 8자 이내로 입력해주세요.'); return; }
+    _mlDraft.name = nm;
+  }
+  _mlDraft.alarmEnabled = document.getElementById('mlSetAlarm').checked;
+  const btn = document.querySelector('.ml-set-save');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/users?places=save', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(_mlDraft),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      if (typeof showToast === 'function') showToast(e.error === 'limit_reached' ? '내 장소는 최대 10개까지예요' : '저장에 실패했어요');
+      if (btn) btn.disabled = false;
+      return;
+    }
+    closeMlSetting();
+    await renderMyPlaces();
+    loadMyPlaceMarkers();
+  } catch (e) { if (btn) btn.disabled = false; if (typeof showToast === 'function') showToast('저장에 실패했어요'); }
+}
+function mlDelete() {
+  if (!_mlDraft || !_mlDraft.id) return;
+  const id = _mlDraft.id;
+  // 회원탈퇴와 동일 UI(범용 확인 팝업)로 삭제 확인
+  showAlert('이 장소를 삭제할까요?', '저장한 반경·카테고리·알림 설정이 사라져요.', {
+    twoButton: true, cancelText: '취소', confirmText: '삭제하기', header: '장소 삭제', align: 'left',
+    onConfirm: async () => {
+      try {
+        await fetch('/api/users?places=1&id=' + id, { method: 'DELETE', credentials: 'same-origin' });
+        closeMlSetting();
+        await renderMyPlaces();
+        loadMyPlaceMarkers();
+      } catch (e) {}
+    },
+  });
+}
+async function mlToggleBell(id) {
+  if (!isMyPlaceAlarmActive()) { if (typeof showToast === 'function') showToast("MY > 알림설정에서 '내 장소 신규 협찬' 알림을 먼저 켜주세요."); return; }
+  const p = _myPlaces.find(x => x.id === id);
+  if (!p) return;
+  p.alarmEnabled = !p.alarmEnabled;
+  renderMlItems();
+  try {
+    await fetch('/api/users?places=save', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: p.id, kind: p.kind, name: p.name, address: p.address, lat: p.lat, lng: p.lng, radiusKm: p.radiusKm, categories: p.categories, alarmEnabled: p.alarmEnabled }),
+    });
+  } catch (e) {}
+}
+window.openMlSetting = openMlSetting;
+window.closeMlSetting = closeMlSetting;
+window.mlConfirmLocation = mlConfirmLocation;
+window.mlBackToStep1 = mlBackToStep1;
+window.mlStep1Close = mlStep1Close;
+window.mlStep2Back = mlStep2Back;
+window.mlClearNameError = mlClearNameError;
+window.mlStep1DoSearch = mlStep1DoSearch;
+// 해상도/방향 변화 시 step1 핀·패널·로고 재정렬(반응형)
+let _mlResizeTimer = null;
+window.addEventListener('resize', () => {
+  const s1 = document.getElementById('mlStep1');
+  if (!s1 || s1.hidden) return;
+  clearTimeout(_mlResizeTimer);
+  _mlResizeTimer = setTimeout(() => {
+    const panel = s1.querySelector('.mlset-s1-card');
+    if (panel) s1.style.setProperty('--mlset-panel-h', panel.offsetHeight + 'px');
+    try { naver.maps.Event.trigger(_mlMap, 'resize'); } catch (e) {}
+    mlPositionNaverLogo(true);
+  }, 200);
+});
+window.mlSettingMyLocation = mlSettingMyLocation;
+window.mlOnRadius = mlOnRadius;
+window.mlToggleCat = mlToggleCat;
+window.mlSave = mlSave;
+window.mlDelete = mlDelete;
+window.mlToggleBell = mlToggleBell;
+
 // ===== 간편로그인 =====
 let currentUser = null;
+let _authChecked = false; // /api/auth/me 응답 수신 여부 — 확인 전엔 로그인 CTA를 그리지 않아 깜빡임 방지
 
 async function refreshAuthUI() {
   try {
@@ -2549,7 +4251,11 @@ async function refreshAuthUI() {
   } catch (e) {
     currentUser = null;
   }
+  _authChecked = true;
   const loggedIn = !!currentUser;
+  // 로그인 상태에 따라 갱신되는 탭들 먼저 처리 — 아래 PC/사이드메뉴/마커 로직 중 하나가 실패해도 항상 반영되도록 앞에 둠
+  renderMyPage();       // MY 탭
+  renderMyPlaces();     // 내 장소 탭(로그아웃 시 로그인 CTA로 전환)
   // PC 하단 MY 영역 (로그인 전: 간편로그인 안내 / 로그인 후: 아바타+닉네임+로그아웃)
   const pcMyGuest = document.getElementById('pcNavMyGuest');
   const pcMyUser = document.getElementById('pcNavMyUser');
@@ -2574,8 +4280,16 @@ async function refreshAuthUI() {
       sideProviderIcon.src = providerIconSrc(currentUser.provider);
     }
   }
-  // 내 정보 패널이 열려 있으면 로그인 상태 변화 반영
-  if (document.body.classList.contains('pc-myinfo-mode')) openMyInfoPanel();
+  // PC MY 패널이 열려 있으면 로그인 상태 변화 반영(메뉴 패널 재렌더 + 회원정보관리 열려 있으면 재채움)
+  if (document.body.classList.contains('pc-myinfo-mode')) {
+    renderMyPage();
+    if (document.getElementById('profileOverlay')?.classList.contains('open')) {
+      showProfileMode(loggedIn ? 'in' : 'out');
+      if (loggedIn) populateProfileFields();
+    }
+  }
+  // 홈 지도에 내 장소(집/회사/여행지) 마커 갱신 (로그인/로그아웃 반영)
+  loadMyPlaceMarkers();
 }
 
 // 로그인 provider별 아이콘 (카카오/네이버/애플) — 닉네임 앞 표시용
@@ -2632,7 +4346,7 @@ async function appleSignIn() {
   }
 }
 function closeLoginSheet() {
-  document.getElementById('loginOverlay').classList.remove('open');
+  closeSheetSlide('loginOverlay');
 }
 
 // 이메일 형식 검증 (빈 값은 선택이라 호출 전에 분기)
@@ -2681,15 +4395,22 @@ function closeSignupDone() {
   document.getElementById('signupDoneOverlay').classList.remove('open');
 }
 
-async function logout() {
-  await fetch('/api/auth/logout', { method: 'POST' });
+// 로그아웃 버튼 → 회원탈퇴처럼 확인 바텀시트 먼저 노출
+function logout() {
+  document.getElementById('logoutConfirmOverlay').classList.add('open');
+}
+function closeLogoutConfirm() {
+  document.getElementById('logoutConfirmOverlay').classList.remove('open');
+}
+async function confirmLogout() {
+  closeLogoutConfirm();
+  await doLogout();
+}
+async function doLogout() {
+  try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
   currentUser = null;
-  refreshAuthUI();
-  // 제보 모달이 열려 있으면 '내 이름 남기기'를 즉시 비로그인 상태로 갱신
-  const modalOpen = document.getElementById('modalOverlay');
-  if (modalOpen && (modalOpen.classList.contains('open') || modalOpen.classList.contains('show'))) {
-    syncFounderSection();
-  }
+  // 로그아웃 후 홈으로 이동 + 전체 새로고침(비로그인 상태로 깨끗하게 초기화). replace로 뒤로가기 시 로그인 상태 복귀 방지.
+  window.location.replace('/');
 }
 
 function formatJoinDate(raw) {
@@ -2720,6 +4441,89 @@ function populateProfileFields() {
   syncSelectTrigger('profileUrlPlatform');
   updateUrlPlatform(currentUser.urlPlatform || '', 'profile', true);
   document.getElementById('profileUrlId').value = currentUser.urlId || '';
+  // 프로필 사진 미리보기 초기화(변경 전 상태)
+  _pendingProfileImage = undefined;
+  const pimg = document.getElementById('profilePhotoImg');
+  if (pimg) pimg.src = currentUser.profileImage || 'image/img_profile_login.png?v=2';
+  const pnick = document.getElementById('profileNickname');
+  if (pnick) pnick.textContent = currentUser.nickname || '';
+  const pinput = document.getElementById('profilePhotoInput');
+  if (pinput) pinput.value = '';
+}
+// 프로필 사진 변경 상태: undefined=변경없음 / ''=기본으로 / dataURI=새 이미지
+let _pendingProfileImage = undefined;
+// 정사각 center-crop(cover) — 찌부 없이 중앙을 정사각으로 잘라 256px JPEG 데이터URI로. src=objectURL/dataURL 모두 처리.
+function cropSrcToSquareDataURL(src, size) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(img.naturalWidth, img.naturalHeight);
+      const sx = (img.naturalWidth - s) / 2, sy = (img.naturalHeight - s) / 2;
+      const c = document.createElement('canvas'); c.width = size; c.height = size;
+      c.getContext('2d').drawImage(img, sx, sy, s, s, 0, 0, size, size);
+      try { resolve(c.toDataURL('image/jpeg', 0.82)); } catch (e) { reject(e); }
+    };
+    img.onerror = () => reject(new Error('이미지를 불러오지 못했어요.'));
+    img.src = src;
+  });
+}
+function cropImageToSquareDataURL(file, size) {
+  const url = URL.createObjectURL(file);
+  return cropSrcToSquareDataURL(url, size).finally(() => URL.revokeObjectURL(url));
+}
+function applyPickedProfileImage(dataUrl) {
+  _pendingProfileImage = dataUrl;
+  const pimg = document.getElementById('profilePhotoImg'); if (pimg) pimg.src = dataUrl;
+}
+// 사진 선택 공통: 네이티브(Capacitor Camera) 있으면 '사진 라이브러리'만(3옵션 시트 없이), 없으면 파일선택(accept=image/*) 폴백.
+// 선택·크롭된 256px dataURL(JPEG) 또는 null(취소/실패) 반환. ⚠️ 라이브러리-only는 @capacitor/camera 설치된 네이티브 빌드에서만.
+function choosePhotoDataURL() {
+  return new Promise(async (resolve) => {
+    const Cam = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Camera;
+    const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    if (Cam && isNative) {
+      try {
+        const photo = await Cam.getPhoto({ source: 'PHOTOS', resultType: 'dataUrl', quality: 90 });
+        const raw = photo && (photo.dataUrl || (photo.base64String ? 'data:image/jpeg;base64,' + photo.base64String : ''));
+        if (!raw) return resolve(null);
+        return resolve(await cropSrcToSquareDataURL(raw, 256));
+      } catch (err) {
+        if (/cancel/i.test(String((err && err.message) || ''))) return resolve(null); // 사용자가 취소
+        // 그 외 오류 → 파일선택 폴백
+      }
+    }
+    const inp = document.getElementById('profilePhotoInput');
+    if (!inp) return resolve(null);
+    const onChange = async () => {
+      inp.removeEventListener('change', onChange);
+      const file = inp.files && inp.files[0];
+      inp.value = '';
+      if (!file) return resolve(null);
+      if (!/^image\//.test(file.type)) { showToast('이미지 파일만 등록할 수 있어요.'); return resolve(null); }
+      try { resolve(await cropImageToSquareDataURL(file, 256)); }
+      catch (e) { showToast('이미지를 처리하지 못했어요.'); resolve(null); }
+    };
+    inp.addEventListener('change', onChange);
+    inp.click();
+  });
+}
+// 회원정보관리 폼: 선택 → 미리보기만(실제 저장은 '저장' 버튼)
+async function pickProfilePhoto() {
+  const dataUrl = await choosePhotoDataURL();
+  if (dataUrl != null) applyPickedProfileImage(dataUrl);
+}
+// MY 페이지: 선택 → 즉시 저장(회원정보관리로 이동하지 않음). profileImage만 전송(서버가 부분 업데이트).
+async function pickMyPagePhoto() {
+  if (!currentUser) { if (typeof openLoginSheet === 'function') openLoginSheet(); return; }
+  const dataUrl = await choosePhotoDataURL();
+  if (dataUrl == null) return;
+  try {
+    const res = await fetch('/api/auth/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profileImage: dataUrl }) });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); showToast(j.error || '사진 저장에 실패했어요.'); return; }
+    currentUser.profileImage = dataUrl;
+    renderMyPage();
+    showToast('프로필 사진을 변경했어요.');
+  } catch (e) { showToast('사진 저장에 실패했어요.'); }
 }
 // 로그인 전/후 뷰 토글
 function showProfileMode(mode) {
@@ -2732,7 +4536,17 @@ function showProfileMode(mode) {
 // 모바일 내 정보 바텀시트 (비로그인 시 로그인 시트로 우회)
 // PC에서는 좌측 "내 정보" 탭 패널로 라우팅
 function openProfileSheet() {
-  if (window.innerWidth > 640) { switchPcTab('myinfo'); return; }
+  if (!isMobileView()) {
+    // PC: MY 탭의 오른쪽 상세 영역에 회원정보관리를 연다(패널은 상주)
+    if (!document.body.classList.contains('pc-myinfo-mode')) switchPcTab('myinfo');
+    pcMyCloseSubs('profileOverlay');
+    const loggedIn = !!currentUser;
+    showProfileMode(loggedIn ? 'in' : 'out');
+    if (loggedIn) populateProfileFields();
+    const pBody = document.getElementById('profileBody'); if (pBody) pBody.scrollTop = 0;
+    document.getElementById('profileOverlay').classList.add('open');
+    return;
+  }
   if (!currentUser) { openLoginSheet(); return; }
   showProfileMode('in');
   populateProfileFields();
@@ -2744,7 +4558,23 @@ function openProfileSheet() {
   document.getElementById('profileOverlay').classList.add('open');
 }
 
-// PC 좌측 "내 정보" 패널 (로그인 전: 로그인 유도 / 로그인 후: 내 정보)
+// PC MY 서브화면 오버레이들(오른쪽 상세 영역에 교체 노출)
+var PC_MY_SUBS = ['profileOverlay', 'reportOverlay', 'alarmOverlay', 'aboutOverlay', 'noticeOverlay', 'noticeDetailOverlay', 'policyOverlay'];
+// 지정한 것만 남기고 나머지 MY 서브화면을 닫음(한 번에 하나만 오른쪽에 노출) — PC MY 전용
+function pcMyCloseSubs(keepId) {
+  PC_MY_SUBS.forEach(function (id) {
+    if (id !== keepId) { const el = document.getElementById(id); if (el) el.classList.remove('open'); }
+  });
+}
+// 현재 PC MY(myinfo) 모드인가 — 메뉴 핸들러가 오른쪽 상세로 라우팅할지 판단
+function isPcMyInfo() { return !isMobileView() && document.body.classList.contains('pc-myinfo-mode'); }
+// PC MY 진입: MY 메뉴 패널 렌더 + 서브화면 모두 닫아 빈 상태(로고)로 시작
+function openPcMyInfo() {
+  renderMyPage();
+  pcMyCloseSubs(null);
+  const sc = document.getElementById('myScroll'); if (sc) sc.scrollTop = 0;
+}
+// (레거시) PC 좌측 내 정보 패널 — 현재 미사용, 회원정보관리는 openProfileSheet가 오른쪽 상세로 연다
 function openMyInfoPanel() {
   const loggedIn = !!currentUser;
   showProfileMode(loggedIn ? 'in' : 'out');
@@ -2753,9 +4583,18 @@ function openMyInfoPanel() {
   if (pBody) pBody.scrollTop = 0;
   document.getElementById('profileOverlay').classList.add('open');
 }
+// 닫기(back): 모바일 full-screen 시트를 우측으로 슬라이드 아웃 후 숨김. PC/비오픈은 즉시.
+function closeSheetSlide(overlayId, after) {
+  const ov = document.getElementById(overlayId);
+  if (!ov) { if (after) after(); return; }
+  if (!isMobileView() || !ov.classList.contains('open')) {
+    ov.classList.remove('open'); if (after) after(); return;
+  }
+  ov.classList.add('sheet-closing');
+  setTimeout(() => { ov.classList.remove('sheet-closing'); ov.classList.remove('open'); if (after) after(); }, 250);
+}
 function closeProfileSheet() {
-  document.getElementById('profileOverlay').classList.remove('open');
-  resetModalScroll('profileOverlay');
+  closeSheetSlide('profileOverlay', () => resetModalScroll('profileOverlay'));
 }
 
 // 버튼 안에 로딩 로티(흰 점 3개, 후기 로딩과 동일 애니)를 넣고 텍스트를 숨김. 완료 시 복원.
@@ -2794,12 +4633,18 @@ async function saveProfile() {
   const btn = document.querySelector('#profileOverlay .btn-submit');
   setButtonLoading(btn, true);
   try {
+    const payload = { urlPlatform, urlId, email };
+    if (_pendingProfileImage !== undefined) payload.profileImage = _pendingProfileImage;  // 변경된 경우만 전송
     const res = await fetch('/api/auth/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urlPlatform, urlId, email })
+      body: JSON.stringify(payload)
     });
-    if (!res.ok) { showAlert('저장 중 오류가 발생했어요.', '잠시 후 다시 시도해주세요.'); return; }
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      showAlert('저장 중 오류가 발생했어요.', j.error || '잠시 후 다시 시도해주세요.'); return;
+    }
+    _pendingProfileImage = undefined;
     await refreshAuthUI();
     // PC 내 정보 패널 모드에서는 패널을 닫지 않고 유지 (refreshAuthUI가 갱신)
     if (!document.body.classList.contains('pc-myinfo-mode')) closeProfileSheet();
@@ -2854,6 +4699,9 @@ function finishWithdraw() {
 let _alertOnConfirm = null;
 function showAlert(main, sub, opts) {
   opts = opts || {};
+  const hd = document.getElementById('alertPopupHeader');
+  if (hd) hd.textContent = opts.header || '알림';
+  document.getElementById('alertPopupOverlay').classList.toggle('align-left', opts.align === 'left');
   document.getElementById('alertPopupMain').textContent = main || '';
   document.getElementById('alertPopupSub').textContent = sub || '';
   const cancel = document.getElementById('alertPopupCancel');
@@ -2877,18 +4725,29 @@ function alertPopupConfirm() {
 
 // ===== 모달 =====
 function openAbout() {
-  if (window.innerWidth > 640) {
+  if (!isMobileView()) {
+    // PC MY에서 진입 시 오른쪽 상세 영역에 소개를 연다(MY 유지)
+    if (isPcMyInfo()) {
+      pcMyCloseSubs('aboutOverlay');
+      const aBody = document.getElementById('aboutBody'); if (aBody) aBody.scrollTop = 0;
+      document.getElementById('aboutOverlay').classList.add('open');
+      return;
+    }
     switchPcTab('about');
     return;
   }
+  // 다른 서브화면과 동일한 스크롤 UI: 큰 타이틀(scroll-header) 스크롤되어 사라지고 compact sticky 등장
+  syncMobileModalHeader('#aboutOverlay');
+  bindMobileScrollHeader('aboutBody', 'aboutScrollHeader', 'aboutStickyHeader');
+  const sticky = document.getElementById('aboutStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('aboutBody'); if (body) body.scrollTop = 0;
   document.getElementById('aboutOverlay').classList.add('open');
 }
 function closeAbout() {
-  document.getElementById('aboutOverlay').classList.remove('open');
-  resetModalScroll('aboutOverlay');
-  if (window.innerWidth > 640 && pcTabActive === 'about') {
-    switchPcTab('campaigns');
-  }
+  closeSheetSlide('aboutOverlay', () => {
+    resetModalScroll('aboutOverlay');
+    if (!isMobileView() && pcTabActive === 'about') switchPcTab('campaigns');
+  });
 }
 
 // ===== 신고 모달 =====
@@ -2900,7 +4759,15 @@ let reportSelectedReason = null;
 let reportContextPlaceId = null;        // 매장에서 신고 진입 시 그 매장 맥락 유지(대상 유형 고르면 이 매장으로 자동 스코프)
 
 function openReportModal() {
-  if (window.innerWidth > 640) {
+  if (!isMobileView()) {
+    // PC MY에서 진입 시 오른쪽 상세 영역에 신고하기를 연다(MY 유지)
+    if (isPcMyInfo()) {
+      pcMyCloseSubs('reportOverlay');
+      resetReportModal();
+      const rBody = document.getElementById('reportBody'); if (rBody) rBody.scrollTop = 0;
+      document.getElementById('reportOverlay').classList.add('open');
+      return;
+    }
     switchPcTab('reportissue');
     return;
   }
@@ -2916,11 +4783,10 @@ function openReportModalForPlace(placeId) {
   reportContextPlaceId = placeId;
 }
 function closeReportModal() {
-  document.getElementById('reportOverlay').classList.remove('open');
-  resetModalScroll('reportOverlay');
-  if (window.innerWidth > 640 && pcTabActive === 'reportissue') {
-    switchPcTab('campaigns');
-  }
+  closeSheetSlide('reportOverlay', () => {
+    resetModalScroll('reportOverlay');
+    if (!isMobileView() && pcTabActive === 'reportissue') switchPcTab('campaigns');
+  });
 }
 function resetReportModal() {
   reportSelectedId = null;
@@ -2949,7 +4815,7 @@ function bindMobileScrollHeader(bodyId, scrollHeaderId, stickyHeaderId) {
   const stickyHeader = document.getElementById(stickyHeaderId);
   if (!body || !scrollHeader || !stickyHeader) return;
   const handler = () => {
-    if (window.innerWidth > 640) return;
+    if (!isMobileView()) return;
     const threshold = scrollHeader.offsetTop + scrollHeader.offsetHeight;
     stickyHeader.classList.toggle('show', body.scrollTop > threshold);
   };
@@ -2973,7 +4839,7 @@ function resetModalScroll(overlayId) {
 // 모바일 공통: 정적 .modal-header는 모바일에서 숨기고 .modal-scroll-header로 대체
 function syncMobileModalHeader(modalSelector) {
   const mh = document.querySelector(modalSelector + ' .modal-header');
-  if (mh) mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
+  if (mh) mh.style.display = isMobileView() ? 'none' : 'flex';
 }
 
 // 대상 유형별 신고 이유
@@ -3183,24 +5049,34 @@ function submitReport() {
 
 // ===== PC 탭 전환 =====
 function switchPcTab(tab) {
-  if (window.innerWidth <= 640) return;
+  if (isMobileView()) return;
 
-  const campaignsTab = document.getElementById('tabCampaigns');
-  const reportTab = document.getElementById('tabReport');
-  const reportIssueTab = document.getElementById('tabReportIssue');
-  const aboutTab = document.getElementById('tabAbout');
-  const myInfoTab = document.getElementById('tabMyInfo');
+  // 내 장소를 떠나기 전(아직 보이는 상태) 리스트 스크롤 리셋 → 재진입 시 display:none→flex 복원이 이전 스크롤을 되살리지 못하게(복원값=0)
+  if (pcTabActive === 'myplaces' && tab !== 'myplaces') {
+    const b = document.querySelector('#tabView-places .ml-body'); if (b) b.scrollTop = 0;
+  }
 
   pcTabActive = tab;
-  campaignsTab?.classList.toggle('active', tab === 'campaigns');
-  reportTab?.classList.toggle('active', tab === 'report');
-  reportIssueTab?.classList.toggle('active', tab === 'reportissue');
-  aboutTab?.classList.toggle('active', tab === 'about');
-  myInfoTab?.classList.toggle('active', tab === 'myinfo');
+  // 좌측 레일 active (홈/내장소/커뮤니티/MY)
+  document.getElementById('tabCampaigns')?.classList.toggle('active', tab === 'campaigns');
+  document.getElementById('tabMyPlaces')?.classList.toggle('active', tab === 'myplaces');
+  document.getElementById('tabCommunity')?.classList.toggle('active', tab === 'community');
+  document.getElementById('tabMyInfo')?.classList.toggle('active', tab === 'myinfo');
   document.body.classList.toggle('pc-report-mode', tab === 'report');
   document.body.classList.toggle('pc-reportissue-mode', tab === 'reportissue');
   document.body.classList.toggle('pc-about-mode', tab === 'about');
   document.body.classList.toggle('pc-myinfo-mode', tab === 'myinfo');
+  document.body.classList.toggle('pc-myplaces-mode', tab === 'myplaces');
+  document.body.classList.toggle('pc-community-mode', tab === 'community');
+
+  // 내 장소 PC (좌측 리스트 패널 + 지도 + 플로팅 설정 카드)
+  if (tab === 'myplaces') { openPcMyPlaces(); } else { closePcMyPlaces(); }
+
+  // 커뮤니티 PC (전체폭 콘텐츠 — 모바일 #tabView-community 재사용, 이웃찾기=masonry/후기=grid는 CSS)
+  if (tab === 'community') {
+    openCommunity();
+    const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+  }
 
   if (tab === 'report') {
     document.getElementById('modalOverlay').classList.add('open');
@@ -3223,9 +5099,9 @@ function switchPcTab(tab) {
   }
 
   if (tab === 'myinfo') {
-    openMyInfoPanel();
+    openPcMyInfo();
   } else {
-    document.getElementById('profileOverlay').classList.remove('open');
+    pcMyCloseSubs(null);
   }
 
   // 협찬찾기로 복귀 시 "모집 중인 협찬" 리스트 스크롤을 맨 위로
@@ -3246,7 +5122,7 @@ function searchRegionPC() {
 }
 
 function openModal() {
-  if (window.innerWidth > 640) {
+  if (!isMobileView()) {
     switchPcTab('report');
     return;
   }
@@ -3257,7 +5133,7 @@ function openModal() {
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
   resetModalScroll('modalOverlay');
-  if (window.innerWidth > 640 && pcTabActive === 'report') {
+  if (!isMobileView() && pcTabActive === 'report') {
     pcTabActive = 'campaigns';
     document.body.classList.remove('pc-report-mode');
     document.getElementById('tabCampaigns')?.classList.add('active');
@@ -3306,7 +5182,7 @@ function resetModal() {
   document.getElementById('modalStickyHeader').classList.remove('show');
   // 모바일: modal-header 숨기기 (step1-scroll-header가 대체)
   const _mh = document.querySelector('#modalOverlay .modal-header');
-  if (_mh) _mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
+  if (_mh) _mh.style.display = isMobileView() ? 'none' : 'flex';
   updateStepDots(1);
   const step1Body = document.getElementById('step1Body');
   if (step1Body) {
@@ -3486,7 +5362,7 @@ function goStep1() {
   document.getElementById('step2').style.display = 'none';
   document.getElementById('step1').style.display = 'block';
   const _mh = document.querySelector('#modalOverlay .modal-header');
-  if (_mh) _mh.style.display = window.innerWidth <= 640 ? 'none' : 'flex';
+  if (_mh) _mh.style.display = isMobileView() ? 'none' : 'flex';
   document.getElementById('modalStickyHeader').classList.remove('show');
   updateStepDots(1);
   // step2 → step1: 스크롤 리스너 교체
@@ -3535,7 +5411,7 @@ function toggleHoliday(row) {
 }
 
 function handleStep1Scroll() {
-  if (window.innerWidth > 640) return;
+  if (!isMobileView()) return;
   const body = document.getElementById('step1Body');
   const header = document.getElementById('modalStickyHeader');
   const scrollHeader = document.getElementById('step1ScrollHeader');
@@ -3549,7 +5425,7 @@ function handleStep1Scroll() {
 }
 
 function handleStep2Scroll() {
-  if (window.innerWidth > 640) return;
+  if (!isMobileView()) return;
   const body = document.getElementById('step2Body');
   const header = document.getElementById('modalStickyHeader');
   const scrollHeader = document.getElementById('step2ScrollHeader');
@@ -3864,6 +5740,7 @@ function openNaverMap(name, address, lat, lng) {
 
 // ===== 모바일 바텀시트 =====
 function openMobileSheet(place) {
+  resetMapSearch();  // 다른 매장/상세를 열면 검색 핀·FAB 제거 + 검색어 리셋
   // 검색 키패드가 떠 있으면 먼저 닫아 바텀시트가 올바른 위치에 뜨도록
   if (document.activeElement && typeof document.activeElement.blur === 'function') {
     document.activeElement.blur();
@@ -3943,7 +5820,7 @@ function initSidebarSwipeToDismiss() {
   function peekH() { return 78 + (parseFloat(getComputedStyle(sidebar).paddingBottom) || 0); }
 
   function startDrag(y) {
-    if (window.innerWidth > 640) return false;
+    if (!isMobileView()) return false;
     startY = y; currentY = y; dragging = true; startTime = Date.now();
     if (sidebar.classList.contains('expanded')) {
       dragMode = 'collapse';
@@ -4151,6 +6028,14 @@ function setupClearButtons() {
     bindClearBtn(btn, pcSearchInput);
   }
 
+  // 내 장소 step1 지도검색창 (홈과 동일한 선택/클리어 동작)
+  const mlSearchInput = document.getElementById('mlStep1Search');
+  if (mlSearchInput) {
+    const btn = createClearBtn();
+    mlSearchInput.parentElement.appendChild(btn);
+    bindClearBtn(btn, mlSearchInput);
+  }
+
   // 모달 폼 텍스트 입력 (input-wrap으로 감싸서 절대 위치)
   // 어드민 페이지(#adminApp)에서는 클리어 버튼 스타일(style.css)이 없어 적용하지 않음
   if (!document.getElementById('adminApp')) {
@@ -4217,7 +6102,7 @@ function initAppLoading() {
 function initSplash() {
   const SP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen;
   const splash = document.getElementById('appSplash');
-  const isMobile = window.innerWidth <= 640;
+  const isMobile = isMobileView();
   if (!splash || !isMobile) {
     if (splash) splash.remove();
     if (isNativeApp() && SP) SP.hide().catch(() => {}); // PC/스플래시 없음: 네이티브 스플래시 즉시 숨김
@@ -4275,7 +6160,7 @@ document.addEventListener('DOMContentLoaded', initAppLoading);
 function initAndroidStatusBar() {
   const WHITE_MODALS = ['modalOverlay', 'reportOverlay', 'aboutOverlay', 'policyOverlay',
     'profileOverlay', 'reviewFormOverlay', 'signupInfoOverlay', 'signupDoneOverlay',
-    'withdrawConfirmOverlay', 'withdrawDoneOverlay'];
+    'withdrawConfirmOverlay', 'withdrawDoneOverlay', 'logoutConfirmOverlay'];
   let tries = 0;
   (function waitForBridge() {
     const iface = window.MuhyeopNativeUI;
@@ -4479,9 +6364,9 @@ window.addEventListener('load', async function() {
   initPush(); // 앱 푸시 초기화(네이티브만, 백그라운드)
 });
 
-let _prevIsMobile = window.innerWidth <= 640;
+let _prevIsMobile = isMobileView();
 window.addEventListener('resize', function() {
-  const isMobile = window.innerWidth <= 640;
+  const isMobile = isMobileView();
 
   if (!_prevIsMobile && isMobile) {
     // PC → 모바일: pc-report-mode 해제
@@ -4496,9 +6381,16 @@ window.addEventListener('resize', function() {
     // PC → 모바일: pc-myinfo-mode 해제 (좌측 패널 닫고 협찬찾기로 복귀)
     if (document.body.classList.contains('pc-myinfo-mode')) {
       document.body.classList.remove('pc-myinfo-mode');
-      document.getElementById('profileOverlay').classList.remove('open');
+      pcMyCloseSubs(null);
       document.getElementById('tabCampaigns')?.classList.add('active');
       document.getElementById('tabMyInfo')?.classList.remove('active');
+      pcTabActive = 'campaigns';
+    }
+    // PC → 모바일: pc-community-mode 해제
+    if (document.body.classList.contains('pc-community-mode')) {
+      document.body.classList.remove('pc-community-mode');
+      document.getElementById('tabCampaigns')?.classList.add('active');
+      document.getElementById('tabCommunity')?.classList.remove('active');
       pcTabActive = 'campaigns';
     }
   }
@@ -4525,7 +6417,7 @@ window.addEventListener('resize', function() {
 
   _prevIsMobile = isMobile;
 
-  if (openPcCardPlace && window.innerWidth > 640) {
+  if (openPcCardPlace && !isMobileView()) {
     panToCard(openPcCardPlace);
   }
 });

@@ -18,6 +18,7 @@
 
 const { geocodeServer } = require('./_geocode');
 const { judgeCandidate } = require('./_ai');
+const { cleanStoreName } = require('./_scrape');
 
 const MAX_PER_RUN = 300; // 한 실행 처리 상한(실질 상한은 시간 예산 deadlineTs)
 const MAX_AI_CALLS = 800; // 신규매장 AI 호출 상한(비용 안전판; gpt-4o-mini라 매우 저렴해 넉넉히)
@@ -58,6 +59,8 @@ function similarNearby(candName, coords, places, radiusM = 300, topN = 8) {
 }
 
 async function insertPlace(db, { name, address, lat, lng, category }) {
+  // 등록 시점 방어: 이름 정리(대괄호/안내문/홍보문). 파서 이전 수집분·엣지케이스도 깨끗하게. 멱등.
+  name = cleanStoreName(name) || name;
   // 같은 이름+좌표 매장이 있으면 재사용(중복 매장 방지 — 한 매장에 채널별 캠페인이 붙게).
   // 좌표 인덱스(idx_places_lat_lng)로 근처 매장만 읽고 이름은 앱에서 비교 — REPLACE()가 인덱스를 막아
   // 매 등록마다 places 전체(2만행)를 스캔하던 것을 근처 몇 행만 읽도록.

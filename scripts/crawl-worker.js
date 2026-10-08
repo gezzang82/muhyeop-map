@@ -44,7 +44,14 @@ const regions = (process.argv[2] || '서울').split(',').map((s) => s.trim()).fi
 const minWaitSec = Math.max(10, parseInt(process.argv[3], 10) || 30);
 const IDLE_WAIT_SEC = 1800; // 새로 긁을 게 없을 때 대기(30분) — 유휴 패스의 DB 읽기 절감. 크롤 소스는 하루 단위 갱신이라 무해.
 
-const db = createClient({ url: process.env.TURSO_DATABASE_URL, authToken: process.env.TURSO_AUTH_TOKEN });
+// ⚠️ 크롤러는 항상 '운영'을 대상으로 한다. dev DB 분리(2026-09-24) 이후 TURSO_DATABASE_URL=file:./dev.db 이므로,
+//    운영 백업 크리덴셜(TURSO_PROD_*)이 있으면 그걸 우선한다(없을 때만 TURSO_DATABASE_URL 폴백).
+const CRAWL_DB_URL = process.env.TURSO_PROD_URL || process.env.TURSO_DATABASE_URL;
+const CRAWL_DB_TOKEN = process.env.TURSO_PROD_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN;
+if (String(CRAWL_DB_URL || '').startsWith('file:')) {
+  console.error('[crawl-worker] ⚠️ 운영이 아닌 로컬 dev.db를 가리킵니다. .env.local에 TURSO_PROD_URL/TURSO_PROD_AUTH_TOKEN 설정 필요.');
+}
+const db = createClient({ url: CRAWL_DB_URL, authToken: CRAWL_DB_TOKEN });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ts = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(11, 19); // KST HH:MM:SS
 

@@ -3,5 +3,8 @@
     "api/campaigns.js": {
       "maxDuration": 300
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/app", "destination": "/app.html" }
+  ]
 }
