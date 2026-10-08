@@ -4164,6 +4164,7 @@ async function mlSave() {
     _mlDraft.name = nm;
   }
   _mlDraft.alarmEnabled = document.getElementById('mlSetAlarm').checked;
+  const isNew = !_mlDraft.id; // id 없으면 신규 추가, 있으면 수정
   const btn = document.querySelector('.ml-set-save');
   if (btn) btn.disabled = true;
   try {
@@ -4180,6 +4181,7 @@ async function mlSave() {
     closeMlSetting();
     await renderMyPlaces();
     loadMyPlaceMarkers();
+    if (typeof showToast === 'function') showToast(isNew ? '내 장소가 추가되었어요' : '변경사항을 저장했어요');
   } catch (e) { if (btn) btn.disabled = false; if (typeof showToast === 'function') showToast('저장에 실패했어요'); }
 }
 function mlDelete() {
