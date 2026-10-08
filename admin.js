@@ -719,7 +719,7 @@ function renderDashboard() {
     set('statVisitTodayPv', s.todayPv);
     set('statVisitTodayUv', s.todayUv);
     set('statVisitTodayMember', s.todayMemberReturning);
-    set('statVisitTodayGuest', s.todayNonMemberEst);
+    set('statSeoichuCount', s.seoichuCount);
     set('statVisitTotalPv', s.totalPv);
     const dwEl = document.getElementById('statVisitTodayDwell');
     if (dwEl) dwEl.textContent = s.todayDwellCount ? fmtDwell(s.todayDwell) : '-';
@@ -1332,7 +1332,26 @@ function fmtKST(dt) {
 }
 
 let allUsers = [];
-const userView = { page: 1, size: 50, field: 'all', keyword: '' };
+const userView = { page: 1, size: 50, field: 'all', keyword: '', sortKey: null, sortDir: 'desc' };
+// 최종접속 정렬값: lastSeenAt(UTC) 우선, 없으면 lastVisitDate(날짜), 둘 다 없으면 0(맨 뒤)
+function lastAccessTs(u) {
+  if (u.lastSeenAt) { const t = Date.parse(String(u.lastSeenAt).replace(' ', 'T') + 'Z'); if (!isNaN(t)) return t; }
+  if (u.lastVisitDate) { const t = Date.parse(u.lastVisitDate); if (!isNaN(t)) return t; }
+  return 0;
+}
+function userSortVal(u, key) {
+  if (key === 'lastSeen') return lastAccessTs(u);
+  if (key === 'visitCount') return Number(u.visitCount || 0);
+  if (key === 'reviewCount') return Number(u.reviewCount || 0);
+  return 0;
+}
+// 회원목록 컬럼 정렬 토글(후기수·접속수·최종접속). 같은 컬럼 재클릭 시 방향 반전, 다른 컬럼은 내림차순부터.
+function sortUsersBy(key) {
+  if (userView.sortKey === key) userView.sortDir = userView.sortDir === 'desc' ? 'asc' : 'desc';
+  else { userView.sortKey = key; userView.sortDir = 'desc'; }
+  userView.page = 1;
+  renderUserRows();
+}
 
 async function renderUserList() {
   allUsers = await (await fetch('/api/users')).json();
@@ -1364,7 +1383,17 @@ function getFilteredUsers() {
   });
 }
 function renderUserRows() {
-  const filtered = getFilteredUsers();
+  let filtered = getFilteredUsers();
+  if (userView.sortKey) {
+    filtered = filtered.slice().sort((a, b) => {
+      const d = userSortVal(a, userView.sortKey) - userSortVal(b, userView.sortKey);
+      return userView.sortDir === 'asc' ? d : -d;
+    });
+  }
+  // 헤더 화살표 표시(활성 컬럼만)
+  document.querySelectorAll('.uv-arrow').forEach(sp => {
+    sp.textContent = (userView.sortKey === sp.dataset.k) ? (userView.sortDir === 'asc' ? '▲' : '▼') : '';
+  });
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / userView.size));
   if (userView.page > totalPages) userView.page = totalPages;

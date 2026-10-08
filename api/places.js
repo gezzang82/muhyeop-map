@@ -186,12 +186,18 @@ module.exports = async function handler(req, res) {
       const pdMap = {};
       pdRows.forEach(r => { (pdMap[r.d] = pdMap[r.d] || {})[r.platform] = Number(r.cnt || 0); });
       const platformDaily = Object.keys(pdMap).sort().reverse().map(d => ({ date: d, platforms: pdMap[d] }));
+      // 이웃추가(서이추) 게시글 수 — 전체(테이블 미생성 시 0)
+      let seoichuCount = 0;
+      try {
+        const sc = (await db.execute("SELECT COUNT(*) AS n FROM seoichu_posts")).rows[0] || {};
+        seoichuCount = Number(sc.n || 0);
+      } catch (e) {}
       return res.status(200).json({
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
         todayDwell: dwellAvg(today), todayDwellCount: Number(today.dwell_count || 0),
         todayMemberReturning,
-        todayMemberTotal, todayNonMemberEst,
+        todayMemberTotal, todayNonMemberEst, seoichuCount,
         period, series,
         referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
         todayReferrers: todayRefRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
