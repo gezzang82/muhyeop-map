@@ -329,7 +329,10 @@ module.exports = async function handler(req, res) {
               LIMIT ? OFFSET ?`,
         args: [...wargs, limit, offset]
       });
-      if (!mine) res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600');
+      // ⚠️ 피드 응답엔 사용자별 상태(liked=내가 누른 하트, mine=내 후기)가 섞임 → 같은 URL이 사람마다 다른 몸체.
+      //   CDN은 쿠키를 캐시키에 안 넣으므로 public 캐시하면 다른 사용자/과거 좋아요 상태가 새어 "일부만 반영"처럼 보임.
+      //   그래서 피드는 공유 캐시 금지(좋아요 즉시 정합).
+      res.setHeader('Cache-Control', 'private, no-store');
       // 좋아요 상태(하트 채움) — 로그인 시 내가 누른 것
       let likedSet = new Set();
       if (session && r.rows.length) {
