@@ -1030,13 +1030,18 @@ function rbHoursDays(txt) {
   const days = ALL_DAYS.filter((d) => base.has(d) && !closed.has(d));
   return { days: days.join(','), hours: hours.trim(), excludeHoliday };
 }
+// 주소형 판정: 시/도 또는 "…시/군/구 …로/길/동/리" 포함. 안내문 조각("…) 를 반드시 첨부") 배제용.
+const RB_ADDR_OK = /[가-힣]{2,}(?:특별시|광역시|특별자치[시도]|[시도])|[가-힣]+(?:시|군|구)\s*[가-힣0-9]+(?:읍|면|동|리|로|길|가)/;
 function rbAddress(txt) {
-  const stop = '(?:\\s*★|\\s*예약\\s*문의|\\s*당첨일|\\s*※|\\s*알림톡|\\s*[-–]\\s*예약|$)';
-  // "매장 위치 주소"(콜론 없는 신규 템플릿) 우선, 없으면 "위치 : 주소"(콜론 필수, 기존 — 바로 '위치'는 오매치 방지 위해 콜론 요구)
-  let m = txt.match(new RegExp('매장\\s*위치\\s*[:：]?\\s*([\\s\\S]*?)' + stop));
-  if (!m) m = txt.match(new RegExp('위치\\s*[:：]\\s*([\\s\\S]*?)' + stop));
-  if (!m) return '';
-  return rbCleanAddr(m[1]).replace(/[\s\-–.]+$/, '').trim(); // 꼬리 대시/마침표 정리
+  // ⚠️ 가이드문 "리뷰 하단에 지도(매장위치) 를 반드시 첨부해주세요"의 '매장위치'를 주소 라벨로 오인하던 버그 →
+  //   '(매장)위치' 라벨 후보를 전부 훑어 **주소형(RB_ADDR_OK)인 첫 매치만** 채택(안내문 조각 배제). 실주소는 "위치 : 서울…" 형태.
+  const re = /(?:매장\s*위치|위치)\s*[:：]?\s*([\s\S]*?)(?=\s*★|\s*예약\s*문의|\s*당첨일|\s*※|\s*알림톡|\s*[-–]\s*예약|$)/g;
+  let m;
+  while ((m = re.exec(txt))) {
+    const cand = rbCleanAddr(m[1]).replace(/[\s\-–.]+$/, '').trim(); // 꼬리 대시/마침표 정리
+    if (RB_ADDR_OK.test(cand)) return cand;
+  }
+  return '';
 }
 function rbDeadline(txt) {
   const m = txt.match(/모집\s*기간[\s\S]*?~\s*(\d{2})년\s*(\d{2})월\s*(\d{2})일/);
@@ -2077,10 +2082,12 @@ function popName(title, addrDetail) {
     d = tail || '';
   }
   // C_address_detail이 '건물명+호수'(예: 금강벤처텔 405호)면 매장명이 아니라 위치라 C_title로 폴백.
-  const isBuilding = /(벤처텔|오피스텔|지식산업센터|빌딩|타워|프라자|플라자|아파트|상가|오피스)/.test(d) && /\d+\s*(호|층|F)/i.test(d);
+  const isBuilding = /(벤처텔|오피스텔|지식산업센터|빌딩|타워|프라자|플라자|아파트|상가|오피스|백화점|아울렛|스퀘어|센터|지하상가)/.test(d) && /\d+\s*(호|층|F)/i.test(d);
   // 'E동 2층 체리피트니스'처럼 건물 동/층으로 시작하면 매장명이 아니라 위치 → C_title로 폴백(제목이 정식 상호).
   const startsLoc = /^\s*(?:[A-Za-z]|\d{1,4})\s*동(?=\s)/.test(d);
-  if (d && !isFloor(d) && !isBuilding && !startsLoc && d.length <= 30) return cleanStoreName(d);
+  // '동관 2층'·'롯데백화점 10층'·'…지하2층 B207호'처럼 층/호/지하로 '끝나면' 위치(상호 아님) → C_title 폴백.
+  const endsLoc = /(?:지하\s*\d+|B\d+|\d+\s*층|\d+\s*호|\d+\s*F)\s*$/i.test(d);
+  if (d && !isFloor(d) && !isBuilding && !startsLoc && !endsLoc && d.length <= 30) return cleanStoreName(d);
   // 폴백: C_title에서 [지역] 접두 + 날짜/방문 접미 제거
   return cleanStoreName(String(title || '').replace(/^\[[^\]]*\]\s*/, '').replace(/\s*\d{1,2}\/\d{1,2}\s*\([^)]*\).*$/, '').replace(/\s*(방문|예약)\s*$/, '').trim());
 }
