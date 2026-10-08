@@ -3877,6 +3877,7 @@ async function pcPlaceSave() {
     _mlDraft.name = nm;
   }
   _mlDraft.alarmEnabled = document.getElementById('pcPlaceAlarm').checked;
+  const isNew = !_mlDraft.id; // id 없으면 신규 추가, 있으면 수정
   const btn = document.getElementById('pcPlaceSaveBtn'); if (btn) btn.disabled = true;
   try {
     const res = await fetch('/api/users?places=save', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(_mlDraft) });
@@ -3885,6 +3886,7 @@ async function pcPlaceSave() {
     await renderMyPlaces();
     loadMyPlaceMarkers();
     pcPlaceShowDefault();  // 폼 닫고 기본 상태(안내문구)로 복귀
+    showToast(isNew ? '내 장소가 추가되었어요' : '변경사항을 저장했어요');
   } catch (e) { if (btn) btn.disabled = false; showToast('저장에 실패했어요'); }
 }
 function pcPlaceDelete() {
