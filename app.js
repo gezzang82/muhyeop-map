@@ -2970,7 +2970,7 @@ function switchTab(tab) {
 //  - 후기: 전체 후기 피드(매소리 포스트잇). - 내 후기: 로그인 본인 후기만.
 // 설계/결정: docs/product/17-travel-pins.md · 06-decision-log(2026-10-02).
 let _cmSeg = 'seoichu';
-let _cmFeedSort = 'likes';   // 후기 정렬: 'likes'(좋아요 순) | 'latest'(최신 순)
+let _cmFeedSort = 'latest';   // 후기 정렬 기본=최신순: 'likes'(좋아요 순) | 'latest'(최신 순)
 let _cmFeedMine = false;     // 후기 '내 후기' 필터
 let _cmReqSeq = 0;           // 비동기 레이스 가드
 
@@ -3151,7 +3151,7 @@ function setCmSort(s) {
   renderCommunity();
 }
 // '내 후기' — 후기 화면 링크 → 별도 서브화면(백버튼). 후기 카드/정렬은 기존 컴포넌트 재사용.
-let _myRevSort = 'likes';
+let _myRevSort = 'latest';
 function openMyReviews() {
   if (!currentUser) { openLoginSheet(); return; }
   syncMobileModalHeader('#myReviewsOverlay');
