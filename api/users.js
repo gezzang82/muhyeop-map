@@ -86,6 +86,14 @@ async function handlePushPost(req, res, db, kind) {
     });
     return res.status(200).json({ ok: true });
   }
+  if (kind === 'digestpref') {
+    // 하루요약 마스터 토글(users.push_digest_enabled). 로그인 필수.
+    if (!userId) return res.status(401).json({ error: '로그인이 필요해요.' });
+    try { await db.execute("ALTER TABLE users ADD COLUMN push_digest_enabled INTEGER DEFAULT 1"); } catch (e) {}
+    const on = (body.enabled === false || body.enabled === 0) ? 0 : 1;
+    await db.execute({ sql: "UPDATE users SET push_digest_enabled=? WHERE id=?", args: [on, userId] });
+    return res.status(200).json({ ok: true, enabled: on });
+  }
   if (kind === 'broadcast') {
     // 이벤트/공지 전체 발송(관리자 전용)
     if (!requireAdmin(req, res)) return;

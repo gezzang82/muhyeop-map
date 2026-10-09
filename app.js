@@ -3411,6 +3411,12 @@ function onAlarmToggle() {
   ['alarmAll', 'alarmNewCampaign', 'alarmEvent'].forEach(id => { const cb = document.getElementById(id); if (cb) setAlarmPref(id, cb.checked); });
   applyAlarmGate();
   if (typeof renderMlItems === 'function') renderMlItems();
+  // 마스터 토글 서버 반영(users.push_digest_enabled): 전체 알림 && 내 장소 신규협찬이 모두 켜져야 하루요약 발송.
+  //  로그인 유저만(비로그인은 어차피 내 장소/토큰 없음). 실패해도 무시(로컬 상태는 유지).
+  if (currentUser) {
+    const digestOn = isMyPlaceAlarmActive();
+    fetch('/api/users?push=digestpref', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: digestOn ? 1 : 0 }) }).catch(() => {});
+  }
 }
 
 // ===== 이벤트·공지 피드 (MY → 이벤트·공지). 한 테이블(type) 피드형 + 상단 필터(전체/공지/이벤트) =====
@@ -3878,6 +3884,7 @@ async function pcPlaceSave() {
   }
   _mlDraft.alarmEnabled = document.getElementById('pcPlaceAlarm').checked;
   const isNew = !_mlDraft.id; // id 없으면 신규 추가, 있으면 수정
+  const wantAlarm = _mlDraft.alarmEnabled;
   const btn = document.getElementById('pcPlaceSaveBtn'); if (btn) btn.disabled = true;
   try {
     const res = await fetch('/api/users?places=save', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(_mlDraft) });
@@ -3887,6 +3894,7 @@ async function pcPlaceSave() {
     loadMyPlaceMarkers();
     pcPlaceShowDefault();  // 폼 닫고 기본 상태(안내문구)로 복귀
     showToast(isNew ? '내 장소가 추가되었어요' : '변경사항을 저장했어요');
+    if (wantAlarm && isNativeApp()) { const ok = await ensurePushForMyPlaceAlarm(); if (!ok) showToast('알림을 받으려면 휴대폰 설정에서 무협맵 알림을 켜주세요'); }
   } catch (e) { if (btn) btn.disabled = false; showToast('저장에 실패했어요'); }
 }
 function pcPlaceDelete() {
@@ -4167,6 +4175,7 @@ async function mlSave() {
   }
   _mlDraft.alarmEnabled = document.getElementById('mlSetAlarm').checked;
   const isNew = !_mlDraft.id; // id 없으면 신규 추가, 있으면 수정
+  const wantAlarm = _mlDraft.alarmEnabled; // 저장 후 권한/토큰 확보 판단용(닫기 후 _mlDraft 참조 방지)
   const btn = document.querySelector('.ml-set-save');
   if (btn) btn.disabled = true;
   try {
@@ -4184,6 +4193,8 @@ async function mlSave() {
     await renderMyPlaces();
     loadMyPlaceMarkers();
     if (typeof showToast === 'function') showToast(isNew ? '내 장소가 추가되었어요' : '변경사항을 저장했어요');
+    // 알림 켠 채 저장 → 앱이면 권한+토큰 확보(없으면 안내)
+    if (wantAlarm && isNativeApp()) { const ok = await ensurePushForMyPlaceAlarm(); if (!ok && typeof showToast === 'function') showToast('알림을 받으려면 휴대폰 설정에서 무협맵 알림을 켜주세요'); }
   } catch (e) { if (btn) btn.disabled = false; if (typeof showToast === 'function') showToast('저장에 실패했어요'); }
 }
 function mlDelete() {
@@ -6219,7 +6230,7 @@ function getPushDeviceId() {
 function pushPlatform() { try { return (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || 'android'; } catch (e) { return 'android'; } }
 async function registerPushToken(token) {
   try {
-    await fetch('/api/users?push=register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token, platform: pushPlatform(), deviceId: getPushDeviceId() }) });
+    await fetch('/api/users?push=register', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token, platform: pushPlatform(), deviceId: getPushDeviceId() }) });
   } catch (e) {}
 }
 let _pushInited = false;
@@ -6283,6 +6294,19 @@ async function initPush() {
     const perm = await P.checkPermissions();
     if (perm && perm.receive === 'granted') await P.register();
   } catch (e) {}
+}
+// 내 장소 알림 ON 저장 시: 네이티브면 OS 알림 권한 맥락요청 + FCM 토큰 등록(로그인 상태라 user_id 귀속).
+//  발송 대상은 서버가 user_places.alarm_enabled로 직접 조회 → 여기선 '권한+토큰'만 확보. 반환=권한 허용 여부.
+async function ensurePushForMyPlaceAlarm() {
+  const P = pushPlugin();
+  if (!isNativeApp() || !P) return false; // 웹/구버전 앱: 알림설정은 저장되나 푸시 수신은 앱 전용
+  try {
+    let perm = await P.checkPermissions();
+    if (perm.receive !== 'granted') perm = await P.requestPermissions();
+    if (!perm || perm.receive !== 'granted') return false;
+    await P.register(); // registration 리스너 → registerPushToken(?push=register, 세션 user_id 귀속)
+    return true;
+  } catch (e) { return false; }
 }
 // 맥락에서 권한 요청 + 현재 지도 중심을 관심위치로 저장
 async function enableAreaAlert(radiusKm) {

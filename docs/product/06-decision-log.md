@@ -2,6 +2,17 @@
 
 ## 2026-10
 
+### 앱 푸시(재방문 엔진) 하루요약 설계 확정 — user_places 기반, 유저당 1건 (2026-10-09)
+Phase2 푸시 착수. 안드 출시로 앱 유입이 과반(10-09 기준 52%)인데 돌아올 훅(푸시)이 꺼져 있어 리텐션이 샘 → 내 장소 기반 하루요약 자동알림을 배선한다.
+- **발송 대상 소스 = `user_places`(로그인 유저 내 장소)**: 기존 `push_prefs`(기기당 관심위치 1곳)는 Phase1 내 장소(유저당 최대 10곳)와 안 맞음 → **`user_places.alarm_enabled=1`을 소스로, 유저의 `push_tokens`(user_id)로 발송.** push_prefs는 비로그인 보조/레거시로 둠.
+- **유저당 하루 1건**(여러 내 장소 통합 best 1, 카테고리 가중 랜덤). 많아야 과함 → 스팸/알림해제 방지.
+- **발송 시각 = 정오(KST 12시, `PUSH_DIGEST_HOUR`)**. 하루 1회 가드(`scrape_state 'push_digest'`).
+- **카테고리 = 유저가 내 장소에 설정한 값 그대로**(전체면 전체). 기존엔 음식점/뷰티/카페 3개만 → 11개 전 카테고리로 확장하되 비중 가중(음식점5·뷰티3·카페2·그 외 1)은 유지.
+- **대상 = 지난 24h 신규 활성 협찬**(created_at 기준이라 날짜 중복발송 자연 방지). 반경 내 신규 없으면 미발송(빈 알림 X).
+- **마스터 토글 = `users.push_digest_enabled`**(기본 1): MY>알림설정 "전체 알림/내 장소 신규협찬" off면 억제. per-place on/off는 `user_places.alarm_enabled`.
+- **권한요청 = 내 장소 알림 켤 때 맥락 요청**(OS 기본배너보다 허용률↑). 토큰은 로그인 시 user_id 연결(`?push=register` COALESCE) — 비로그인 등록분은 로그인 후 재등록으로 귀속.
+- **순서**: 안드 먼저(FCM) → iOS(APNs 키 별도). 상세 `16-push-notifications.md`. 이벤트 브로드캐스트(`?push=broadcast`)는 이미 라이브(별개).
+
 ### Phase1 배포는 안드로이드 Play 정식 오픈 후 (2026-10-05)
 Phase1(`feat/gnb-phase1` — PC MY·커뮤니티(3탭)·내장소·검색핀 후기버튼·홈 엣지화살표·`/app` 스토어 라우팅·각종 UI 수정)은 **커밋만 유지하고, 안드로이드가 Google Play에 정식 오픈된 뒤 한 번에 운영 배포**한다. iOS는 이미 라이브(App Store id6794363402)라 `/app`의 iOS 라우팅은 준비됨. **안드 오픈 시 순서**: ①Play 리스트 라이브 확인 ②`app.html`의 `AOS_URL` 채움 ③`feat/gnb-phase1`→main 머지 ④`vercel --prod`. (iOS/안드 방문 플랫폼 세분·정책 Android 문구는 이미 main 배포 완료.)
 

@@ -109,9 +109,8 @@ async function notifyDailyDigest(db) {
   if (Number((st && st.last_max_id) || 0) >= todayInt) return { devices: 0, reason: 'already-sent' };
 
   const todayStr = nowKst.toISOString().slice(0, 10);
-  const PUSH_CATS = ['음식점', '뷰티', '카페'];         // 이 3개만 대상
-  const CAT_WEIGHT = { '음식점': 5, '뷰티': 3, '카페': 2 }; // 음식점 비중 높게
-  // 지난 24h 신규 활성 협찬(대상 카테고리만) — 매장명/제공내용/좌표/카테고리 조인
+  const CAT_WEIGHT = { '음식점': 5, '뷰티': 3, '카페': 2 }; // 비중 가중(그 외 카테고리는 기본 1)
+  // 지난 24h 신규 활성 협찬(전 카테고리) — 매장명/제공내용/좌표/카테고리 조인
   const cands = (await db.execute({
     sql: `SELECT c.id AS id, c.place_id AS placeId, c.content AS content,
                  p.name AS name, p.lat AS lat, p.lng AS lng, p.category AS category
@@ -119,44 +118,65 @@ async function notifyDailyDigest(db) {
           WHERE COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0
             AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)
             AND c.created_at >= datetime('now','-1 day')
-            AND p.lat IS NOT NULL AND p.lng IS NOT NULL
-            AND p.category IN ('음식점','뷰티','카페')`,
+            AND p.lat IS NOT NULL AND p.lng IS NOT NULL`,
     args: [todayStr],
   })).rows;
-  const prefs = (await db.execute("SELECT device_id, lat, lng, radius_km, categories FROM push_prefs WHERE enabled=1 AND lat IS NOT NULL AND lng IS NOT NULL")).rows;
+  if (!cands.length) {
+    await db.execute({ sql: "INSERT OR REPLACE INTO scrape_state (platform, last_max_id, last_run_at) VALUES ('push_digest', ?, datetime('now'))", args: [todayInt] });
+    return { devices: 0, candidates: 0 };
+  }
 
-  let devices = 0;
-  for (const pf of prefs) {
-    const radius = Number(pf.radius_km || 5);
-    const userCats = (pf.categories && String(pf.categories).trim()) ? String(pf.categories).split(',').map(s => s.trim()) : null;
-    // 반경 안(+사용자 카테고리 필터 있으면 교집합) 후보를 카테고리별로 분류
-    const byCat = { '음식점': [], '뷰티': [], '카페': [] };
+  // 마스터 토글 컬럼 보장(기본 ON)
+  try { await db.execute("ALTER TABLE users ADD COLUMN push_digest_enabled INTEGER DEFAULT 1"); } catch (e) {}
+  // 발송 대상 = 내 장소 알림 ON(user_places.alarm_enabled) + 마스터 ON(users.push_digest_enabled) 유저의 관심지점들
+  const places = (await db.execute(`
+    SELECT up.user_id AS userId, up.lat AS lat, up.lng AS lng, up.radius_km AS radiusKm, up.categories AS categories
+    FROM user_places up JOIN users u ON u.id = up.user_id
+    WHERE up.alarm_enabled=1 AND up.lat IS NOT NULL AND up.lng IS NOT NULL
+      AND COALESCE(u.push_digest_enabled,1)=1`)).rows;
+  // 유저별로 관심지점 묶기(한 유저가 집/회사/여행지 여러 곳)
+  const byUser = new Map();
+  for (const pl of places) {
+    const arr = byUser.get(pl.userId) || [];
+    arr.push(pl);
+    byUser.set(pl.userId, arr);
+  }
+
+  let devices = 0, usersTargeted = 0;
+  for (const [userId, userPlaces] of byUser) {
+    // 이 유저의 모든 관심지점(각자 반경·카테고리) 안에 드는 신규 협찬을 모아 캠페인 id로 중복 제거
+    const matched = new Map(); // campaignId -> cand
     for (const c of cands) {
-      if (userCats && !userCats.includes(c.category)) continue;
-      if (haversineKm(Number(pf.lat), Number(pf.lng), Number(c.lat), Number(c.lng)) > radius) continue;
-      if (byCat[c.category]) byCat[c.category].push(c);
+      for (const pl of userPlaces) {
+        const cats = (pl.categories && String(pl.categories).trim()) ? String(pl.categories).split(',').map(s => s.trim()).filter(Boolean) : null;
+        if (cats && cats.length && !cats.includes(c.category)) continue; // 장소별 카테고리 필터(빈값=전체)
+        if (haversineKm(Number(pl.lat), Number(pl.lng), Number(c.lat), Number(c.lng)) > Number(pl.radiusKm || 3)) continue;
+        matched.set(c.id, c); break; // 한 지점이라도 들면 채택
+      }
     }
-    // 후보 있는 카테고리만 대상으로 가중 랜덤 → 그 안에서 1건 랜덤
-    const avail = PUSH_CATS.filter(cat => byCat[cat].length > 0);
-    if (!avail.length) continue; // 셋 다 없으면 이 기기 스킵
+    if (!matched.size) continue;
+    // 카테고리 가중 랜덤 → 그 카테고리 중 1건 랜덤(유저당 1건)
+    const pool = [...matched.values()];
+    const avail = [...new Set(pool.map(c => c.category))];
     const cat = weightedPick(avail, CAT_WEIGHT);
-    const pool = byCat[cat];
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    const toks = (await db.execute({ sql: "SELECT token FROM push_tokens WHERE enabled=1 AND device_id=?", args: [pf.device_id] })).rows.map(r => r.token).filter(Boolean);
-    if (!toks.length) continue;
+    const inCat = pool.filter(c => c.category === cat);
+    const pick = inCat[Math.floor(Math.random() * inCat.length)];
+    const toks = (await db.execute({ sql: "SELECT token FROM push_tokens WHERE enabled=1 AND user_id=?", args: [userId] })).rows.map(r => r.token).filter(Boolean);
+    if (!toks.length) continue; // 알림은 켰지만 앱 토큰 미등록(웹만 쓰는 유저 등)
+    usersTargeted++;
     // 매장명을 title에 올려 OS가 볼드로 렌더(본문은 서식 불가). 본문엔 훅+제공내용.
     const desc = String(pick.content || '').replace(/\s+/g, ' ').trim().slice(0, 50);
     const r = await sendToTokens(toks, {
       title: `🔔 ${pick.name}`,
-      body: desc ? `내 동네 새 협찬 · ${desc}` : '내 동네에 새 협찬이 떴어요',
-      data: { placeId: String(pick.placeId), lat: String(pf.lat), lng: String(pf.lng) }, // 탭 → 매장 상세
+      body: desc ? `내 장소 주변 새 협찬 · ${desc}` : '내 장소 주변에 새 협찬이 떴어요',
+      data: { placeId: String(pick.placeId), lat: String(pick.lat), lng: String(pick.lng) }, // 탭 → 매장 상세
     });
     await disableInvalid(db, r.invalid);
     if (r.sent > 0) devices++;
   }
   // 오늘 발송 완료 표시(0건이어도 오늘은 다시 안 돎)
   await db.execute({ sql: "INSERT OR REPLACE INTO scrape_state (platform, last_max_id, last_run_at) VALUES ('push_digest', ?, datetime('now'))", args: [todayInt] });
-  return { devices, candidates: cands.length };
+  return { devices, usersTargeted, candidates: cands.length };
 }
 
 module.exports = { getAccessToken, sendToTokens, notifyDailyDigest, serviceAccount };
