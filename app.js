@@ -229,6 +229,16 @@ function oauthLogin(provider) {
 function isNativeApp() {
   return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 }
+// 접속 기기 판정(전역) — 방문집계 _detectPlatform과 동일 규칙. ios/android/app(구버전앱)/mweb/pcweb.
+function detectPlatform() {
+  try {
+    if (window.Capacitor && (window.Capacitor.isNativePlatform ? window.Capacitor.isNativePlatform() : false)) {
+      const gp = (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
+      return gp === 'ios' ? 'ios' : gp === 'android' ? 'android' : 'app';
+    }
+  } catch (e) {}
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ? 'mweb' : 'pcweb';
+}
 // 모바일 레이아웃 판정 — '뷰포트 너비'가 아니라 '기기(터치/마우스)' 기준.
 // 데스크톱(마우스)은 창을 아무리 좁혀도 PC 유지, 폰/태블릿(터치)은 항상 모바일, 네이티브 앱(터치 웹뷰)도 모바일.
 // CSS(style.css)의 `@media (hover: none) and (pointer: coarse)` 와 반드시 동일 기준이어야 함.
@@ -4260,7 +4270,7 @@ let _authChecked = false; // /api/auth/me 응답 수신 여부 — 확인 전엔
 
 async function refreshAuthUI() {
   try {
-    const res = await fetch('/api/auth/me');
+    const res = await fetch('/api/auth/me?platform=' + detectPlatform());
     const data = await res.json();
     currentUser = data.user || null;
   } catch (e) {

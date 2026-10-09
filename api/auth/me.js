@@ -24,6 +24,13 @@ module.exports = async function handler(req, res) {
   // 최종접속 시각: 매 접속마다 갱신(UTC 저장, 어드민에서 fmtKST로 KST 변환). user_visits는 날짜만 남아 시각 표기 불가라 별도 컬럼.
   try { await db.execute("ALTER TABLE users ADD COLUMN last_seen_at TEXT"); } catch (e) {}
   try { await db.execute({ sql: "UPDATE users SET last_seen_at = datetime('now') WHERE id = ?", args: [session.userId] }); } catch (e) {}
+  // 마지막 접속 기기(ios/android/app/mweb/pcweb) — 클라 _detectPlatform()을 ?platform=으로 전달. 신규 접속부터 기록.
+  try { await db.execute("ALTER TABLE users ADD COLUMN last_platform TEXT"); } catch (e) {}
+  try {
+    const PLAT_OK = ['ios', 'android', 'app', 'mweb', 'pcweb'];
+    const plat = PLAT_OK.includes(String(req.query.platform)) ? String(req.query.platform) : null;
+    if (plat) await db.execute({ sql: "UPDATE users SET last_platform = ? WHERE id = ?", args: [plat, session.userId] });
+  } catch (e) {}
   try { await db.execute("ALTER TABLE users ADD COLUMN profile_image TEXT"); } catch (e) {}
 
   const result = await db.execute({ sql: 'SELECT email, url_platform, url_id, profile_image, created_at FROM users WHERE id = ?', args: [session.userId] });

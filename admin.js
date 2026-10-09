@@ -518,6 +518,9 @@ function renderReferrerDaily(rows) {
 
 // 접속 환경(앱/모바일웹/PC웹) — 오늘 기준 막대
 const PLAT_LABELS = { ios: '🍎 iOS 앱', android: '🤖 안드 앱', app: '📱 앱(구버전)', mweb: '🌐 모바일웹', pcweb: '💻 PC웹' };
+// 회원목록 '기기' 컬럼용 짧은 라벨(마지막 접속 기기). 빈값=미기록(신규 접속부터 채워짐).
+const PLAT_SHORT = { ios: '🍎 iOS', android: '🤖 안드', app: '📱 앱', mweb: '🌐 모바일', pcweb: '💻 PC' };
+function platLabelShort(p) { return p && PLAT_SHORT[p] ? PLAT_SHORT[p] : '<span style="color:#bbb">-</span>'; }
 function renderPlatforms(list) {
   const el = document.getElementById('deviceStats');
   if (!el) return;
@@ -1410,9 +1413,10 @@ function renderUserRows() {
       <td>${u.reviewCount != null ? u.reviewCount : 0}</td>
       <td>${u.visitCount != null ? u.visitCount : 0}</td>
       <td>${u.lastSeenAt ? fmtKST(u.lastSeenAt) : (u.lastVisitDate || '-')}</td>
+      <td style="white-space:nowrap">${platLabelShort(u.lastPlatform)}</td>
       <td>${fmtKST(u.createdAt)}</td>
       <td>${signupSrcLabel(u.signupSource)}</td>
-    </tr>`).join('') || `<tr><td colspan="11" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="12" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
   renderUserPager(totalPages);
 }
 function renderUserPager(totalPages) {

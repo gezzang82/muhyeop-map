@@ -229,6 +229,7 @@ function toUser(row) {
     createdAt: row.created_at,
     lastSeenAt: row.last_seen_at || '',           // 최종접속 시각(UTC, 어드민에서 KST 변환) — 신규 접속부터
     lastVisitDate: row.last_visit_date || '',     // 최종접속 날짜(시각 없음) — last_seen_at 없는 기존 회원 폴백
+    lastPlatform: row.last_platform || '',        // 마지막 접속 기기(ios/android/app/mweb/pcweb) — 신규 접속부터
     reportCount: Number(row.report_count || 0),   // 협찬 제보수(캠페인)
     reviewCount: Number(row.review_count || 0),   // 후기 등록수
     visitCount: Number(row.visit_count || 0)      // 접속수(1일 1회)
@@ -345,6 +346,7 @@ module.exports = async function handler(req, res) {
   // 집계용 테이블 보장(후기/접속 테이블이 아직 없을 수 있음)
   try { await db.execute("CREATE TABLE IF NOT EXISTS user_visits (user_id INTEGER NOT NULL, visit_date TEXT NOT NULL, UNIQUE(user_id, visit_date))"); } catch (e) {}
   try { await db.execute("ALTER TABLE users ADD COLUMN last_seen_at TEXT"); } catch (e) {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN last_platform TEXT"); } catch (e) {}
   // 회원별 제보수/후기수 상관 서브쿼리(회원마다 campaigns/reviews 스캔)가 인덱스 없이 수 초 걸림 → 인덱스로 seek.
   try { await db.execute("CREATE INDEX IF NOT EXISTS idx_campaigns_user_id ON campaigns(user_id)"); } catch (e) {}
   try { await db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id)"); } catch (e) {}
