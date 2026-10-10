@@ -59,6 +59,17 @@
 - **콜드스타트 레이스 해소**: 앱이 종료된 상태에서 푸시 탭으로 켜지면 `map`이 준비되기 전 탭 이벤트가 와 `map.setCenter`가 조용히 실패(무반응)하던 문제 → 리스너를 데이터 로드 전 **일찍 등록**(`attachPushActionListener`, load 핸들러 `initMap` 직후), 지도 준비 전 탭은 `_pendingPushNav`에 큐잉 → `renderAll` 뒤 **`drainPendingPushNav`** 로 처리.
 - **포그라운드 자동이동**: 앱을 켜둔 채 푸시가 오면 안드로이드는 트레이에 안 남기고 배너만 잠깐 떠 탭할 게 없음 → `pushNotificationReceived`로 포그라운드 도착을 잡아 `applyPushNav`를 바로 실행(탭 없이 이동).
 - `app.js`는 서버(server.url)에서 로드돼 **배포만으로 앱에 반영**(플러그인은 이미 APK). 서버 발송 로직·문구는 [[api-db]]·[[16-push-notifications]].
+- **토큰 user_id 귀속(2026-10-09)**: `registerPushToken`이 `?push=register`에 `credentials:'same-origin'`으로 세션 쿠키를 실어 **로그인 상태 등록 시 `push_tokens.user_id`가 채워짐**(하루요약이 `user_places`→user_id→token으로 발송하므로 필수). 비로그인 등록분은 user_id NULL → 내 장소 알림 켜거나 로그인 상태 재접속 시 귀속.
+- **내 장소 알림 ON 저장 → 권한·토큰 확보(`ensurePushForMyPlaceAlarm`, 2026-10-09)**: 내 장소 저장(`mlSave`/`pcPlaceSave`)에서 알림을 켠 채 저장하면 네이티브 앱일 때 **OS 알림 권한 맥락요청 + `P.register()`**(→토큰 등록, 로그인 상태라 user_id 귀속). 발송 대상은 서버가 `user_places.alarm_enabled`로 직접 조회([[api-db]] `notifyDailyDigest`).
+- **알림 '탭'(앱 접근) 집계(2026-10-10)**: `pushNotificationActionPerformed`(실제 탭)에서 `POST /api/users?push=open`으로 1건 기록(payload의 `kind`=digest|event 구분, `placeId`, `deviceId`). 포그라운드 수신(`pushNotificationReceived`)은 탭이 아니라 미집계. 어드민 '알림 탭' 카드 [[admin]].
+- **전역 `detectPlatform()`(2026-10-10)**: 방문집계 `_detectPlatform`과 동일 규칙(ios/android/app/mweb/pcweb)의 전역 함수. `refreshAuthUI`의 `/api/auth/me?platform=` 호출에 실어 보내 `users.last_platform`(마지막 접속 기기) 갱신([[api-db]]·[[admin]] 기기 컬럼).
+
+## 내 장소 저장 피드백 + 알림설정 (2026-10-08~10)
+- **저장 성공 토스트**: 내 장소 저장 시 `mlSave`(모바일)·`pcPlaceSave`(PC) 공통으로 **'내 장소가 추가되었어요'(신규)/'변경사항을 저장했어요'(수정)** 토스트. 이전엔 시트만 닫혀 저장 여부가 불확실했음. (PC는 `pcPlaceSave`로 경로가 달라 둘 다 배선)
+- **알림설정 마스터 서버 반영**: MY>알림설정 토글(`onAlarmToggle`)이 전체알림 && 내장소 신규협찬을 합쳐 **`POST /api/users?push=digestpref`로 `users.push_digest_enabled`에 반영**(로그인 유저). 예전 "클라 UI만(Phase2)" 서술에서 실제 서버 게이트로 배선됨 — 끄면 하루요약 발송 억제. per-place on/off는 내 장소별 `alarm_enabled`.
+
+## 커뮤니티 후기 정렬 (2026-10-10)
+- 후기 피드(`_cmFeedSort`)·내 후기(`_myRevSort`) **기본 정렬을 좋아요순 → 최신순(`latest`)** 으로 변경(새 후기가 바로 안 보여 최신순이 자연스러움). 매장별 후기 리스트(`_reviewSort`)는 기존대로 최신순. 좋아요순은 정렬 버튼 토글로 유지.
 
 ## 가입 유입경로(클라, 2026-09-23)
 - 방문 시 유입소스를 세션(`sessionStorage mh_src`)에 저장: `?ref`/`utm_source` 태그가 있으면 그 값, 없으면 최초 `document.referrer`를 채널로 분류(`classifyRefClient` — 네이버/카카오/인스타/스레드/구글/페북/당근/유튜브/틱톡, 그 외 host, 내부/빈값 제외).

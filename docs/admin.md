@@ -22,6 +22,7 @@
 - **마감 임박 카드**(`#ddayStats`, 2026-07-31): 활성 캠페인을 마감까지 남은 일수별로 **D-DAY(오늘 마감)~D-7** 8칸으로 집계 표시(2026-08-02 D-4→D-7 확장). `deadlineToUTC(c.deadline) - today === n*86400000`(KST 기준), 상시(마감일 빈 값=Infinity)는 제외. D-DAY 칸은 브랜드컬러 강조. 체험단 마감이 ~5일이라 매일 얼마나 갱신해야 하는지 파악용.
 - "마감 완료" 통계 카드는 D-day/마감 시스템 제거 후 함께 삭제됨 (`expired` 필터, `statExpired` 더 이상 없음)
 - **캠페인 조회·클릭 카드**(`renderCampaignClicks`, `GET /api/campaigns?clickstats=1`): `campaign_events`(view=상세보기 / click=페이지이동) 집계를 **일별**(`#campaignClickDaily`)·**지역별**(`#campaignClickRegion`)·**카테고리별**(`#campaignClickCategory`)로 표시(전환율=click/view). **플랫폼별 카드 추가(2026-09-23)**: `#campaignClickPlatform` — `?clickstats=1`의 `platforms`(리뷰노트·디너의여왕 등 플랫폼별 상세보기/페이지이동, **오늘+누적**, [[api-db]]).
+- **🔔 알림 탭(앱 접근) 카드**(`#pushOpenStats`, `renderPushOpens`, `GET /api/users?push=openstats`, 2026-10-10): 푸시 알림을 **탭해 앱에 들어온** 집계 — 최근 7일/오늘 **고유 유저 수·총 탭 수** + **하루요약/이벤트 구분**. 탭 기록은 `push_opens`([[api-db]], `?push=open`). **소급 불가**(붙인 이후 탭부터)·**안드만**(iOS 푸시 미수신). 유입 대비 "알림→앱 복귀" 전환 파악용.
 
 ## 이벤트 푸시 (전체 발송, 2026-09-23)
 - 대시보드 상단 **"📣 이벤트 푸시"** 카드(`sendEventPush`): 제목/내용/(선택)이동대상(매장ID 숫자 또는 `https://` 링크) → 확인창 후 **`POST /api/users?push=broadcast`**(requireAdmin, 활성 `push_tokens` 전체에 FCM 발송, 무효 토큰 자동 비활성화). 대상 기기수는 **`GET /api/users?push=count`**(활성 토큰 수)로 카드에 표시.
@@ -56,6 +57,8 @@
 - **AI 자동등록(오토파일럿) 카드**(2026-08): `execAutopilot(dry)` — [미리보기(등록 안 함, `?dry=1`)]/[지금 실행](`POST ?action=autopilot`). 결정 표(🟢자동등록/🟡검수대기/🔴스킵)+요약 노출. **로컬 크롤러(`scripts/crawl-worker.js`)가 상시 자동 실행**하며(Vercel 크론 폐지 2026-08-30) 버튼은 즉시 실행/미리보기용. 자동등록분은 `campaigns.source='ai'` → **조회>캠페인 출처 라디오 'AI'**로 모아보고 해당 행에서 회수. 라우팅/처리량 상세: `docs/product/03-platform-analysis.md` 8절, 엔진 `api/_autopilot.js`.
 
 ## 회원 목록 (`tab-users`)
-- `api/users.js` GET으로 `users` 테이블 전체를 가입일 역순 조회. ID/로그인 방식/닉네임/이메일/블로그·인스타/제보수/후기수/접속수/최종접속/가입일시/**가입경로** 표시. (POST `?push=` 분기는 별개 — [[api-db]])
+- `api/users.js` GET으로 `users` 테이블 전체를 가입일 역순 조회. ID/로그인 방식/닉네임/이메일/블로그·인스타/제보수/후기수/접속수/최종접속/**기기**/가입일시/**가입경로** 표시. (POST `?push=` 분기는 별개 — [[api-db]])
 - 이메일은 로그인 사용자만 OAuth로 자동 수집되며(비로그인 사용자는 이메일을 수집하지 않음), 블로그·인스타는 사용자가 프로필 설정에서 등록한 경우에만 채워짐
 - **가입경로 컬럼(2026-09-23)**: `signupSource`(`users.signup_source`)를 `SIGNUP_SRC_LABELS`(네이버/카카오/스레드/앱 등)로 표시, 빈값은 '-'. 신규 가입 시점의 유입소스를 기록(추적 흐름 [[api-db]] `api/auth/`). **소급 불가** — 배포(2026-09-23) 이후 신규 가입부터.
+- **컬럼 정렬(2026-10-08)**: **후기수·접속수·최종접속** 헤더 클릭 시 정렬(▲▼ 토글, `sortUsersBy`/`userView.sortKey`+`sortDir`, 현재 필터·검색 결과 전체 기준·1페이지로 이동). 최종접속 정렬값은 `lastSeenAt`(시각) 우선 → 없으면 `lastVisitDate`(날짜) → 둘 다 없으면 맨 뒤.
+- **기기 컬럼(2026-10-10)**: `users.last_platform`을 `PLAT_SHORT`로 🍎 iOS / 🤖 안드 / 💻 PC / 🌐 모바일 / 📱 앱, 미기록은 '-'. `me.js`가 로그인 접속 시 `?platform=`(클라 `detectPlatform()`)로 갱신하는 **마지막 접속 기기**([[api-db]]). **소급 불가**(배포 이후 접속부터)·마지막 1개만·회원(로그인) 한정. `admin.html`의 `admin.js?v=` **캐시버전 도입**(이후 변경은 하드리로드 없이 반영).

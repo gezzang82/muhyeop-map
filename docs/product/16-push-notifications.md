@@ -1,6 +1,15 @@
 # 앱 푸시 알림 설계 (재방문 엔진)
 
-작성 2026-09-18 · 상태: **구현·운영 중(2026-09-22)** — Play 출시 후 착수, 온디바이스 수신·탭→바텀시트 확인 완료
+작성 2026-09-18 · 상태: **구현·운영 중** — 온디바이스 수신·탭→바텀시트 확인 완료. **as-built 개정(2026-10-10): 하루요약 발송 대상을 `push_prefs`(기기) → `user_places`(로그인 유저 내 장소) 기반으로 재작성, 실제 발송 검증 완료(안드). iOS는 APNs 미연동이라 아직 미수신.**
+
+## ⚠️ as-built 변경 요약 (2026-10-09~10) — 아래 본문보다 우선
+- **발송 대상 소스 전환**: 하루요약(`notifyDailyDigest`)이 `push_prefs`(기기당 관심위치 1곳)가 아니라 **`user_places`(로그인 유저 내 장소, `alarm_enabled=1`)** 기반. Phase1 내 장소가 유저당 최대 10곳이라 push_prefs(1곳)로는 못 담음. `push_prefs`는 비로그인 레거시로만 남김.
+- **유저당 1건**: 여러 내 장소를 통합해 반경 매칭된 신규 협찬 중 카테고리 가중 랜덤 1건. 유저의 `push_tokens`(user_id)로 발송.
+- **카테고리**: 유저가 내 장소에 설정한 `categories`(JSON) 그대로 필터(전체면 전체). *초기 버그: JSON을 `split(',')`로 파싱해 매칭 0건→0건 발송하던 것 `JSON.parse`로 수정(2026-10-10).*
+- **마스터 토글**: `users.push_digest_enabled`(기본 1, `?push=digestpref`). MY>알림설정 전체알림+내장소신규협찬 off면 억제.
+- **토큰 user_id 귀속**: 하루요약이 user_id로 기기를 찾으므로 **로그인 상태에서 토큰 등록**돼야 함(`registerPushToken` credentials). 내 장소 알림 켤 때(`ensurePushForMyPlaceAlarm`) 권한요청+등록으로 귀속.
+- **알림 탭 집계**: `push_opens` 테이블 + 어드민 '알림 탭' 카드([[admin]]) 신설.
+- **현재 안드만 수신**(iOS APNs 키 미연동). 발송 주체는 **로컬 크롤러**(정오 이후 패스, 크롤러 떠 있어야 자동 발송).
 
 ## 배경 / 문제
 - 유입은 스레드/블로그로 늘지만(2026-09-17 UV 179), **기존 회원 재방문이 거의 없음**.
@@ -22,21 +31,22 @@
 ```
 FCM 하나면 안드로이드 + iOS(APNs 대행) 둘 다 커버 = Capacitor 표준.
 
-## 데이터 모델 (테이블 2개)
+## 데이터 모델 (as-built)
 ```sql
--- 기기 푸시 토큰(로그인 안 해도 기기 단위)
-push_tokens(
-  id, user_id(nullable), device_id, platform('ios'|'android'),
-  token UNIQUE, enabled(1/0), created_at, updated_at
-)
--- 알림 타겟팅(위치 기준 — 콘텐츠 불문으로 유연)
-push_prefs(
-  device_id(or user_id), lat, lng, radius_km(기본 5),
-  categories(nullable, 예 '숙박/여가,뷰티'),  -- 비우면 전체
-  digest('instant'|'daily'), enabled, updated_at
-)
+-- 기기 푸시 토큰 (하루요약은 user_id로 기기를 찾으므로 로그인 상태 등록 필요)
+push_tokens(id, user_id(nullable), device_id, platform('ios'|'android'),
+  token UNIQUE, enabled(1/0), created_at, updated_at)
+-- 하루요약 발송 대상 = 내 장소 (Phase1, 유저당 최대 10곳)
+user_places(id, user_id, kind, name, address, lat, lng,
+  radius_km(1~5), categories(JSON), alarm_enabled, ...)   -- alarm_enabled=1인 곳이 타겟
+-- 마스터 토글
+users.push_digest_enabled(기본 1)
+-- 알림 탭(앱 접근) 집계
+push_opens(id, user_id, device_id, place_id, kind('digest'|'event'), created_at)
+-- (레거시) 비로그인 기기 관심위치 — 하루요약은 이제 미사용
+push_prefs(device_id, user_id, lat, lng, radius_km, categories, digest, enabled, updated_at)
 ```
-→ **"무엇을 푸시할지"는 여기 조건(위치·카테고리)만 바꾸면 됨.** 발송 코드는 불변.
+→ 하루요약 타겟팅은 **`user_places.alarm_enabled`(위치·반경·카테고리)** 로, 유저 단위. 스키마 상세 [[api-db]].
 
 ## 흐름 4단계
 1. **토큰 등록** — 앱 시작 시 권한 요청 → FCM 토큰 → `POST /api/users?push=register {token, platform, deviceId, userId?}`
@@ -63,7 +73,7 @@ push_prefs(
 ## "무엇을 푸시할지" = 트리거 (2026-09-22 구현: **하루 1회, 신규 1건 콕 집기**)
 - **1차 결정(2026-09-21)**: 건당 즉시는 스팸(홍대처럼 쏟아지는 동네 하루 수십 번) → **하루 1회**로.
 - **2차 결정·구현(2026-09-22)**: 요약("근처 새 협찬 N개")은 탭해도 **"그래서 새 게 뭔데?"** 가 남아 실사용 시 밋밋(온디바이스 확인). → **신규 중 캠페인 1건을 콕 집어** 문구에 매장명·제공내용을 넣고, 탭하면 **그 매장 바텀시트 상세**로 바로 들어가게 변경. 목적은 **재방문 유도(a)** — 실시간이 아니라 "낮에 한 번 내 동네 새 협찬 하나 알려줌".
-- **선택 규칙**(`api/_push.js` `notifyDailyDigest`, 크롤러가 매 패스 호출): 각 기기 관심반경 안 **지난 24h 신규 활성 협찬** 중 카테고리 **음식점>뷰티>카페 가중 랜덤**(`CAT_WEIGHT={음식점:5,뷰티:3,카페:2}`, 후보 있는 카테고리만) → 그 안에서 1건 랜덤. **이 3개 카테고리만 대상**, 셋 다 없으면 그 기기 스킵. (사용자가 카테고리 필터를 저장했으면 교집합.) 음식점이 신규의 ~75%라 자연히 비중 최고 + 가끔 뷰티/카페로 변화.
+- **선택 규칙**(`api/_push.js` `notifyDailyDigest`, 크롤러가 매 패스 호출 / **as-built 2026-10-09~10**): 대상 = `user_places.alarm_enabled=1` + `users.push_digest_enabled=1`인 **로그인 유저**. 유저의 **여러 내 장소(집/회사/여행지)를 통합**해 각 장소 반경·카테고리 안 **지난 24h 신규 활성 협찬**을 캠페인 id로 중복 제거 → 카테고리 **가중 랜덤**(`CAT_WEIGHT={음식점:5,뷰티:3,카페:2}`, 그 외 카테고리 기본 1) → 1건 랜덤. **유저당 1건**, 매칭 0이면 그 유저 스킵. **카테고리는 유저가 내 장소에 설정한 값 그대로**(전 11종, 빈값=전체 — 예전 "음식점/뷰티/카페 3개만"에서 확장). 발송은 유저의 `push_tokens`(user_id, enabled=1). *초기 버그: `user_places.categories`가 JSON인데 `split(',')`로 파싱해 전부 필터링→0건 발송하던 것 `JSON.parse`로 수정(2026-10-10), 실제 발송 검증 완료.*
 - **문구/탭**: `🔔 내 동네 새 협찬` / `{매장명} · {제공내용}`, `data.placeId` 실어 발송 → 탭 시 `focusPlace(placeId)`로 매장 상세. `PUSH_DIGEST_HOUR`(KST, 기본 12시) 이후 그날 처음일 때만, 1일1회 가드=`scrape_state 'push_digest'`(YYYYMMDD).
 - **클라 탭 처리(app.js, 2026-09-22)**: `applyPushNav(nav)`가 `placeId`면 `focusPlace`, 없으면 관심좌표로 이동+토스트. **콜드스타트**(앱 종료 상태 탭→켜짐): 리스너를 데이터 로드 전 일찍 등록(`attachPushActionListener`)하고 지도 준비 전 탭은 `_pendingPushNav`에 큐잉→`drainPendingPushNav`에서 처리(예전엔 map 준비 전이라 조용히 실패=무반응). **포그라운드**(앱 켜둔 중 도착): 안드로이드는 트레이에 안 남고 배너만 잠깐 떠 탭 불가 → `pushNotificationReceived`로 잡아 바로 이동.
 - **게이트**: `FIREBASE_SERVICE_ACCOUNT` 있을 때만 발송(`serviceAccount()` 없으면 no-op).
