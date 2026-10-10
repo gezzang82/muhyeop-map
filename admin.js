@@ -537,6 +537,21 @@ function renderPlatforms(list) {
         <span class="stat-num">${r.cnt || 0} (${Math.round((r.cnt || 0) / total * 100)}%)</span>
       </div>`).join('');
 }
+// 알림 탭(앱 접근) 집계 렌더 — 최근 7일/오늘 + 하루요약/이벤트 구분(고유 유저·총 탭수)
+function renderPushOpens(d) {
+  const el = document.getElementById('pushOpenStats'); if (!el) return;
+  if (!d || (!d.taps7d && !d.tapsToday)) { el.innerHTML = '<div class="empty-msg">아직 알림 탭 기록이 없어요 (붙인 이후 탭부터 집계)</div>'; return; }
+  const row = (label, users, taps) => `
+      <div class="stat-row">
+        <span class="stat-badge" style="background:#39395c1a;color:#39395c;min-width:96px">${label}</span>
+        <span class="stat-num">유저 ${Number(users || 0).toLocaleString()}명 · ${Number(taps || 0).toLocaleString()}회</span>
+      </div>`;
+  el.innerHTML =
+    row('최근 7일', d.users7d, d.taps7d) +
+    row('오늘', d.usersToday, d.tapsToday) +
+    row('└ 하루요약', (d.digest || {}).users, (d.digest || {}).taps) +
+    row('└ 이벤트', (d.event || {}).users, (d.event || {}).taps);
+}
 
 // 유입경로 집계(누적). platform-stats 스타일 재사용(막대 + 개수).
 function renderReferrers(refs) {
@@ -712,6 +727,9 @@ function renderDashboard() {
 
   // 이벤트 푸시 대상 기기수
   fetch('/api/users?push=count').then(r => r.json()).then(d => { const el = document.getElementById('pushDeviceCount'); if (el) el.textContent = (Number(d.devices) || 0).toLocaleString(); }).catch(() => {});
+
+  // 알림 탭(앱 접근) 집계
+  fetch('/api/users?push=openstats').then(r => r.json()).then(renderPushOpens).catch(() => {});
 
   // 캠페인 조회(상세보기)/클릭 — 일별 + 지역별
   fetch('/api/campaigns?clickstats=1').then(r => r.json()).then(renderCampaignClicks).catch(() => {});

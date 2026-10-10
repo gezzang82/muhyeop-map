@@ -52,6 +52,8 @@ async function handleSeoichuDelete(req, res, db) {
 async function ensurePushTables(db) {
   try { await db.execute("CREATE TABLE IF NOT EXISTS push_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, device_id TEXT, platform TEXT, token TEXT UNIQUE, enabled INTEGER DEFAULT 1, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')))"); } catch (e) {}
   try { await db.execute("CREATE TABLE IF NOT EXISTS push_prefs (id INTEGER PRIMARY KEY AUTOINCREMENT, device_id TEXT UNIQUE, user_id INTEGER, lat REAL, lng REAL, radius_km REAL DEFAULT 5, categories TEXT, digest TEXT DEFAULT 'instant', enabled INTEGER DEFAULT 1, updated_at TEXT DEFAULT (datetime('now')))"); } catch (e) {}
+  // 알림 '탭'(앱 접근) 집계 — kind=digest(하루요약)|event(이벤트푸시). 로그인 유저면 user_id 귀속(비로그인 NULL).
+  try { await db.execute("CREATE TABLE IF NOT EXISTS push_opens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, device_id TEXT, place_id INTEGER, kind TEXT, created_at TEXT DEFAULT (datetime('now')))"); } catch (e) {}
 }
 
 // POST /api/users?push=register {token, platform, deviceId} · ?push=prefs {deviceId, lat, lng, radiusKm?, categories?, enabled?}
@@ -86,6 +88,14 @@ async function handlePushPost(req, res, db, kind) {
     });
     return res.status(200).json({ ok: true });
   }
+  if (kind === 'open') {
+    // 알림 탭(앱 접근) 1건 기록. 공개(기기 단위) — 로그인 시 user_id 귀속. fail-open.
+    try {
+      const pid = Number(body.placeId); const k = (body.kind === 'digest' || body.kind === 'event') ? body.kind : null;
+      await db.execute({ sql: "INSERT INTO push_opens (user_id, device_id, place_id, kind) VALUES (?, ?, ?, ?)", args: [userId, String(body.deviceId || '') || null, isFinite(pid) ? pid : null, k] });
+    } catch (e) {}
+    return res.status(200).json({ ok: true });
+  }
   if (kind === 'digestpref') {
     // 하루요약 마스터 토글(users.push_digest_enabled). 로그인 필수.
     if (!userId) return res.status(401).json({ error: '로그인이 필요해요.' });
@@ -102,7 +112,7 @@ async function handlePushPost(req, res, db, kind) {
     const title = String(body.title || '').trim();
     const bd = String(body.body || '').trim();
     if (!title || !bd) return res.status(400).json({ error: '제목·내용은 필수' });
-    const data = {};
+    const data = { kind: 'event' }; // 탭 집계 구분용
     if (body.placeId != null && String(body.placeId).trim() !== '') data.placeId = String(body.placeId).trim();
     if (body.url && String(body.url).trim()) data.url = String(body.url).trim();
     const toks = (await db.execute("SELECT token FROM push_tokens WHERE enabled=1")).rows.map(r => r.token).filter(Boolean);
@@ -284,6 +294,25 @@ module.exports = async function handler(req, res) {
     await ensurePushTables(db);
     const c = (await db.execute("SELECT COUNT(*) AS n FROM push_tokens WHERE enabled=1")).rows[0] || {};
     return res.status(200).json({ devices: Number(c.n || 0) });
+  }
+
+  // 알림 탭(앱 접근) 집계(관리자) — 최근 7일/오늘, 고유 유저 수·총 탭수, digest/event 구분
+  if (req.query.push === 'openstats') {
+    if (!requireAdmin(req, res)) return;
+    await ensurePushTables(db);
+    const row = async (sql) => (await db.execute(sql)).rows[0] || {};
+    const n = (r, k) => Number(r[k] || 0);
+    const w7 = await row("SELECT COUNT(*) taps, COUNT(DISTINCT user_id) users FROM push_opens WHERE created_at >= datetime('now','-7 days')");
+    const today = await row("SELECT COUNT(*) taps, COUNT(DISTINCT user_id) users FROM push_opens WHERE date(created_at,'+9 hours') = date('now','+9 hours')");
+    const dg = await row("SELECT COUNT(*) taps, COUNT(DISTINCT user_id) users FROM push_opens WHERE kind='digest' AND created_at >= datetime('now','-7 days')");
+    const ev = await row("SELECT COUNT(*) taps, COUNT(DISTINCT user_id) users FROM push_opens WHERE kind='event' AND created_at >= datetime('now','-7 days')");
+    return res.status(200).json({
+      days: 7,
+      taps7d: n(w7, 'taps'), users7d: n(w7, 'users'),
+      tapsToday: n(today, 'taps'), usersToday: n(today, 'users'),
+      digest: { taps: n(dg, 'taps'), users: n(dg, 'users') },
+      event: { taps: n(ev, 'taps'), users: n(ev, 'users') },
+    });
   }
 
   // 대시보드 회원 '수'만 필요할 때: 전체 목록(상관 서브쿼리로 수 초) 대신 COUNT 1줄 → 즉시.

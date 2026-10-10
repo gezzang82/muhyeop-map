@@ -6278,6 +6278,11 @@ function attachPushActionListener() {
   P.addListener('pushNotificationActionPerformed', function (a) {
     const d = (a && a.notification && a.notification.data) || {};
     const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng, url: d.url };
+    // 알림 '탭'(앱 접근) 집계 — 로그인 유저면 세션 user_id 귀속. kind=digest|event (payload)
+    try {
+      fetch('/api/users?push=open', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placeId: d.placeId != null ? Number(d.placeId) : null, kind: d.kind || '', deviceId: getPushDeviceId() }) }).catch(() => {});
+    } catch (e) {}
     if (_pushNavReady && typeof map !== 'undefined' && map) applyPushNav(nav);
     else _pendingPushNav = nav; // 지도 준비 전 → 대기
   });

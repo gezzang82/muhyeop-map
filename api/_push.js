@@ -172,7 +172,7 @@ async function notifyDailyDigest(db) {
     const r = await sendToTokens(toks, {
       title: `🔔 ${pick.name}`,
       body: desc ? `내 장소 주변 새 협찬 · ${desc}` : '내 장소 주변에 새 협찬이 떴어요',
-      data: { placeId: String(pick.placeId), lat: String(pick.lat), lng: String(pick.lng) }, // 탭 → 매장 상세
+      data: { placeId: String(pick.placeId), lat: String(pick.lat), lng: String(pick.lng), kind: 'digest' }, // 탭 → 매장 상세(+탭 집계용 kind)
     });
     await disableInvalid(db, r.invalid);
     if (r.sent > 0) devices++;
