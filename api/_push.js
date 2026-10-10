@@ -148,7 +148,10 @@ async function notifyDailyDigest(db) {
     const matched = new Map(); // campaignId -> cand
     for (const c of cands) {
       for (const pl of userPlaces) {
-        const cats = (pl.categories && String(pl.categories).trim()) ? String(pl.categories).split(',').map(s => s.trim()).filter(Boolean) : null;
+        // user_places.categories는 JSON 배열(["음식점","카페"]) — JSON.parse. (혹시 콤마형이면 폴백)
+        let cats = null;
+        try { const pc = pl.categories ? JSON.parse(pl.categories) : null; if (Array.isArray(pc) && pc.length) cats = pc; }
+        catch (e) { if (pl.categories && String(pl.categories).trim()) cats = String(pl.categories).split(',').map(s => s.trim()).filter(Boolean); }
         if (cats && cats.length && !cats.includes(c.category)) continue; // 장소별 카테고리 필터(빈값=전체)
         if (haversineKm(Number(pl.lat), Number(pl.lng), Number(c.lat), Number(c.lng)) > Number(pl.radiusKm || 3)) continue;
         matched.set(c.id, c); break; // 한 지점이라도 들면 채택
