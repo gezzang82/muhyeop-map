@@ -77,7 +77,7 @@ push_prefs(device_id, user_id, lat, lng, radius_km, categories, digest, enabled,
 - **문구/탭**: `🔔 내 동네 새 협찬` / `{매장명} · {제공내용}`, `data.placeId` 실어 발송 → 탭 시 `focusPlace(placeId)`로 매장 상세. `PUSH_DIGEST_HOUR`(KST, 기본 12시) 이후 그날 처음일 때만, 1일1회 가드=`scrape_state 'push_digest'`(YYYYMMDD).
 - **클라 탭 처리(app.js, 2026-09-22)**: `applyPushNav(nav)`가 `placeId`면 `focusPlace`, 없으면 관심좌표로 이동+토스트. **콜드스타트**(앱 종료 상태 탭→켜짐): 리스너를 데이터 로드 전 일찍 등록(`attachPushActionListener`)하고 지도 준비 전 탭은 `_pendingPushNav`에 큐잉→`drainPendingPushNav`에서 처리(예전엔 map 준비 전이라 조용히 실패=무반응). **포그라운드**(앱 켜둔 중 도착): 안드로이드는 트레이에 안 남고 배너만 잠깐 떠 탭 불가 → `pushNotificationReceived`로 잡아 바로 이동.
 - **게이트**: `FIREBASE_SERVICE_ACCOUNT` 있을 때만 발송(`serviceAccount()` 없으면 no-op).
-- 향후 옵션(배관 불변): 마감임박("찜한 협찬 내일 마감"), 발송 시각 조정(`PUSH_DIGEST_HOUR`), 카테고리 가중치 조정, 여러 관심지역(집·회사·활동지역) — 현재 관심지역 1곳만 저장.
+- 향후 옵션(배관 불변): 마감임박("찜한 협찬 내일 마감"), 발송 시각 조정(`PUSH_DIGEST_HOUR`), 카테고리 가중치 조정. **여러 관심지역(집·회사·여행지)은 이미 지원**(user_places 기반, 2026-10-09). **다음 작업: iOS APNs 인증키 연동**(현재 안드만 수신).
 
 ## 착수 순서
 1. **안드로이드 Play 출시 후**(앱이 스토어에 있어야 푸시 의미)
