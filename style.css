@@ -3387,6 +3387,12 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 /* 후기 리스트 */
 .rv-list-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 10px; }
 .rv-count { font-size: 14px; color: #1a1a1a; }
+/* 후기 지역 필터 탭(전체·서울·…) — 가로 스크롤, 활성=볼드+밑줄바. 모바일·PC 공용 */
+.cm-region-tabs { display: flex; gap: 16px; align-items: center; overflow-x: auto; padding: 8px 0; margin: 0; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.cm-region-tabs::-webkit-scrollbar { display: none; }
+.cm-region-tab { flex: 0 0 auto; position: relative; background: none; border: 0; padding: 0 0 6px; font-size: 16px; color: #777; white-space: nowrap; cursor: pointer; }
+.cm-region-tab.on { color: #111; font-weight: 700; }
+.cm-region-tab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #111; border-radius: 1px; }
 .rv-sort-wrap { position: relative; flex-shrink: 0; }
 .rv-sort { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; font-size: 14px; color: #555; font-family: inherit; padding: 0; }
 .rv-sort-caret { display: block; transition: transform .15s; transform: rotate(180deg); }

@@ -318,6 +318,19 @@ module.exports = async function handler(req, res) {
         if (!session) return res.status(200).json({ total: 0, items: [] }); // 비로그인 '내 후기' 빈 목록
         where.push('r.user_id = ?'); wargs.push(session.userId);
       }
+      // 지역(시/도) 필터 — 매장 주소 접두. 정식명(경상남도)·축약(경남) 모두 매칭. '전체'=필터 없음.
+      const REGION_PREFIX = {
+        '서울': ['서울'], '부산': ['부산'], '대구': ['대구'], '인천': ['인천'], '광주': ['광주'], '대전': ['대전'], '울산': ['울산'],
+        '세종': ['세종'], '경기': ['경기'], '강원': ['강원'],
+        '충북': ['충북', '충청북도'], '충남': ['충남', '충청남도'], '전북': ['전북', '전라북도'], '전남': ['전남', '전라남도'],
+        '경북': ['경북', '경상북도'], '경남': ['경남', '경상남도'], '제주': ['제주'],
+      };
+      const region = String(req.query.region || '').trim();
+      if (!mine && REGION_PREFIX[region]) {
+        const prefs = REGION_PREFIX[region];
+        where.push('(' + prefs.map(() => 'p.address LIKE ?').join(' OR ') + ')');
+        prefs.forEach(p => wargs.push(p + '%'));
+      }
       const whereSql = where.join(' AND ');
       const totalRow = (await db.execute({
         sql: `SELECT COUNT(*) AS n FROM reviews r JOIN places p ON p.id = r.place_id WHERE ${whereSql}`,

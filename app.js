@@ -2994,6 +2994,8 @@ function switchTab(tab) {
 // 설계/결정: docs/product/17-travel-pins.md · 06-decision-log(2026-10-02).
 let _cmSeg = 'seoichu';
 let _cmFeedSort = 'latest';   // 후기 정렬 기본=최신순: 'likes'(좋아요 순) | 'latest'(최신 순)
+let _cmFeedRegion = '전체';    // 후기 지역 필터(시/도). '전체'=필터 없음
+const CM_REGIONS = ['전체', '서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
 let _cmFeedMine = false;     // 후기 '내 후기' 필터
 let _cmReqSeq = 0;           // 비동기 레이스 가드
 
@@ -3099,13 +3101,14 @@ async function renderCommunity(fresh) {
     body.innerHTML = cmFeedInfoHtml(mine) + cmEmptyHtml('로그인이 필요해요', '내가 등록한 후기를 모아볼 수 있어요.', true);
     return;
   }
-  body.innerHTML = cmFeedInfoHtml(mine) + cmFeedTopHtml(0)
+  body.innerHTML = cmFeedInfoHtml(mine) + (mine ? '' : cmRegionTabsHtml()) + cmFeedTopHtml(0)
     + '<div class="rv-cards" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
   const listEl = document.getElementById('cmList');
   const sentinel = document.getElementById('cmSentinel');
   _cmInfinite = createInfiniteScroll(root, sentinel, async (offset) => {
     const b = offset === 0 ? bust : '';
-    const qs = `/api/places?reviews=feed&limit=${CM_PAGE_SIZE}&offset=${offset}&sort=${_cmFeedSort}${mine ? '&mine=1' : ''}${b}`;
+    const rg = (!mine && _cmFeedRegion && _cmFeedRegion !== '전체') ? `&region=${encodeURIComponent(_cmFeedRegion)}` : '';
+    const qs = `/api/places?reviews=feed&limit=${CM_PAGE_SIZE}&offset=${offset}&sort=${_cmFeedSort}${mine ? '&mine=1' : ''}${rg}${b}`;
     const data = await fetch(qs).then(r => r.ok ? r.json() : { total: 0, items: [] });
     if (seq !== _cmReqSeq) return -1;  // stale
     const items = (data && data.items) || [];
@@ -3171,6 +3174,16 @@ function setCmSort(s) {
   document.querySelectorAll('.rv-sort-wrap.open').forEach(w => w.classList.remove('open'));
   if (s === _cmFeedSort) return;
   _cmFeedSort = s;
+  renderCommunity();
+}
+// 후기 지역 필터 탭(전체·서울·경기·…). 가로 스크롤, 활성=볼드+밑줄바.
+function cmRegionTabsHtml() {
+  return `<div class="cm-region-tabs">${CM_REGIONS.map(r =>
+    `<button class="cm-region-tab${r === _cmFeedRegion ? ' on' : ''}" onclick="setCmRegion('${r}')">${r}</button>`).join('')}</div>`;
+}
+function setCmRegion(r) {
+  if (r === _cmFeedRegion) return;
+  _cmFeedRegion = r;
   renderCommunity();
 }
 // '내 후기' — 후기 화면 링크 → 별도 서브화면(백버튼). 후기 카드/정렬은 기존 컴포넌트 재사용.
