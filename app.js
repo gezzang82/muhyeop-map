@@ -6240,6 +6240,53 @@ function initAndroidStatusBar() {
 }
 document.addEventListener('DOMContentLoaded', initAndroidStatusBar);
 
+// ===== 키보드 (네이티브 전용, @capacitor/keyboard) =====
+// iOS WKWebView는 키보드가 뜨면 웹뷰(스크롤뷰)를 통째로 위로 밀어 상단 검색바/헤더가 상태바와 겹치고 지도가 튄다.
+// capacitor.config.json의 Keyboard.resize='none'(키보드가 레이아웃을 안 밀고 '덮기만')과 짝 →
+// 하단 입력(모달/시트)이 키보드에 가리므로, 포커스된 입력을 가장 가까운 스크롤 컨테이너에서 키보드 위로 스크롤해 보이게 한다.
+// resize='none'은 바이너리(빌드)에 구워지지만, 아래 스크롤 보조는 웹(app.js)이라 배포만으로 튜닝 가능. 웹/구버전앱은 no-op.
+function keyboardScrollableAncestor(el) {
+  let n = el && el.parentElement;
+  while (n && n !== document.body) {
+    const s = getComputedStyle(n);
+    if (/(auto|scroll)/.test(s.overflowY) && n.scrollHeight > n.clientHeight + 1) return n;
+    n = n.parentElement;
+  }
+  return null;
+}
+function scrollInputAboveKeyboard(el, kbHeight) {
+  try {
+    const margin = 20; // 입력칸과 키보드 사이 여유
+    const visibleBottom = window.innerHeight - (kbHeight || 0) - margin;
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom <= visibleBottom) return; // 이미 보임
+    const delta = rect.bottom - visibleBottom;
+    const sc = keyboardScrollableAncestor(el);
+    if (sc) sc.scrollTop += delta;
+    else window.scrollBy(0, delta);
+  } catch (e) {}
+}
+function initNativeKeyboard() {
+  if (!isNativeApp()) return;
+  const KB = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard;
+  if (!KB) return; // 플러그인 없는 구버전 앱: no-op
+  try { if (KB.setScroll) KB.setScroll({ isDisabled: true }); } catch (e) {} // 웹뷰 자체 자동스크롤(밀림) 차단
+  let kbH = 0;
+  try {
+    KB.addListener('keyboardWillShow', function (info) {
+      kbH = (info && info.keyboardHeight) || 0;
+      const el = document.activeElement;
+      if (el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) setTimeout(function () { scrollInputAboveKeyboard(el, kbH); }, 50);
+    });
+  } catch (e) {}
+  // 이미 키보드가 떠있는 상태에서 다른 입력으로 포커스 이동 시에도 보정
+  document.addEventListener('focusin', function (e) {
+    const el = e.target;
+    if (kbH > 0 && el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) setTimeout(function () { scrollInputAboveKeyboard(el, kbH); }, 50);
+  });
+  try { KB.addListener('keyboardWillHide', function () { kbH = 0; }); } catch (e) {}
+}
+
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
 document.addEventListener('touchmove', function(e) {
@@ -6440,6 +6487,7 @@ window.addEventListener('load', async function() {
   renderLeaderboard();
   if (LEADERBOARD_ENABLED) setInterval(renderLeaderboard, 60000);
   initPush(); // 앱 푸시 초기화(네이티브만, 백그라운드)
+  initNativeKeyboard(); // 키보드 올라올 때 웹뷰 밀림 방지 + 포커스 입력 키보드 위로 스크롤(네이티브만)
 });
 
 let _prevIsMobile = isMobileView();

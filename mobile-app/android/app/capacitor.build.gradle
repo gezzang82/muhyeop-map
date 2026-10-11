@@ -12,6 +12,8 @@ dependencies {
     implementation project(':capacitor-community-apple-sign-in')
     implementation project(':capacitor-browser')
     implementation project(':capacitor-geolocation')
+    implementation project(':capacitor-haptics')
+    implementation project(':capacitor-keyboard')
     implementation project(':capacitor-push-notifications')
     implementation project(':capacitor-splash-screen')
     implementation project(':capacitor-status-bar')

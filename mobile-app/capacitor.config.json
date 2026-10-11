@@ -25,6 +25,9 @@
       "iosSpinnerStyle": "large",
       "splashFullScreen": true,
       "splashImmersive": true
+    },
+    "Keyboard": {
+      "resize": "none"
     }
   }
 }
