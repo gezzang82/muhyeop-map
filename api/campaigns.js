@@ -309,7 +309,16 @@ module.exports = async function handler(req, res) {
           SUM(CASE WHEN kind='click' THEN 1 ELSE 0 END) AS clicks
         FROM campaign_events GROUP BY d ORDER BY d DESC LIMIT 30`)).rows
         .map(r => ({ date: r.d, views: Number(r.views || 0), clicks: Number(r.clicks || 0) }));
-      const SIDO = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
+      // 시/도 매칭: 축약형 + 정식 명칭(경상남도·충청남도 등) + 특별자치도 모두 인식 → 같은 라벨로 집계('기타' 과대계상 방지)
+      //  정식 도이름이 축약형으로 시작 안 해(예 "경상남도".startsWith("경남")=false) 1,600여건이 기타로 빠지던 버그.
+      const SIDO_MAP = [
+        ['서울', '서울'], ['부산', '부산'], ['대구', '대구'], ['인천', '인천'], ['광주', '광주'], ['대전', '대전'], ['울산', '울산'],
+        ['세종', '세종'], ['경기', '경기'], ['강원', '강원'],
+        ['충청북도', '충북'], ['충북', '충북'], ['충청남도', '충남'], ['충남', '충남'],
+        ['전라북도', '전북'], ['전북', '전북'], ['전라남도', '전남'], ['전남', '전남'],
+        ['경상북도', '경북'], ['경북', '경북'], ['경상남도', '경남'], ['경남', '경남'],
+        ['제주', '제주'],
+      ];
       const per = (await db.execute(`
         SELECT p.address AS addr, p.category AS category,
           SUM(CASE WHEN e.kind='view' THEN 1 ELSE 0 END) AS views,
@@ -319,7 +328,7 @@ module.exports = async function handler(req, res) {
       const byS = {}, byC = {};
       for (const r of per) {
         const v = Number(r.views || 0), ck = Number(r.clicks || 0);
-        const s = SIDO.find(k => String(r.addr || '').trim().startsWith(k)) || '기타';
+        const s = (SIDO_MAP.find(([pre]) => String(r.addr || '').trim().startsWith(pre)) || [null, '기타'])[1];
         if (!byS[s]) byS[s] = { views: 0, clicks: 0 };
         byS[s].views += v; byS[s].clicks += ck;
         const cat = String(r.category || '기타').trim() || '기타';
