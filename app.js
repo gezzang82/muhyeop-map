@@ -1214,7 +1214,7 @@ function createInfoContent(place) {
 
   const founderHtml = place.founderNickname ? `
     <div class="iw-founder">
-      <span class="iw-founder-label">최초제보자</span>
+      <span class="iw-founder-label">${place.founderKind === 'review' ? '첫 후기' : '최초제보자'}</span>
       <div class="iw-founder-right">
         <img src="image/ic_workspace_premium_24.svg" width="20" height="20" alt="">
         <div class="iw-founder-name-group">
@@ -1326,7 +1326,7 @@ function createMobileDetailContent(place) {
   // 최초제보
   const founderHtml = place.founderNickname ? `
     <div class="detail-founder">
-      <span class="detail-founder-label">최초제보자</span>
+      <span class="detail-founder-label">${place.founderKind === 'review' ? '첫 후기' : '최초제보자'}</span>
       <div class="detail-founder-right">
         <img src="image/ic_workspace_premium_24.svg" width="20" height="20" alt="" class="detail-founder-icon-img">
         <div class="detail-founder-name-group">

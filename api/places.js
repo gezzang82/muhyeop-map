@@ -14,6 +14,7 @@ function toPlace(row) {
     founderNickname: row.founder_nickname || '',
     founderEmail: row.founder_email || '',
     founderUrl: row.founder_url || '',
+    founderKind: row.founder_kind || '',   // 'review'=첫 후기 작성자 / 그 외(''/'report')=최초제보자
     hidden: !!row.hidden
   };
 }
@@ -464,7 +465,7 @@ module.exports = async function handler(req, res) {
           // 최초제보자 블로그 링크: 후기 블로그 홈(blog.naver.com/{blogId}) — 상세 '최초제보자' 닉네임 클릭 시 이동(예전 제보 플로우처럼)
           const founderUrl = result.data.blogId ? ('https://blog.naver.com/' + result.data.blogId) : '';
           const insP = await db.execute({
-            sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id) VALUES (?,?,?,?,?,?,?,?,?)`,
+            sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id, founder_kind) VALUES (?,?,?,?,?,?,?,?,?,'review')`,
             args: [placeName, String(newPlace.address || ''), lat, lng, category, session.nickname || '', femail, founderUrl, session.userId]
           });
           pid = Number(insP.lastInsertRowid);
@@ -477,6 +478,15 @@ module.exports = async function handler(req, res) {
         sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id, post_date) VALUES (?,?,?,?,?,?,?,?,?,?)`,
         args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId, d.postDate || '']
       });
+      // 최초제보자 없는 매장(크롤러/어드민 등)이면 이 '첫 후기' 작성자를 founder로 승격(founder_kind='review').
+      //  이미 founder 있으면(제보자 또는 더 이른 후기) 덮어쓰지 않음 → '첫 후기' = 가장 먼저 후기 올린 사람 유지.
+      try {
+        const fUrl = result.data.blogId ? ('https://blog.naver.com/' + result.data.blogId) : '';
+        await db.execute({
+          sql: "UPDATE places SET founder_user_id=?, founder_nickname=?, founder_url=?, founder_kind='review' WHERE id=? AND (founder_user_id IS NULL)",
+          args: [session.userId, session.nickname || '', fUrl, pid],
+        });
+      } catch (e) {}
       const row = (await db.execute({ sql: 'SELECT * FROM reviews WHERE id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
       return res.status(201).json(toReview(row, false));
     }
