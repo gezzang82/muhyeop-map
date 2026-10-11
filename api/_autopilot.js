@@ -69,7 +69,16 @@ async function insertPlace(db, { name, address, lat, lng, category }) {
     sql: 'SELECT id, name FROM places WHERE lat > ? AND lat < ? AND lng > ? AND lng < ?',
     args: [Number(lat) - 0.0007, Number(lat) + 0.0007, Number(lng) - 0.0007, Number(lng) + 0.0007],
   });
-  const hit = near.rows.find((p) => String(p.name).replace(/ /g, '') === nkey);
+  // 같은 50m 안에서 이름 '포함관계'도 동일 매장으로 간주(재사용). 리뷰노트 등이 "산본 일식맛집 백소정 산본점"처럼
+  //  지역+음식종류 SEO 접두사를 붙여 공백무시 완전일치가 깨지고 중복 매장이 생기던 문제 방지.
+  //  오매칭 방지: 포함되는(짧은) 이름이 4자 이상일 때만(짧은 상호 "김밥"⊂"김밥천국" 같은 오병합 차단).
+  const hit = near.rows.find((p) => {
+    const pk = String(p.name).replace(/ /g, '');
+    if (pk === nkey) return true;
+    const shorter = pk.length <= nkey.length ? pk : nkey;
+    const longer = pk.length <= nkey.length ? nkey : pk;
+    return shorter.length >= 4 && longer.includes(shorter);
+  });
   if (hit) return Number(hit.id);
   const r = await db.execute({
     sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id)
