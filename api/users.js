@@ -107,7 +107,7 @@ async function handlePushPost(req, res, db, kind) {
   if (kind === 'broadcast') {
     // 이벤트/공지 전체 발송(관리자 전용)
     if (!requireAdmin(req, res)) return;
-    const { serviceAccount, sendToTokens } = require('./_push');
+    const { serviceAccount, sendToDevices } = require('./_push');
     if (!serviceAccount()) return res.status(400).json({ error: 'FIREBASE_SERVICE_ACCOUNT 미설정' });
     const title = String(body.title || '').trim();
     const bd = String(body.body || '').trim();
@@ -115,9 +115,9 @@ async function handlePushPost(req, res, db, kind) {
     const data = { kind: 'event' }; // 탭 집계 구분용
     if (body.placeId != null && String(body.placeId).trim() !== '') data.placeId = String(body.placeId).trim();
     if (body.url && String(body.url).trim()) data.url = String(body.url).trim();
-    const toks = (await db.execute("SELECT token FROM push_tokens WHERE enabled=1")).rows.map(r => r.token).filter(Boolean);
+    const toks = (await db.execute("SELECT token, platform FROM push_tokens WHERE enabled=1")).rows.filter(r => r.token);
     if (!toks.length) return res.status(200).json({ sent: 0, failed: 0, devices: 0 });
-    const r = await sendToTokens(toks, { title, body: bd, data });
+    const r = await sendToDevices(toks, { title, body: bd, data }); // 안드=FCM / iOS=APNs 분기
     if (r.invalid && r.invalid.length) { // 무효 토큰 비활성화
       const ph = r.invalid.map(() => '?').join(',');
       try { await db.execute({ sql: `UPDATE push_tokens SET enabled=0 WHERE token IN (${ph})`, args: r.invalid }); } catch (e) {}

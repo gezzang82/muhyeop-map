@@ -2,6 +2,7 @@
 // 서비스 계정 키(FIREBASE_SERVICE_ACCOUNT env, JSON 문자열)로 OAuth 토큰을 발급받아 FCM v1로 전송.
 // 관심위치(push_prefs) 반경 안 기기에 매칭 발송. 설계: docs/product/16-push-notifications.md
 const crypto = require('crypto');
+const http2 = require('http2');
 
 let _svc = null;      // 파싱된 서비스 계정
 let _token = null;    // { value, exp(ms) }
@@ -86,6 +87,71 @@ async function disableInvalid(db, invalid) {
   try { await db.execute({ sql: `UPDATE push_tokens SET enabled=0 WHERE token IN (${ph})`, args: invalid }); } catch (e) {}
 }
 
+// ===== iOS APNs 직접 발송 (ES256 JWT + HTTP/2, 의존성 없음) =====
+// iOS는 @capacitor/push-notifications가 APNs 토큰(FCM 아님)을 주므로 FCM 대신 APNs로 직접 보낸다.
+// env: APNS_KEY_ID, APNS_TEAM_ID, APNS_KEY_P8(.p8 내용, \n 이스케이프 허용), APNS_TOPIC(번들ID), APNS_HOST(기본 운영).
+let _apnsJwt = null, _apnsJwtAt = 0;
+function apnsJwt() {
+  const kid = process.env.APNS_KEY_ID, iss = process.env.APNS_TEAM_ID;
+  let p8 = process.env.APNS_KEY_P8 || '';
+  if (!kid || !iss || !p8) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (_apnsJwt && (now - _apnsJwtAt) < 2400) return _apnsJwt; // JWT 40분 재사용(APNs 권장 20~60분)
+  p8 = p8.replace(/\\n/g, '\n');
+  const seg = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const data = seg({ alg: 'ES256', kid }) + '.' + seg({ iss, iat: now });
+  try {
+    const sig = crypto.sign('sha256', Buffer.from(data), { key: p8, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+    _apnsJwt = data + '.' + sig; _apnsJwtAt = now;
+    return _apnsJwt;
+  } catch (e) { return null; }
+}
+async function sendApns(tokens, { title, body, data }) {
+  const jwt = apnsJwt();
+  if (!jwt) return { sent: 0, failed: tokens.length, invalid: [] };
+  const topic = process.env.APNS_TOPIC || 'com.muhyeop.app';
+  const host = process.env.APNS_HOST || 'https://api.push.apple.com'; // sandbox: https://api.sandbox.push.apple.com
+  const payloadObj = { aps: { alert: { title, body }, sound: 'default' } };
+  if (data) for (const k in data) payloadObj[k] = String(data[k]);
+  const payload = JSON.stringify(payloadObj);
+  let sent = 0, failed = 0; const invalid = [];
+  let client;
+  try { client = http2.connect(host); } catch (e) { return { sent: 0, failed: tokens.length, invalid: [] }; }
+  await new Promise((resolve) => {
+    let done = false; const finish = () => { if (done) return; done = true; try { client.close(); } catch (e) {} resolve(); };
+    client.on('error', finish);
+    let pending = tokens.length;
+    if (!pending) return finish();
+    for (const t of tokens) {
+      let status = 0, bodyStr = '', req;
+      const tick = () => { if (--pending === 0) finish(); };
+      try {
+        req = client.request({ ':method': 'POST', ':path': '/3/device/' + t, authorization: 'bearer ' + jwt, 'apns-topic': topic, 'apns-push-type': 'alert', 'apns-priority': '10' });
+      } catch (e) { failed++; tick(); continue; }
+      req.setEncoding('utf8');
+      req.on('response', (h) => { status = h[':status']; });
+      req.on('data', (d) => { bodyStr += d; });
+      req.on('end', () => {
+        if (status === 200) sent++;
+        else { failed++; if (status === 410 || /BadDeviceToken|Unregistered|DeviceTokenNotForTopic/.test(bodyStr)) invalid.push(t); }
+        tick();
+      });
+      req.on('error', () => { failed++; tick(); });
+      req.end(payload);
+    }
+  });
+  return { sent, failed, invalid };
+}
+// 토큰들을 플랫폼별로 나눠 발송: android/app/구버전 = FCM, ios = APNs. 반환 {sent, failed, invalid}(합산).
+async function sendToDevices(rows, msg) {
+  const ios = rows.filter((r) => r.platform === 'ios').map((r) => r.token).filter(Boolean);
+  const fcm = rows.filter((r) => r.platform !== 'ios').map((r) => r.token).filter(Boolean);
+  let sent = 0, failed = 0; const invalid = [];
+  if (fcm.length) { const r = await sendToTokens(fcm, msg); sent += r.sent; failed += r.failed; invalid.push(...(r.invalid || [])); }
+  if (ios.length) { const r = await sendApns(ios, msg); sent += r.sent; failed += r.failed; invalid.push(...(r.invalid || [])); }
+  return { sent, failed, invalid };
+}
+
 // 가중 랜덤 선택: weightMap 비중대로 하나 고름(후보 있는 항목만 넘어옴).
 function weightedPick(items, weightMap) {
   const total = items.reduce((s, it) => s + (weightMap[it] || 1), 0);
@@ -164,12 +230,12 @@ async function notifyDailyDigest(db) {
     const cat = weightedPick(avail, CAT_WEIGHT);
     const inCat = pool.filter(c => c.category === cat);
     const pick = inCat[Math.floor(Math.random() * inCat.length)];
-    const toks = (await db.execute({ sql: "SELECT token FROM push_tokens WHERE enabled=1 AND user_id=?", args: [userId] })).rows.map(r => r.token).filter(Boolean);
+    const toks = (await db.execute({ sql: "SELECT token, platform FROM push_tokens WHERE enabled=1 AND user_id=?", args: [userId] })).rows.filter(r => r.token);
     if (!toks.length) continue; // 알림은 켰지만 앱 토큰 미등록(웹만 쓰는 유저 등)
     usersTargeted++;
     // 매장명을 title에 올려 OS가 볼드로 렌더(본문은 서식 불가). 본문엔 훅+제공내용.
     const desc = String(pick.content || '').replace(/\s+/g, ' ').trim().slice(0, 50);
-    const r = await sendToTokens(toks, {
+    const r = await sendToDevices(toks, {
       title: `🔔 ${pick.name}`,
       body: desc ? `내 장소 주변 새 협찬 · ${desc}` : '내 장소 주변에 새 협찬이 떴어요',
       data: { placeId: String(pick.placeId), lat: String(pick.lat), lng: String(pick.lng), kind: 'digest' }, // 탭 → 매장 상세(+탭 집계용 kind)
@@ -182,4 +248,4 @@ async function notifyDailyDigest(db) {
   return { devices, usersTargeted, candidates: cands.length };
 }
 
-module.exports = { getAccessToken, sendToTokens, notifyDailyDigest, serviceAccount };
+module.exports = { getAccessToken, sendToTokens, sendApns, sendToDevices, notifyDailyDigest, serviceAccount };
