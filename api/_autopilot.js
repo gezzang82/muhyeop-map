@@ -58,28 +58,62 @@ function similarNearby(candName, coords, places, radiusM = 300, topN = 8) {
     .map((x) => x.name);
 }
 
+// 네이버 지역검색으로 '정식 매장명' 조회 — 좌표 근접(≤80m) 결과만 채택(오매칭 방지). 실패/불일치/키없음 → null.
+//  리뷰노트 등의 "산본 일식맛집 백소정 산본점" 같은 SEO 접두사를 네이버 정식명("백소정 산본점")으로 정규화해
+//  매장명 깔끔 + 플랫폼 간 dedup 정확도↑. mapx/mapy는 WGS84×1e7이라 /1e7로 경위도 변환.
+function _havMeters(aLat, aLng, bLat, bLng) {
+  const R = 6371000, t = (x) => x * Math.PI / 180;
+  const dLa = t(bLat - aLat), dLn = t(bLng - aLng);
+  const s = Math.sin(dLa / 2) ** 2 + Math.cos(t(aLat)) * Math.cos(t(bLat)) * Math.sin(dLn / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+async function naverCanonicalName(name, lat, lng) {
+  const ID = process.env.NAVER_SEARCH_CLIENT_ID, SE = process.env.NAVER_SEARCH_CLIENT_SECRET;
+  if (!ID || !SE || !name || !isFinite(Number(lat)) || !isFinite(Number(lng))) return null;
+  try {
+    const r = await fetch(`https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(name)}&display=5`,
+      { headers: { 'X-Naver-Client-Id': ID, 'X-Naver-Client-Secret': SE } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    for (const it of (d.items || [])) {
+      const nx = Number(it.mapx) / 1e7, ny = Number(it.mapy) / 1e7; // lng, lat
+      if (!isFinite(nx) || !isFinite(ny) || nx < 124 || nx > 132 || ny < 33 || ny > 39.5) continue; // 한국 범위 밖(좌표계 다름 등) 제외
+      if (_havMeters(Number(lat), Number(lng), ny, nx) <= 80) {
+        const t = String(it.title || '').replace(/<[^>]+>/g, '').trim();
+        if (t) return t;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
 async function insertPlace(db, { name, address, lat, lng, category }) {
   // 등록 시점 방어: 이름 정리(대괄호/안내문/홍보문). 파서 이전 수집분·엣지케이스도 깨끗하게. 멱등.
   name = cleanStoreName(name) || name;
   // 같은 이름+좌표 매장이 있으면 재사용(중복 매장 방지 — 한 매장에 채널별 캠페인이 붙게).
   // 좌표 인덱스(idx_places_lat_lng)로 근처 매장만 읽고 이름은 앱에서 비교 — REPLACE()가 인덱스를 막아
   // 매 등록마다 places 전체(2만행)를 스캔하던 것을 근처 몇 행만 읽도록.
-  const nkey = String(name).replace(/ /g, '');
   const near = await db.execute({
     sql: 'SELECT id, name FROM places WHERE lat > ? AND lat < ? AND lng > ? AND lng < ?',
     args: [Number(lat) - 0.0007, Number(lat) + 0.0007, Number(lng) - 0.0007, Number(lng) + 0.0007],
   });
-  // 같은 50m 안에서 이름 '포함관계'도 동일 매장으로 간주(재사용). 리뷰노트 등이 "산본 일식맛집 백소정 산본점"처럼
-  //  지역+음식종류 SEO 접두사를 붙여 공백무시 완전일치가 깨지고 중복 매장이 생기던 문제 방지.
+  // 같은 50m 안에서 이름 '포함관계'도 동일 매장으로 간주(재사용). SEO 접두사로 완전일치가 깨져도 재사용.
   //  오매칭 방지: 포함되는(짧은) 이름이 4자 이상일 때만(짧은 상호 "김밥"⊂"김밥천국" 같은 오병합 차단).
-  const hit = near.rows.find((p) => {
+  const findHit = (key) => near.rows.find((p) => {
     const pk = String(p.name).replace(/ /g, '');
-    if (pk === nkey) return true;
-    const shorter = pk.length <= nkey.length ? pk : nkey;
-    const longer = pk.length <= nkey.length ? nkey : pk;
+    if (pk === key) return true;
+    const shorter = pk.length <= key.length ? pk : key;
+    const longer = pk.length <= key.length ? key : pk;
     return shorter.length >= 4 && longer.includes(shorter);
   });
+  let hit = findHit(String(name).replace(/ /g, ''));
   if (hit) return Number(hit.id);
+  // dedup 미스(신규 후보)일 때만 네이버 정식명 조회 → 정식명으로 재dedup(기존 "백소정 산본점"과 매칭). 쿼터 절약.
+  const canon = await naverCanonicalName(name, lat, lng);
+  if (canon) {
+    name = canon;
+    hit = findHit(canon.replace(/ /g, ''));
+    if (hit) return Number(hit.id);
+  }
   const r = await db.execute({
     sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id)
           VALUES (?, ?, ?, ?, ?, '', '', '', NULL)`,
