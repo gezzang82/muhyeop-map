@@ -6277,9 +6277,18 @@ let _pushNavReady = false;    // 지도+데이터 준비 완료 여부
 // 푸시 탭 1건을 실제로 처리: placeId 있으면 매장 상세, 없으면 관심지역으로 이동 + 안내.
 function applyPushNav(nav) {
   if (!nav) return;
+  // 푸시로 특정 매장/위치로 이동할 땐, 콜드스타트의 '현재 위치로 이동'(tryInitialLocation)이
+  //  늦게 resolve돼 지도를 내 위치로 되돌리는 걸 막는다(시트=여의도인데 지도=내위치 미스매치 방지).
+  _suppressInitialLocation = true;
   try {
     if (nav.url && /^https?:\/\//.test(nav.url)) { openExternal(nav.url); return; } // 이벤트 푸시 외부링크
-    if (nav.placeId != null && nav.placeId !== '') { focusPlace(Number(nav.placeId)); return; }
+    if (nav.placeId != null && nav.placeId !== '') {
+      // 매장이 아직 지도에 로드 안 됐어도 지도가 그 매장 위치로 가도록, nav 좌표로 선이동(있으면).
+      const pla = Number(nav.lat), pln = Number(nav.lng);
+      if (isFinite(pla) && isFinite(pln)) { try { map.setCenter(new naver.maps.LatLng(pla, pln)); map.setZoom(16); } catch (e) {} }
+      focusPlace(Number(nav.placeId));
+      return;
+    }
     const la = Number(nav.lat), ln = Number(nav.lng);
     if (isFinite(la) && isFinite(ln)) {
       map.setCenter(new naver.maps.LatLng(la, ln));
