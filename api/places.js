@@ -461,9 +461,11 @@ module.exports = async function handler(req, res) {
           try { const { categoryByKeyword } = require('./_scrape'); category = categoryByKeyword(String(newPlace.naverCategory || '') + ' ' + placeName, placeName) || '기타'; } catch (e) {}
           let femail = '';
           try { const er = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [session.userId] }); femail = er.rows[0]?.email || ''; } catch (e) {}
+          // 최초제보자 블로그 링크: 후기 블로그 홈(blog.naver.com/{blogId}) — 상세 '최초제보자' 닉네임 클릭 시 이동(예전 제보 플로우처럼)
+          const founderUrl = result.data.blogId ? ('https://blog.naver.com/' + result.data.blogId) : '';
           const insP = await db.execute({
             sql: `INSERT INTO places (name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id) VALUES (?,?,?,?,?,?,?,?,?)`,
-            args: [placeName, String(newPlace.address || ''), lat, lng, category, session.nickname || '', femail, '', session.userId]
+            args: [placeName, String(newPlace.address || ''), lat, lng, category, session.nickname || '', femail, founderUrl, session.userId]
           });
           pid = Number(insP.lastInsertRowid);
         }
