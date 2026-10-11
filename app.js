@@ -1873,6 +1873,19 @@ async function submitReview() {
     if (!res.ok) { rvSetError(data.error || data.reason || '등록에 실패했어요.'); btn.disabled = false; return; }
     closeReviewForm();
     showToast('후기가 등록되었어요!');
+    // 후기 등록 직후 그 매장 핀을 지도에 즉시 노출(지도 `?map=1` CDN 캐시 최대 1h 기다리지 않게 — 제보 등록과 동일 패턴).
+    //  신규 매장은 store.newPlace 좌표로 추가, 기존 매장은 메모리에 있으면 hasReview만 세팅. 없으면 캐시 갱신 때 자연 노출.
+    try {
+      const pid = data.placeId || store.placeId;
+      if (pid) {
+        let p = places.find(x => x.id === pid);
+        if (!p && store.newPlace && isFinite(Number(store.newPlace.lat)) && isFinite(Number(store.newPlace.lng))) {
+          p = { id: pid, name: store.newPlace.name, address: store.newPlace.address || '', lat: Number(store.newPlace.lat), lng: Number(store.newPlace.lng), category: store.newPlace.category || store.newPlace.naverCategory || '기타', hidden: false };
+          places.push(p);
+        }
+        if (p) { p.hasReview = true; invalidateActiveCache(); if (typeof renderAll === 'function') renderAll(); }
+      }
+    } catch (e) {}
     if (_reviewFormPlaceId && _detailPlaceId === _reviewFormPlaceId) {
       _reviewLoaded = true;
       switchDetailTab(_reviewFormPlaceId, 'review');
