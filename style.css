@@ -3388,7 +3388,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .rv-list-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 10px; }
 .rv-count { font-size: 14px; color: #1a1a1a; }
 /* 후기 지역 필터 탭(전체·서울·…) — 가로 스크롤, 활성=볼드+밑줄바. 모바일·PC 공용 */
-.cm-region-tabs { display: flex; gap: 16px; align-items: center; overflow-x: auto; padding: 8px 0; margin: 0; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+/* 가로 스크롤 지역탭: 부모(.cm-inner) 좌우 20px 패딩을 음수마진으로 상쇄 + 안쪽 패딩 재적용 → 화면 끝까지 풀블리드(가장자리 짤림 방지). PC/모바일 모두 .cm-inner 좌우 20px 동일 */
+.cm-region-tabs { display: flex; gap: 16px; align-items: center; overflow-x: auto; padding: 8px 20px; margin: 0 -20px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .cm-region-tabs::-webkit-scrollbar { display: none; }
 .cm-region-tab { flex: 0 0 auto; position: relative; background: none; border: 0; padding: 0 0 6px; font-size: 16px; color: #777; white-space: nowrap; cursor: pointer; }
 .cm-region-tab.on { color: #111; font-weight: 700; }
