@@ -4042,8 +4042,12 @@ function mlPositionNaverLogo(lift) {
 }
 // step1 검색 — 지역/주소는 geocode, 매장/역 등은 지역검색(POI) 폴백 → 피커 지도 재중심
 function mlStep1DoSearch() {
-  const q = (document.getElementById('mlStep1Search').value || '').trim();
+  const inp = document.getElementById('mlStep1Search');
+  const q = ((inp && inp.value) || '').trim();
   if (!q || !_mlMap || !naver.maps.Service) return;
+  // 검색 실행 시 키보드를 내린다 — 안 그러면 키패드가 하단 버튼('이 위치로' 등)을 가려 못 누름
+  if (inp) inp.blur();
+  try { const KB = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard; if (KB && KB.hide) KB.hide(); } catch (e) {}
   const recenter = (y, x, z) => { try { _mlMap.setCenter(new naver.maps.LatLng(y, x)); _mlMap.setZoom(z); } catch (e) {} };
   naver.maps.Service.geocode({ query: q }, (status, resp) => {
     const it = resp && resp.v2 && resp.v2.addresses && resp.v2.addresses[0];
