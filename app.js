@@ -2961,6 +2961,8 @@ const GNB_TABS = ['home', 'places', 'community', 'my'];
 function switchTab(tab) {
   if (GNB_TABS.indexOf(tab) < 0) tab = 'home';
   hapticTap();
+  // GNB 탭 클릭수 집계(fire-and-forget) — 어느 메뉴를 많이 쓰나(어드민 대시보드). 운영자 IP는 서버에서 제외.
+  try { fetch('/api/places?visit=gnb&tab=' + encodeURIComponent(tab), { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}
   resetMapSearch();  // 하단 GNB 누르면 검색 핀·FAB 제거 + 검색어 리셋
   document.querySelectorAll('.gnb-tab').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-tab') === tab);

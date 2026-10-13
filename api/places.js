@@ -27,6 +27,8 @@ async function ensureSiteVisitTables(db) {
   await db.execute("CREATE TABLE IF NOT EXISTS site_referrer_daily (visit_date TEXT NOT NULL, ref TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, ref))");
   // 접속 환경별 일자 집계(app/mweb/pcweb) — 앱 vs 웹 유입 파악.
   await db.execute("CREATE TABLE IF NOT EXISTS site_platform_daily (visit_date TEXT NOT NULL, platform TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, platform))");
+  // GNB 탭 클릭 일자 집계(홈/내장소/커뮤니티/MY) — 어느 메뉴를 많이 쓰나(switchTab에서 ?visit=gnb&tab=).
+  await db.execute("CREATE TABLE IF NOT EXISTS gnb_daily (visit_date TEXT NOT NULL, tab TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, tab))");
   // 체류시간 집계(일별 평균 = dwell_sum/dwell_count 초). 이탈 시 클라 sendBeacon(?visit=dwell)이 누적.
   try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_sum INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
   try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_count INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
@@ -125,6 +127,19 @@ module.exports = async function handler(req, res) {
       } catch (e) { /* 무시 */ }
       return res.status(200).json({ ok: true });
     }
+    // GNB 탭 클릭 기록: 탭 전환 시 POST ?visit=gnb&tab=home|places|community|my (fire-and-forget). 일별 탭 클릭수 누적.
+    if (req.method === 'POST' && req.query.visit === 'gnb') {
+      try {
+        await ensureSiteVisitTables(db);
+        const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+        if (EXCLUDED_VISIT_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true }); // 운영자 본인 클릭 제외
+        const tab = String(req.query.tab || '');
+        if (['home', 'places', 'community', 'my'].includes(tab)) {
+          await db.execute({ sql: "INSERT INTO gnb_daily (visit_date, tab, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, tab) DO UPDATE SET cnt = cnt + 1", args: [kstDay(), tab] });
+        }
+      } catch (e) { /* 무시 */ }
+      return res.status(200).json({ ok: true });
+    }
     // 조회: 어드민 대시보드 GET ?visit=stats[&period=day|week|month]
     if (req.method === 'GET' && req.query.visit === 'stats') {
       if (!requireAdmin(req, res)) return;
@@ -193,7 +208,14 @@ module.exports = async function handler(req, res) {
         const sc = (await db.execute("SELECT COUNT(*) AS n FROM seoichu_posts")).rows[0] || {};
         seoichuCount = Number(sc.n || 0);
       } catch (e) {}
+      // GNB 탭 클릭(오늘 + 누적) — 탭별 몇 번 눌렸나(홈/내장소/커뮤니티/MY)
+      const gnbToday = {}, gnbTotal = {};
+      try {
+        (await db.execute({ sql: "SELECT tab, cnt FROM gnb_daily WHERE visit_date = ?", args: [day] })).rows.forEach(r => { gnbToday[r.tab] = Number(r.cnt || 0); });
+        (await db.execute("SELECT tab, SUM(cnt) AS cnt FROM gnb_daily GROUP BY tab")).rows.forEach(r => { gnbTotal[r.tab] = Number(r.cnt || 0); });
+      } catch (e) {}
       return res.status(200).json({
+        gnbToday, gnbTotal,
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
         todayDwell: dwellAvg(today), todayDwellCount: Number(today.dwell_count || 0),

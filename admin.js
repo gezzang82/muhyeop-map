@@ -568,6 +568,25 @@ function renderReferrers(refs) {
       </div>`).join('');
 }
 
+// GNB 탭 클릭(총 클릭수) — 어느 메뉴를 많이 쓰나(누적 + 오늘). 데이터는 배포 이후부터.
+function renderGnbClicks(today, total) {
+  const el = document.getElementById('gnbClicks');
+  if (!el) return;
+  today = today || {}; total = total || {};
+  const tabs = [['home', '홈'], ['places', '내 장소'], ['community', '커뮤니티'], ['my', 'MY']];
+  const totalAll = tabs.reduce((s, t) => s + (total[t[0]] || 0), 0);
+  if (!totalAll) { el.innerHTML = '<div class="empty-msg">아직 GNB 클릭 데이터가 없어요. (배포 이후부터 수집)</div>'; return; }
+  const max = Math.max(1, ...tabs.map(t => total[t[0]] || 0));
+  el.innerHTML = tabs.map(t => {
+    const tot = total[t[0]] || 0, tdy = today[t[0]] || 0, pct = Math.round(tot / totalAll * 100);
+    return `<div class="stat-row">
+        <span class="stat-badge" style="background:#39395c1a;color:#39395c">${t[1]}</span>
+        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(tot / max * 100)}%;background:#39395c"></div></div>
+        <span class="stat-num">${tot.toLocaleString()} <span style="color:#aaa;font-weight:400">(${pct}%)</span> · 오늘 ${tdy}</span>
+      </div>`;
+  }).join('');
+}
+
 // 캠페인 조회(상세보기)/클릭 — 일별 리스트 + 지역별 막대
 // 이벤트 푸시 전체 발송
 async function sendEventPush() {
@@ -748,6 +767,7 @@ function renderDashboard() {
     renderReferrers(s.referrers || []);
     renderReferrerDaily(s.referrerDaily || []);
     renderPlatforms(s.todayPlatforms || []);
+    renderGnbClicks(s.gnbToday || {}, s.gnbTotal || {});
   }).catch(() => {});
 }
 
