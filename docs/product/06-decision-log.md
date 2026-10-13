@@ -2,6 +2,12 @@
 
 ## 2026-10
 
+### 북극성 = 커뮤니티 활성화, 보상 = 블로그 트래픽 (2026-10-13, 논의 중)
+서비스 방향성 논의에서 **커뮤니티 활성화를 북극성**으로 잡음(에피소딕 사용 → 재방문/리커링 전환의 유일한 축, 제휴·수익화는 유저 규모 선결이라 후순위). **활성화 보상 통화 = 블로거의 블로그 방문자수(트래픽)** — 체험단 유저 90%+가 네이버 블로거라 그들의 실제 KPI(유입→C-rank→선정·수익)에 정렬, 인위적 보상보다 강함. 보상 작동 = 후기 노출 극대화 + 작성자에게 "내 후기로 블로그 N명 방문"(`reviews.click_count`) 가시화. **열린 항목(고민 필요)**: 유입 병목(무협맵 블로그 1개 + 무작위 서이추 1500 weak tie뿐 → 카페/오픈채팅 등 의도 높은 채널?), 블로그를 '베스트 후기 소개 → 보상 증폭기'로, 커뮤니티 정체성(실익 네트워크 vs 소통방). 상세·루프·첫 레버·지표는 [[19-community-activation]]. 사용자가 더 고민 후 재논의 예정.
+
+### 후기 공급 부트스트랩 이벤트 계획 (2026-10-13, 회원 더 쌓인 뒤 실행)
+커뮤니티 활성화의 초기 후기 공급을 터주려 단기 외적 보상 이벤트 계획. **스타벅스 쿠폰 총 9만원**: 후기 수 랭킹 1등 3만/2등 2만/3등 1만 + 좋아요 특별상 3만. **기간 2주**, **시점=회원이 좀 더 쌓인 뒤**(참여자 부족한 초기엔 효과 X — 유입 선결). Phase2 런칭 후기 이벤트([[02-roadmap]])의 구체화. **설계주의**: 후기 '수' 랭킹은 저품질/스팸 리스크 → 매장명·블로그 검증(기존) + 위너 수동검수 + 좋아요 특별상으로 품질축 균형. **법적**: 소액이라 리스크 낮음 — 경품고시 폐지로 한도 자유 / 기타소득 건별 5만원 이하 과세최저한(원천징수 無) / 랭킹이라 사행성 무관 / 이벤트 약관·개인정보 동의 고지 + 뒷광고 톤('매장 호평 대가' 아닌 '후기 기여 리워드') 주의. 상세 [[19-community-activation]].
+
 ### iOS 푸시 수정 — 진짜 원인은 AppDelegate 토큰 포워딩 누락 (2026-10-13)
 안드는 되는데 iOS 이벤트 푸시가 안 와서 추적. 엔타이틀먼트(`aps-environment=production`)·App ID Push·서명(재서명 후 production 확인)·네트워크 전부 정상이었고, **진짜 원인은 `mobile-app/ios/App/App/AppDelegate.swift`에 `didRegisterForRemoteNotificationsWithDeviceToken`/`didFailToRegisterForRemoteNotificationsWithError`가 없던 것**(이 AppDelegate가 푸시 플러그인 추가 전에 생성돼 표준 Capacitor 포워딩 메서드가 빠짐) → iOS가 APNs 토큰을 줘도 Capacitor로 전달 안 돼 `registration` 이벤트 미발생·토큰 0건·완전 무응답. 메서드 2개 추가(`NotificationCenter.default.post(name:.capacitorDidRegisterForRemoteNotifications…)`)로 해결, **빌드6(1.1.1) 제출·TestFlight에서 토큰등록+APNs 200+기기배너 확인**. **교훈**: "권한 granted + register() 반환 + registration/registrationError 둘 다 5초+ 무응답" = AppDelegate 포워딩 누락을 가장 먼저 의심(프로비저닝/네트워크보다). [[project_mobile_app]].
 
