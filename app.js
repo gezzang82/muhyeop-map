@@ -2948,11 +2948,15 @@ function hapticTap() {
     const P = window.Capacitor && window.Capacitor.Plugins;
     const H = P && P.Haptics;
     const plat = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
-    if (H) {
-      // 안드로이드는 impact LIGHT가 너무 약해 체감이 안 됨 → 짧은 진동으로. iOS는 Taptic이 또렷해 LIGHT 유지.
-      if (plat === 'android' && typeof H.vibrate === 'function') { H.vibrate({ duration: 35 }); return; }
-      if (typeof H.impact === 'function') { H.impact({ style: 'LIGHT' }); return; }
+    // [임시진단] 세션 1회: 어떤 app.js 버전/플랫폼/경로인지 서버기록(v242 마커). 로그 없으면=캐시로 미반영.
+    if (!window._hapDbg) { window._hapDbg = 1; try { fetch('/api/users?push=open', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: 'HAP:v242:' + plat + ':vib=' + (!!(navigator && navigator.vibrate)) + ':H=' + (!!(H && H.vibrate)) }) }).catch(function () {}); } catch (e) {} }
+    if (plat === 'android') {
+      // 안드는 impact LIGHT가 약해 체감 안 됨 → 웹뷰 Vibration + 플러그인 둘 다 시도(권한 있음).
+      try { if (navigator.vibrate) navigator.vibrate(50); } catch (e) {}
+      try { if (H && H.vibrate) H.vibrate({ duration: 50 }); } catch (e) {}
+      return;
     }
+    if (H && typeof H.impact === 'function') { H.impact({ style: 'LIGHT' }); return; }
     if (navigator.vibrate) navigator.vibrate(20);
   } catch (e) {}
 }
