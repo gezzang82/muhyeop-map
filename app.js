@@ -2949,8 +2949,8 @@ function hapticTap() {
     const plat = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
     if (plat === 'android') {
       // 안드는 impact LIGHT가 약해 체감 안 됨 → 짧은 진동 1회(웹뷰 Vibration, 권한 있음).
-      if (navigator.vibrate) { navigator.vibrate(22); return; }
-      if (H && H.vibrate) { H.vibrate({ duration: 22 }); return; }
+      if (navigator.vibrate) { navigator.vibrate(35); return; }
+      if (H && H.vibrate) { H.vibrate({ duration: 35 }); return; }
       return;
     }
     if (H && typeof H.impact === 'function') { H.impact({ style: 'LIGHT' }); return; }
