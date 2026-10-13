@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
 import android.widget.FrameLayout;
 
+import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -48,7 +49,11 @@ public class MainActivity extends BridgeActivity {
             lastTopCss = Math.round(topInset / density);
             lastBotCss = Math.round(botInset / density);
             pushInsetsToWeb();
-            return insets;
+            // 키보드(IME) 인셋을 소비해 웹뷰로 안 내려가게 한다 → 키보드가 떠도 웹뷰가 리사이즈되지 않음(키보드가 '덮기만').
+            // 하단 고정 버튼(position:absolute bottom:0)이 키보드 따라 올라오던 문제 방지(iOS resize:none과 동일 거동).
+            return new WindowInsetsCompat.Builder(insets)
+                .setInsets(WindowInsetsCompat.Type.ime(), Insets.NONE)
+                .build();
         });
 
         insetsController = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
