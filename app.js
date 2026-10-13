@@ -6199,6 +6199,13 @@ function initSplash() {
     startAnim();
   }
 }
+// 사용자 표기 버전(MY 하단). 스토어 versionName(iOS/안드)과 동기화 — 릴리스 때 여기만 올림.
+// 빌드번호(iOS CURRENT_PROJECT_VERSION·안드 versionCode)와 웹 캐시버전(app.js?v=)은 별개(사용자 비노출).
+const APP_VERSION = '1.1.1';
+document.addEventListener('DOMContentLoaded', function () {
+  const el = document.querySelector('.mypage-version-num');
+  if (el) el.textContent = APP_VERSION;
+});
 document.addEventListener('DOMContentLoaded', initSplash);
 // 지도 로딩/인증 실패 시 지도 영역에 안내 화면 노출
 function showMapError() {
