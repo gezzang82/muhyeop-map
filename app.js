@@ -2945,19 +2945,16 @@ function closeSideMenu() {
 // iOS 웹(WKWebView)은 웹 진동 API 미지원이라 Haptics 플러그인이 앱에 추가되면 그때부터 동작(앱 재빌드 필요).
 function hapticTap() {
   try {
-    const P = window.Capacitor && window.Capacitor.Plugins;
-    const H = P && P.Haptics;
+    const H = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
     const plat = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
-    // [임시진단] 세션 1회: 어떤 app.js 버전/플랫폼/경로인지 서버기록(v242 마커). 로그 없으면=캐시로 미반영.
-    if (!window._hapDbg) { window._hapDbg = 1; try { fetch('/api/users?push=open', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: 'HAP:v242:' + plat + ':vib=' + (!!(navigator && navigator.vibrate)) + ':H=' + (!!(H && H.vibrate)) }) }).catch(function () {}); } catch (e) {} }
     if (plat === 'android') {
-      // 안드는 impact LIGHT가 약해 체감 안 됨 → 웹뷰 Vibration + 플러그인 둘 다 시도(권한 있음).
-      try { if (navigator.vibrate) navigator.vibrate(50); } catch (e) {}
-      try { if (H && H.vibrate) H.vibrate({ duration: 50 }); } catch (e) {}
+      // 안드는 impact LIGHT가 약해 체감 안 됨 → 짧은 진동 1회(웹뷰 Vibration, 권한 있음).
+      if (navigator.vibrate) { navigator.vibrate(22); return; }
+      if (H && H.vibrate) { H.vibrate({ duration: 22 }); return; }
       return;
     }
     if (H && typeof H.impact === 'function') { H.impact({ style: 'LIGHT' }); return; }
-    if (navigator.vibrate) navigator.vibrate(20);
+    if (navigator.vibrate) navigator.vibrate(15);
   } catch (e) {}
 }
 const GNB_TABS = ['home', 'places', 'community', 'my'];
