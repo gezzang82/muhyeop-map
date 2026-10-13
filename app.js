@@ -2946,8 +2946,14 @@ function closeSideMenu() {
 function hapticTap() {
   try {
     const P = window.Capacitor && window.Capacitor.Plugins;
-    if (P && P.Haptics && typeof P.Haptics.impact === 'function') { P.Haptics.impact({ style: 'LIGHT' }); return; }
-    if (navigator.vibrate) navigator.vibrate(10);
+    const H = P && P.Haptics;
+    const plat = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
+    if (H) {
+      // 안드로이드는 impact LIGHT가 너무 약해 체감이 안 됨 → 짧은 진동으로. iOS는 Taptic이 또렷해 LIGHT 유지.
+      if (plat === 'android' && typeof H.vibrate === 'function') { H.vibrate({ duration: 35 }); return; }
+      if (typeof H.impact === 'function') { H.impact({ style: 'LIGHT' }); return; }
+    }
+    if (navigator.vibrate) navigator.vibrate(20);
   } catch (e) {}
 }
 const GNB_TABS = ['home', 'places', 'community', 'my'];
