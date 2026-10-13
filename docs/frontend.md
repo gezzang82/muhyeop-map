@@ -29,7 +29,7 @@
   - **PC(Figma 1105-2)**: 칩 탭 → `toggleCategoryDropdown` → 칩 **바로 아래 드롭다운**(`#catDropdown`, `.cat-dropdown-item`). `.pc-chips-row`가 `overflow:auto`(칩 가로스크롤)라 드롭다운을 잘라먹어 → 드롭다운은 `position:fixed`로 오버플로우 탈출 + 열 때 칩 `getBoundingClientRect`로 top/left 지정. 바깥 클릭 시 닫힘(`_closeCatDropdownOutside`), 열림 시 캐럿 180° 회전(`.dropdown-open`).
   - **칩 표기**: 아이콘 없이 텍스트만. 기본 "카테고리", 선택 시 카테고리명. 선택 상태 = `.active`(연한 테두리 `#aaa` + 볼드).
 - **필터 적용 지점**: `renderMarkers`의 `visiblePlaces`와 `renderSidebar`의 `activePlaces`에 `matchesCategoryFilter(place)` AND 조합(`place.category`, 빈값=기타). **채널 필터와 독립적으로 AND**(채널=캠페인 속성/`hasActiveCampaign` 경유, 카테고리=매장 속성).
-- **카테고리 11종 + 핀(`CATEGORY_PINS`)**: 음식점·카페·뷰티·**헤어**·**사진관**·숙박/여가·문화·의류·안경/잡화·운동·기타. 각 색+화이트 아이콘(`getCategoryPin`). 신설: **헤어**(`#45C04D` 가위, Figma 1040-9167, 뷰티에서 분리)·**사진관**(`#1AA0E3` 카메라, Figma 1658-59044, 문화에서 분리)·운동(`#E77844`). 서버 분류/스윕은 [[api-db]]·[[06-decision-log]].
+- **카테고리 11종 + 핀(`CATEGORY_PINS`)**: 음식점·카페·뷰티·**헤어**·**사진관**·숙박/여가·문화·의류·안경/잡화·운동·기타. 각 색+화이트 아이콘(`getCategoryPin`). 신설: **헤어**(`#45C04D` 가위, Figma 1040-9167, 뷰티에서 분리)·**사진관**(`#1AA0E3` 카메라, Figma 1658-59044, 문화에서 분리)·운동(`#E77844`). 서버 분류/스윕은 [[api-db]]·[[06-decision-log]]. **기타 오분류 재분류(2026-10-13)**: 기타 6,730개 중 오분류 139건을 기존 카테고리로(사진관+100·운동+29 폴댄스·뷰티+10). 기타 안 **신규 카테고리 분리후보**(자동차/세차·파티룸·꽃·반려동물 등)는 추후 추가 논의 [[06-decision-log]].
 - **칩 디자인**: 채움(fill) → **아웃라인**으로 변경(Figma 1156-1905). 선택 상태 = 흰 배경 + 연한 테두리(`#aaa`, 1.5px) + 볼드(선택 표시는 주로 볼드 텍스트). 칩 아이콘은 배경 서클 없이 글리프만 `currentColor`. `filterChannel`의 active 토글은 `.filter-chip[data-channel]`만 대상(카테고리 칩 제외).
 - **셀렉트시트 위치**: `#selectSheetPanel`은 원래 제보 모달 안에 있어, 모달 밖(지도 필터)에서 열 땐 `openSelectSheet`가 패널을 `document.body`로 되돌림(안 그러면 숨은 모달 안에 갇혀 안 보임). 모달 셀렉트를 다시 열면 그 모달로 재이동(자기교정).
 
@@ -63,6 +63,15 @@
 - **내 장소 알림 ON 저장 → 권한·토큰 확보(`ensurePushForMyPlaceAlarm`, 2026-10-09)**: 내 장소 저장(`mlSave`/`pcPlaceSave`)에서 알림을 켠 채 저장하면 네이티브 앱일 때 **OS 알림 권한 맥락요청 + `P.register()`**(→토큰 등록, 로그인 상태라 user_id 귀속). 발송 대상은 서버가 `user_places.alarm_enabled`로 직접 조회([[api-db]] `notifyDailyDigest`).
 - **알림 '탭'(앱 접근) 집계(2026-10-10)**: `pushNotificationActionPerformed`(실제 탭)에서 `POST /api/users?push=open`으로 1건 기록(payload의 `kind`=digest|event 구분, `placeId`, `deviceId`). 포그라운드 수신(`pushNotificationReceived`)은 탭이 아니라 미집계. 어드민 '알림 탭' 카드 [[admin]].
 - **전역 `detectPlatform()`(2026-10-10)**: 방문집계 `_detectPlatform`과 동일 규칙(ios/android/app/mweb/pcweb)의 전역 함수. `refreshAuthUI`의 `/api/auth/me?platform=` 호출에 실어 보내 `users.last_platform`(마지막 접속 기기) 갱신([[api-db]]·[[admin]] 기기 컬럼).
+
+## 하단 GNB 탭 — 햅틱·클릭집계·키보드 (2026-10-13)
+- **햅틱**: `switchTab`에서 `hapticTap()` — 안드=`navigator.vibrate(35)`(impact LIGHT가 안드선 체감 안 됨)·iOS=`Haptics.impact LIGHT`(Taptic 또렷). `@capacitor/haptics`, 세기조정은 app.js(ms)만. 웹/구버전앱 no-op.
+- **클릭 집계**: `switchTab`가 `POST /api/places?visit=gnb&tab=home|places|community|my`(fire-and-forget, 운영자 집IP 제외)로 탭별 클릭수 누적 → 어드민 'GNB 탭 클릭' 카드([[admin]]·[[api-db]]). `switchTab`은 GNB onclick 4개에서만 호출(프로그램 호출 없음 → 집계 뻥튀기 없음).
+- **키보드 뜰 때 하단버튼 딸려올라옴(안드)**: 하단 고정버튼(`position:absolute bottom:0`, 예: 내 장소 장소추가 '이 위치로 선택'/'저장')이 키보드에 딸려 올라와 겹치던 것 → **Capacitor(Android15 edge-to-edge)가 IME 인셋을 웹뷰에 적용**해 웹뷰 리사이즈되던 게 원인. `Keyboard.resize:'none'`·manifest `adjustNothing`로 안 잡혀 → **`MainActivity` 인셋리스너에서 IME 인셋을 `Insets.NONE`으로 소비**해 리사이즈 차단(네이티브=빌드 필요). iOS는 `Keyboard.resize:'none'`+`initNativeKeyboard`로 처리. 상세 [[project_mobile_app]]·[[06-decision-log]].
+- **검색 시 키보드 내림**: `mlStep1DoSearch`(내 장소 장소추가 지역 검색 Enter)가 input `.blur()`+네이티브 `Keyboard.hide()` — 예전엔 검색 후 키보드가 유지돼 하단 버튼을 가렸음.
+
+## MY 버전 표기 (2026-10-13)
+- MY 하단 버전은 **app.js `APP_VERSION` 상수**(현재 `1.1.1`)로 렌더(DOMContentLoaded에서 `.mypage-version-num` 세팅). 예전 하드코딩 `ver 0.1`(오래됨) 대체. 릴리스 때 **스토어 versionName(iOS/안드) = APP_VERSION**을 같이 올림(버전체계 3층: 사용자표기/빌드번호/웹캐시 — [[06-decision-log]]).
 
 ## 내 장소 저장 피드백 + 알림설정 (2026-10-08~10)
 - **저장 성공 토스트**: 내 장소 저장 시 `mlSave`(모바일)·`pcPlaceSave`(PC) 공통으로 **'내 장소가 추가되었어요'(신규)/'변경사항을 저장했어요'(수정)** 토스트. 이전엔 시트만 닫혀 저장 여부가 불확실했음. (PC는 `pcPlaceSave`로 경로가 달라 둘 다 배선)

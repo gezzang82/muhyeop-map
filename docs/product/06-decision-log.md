@@ -2,6 +2,24 @@
 
 ## 2026-10
 
+### iOS 푸시 수정 — 진짜 원인은 AppDelegate 토큰 포워딩 누락 (2026-10-13)
+안드는 되는데 iOS 이벤트 푸시가 안 와서 추적. 엔타이틀먼트(`aps-environment=production`)·App ID Push·서명(재서명 후 production 확인)·네트워크 전부 정상이었고, **진짜 원인은 `mobile-app/ios/App/App/AppDelegate.swift`에 `didRegisterForRemoteNotificationsWithDeviceToken`/`didFailToRegisterForRemoteNotificationsWithError`가 없던 것**(이 AppDelegate가 푸시 플러그인 추가 전에 생성돼 표준 Capacitor 포워딩 메서드가 빠짐) → iOS가 APNs 토큰을 줘도 Capacitor로 전달 안 돼 `registration` 이벤트 미발생·토큰 0건·완전 무응답. 메서드 2개 추가(`NotificationCenter.default.post(name:.capacitorDidRegisterForRemoteNotifications…)`)로 해결, **빌드6(1.1.1) 제출·TestFlight에서 토큰등록+APNs 200+기기배너 확인**. **교훈**: "권한 granted + register() 반환 + registration/registrationError 둘 다 5초+ 무응답" = AppDelegate 포워딩 누락을 가장 먼저 의심(프로비저닝/네트워크보다). [[project_mobile_app]].
+
+### 안드 햅틱 + 키보드 뜰 때 하단버튼 딸려올라옴 수정 (2026-10-13)
+①**햅틱**: `@capacitor/haptics`, `hapticTap()`이 **안드=`navigator.vibrate(35)`**(impact LIGHT는 안드서 체감 안 됨)·**iOS=impact LIGHT**(Taptic 또렷). 세기조정은 web(ms)만. ②**키보드**: 내 장소 등에서 키보드 뜰 때 하단 고정버튼(`position:absolute bottom:0`)이 딸려 올라와 겹침 → **Capacitor(Android15 edge-to-edge)가 IME 인셋을 웹뷰에 적용**해 리사이즈되던 것. `capacitor.config Keyboard.resize:'none'`·manifest `adjustNothing` **둘 다 안 통함** → **`MainActivity` 인셋리스너에서 `WindowInsetsCompat.Type.ime()`를 `Insets.NONE`으로 소비**해 웹뷰 리사이즈 차단(키보드가 '덮기만', iOS resize:none과 동일). ③**검색 시 키보드 내림**: `mlStep1DoSearch`가 input `.blur()`+`Keyboard.hide()`. [[frontend]]·[[project_mobile_app]].
+
+### 버전 체계 3층 분리 (2026-10-13)
+웹 래핑이라 버전이 섞여 헷갈림 → **①사용자표기**(스토어 versionName=MY 하단 표기, app.js `APP_VERSION` 상수, 현재 `1.1.1`, 릴리스 때 iOS/안드/상수 셋을 같이 올림) / **②빌드번호**(iOS `CURRENT_PROJECT_VERSION`·안드 `versionCode`, 플랫폼별 독립·매 업로드 +1) / **③웹 캐시버전**(`app.js?v=N`, 캐시무효화·사용자 비노출) 로 분리. MY 하단은 하드코딩 `ver 0.1`(오래됨) → `APP_VERSION` 상수로 렌더. [[frontend]].
+
+### GNB 탭 클릭수 집계 + 어드민 카드 (2026-10-13)
+어느 메뉴(홈/내장소/커뮤니티/MY)를 많이 쓰나 보려고 신설. `switchTab`에서 `POST /api/places?visit=gnb&tab=`(fire-and-forget, 운영자 집IP 제외) → `gnb_daily(visit_date,tab,cnt)` 누적. `?visit=stats`가 `gnbToday`/`gnbTotal` 반환 → 어드민 대시보드 **'GNB 탭 클릭' 카드**(탭별 누적·비율·오늘). **배포 이후부터 수집**(소급 불가). [[api-db]]·[[admin]]·[[frontend]].
+
+### 운영자 지표 제외 일관화 (2026-10-13)
+알림 탭(`push_opens`)이 운영자 본인 푸시 탭까지 집계하던 것 → 지표별 운영자 제외를 일관화: **방문·GNB·캠페인 = 집IP(`EXCLUDED_VISIT_IPS`)** / **알림탭(`?push=open`) = user_id(`EXCLUDED_USER_IDS`, 기본 12=개짜장, env 추가)**. users.js open 핸들러에서 운영자 user_id 스킵. 기존 운영자 2건은 삭제. [[api-db]].
+
+### 카테고리 '기타' 오분류 재분류 + 분리후보 분석 (2026-10-13)
+기타 6,730개 매장명 키워드 분석 → **오분류 139건 기존 카테고리로 재분류**(DB 스윕): 사진관+100(셀프사진관류)·운동+29(폴댄스)·뷰티+10(에스테틱/왁싱/태닝). 서버규칙 `_scrape.js`에 **폴댄스→운동** 추가(사진관 `PHOTO_RE`·뷰티 에스테틱/왁싱/태닝은 이미 규칙에 있어 변경 없음). 기타 안에 **신규 카테고리 분리후보 덩어리**도 확인(자동차/세차~316·파티룸/공간대여~262·꽃/플라워~201·반려동물~161·운세/사주~150·휴대폰/통신~130·가전~105 등) — 체험단 관련성+규모로 **반려동물·꽃·자동차·파티룸**이 유력, 신규 카테고리 추가(핀/아이콘/필터/규칙)는 추후 논의. [[frontend]] 카테고리·[[api-db]].
+
 ### 알림 탭(앱 접근) 집계 + 대시보드 카드 (2026-10-10)
 "알림 보고 앱 들어온 유저 수"를 볼 수 없었음 → 푸시 탭(`pushNotificationActionPerformed`) 시 `POST /api/users?push=open`으로 기록(`push_opens` 테이블, kind=digest|event, 로그인 시 user_id). 어드민 대시보드 **'🔔 알림 탭(앱 접근)' 카드**(`?push=openstats`)=최근7일/오늘 고유 유저수·총 탭수 + 하루요약/이벤트 구분. **소급 불가·안드만.** 유입↔"알림 복귀" 전환 측정용. [[admin]]·[[api-db]].
 
