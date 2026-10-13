@@ -3,6 +3,12 @@ const { requireAdmin } = require('./auth/_admin');
 const { readSession } = require('./auth/_session');
 const { enforceRateLimit } = require('./_ratelimit');
 
+// 운영자 계정 user_id — 알림 탭(push_opens) 등 지표에서 본인 기록 제외. 기본 12(개짜장), 환경변수로 추가 가능.
+const EXCLUDED_USER_IDS = new Set(
+  ['12'].concat(String(process.env.EXCLUDED_USER_IDS || '').split(','))
+    .map(s => s.trim()).filter(Boolean)
+);
+
 // 서이추 글 테이블 보장(최초 1회)
 async function ensureSeoichuTable(db) {
   try {
@@ -90,6 +96,7 @@ async function handlePushPost(req, res, db, kind) {
   }
   if (kind === 'open') {
     // 알림 탭(앱 접근) 1건 기록. 공개(기기 단위) — 로그인 시 user_id 귀속. fail-open.
+    if (userId != null && EXCLUDED_USER_IDS.has(String(userId))) return res.status(200).json({ ok: true, excluded: true }); // 운영자 본인 탭 제외
     try {
       const pid = Number(body.placeId); const k = (body.kind === 'digest' || body.kind === 'event') ? body.kind : null;
       await db.execute({ sql: "INSERT INTO push_opens (user_id, device_id, place_id, kind) VALUES (?, ?, ?, ?)", args: [userId, String(body.deviceId || '') || null, isFinite(pid) ? pid : null, k] });
