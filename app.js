@@ -3497,7 +3497,7 @@ function renderNoticeFeed() {
   const list = (_notices || []).filter(n => _noticeFilter === 'all' || n.type === _noticeFilter);
   if (!list.length) { feed.innerHTML = '<div class="notice-empty">등록된 소식이 없어요.</div>'; return; }
   feed.innerHTML = list.map(n => {
-    const excerpt = mlEsc((n.body || '').replace(/\s+/g, ' ').trim().slice(0, 60));
+    const excerpt = mlStripMd(n.body);
     const img = n.imageUrl ? `<div class="notice-card-img"><img src="${n.imageUrl}" alt="" draggable="false"></div>` : '';
     return `<button class="notice-card" onclick="openNoticeDetail(${n.id})">${img}<div class="notice-card-main">`
       + `<div class="notice-card-top"><span class="notice-badge nb-${n.type}">${noticeTypeLabel(n.type)}</span><span class="notice-card-date">${noticeDateFmt(n.publishedAt)}</span></div>`
@@ -3522,7 +3522,7 @@ async function openNoticeDetail(id) {
   const cta = n.linkUrl ? `<a class="notice-dt-cta" href="${n.linkUrl}" target="_blank" rel="noopener">자세히 보기</a>` : '';
   if (box) box.innerHTML = `<div class="notice-dt-top"><span class="notice-badge nb-${n.type}">${noticeTypeLabel(n.type)}</span><span class="notice-card-date">${noticeDateFmt(n.publishedAt)}</span></div>`
     + `<h2 class="notice-dt-title">${mlEsc(n.title)}</h2>${period}${img}`
-    + `<div class="notice-dt-body">${mlEsc(n.body || '').replace(/\n/g, '<br>')}</div>${cta}`;
+    + `<div class="notice-dt-body">${mlMarkdown(n.body)}</div>${cta}`;
 }
 function closeNoticeDetail() {
   // PC MY: 상세 닫으면 오른쪽 상세 영역에 피드로 복귀
@@ -3548,6 +3548,38 @@ function mlBellSvg(on) {
     : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.9023 18.75C14.5691 20.0435 13.3976 20.9999 12 21C10.6024 21 9.43097 20.0435 9.09766 18.75H14.9023ZM18.3799 3.53027C18.6728 3.23763 19.1476 3.23746 19.4404 3.53027C19.7331 3.82309 19.733 4.29795 19.4404 4.59082L4.59083 19.4404C4.29797 19.7332 3.82314 19.7331 3.53028 19.4404C3.23743 19.1476 3.23751 18.6728 3.53028 18.3799L18.3799 3.53027ZM17.6563 8.49512C17.8785 9.12211 18 9.79686 18 10.5V15L18.1533 15.0078C18.9097 15.0847 19.5 15.7234 19.5 16.5C19.5 17.3284 18.8284 17.9999 18 18H8.15235L17.6563 8.49512ZM12 3C12.8284 3.00007 13.5 3.67161 13.5 4.5C13.5 4.56288 13.4948 4.6247 13.4873 4.68555C14.4073 4.9202 15.2419 5.36814 15.9365 5.97266L4.68555 17.2236C4.56719 17.0091 4.50001 16.7624 4.50001 16.5C4.50001 15.6716 5.17158 15 6.00001 15V10.5C6.00001 7.69998 7.91788 5.34749 10.5117 4.68555C10.5042 4.62474 10.5 4.56284 10.5 4.5C10.5 3.67157 11.1716 3 12 3Z" fill="currentColor"/></svg>';
 }
 function mlEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+// 공지 본문 링크/이미지 URL 소독 (http(s) 또는 data:image 만 허용 — javascript: 등 차단)
+function mlSafeUrl(u) { u = String(u == null ? '' : u).trim(); if (/^https?:\/\//i.test(u)) return u; if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);/i.test(u)) return u; return ''; }
+// 공지 본문 markdown-lite → 안전 HTML (관리자 작성 전용: 먼저 전체 이스케이프 후, 허용 패턴만 태그로 치환)
+function mlMarkdown(src) {
+  const lines = mlEsc(String(src == null ? '' : src)).split('\n');
+  const inline = (t) => t
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, url) => { const u = mlSafeUrl(url); return u ? `<img class="nt-img" src="${u}" alt="${alt}">` : ''; })
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, txt, url) => { const u = mlSafeUrl(url); return u ? `<a href="${u}" target="_blank" rel="noopener">${txt}</a>` : txt; })
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  const out = []; let para = []; let list = null;
+  const flushPara = () => { if (para.length) { out.push('<p class="nt-p">' + para.join('<br>') + '</p>'); para = []; } };
+  const closeList = () => { if (list) { out.push('</' + list + '>'); list = null; } };
+  for (const line of lines) {
+    let m;
+    if ((m = /^###\s+(.+)$/.exec(line))) { flushPara(); closeList(); out.push('<h5 class="nt-h3">' + inline(m[1]) + '</h5>'); continue; }
+    if ((m = /^##\s+(.+)$/.exec(line))) { flushPara(); closeList(); out.push('<h4 class="nt-h2">' + inline(m[1]) + '</h4>'); continue; }
+    if ((m = /^#\s+(.+)$/.exec(line))) { flushPara(); closeList(); out.push('<h3 class="nt-h1">' + inline(m[1]) + '</h3>'); continue; }
+    if ((m = /^\s*[-*]\s+(.+)$/.exec(line))) { flushPara(); if (list !== 'ul') { closeList(); out.push('<ul class="nt-ul">'); list = 'ul'; } out.push('<li>' + inline(m[1]) + '</li>'); continue; }
+    if ((m = /^\s*\d+\.\s+(.+)$/.exec(line))) { flushPara(); if (list !== 'ol') { closeList(); out.push('<ol class="nt-ol">'); list = 'ol'; } out.push('<li>' + inline(m[1]) + '</li>'); continue; }
+    if ((m = /^\s*!\[([^\]]*)\]\(([^)\s]+)\)\s*$/.exec(line))) { flushPara(); closeList(); const u = mlSafeUrl(m[2]); if (u) out.push(`<img class="nt-img" src="${u}" alt="${m[1]}">`); continue; }
+    if (line.trim() === '') { flushPara(); closeList(); continue; }
+    closeList(); para.push(inline(line));
+  }
+  flushPara(); closeList();
+  return out.join('');
+}
+// 공지 피드 스니펫용: markdown 토큰 제거한 평문 60자
+function mlStripMd(src) {
+  return mlEsc(String(src == null ? '' : src)
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[*#>`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60));
+}
 // dev/LAN 호스트 여부(운영 muhyeop.com이 아니면 dev 미리보기 로그인 버튼 노출)
 function mlIsDevHost() { const h = location.hostname; return /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) || (h.indexOf('muhyeop.com') < 0 && h !== ''); }
 function mlKindLabel(p) { return p.kind === 'home' ? '집' : p.kind === 'work' ? '회사' : (p.name || '장소'); }
