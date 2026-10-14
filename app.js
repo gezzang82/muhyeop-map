@@ -3951,7 +3951,7 @@ function openPcPlaceSetting(kind, id) {
   const editing = _myPlaces.find(p => p.id === id) || null;
   _mlDraft = editing
     ? { id: editing.id, kind: editing.kind, name: editing.name, address: editing.address, lat: editing.lat, lng: editing.lng, radiusKm: editing.radiusKm || 3, categories: (editing.categories || []).slice(), alarmEnabled: !!editing.alarmEnabled }
-    : { kind: kind, name: kind === 'home' ? '집' : kind === 'work' ? '회사' : '', address: '', lat: null, lng: null, radiusKm: 3, categories: [], alarmEnabled: false };
+    : { kind: kind, name: kind === 'home' ? '집' : kind === 'work' ? '회사' : '', address: '', lat: null, lng: null, radiusKm: 3, categories: [], alarmEnabled: true };
   const kLabel = kind === 'home' ? '집' : kind === 'work' ? '회사' : '장소';
   document.getElementById('pcPlaceTitle').textContent = kLabel + ' 설정';
   document.getElementById('pcPlaceAddrIco').innerHTML = ML_KIND_ICON[kind] || ML_KIND_ICON.place;
@@ -4048,7 +4048,7 @@ function openMlSetting(kind, id) {
   const editing = _myPlaces.find(p => p.id === id) || null;
   _mlDraft = editing
     ? { id: editing.id, kind: editing.kind, name: editing.name, address: editing.address, lat: editing.lat, lng: editing.lng, radiusKm: editing.radiusKm || 3, categories: (editing.categories || []).slice(), alarmEnabled: !!editing.alarmEnabled }
-    : { kind: kind, name: kind === 'home' ? '집' : kind === 'work' ? '회사' : '', address: '', lat: null, lng: null, radiusKm: 3, categories: [], alarmEnabled: false };
+    : { kind: kind, name: kind === 'home' ? '집' : kind === 'work' ? '회사' : '', address: '', lat: null, lng: null, radiusKm: 3, categories: [], alarmEnabled: true };
   _mlConfirmed = !!(editing && editing.lat);
   const kLabel = kind === 'home' ? '집' : kind === 'work' ? '회사' : '장소';
   document.getElementById('mlSetTitle').textContent = kLabel + ' 설정';
