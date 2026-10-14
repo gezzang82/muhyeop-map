@@ -1,6 +1,12 @@
 const { getDb } = require('./_db');
 const { requireAdmin, isAdmin } = require('./auth/_admin');
 
+// 클릭 집계에서 운영자 본인 제외(방문/캠페인 트래킹과 동일 집IP)
+const EXCLUDED_TRACK_IPS = new Set(
+  ['119.67.74.173'].concat(String(process.env.EXCLUDED_VISIT_IPS || '').split(','))
+    .map(s => s.trim()).filter(Boolean)
+);
+
 // 이벤트/공지 — 한 테이블(type로 구분), 피드형 목록 + 상세. banners(이벤트 팝업)와 별개의 '콘텐츠 허브'.
 function toNotice(row) {
   return {
@@ -15,7 +21,8 @@ function toNotice(row) {
     pinned: !!row.pinned,
     hidden: !!row.hidden,
     publishedAt: row.published_at || row.created_at || '',
-    createdAt: row.created_at || ''
+    createdAt: row.created_at || '',
+    clickCount: row.click_count || 0        // 공지 열람(클릭) 누적
   };
 }
 
@@ -35,6 +42,16 @@ module.exports = async function handler(req, res) {
     published_at TEXT DEFAULT (datetime('now')),
     created_at TEXT DEFAULT (datetime('now'))
   )`);
+  try { await db.execute("ALTER TABLE notices ADD COLUMN click_count INTEGER DEFAULT 0"); } catch (e) {} // 공지 열람(클릭) 집계
+
+  // 공개: 공지 열람(클릭) 트래킹 — POST ?track=click&id= (운영자 IP 제외, 단순 누적)
+  if (req.method === 'POST' && req.query.track === 'click') {
+    const id = Number(req.query.id); if (!id) return res.status(400).json({ error: 'id required' });
+    const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+    if (EXCLUDED_TRACK_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true });
+    try { await db.execute({ sql: "UPDATE notices SET click_count = COALESCE(click_count,0)+1 WHERE id=?", args: [id] }); } catch (e) {}
+    return res.status(200).json({ ok: true });
+  }
 
   if (req.method === 'GET') {
     const admin = isAdmin(req);

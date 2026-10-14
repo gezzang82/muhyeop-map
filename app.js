@@ -925,6 +925,7 @@ function showBannerPopup(force) {
     // 연결된 공지(noticeId) 있으면 팝업 닫고 이벤트·공지 상세로, 없으면 기존처럼 외부 링크
     img.onclick = () => {
       if (_bannerDragged) return;
+      try { fetch('/api/banners?track=click&id=' + b.id, { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {} // 팝업 클릭 집계(운영자 IP 서버제외)
       if (b.noticeId) { closeBannerPopup(); openNoticeDetail(b.noticeId); }
       else if (b.linkUrl) openExternal(b.linkUrl);
     };
@@ -3507,6 +3508,7 @@ function renderNoticeFeed() {
   }).join('');
 }
 async function openNoticeDetail(id) {
+  try { fetch('/api/notices?track=click&id=' + id, { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {} // 공지 열람 집계(운영자 IP 서버제외)
   if (isPcMyInfo()) pcMyCloseSubs('noticeDetailOverlay');  // PC MY: 피드 위에 상세를 오른쪽 상세로 교체
   syncMobileModalHeader('#noticeDetailOverlay');
   bindMobileScrollHeader('noticeDtBody', 'noticeDtScrollHeader', 'noticeDtStickyHeader');

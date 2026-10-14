@@ -1,6 +1,12 @@
 const { getDb } = require('./_db');
 const { requireAdmin, isAdmin } = require('./auth/_admin');
 
+// 클릭 집계에서 운영자 본인 제외(방문/캠페인 트래킹과 동일 집IP)
+const EXCLUDED_TRACK_IPS = new Set(
+  ['119.67.74.173'].concat(String(process.env.EXCLUDED_VISIT_IPS || '').split(','))
+    .map(s => s.trim()).filter(Boolean)
+);
+
 function toBanner(row) {
   return {
     id: row.id,
@@ -10,7 +16,8 @@ function toBanner(row) {
     endDate: row.end_date,
     hidden: !!row.hidden,
     sortOrder: row.sort_order || 0,
-    noticeId: row.notice_id || null   // 연결된 이벤트·공지(있으면 팝업 탭 시 그 상세로 이동)
+    noticeId: row.notice_id || null,   // 연결된 이벤트·공지(있으면 팝업 탭 시 그 상세로 이동)
+    clickCount: row.click_count || 0   // 팝업 탭(클릭) 누적
   };
 }
 
@@ -27,6 +34,16 @@ module.exports = async function handler(req, res) {
   try { await db.execute("ALTER TABLE banners ADD COLUMN hidden INTEGER DEFAULT 0"); } catch (e) {}
   try { await db.execute("ALTER TABLE banners ADD COLUMN sort_order INTEGER DEFAULT 0"); } catch (e) {} // 노출 순서(작을수록 먼저)
   try { await db.execute("ALTER TABLE banners ADD COLUMN notice_id INTEGER"); } catch (e) {} // 연결된 이벤트·공지 id
+  try { await db.execute("ALTER TABLE banners ADD COLUMN click_count INTEGER DEFAULT 0"); } catch (e) {} // 팝업 탭(클릭) 집계
+
+  // 공개: 배너(이벤트 팝업) 클릭 트래킹 — POST ?track=click&id= (운영자 IP 제외, 단순 누적)
+  if (req.method === 'POST' && req.query.track === 'click') {
+    const id = Number(req.query.id); if (!id) return res.status(400).json({ error: 'id required' });
+    const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+    if (EXCLUDED_TRACK_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true });
+    try { await db.execute({ sql: "UPDATE banners SET click_count = COALESCE(click_count,0)+1 WHERE id=?", args: [id] }); } catch (e) {}
+    return res.status(200).json({ ok: true });
+  }
 
   if (req.method === 'GET') {
     // 공개는 숨김 배너 제외, 관리자(mh_admin)만 전체 조회(숨김 관리용). 순서: sort_order 오름차순(작을수록 먼저)

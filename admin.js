@@ -1114,6 +1114,7 @@ function renderBannerList() {
       <td>${b.startDate}</td>
       <td>${b.endDate}</td>
       <td>${statusHtml}</td>
+      <td class="td-id">${(b.clickCount || 0).toLocaleString()}</td>
       <td>
         <div class="row-actions">
           <button class="btn-edit-sm" onclick="moveBanner(${b.id},-1)" ${gi === 0 ? 'disabled' : ''} title="위로">▲</button>
@@ -1292,6 +1293,7 @@ async function renderNoticeList() {
     <td>${(n.publishedAt || '').slice(0, 10)}</td>
     <td>${n.pinned ? '📌' : ''}</td>
     <td>${n.hidden ? '숨김' : '노출'}</td>
+    <td>${(n.clickCount || 0).toLocaleString()}</td>
     <td>
       <button class="btn-edit-sm" onclick="editNotice(${n.id})">수정</button>
       <button class="btn-edit-sm" onclick="toggleNoticeHidden(${n.id})">${n.hidden ? '노출' : '숨김'}</button>
