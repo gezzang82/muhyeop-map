@@ -6290,13 +6290,51 @@ function initSplash() {
     startAnim();
   }
 }
-// 사용자 표기 버전(MY 하단). 스토어 versionName(iOS/안드)과 동기화 — 릴리스 때 여기만 올림.
+// 사용자 표기 버전(MY 하단). 스토어 versionName(iOS/안드)과 동기화 — 릴리스 때 여기와 LATEST_APP_VERSION을 같이 올림.
 // 빌드번호(iOS CURRENT_PROJECT_VERSION·안드 versionCode)와 웹 캐시버전(app.js?v=)은 별개(사용자 비노출).
 const APP_VERSION = '1.1.1';
-document.addEventListener('DOMContentLoaded', function () {
-  const el = document.querySelector('.mypage-version-num');
-  if (el) el.textContent = APP_VERSION;
-});
+// 스토어 최신 버전(릴리스마다 스토어 versionName과 함께 올림). 설치버전 < 이 값이면 MY에 '앱 업데이트' 버튼.
+const LATEST_APP_VERSION = '1.1.1';
+// 네이티브 설치버전: undefined=미확인 / ''=웹·@capacitor/app 없는 구버전앱(버전 신뢰 불가) / 'x.y.z'=확인됨
+let _nativeAppVer = undefined;
+async function getNativeAppVer() {
+  if (_nativeAppVer !== undefined) return _nativeAppVer;
+  _nativeAppVer = '';
+  try {
+    const Cap = window.Capacitor;
+    if (Cap && Cap.isNativePlatform && Cap.isNativePlatform()) {
+      const A = Cap.Plugins && Cap.Plugins.App; // @capacitor/app (다음 빌드부터 탑재)
+      if (A && A.getInfo) { const info = await A.getInfo(); _nativeAppVer = (info && info.version) || ''; }
+    }
+  } catch (e) { _nativeAppVer = ''; }
+  return _nativeAppVer;
+}
+function cmpAppVer(a, b) { // a<b → -1, a>b → 1, 같음 → 0
+  const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d < 0 ? -1 : 1; }
+  return 0;
+}
+function openAppStore() {
+  const plat = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
+  const url = plat === 'ios' ? 'https://apps.apple.com/app/id6794363402'
+    : 'https://play.google.com/store/apps/details?id=com.muhyeop.app';
+  if (typeof openExternal === 'function') openExternal(url); else window.open(url, '_blank', 'noopener');
+}
+// MY 하단: 네이티브 버전을 알면 최신=버전표시 / 낮으면 '앱 업데이트' 버튼, 모르면(웹·구버전앱) 둘 다 숨김.
+async function renderAppVersionUI() {
+  const row = document.getElementById('mypageVersion');
+  const btn = document.getElementById('mypageUpdateBtn');
+  const num = document.querySelector('.mypage-version-num');
+  const ver = await getNativeAppVer();
+  if (!ver) { if (row) row.style.display = 'none'; if (btn) btn.style.display = 'none'; return; }
+  if (cmpAppVer(ver, LATEST_APP_VERSION) < 0) {
+    if (row) row.style.display = 'none'; if (btn) btn.style.display = '';
+  } else {
+    if (num) num.textContent = ver; if (row) row.style.display = ''; if (btn) btn.style.display = 'none';
+  }
+}
+document.addEventListener('DOMContentLoaded', renderAppVersionUI);
 document.addEventListener('DOMContentLoaded', initSplash);
 // 지도 로딩/인증 실패 시 지도 영역에 안내 화면 노출
 function showMapError() {

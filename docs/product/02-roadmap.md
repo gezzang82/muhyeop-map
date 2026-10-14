@@ -18,6 +18,7 @@
 ## Phase 3 — 🔶 앱 출시 선반영 (제휴·수익화는 성장 선결)
 
 -   앱 전환 — ✅ **출시/심사(2026-07~10)**: Capacitor 래핑으로 **iOS App Store·Google Play 출시**. 네이티브 햅틱(GNB 탭 진동)·키보드 처리·푸시(FCM/APNs)·애플 로그인. 현재 iOS 1.1.1·안드 versionCode 5 심사/출시 진행.
+-   앱 버전 추적/업데이트 유도 — 🔶 **웹 메커니즘 완료(2026-10-14), 네이티브는 다음 빌드**: MY 하단 버전을 네이티브 실제 설치버전 기준으로 — **최신=버전 표시 / 낮으면 '앱 업데이트' 버튼(스토어로) / 모를 땐 숨김**(`renderAppVersionUI`, `LATEST_APP_VERSION`). **현재 빌드엔 `@capacitor/app` 미탑재라 버전 미확인=숨김**(그래서 지금 MY 버전은 안 보임). **다음 빌드에 `@capacitor/app` 추가**하면 자동 활성(버전 재노출 + 구버전에 업데이트 버튼). 서버 기록(`users.last_app_version`)·어드민 버전 컬럼은 그다음 단계. ⚠️ 릴리스마다 `APP_VERSION`+`LATEST_APP_VERSION`+스토어 versionName 같이 올림. [[frontend]]·[[06-decision-log]]
 -   플랫폼 제휴 — ⬜ 미착수 [[08-partnership]]
 -   수익화 — ⬜ 미착수 [[04-revenue-model]]
 

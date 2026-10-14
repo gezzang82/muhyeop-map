@@ -3586,6 +3586,9 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .mypage-policy-dot { flex-shrink: 0; width: 3px; height: 3px; border-radius: 50%; background: #ccc; }
 .mypage-foot .mypage-version { display: flex; gap: 28px; font-size: 14px; color: #777; }
 .mypage-foot .mypage-version-num { font-size: 14px; color: #777; }
+/* MY '앱 업데이트' 버튼 — 설치버전이 스토어 최신보다 낮을 때만 노출(renderAppVersionUI) */
+.mypage-update-btn { display: inline-flex; align-items: center; justify-content: center; height: 38px; padding: 0 18px; border: 0; border-radius: 19px; background: #e82a2d; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.mypage-update-btn:active { opacity: 0.85; }
 
 /* ===== PC 커뮤니티: 레일 | 전체폭 콘텐츠 (Figma 1775-3032). 이웃찾기=masonry / 후기=grid.
    모바일 .cm-* 는 @media(hover:none)라 PC엔 안 걸려 여기서 재지정(값은 모바일과 동일, 레이아웃만 PC) ===== */
