@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#39395c">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="admin.css?v=1">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -934,7 +934,42 @@
             </div>
           </div>
           <div class="form-row"><div class="form-group full"><label>제목 <span class="req">*</span></label><input type="text" id="noticeTitle" placeholder="제목"></div></div>
-          <div class="form-row"><div class="form-group full"><label>본문 <span class="hint">줄바꿈 그대로 · 서식: **굵게**, # 큰제목 ## 중제목 ### 소제목, - 목록, 1. 번호, ![설명](이미지URL), [링크](주소)</span></label><textarea id="noticeBody" rows="6" placeholder="본문 내용 (서식 지원: **굵게**, ## 제목, - 목록, ![](이미지URL))"></textarea></div></div>
+          <div class="form-row"><div class="form-group full"><label>내용 <span class="req">*</span></label>
+            <div class="nt-editor">
+              <div class="nt-toolbar" id="noticeToolbar">
+                <button type="button" class="nt-tb" title="굵게" onclick="ntCmd('bold')"><b>B</b></button>
+                <button type="button" class="nt-tb" title="기울임" onclick="ntCmd('italic')"><i>I</i></button>
+                <button type="button" class="nt-tb" title="취소선" onclick="ntCmd('strikeThrough')"><s>S</s></button>
+                <span class="nt-tb-wrap">
+                  <button type="button" class="nt-tb" title="글자색" onclick="ntTogglePop('ntColorPop')"><span class="nt-a-color">A</span><span class="nt-caret">▾</span></button>
+                  <div class="nt-pop" id="ntColorPop">
+                    <button type="button" class="nt-sw" style="background:#111" title="검정" onclick="ntColor('#111111')"></button>
+                    <button type="button" class="nt-sw" style="background:#e82a2d" title="빨강" onclick="ntColor('#e82a2d')"></button>
+                    <button type="button" class="nt-sw" style="background:#2e7dff" title="파랑" onclick="ntColor('#2e7dff')"></button>
+                    <button type="button" class="nt-sw" style="background:#18a957" title="초록" onclick="ntColor('#18a957')"></button>
+                    <button type="button" class="nt-sw" style="background:#888" title="회색" onclick="ntColor('#888888')"></button>
+                  </div>
+                </span>
+                <span class="nt-tb-wrap">
+                  <button type="button" class="nt-tb" title="글자 크기" onclick="ntTogglePop('ntSizePop')"><span style="font-weight:700">가</span><span class="nt-caret">▾</span></button>
+                  <div class="nt-pop nt-pop-size" id="ntSizePop">
+                    <button type="button" onclick="ntSize('2')" style="font-size:12px">작게</button>
+                    <button type="button" onclick="ntSize('3')" style="font-size:15px">보통</button>
+                    <button type="button" onclick="ntSize('5')" style="font-size:18px">크게</button>
+                    <button type="button" onclick="ntSize('6')" style="font-size:22px">제목</button>
+                  </div>
+                </span>
+                <span class="nt-sep"></span>
+                <button type="button" class="nt-tb" title="글머리 목록" onclick="ntCmd('insertUnorderedList')">≔</button>
+                <button type="button" class="nt-tb" title="번호 목록" onclick="ntCmd('insertOrderedList')">⒈≔</button>
+                <span class="nt-sep"></span>
+                <button type="button" class="nt-tb" title="링크" onclick="ntLink()">🔗</button>
+                <button type="button" class="nt-tb" title="이미지" onclick="document.getElementById('ntImgFile').click()">🖼</button>
+                <input type="file" id="ntImgFile" accept="image/*" hidden onchange="ntImgPick(this)">
+              </div>
+              <div class="nt-content" id="noticeEditor" contenteditable="true" data-ph="내용을 입력하세요"></div>
+            </div>
+          </div></div>
           <div class="form-row"><div class="form-group full"><label>대표 이미지 URL <span class="hint">선택 (피드 썸네일/상세 이미지)</span></label><input type="text" id="noticeImageUrl" placeholder="https://..."></div></div>
           <div class="form-row"><div class="form-group full"><label>외부 링크(CTA) URL <span class="hint">선택 (상세 '자세히 보기' 버튼)</span></label><input type="text" id="noticeLinkUrl" placeholder="https://..."></div></div>
           <div class="form-row">
@@ -1145,6 +1180,6 @@
   </script>
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
   <script src="app.js"></script>
-  <script src="admin.js?v=4"></script>
+  <script src="admin.js?v=5"></script>
 </body>
 </html>

@@ -1298,10 +1298,74 @@ async function renderNoticeList() {
       <button class="btn-del-sm" onclick="deleteNotice(${n.id})">삭제</button>
     </td></tr>`).join('');
 }
+// ===== 공지 위지윅 에디터 =====
+function ntEd() { return document.getElementById('noticeEditor'); }
+function ntExec(cmd, val) { const e = ntEd(); if (!e) return; e.focus(); try { document.execCommand('styleWithCSS', false, true); } catch (_) {} try { document.execCommand(cmd, false, val == null ? null : val); } catch (_) {} }
+function ntCmd(cmd) { ntExec(cmd); }
+function ntColor(c) { ntExec('foreColor', c); ntClosePops(); }
+function ntSize(n) { ntExec('fontSize', n); ntClosePops(); }
+function ntLink() {
+  const sel = (window.getSelection && String(window.getSelection())) || '';
+  let url = prompt('링크 주소 (https://...)', 'https://'); if (!url) return; url = url.trim();
+  if (!/^https?:\/\//i.test(url)) { adminToast('http:// 또는 https:// 로 시작해야 해요'); return; }
+  const e = ntEd(); e.focus();
+  if (!sel) document.execCommand('insertHTML', false, `<a href="${url.replace(/"/g, '&quot;')}" target="_blank" rel="noopener">${url.replace(/</g, '&lt;')}</a>`);
+  else document.execCommand('createLink', false, url);
+  Array.from(e.querySelectorAll('a')).forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+}
+function ntImgPick(input) {
+  const f = input.files && input.files[0]; input.value = ''; if (!f) return;
+  if (!/^image\//.test(f.type)) { adminToast('이미지 파일만 가능해요'); return; }
+  if (f.size > 1200 * 1024 && !confirm('이미지가 커요(' + Math.round(f.size / 1024) + 'KB). 공지 로딩이 느려질 수 있어요. 넣을까요?')) return;
+  const r = new FileReader(); r.onload = () => { const e = ntEd(); e.focus(); document.execCommand('insertImage', false, r.result); }; r.readAsDataURL(f);
+}
+function ntTogglePop(id) { const p = document.getElementById(id); if (!p) return; const show = !p.classList.contains('show'); ntClosePops(); if (show) p.classList.add('show'); }
+function ntClosePops() { ['ntColorPop', 'ntSizePop'].forEach(i => { const p = document.getElementById(i); if (p) p.classList.remove('show'); }); }
+document.addEventListener('click', function (e) { if (!e.target.closest || !e.target.closest('.nt-tb-wrap')) ntClosePops(); });
+// 본문 HTML 소독 (저장 전 — 렌더 측 app.js와 동일 화이트리스트)
+var NT_ALLOW_TAGS = { A: 1, B: 1, STRONG: 1, I: 1, EM: 1, S: 1, STRIKE: 1, DEL: 1, U: 1, UL: 1, OL: 1, LI: 1, IMG: 1, BR: 1, P: 1, DIV: 1, SPAN: 1, H1: 1, H2: 1, H3: 1, H4: 1, FONT: 1 };
+function ntSanitizeStyle(style) {
+  const out = [];
+  String(style || '').split(';').forEach(part => {
+    const i = part.indexOf(':'); if (i < 0) return;
+    const prop = part.slice(0, i).trim().toLowerCase(); const vv = part.slice(i + 1).trim();
+    if (/url\(|expression|javascript:|@import/i.test(vv)) return;
+    if (prop === 'color' && /^(#[0-9a-f]{3,8}|rgba?\([\d\s,.%]+\)|[a-z]+)$/i.test(vv)) out.push('color:' + vv);
+    else if (prop === 'background-color' && /^(#[0-9a-f]{3,8}|rgba?\([\d\s,.%]+\)|[a-z]+)$/i.test(vv)) out.push('background-color:' + vv);
+    else if (prop === 'font-size' && /^([\d.]+(px|em|rem|%)|xx?-small|small|medium|large|x-large|xx-large|smaller|larger)$/i.test(vv)) out.push('font-size:' + vv);
+    else if (prop === 'font-weight' && /^(bold|bolder|normal|[1-9]00)$/i.test(vv)) out.push('font-weight:' + vv);
+    else if (prop === 'text-decoration' && /^(underline|line-through|none)$/i.test(vv)) out.push('text-decoration:' + vv);
+    else if (prop === 'text-align' && /^(left|center|right)$/i.test(vv)) out.push('text-align:' + vv);
+  });
+  return out.join(';');
+}
+function ntSanitize(html) {
+  let tpl; try { tpl = document.createElement('template'); tpl.innerHTML = String(html == null ? '' : html); } catch (e) { return ''; }
+  tpl.content.querySelectorAll('script,style,iframe,object,embed,link,meta,svg,math,form,input,button').forEach(e => e.remove());
+  let changed = true, guard = 0;
+  while (changed && guard++ < 50) { changed = false; tpl.content.querySelectorAll('*').forEach(el => { if (!NT_ALLOW_TAGS[el.tagName]) { const p = el.parentNode; if (!p) return; while (el.firstChild) p.insertBefore(el.firstChild, el); p.removeChild(el); changed = true; } }); }
+  tpl.content.querySelectorAll('*').forEach(el => {
+    const tag = el.tagName;
+    Array.from(el.attributes).forEach(a => {
+      const name = a.name.toLowerCase(); const val = a.value;
+      if (name.indexOf('on') === 0) { el.removeAttribute(a.name); return; }
+      if (name === 'href') { if (tag !== 'A' || !/^https?:\/\//i.test(val.trim())) el.removeAttribute(a.name); return; }
+      if (name === 'src') { if (tag !== 'IMG' || !(/^https?:\/\//i.test(val.trim()) || /^data:image\//i.test(val.trim()))) el.removeAttribute(a.name); return; }
+      if (name === 'color' && tag === 'FONT') { if (!/^#?[0-9a-z]+$/i.test(val)) el.removeAttribute(a.name); return; }
+      if (name === 'size' && tag === 'FONT') { if (!/^[1-7]$/.test(val)) el.removeAttribute(a.name); return; }
+      if (name === 'style') { const s = ntSanitizeStyle(val); if (s) el.setAttribute('style', s); else el.removeAttribute('style'); return; }
+      if (name === 'alt') return;
+      el.removeAttribute(a.name);
+    });
+    if (tag === 'A' && el.getAttribute('href')) { el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener nofollow'); }
+    if (tag === 'IMG') { if (!el.getAttribute('src')) el.remove(); else { el.setAttribute('loading', 'lazy'); el.classList.add('nt-img'); } }
+  });
+  return tpl.innerHTML;
+}
 function noticeFormData() {
   const v = id => (document.getElementById(id) || {}).value || '';
   return {
-    type: v('noticeType'), title: v('noticeTitle').trim(), body: document.getElementById('noticeBody').value,
+    type: v('noticeType'), title: v('noticeTitle').trim(), body: ntSanitize((ntEd() || {}).innerHTML || ''),
     imageUrl: v('noticeImageUrl').trim(), linkUrl: v('noticeLinkUrl').trim(),
     periodStart: v('noticePeriodStart'), periodEnd: v('noticePeriodEnd'), publishedAt: v('noticePublishedAt'),
     pinned: document.getElementById('noticePinned').checked, hidden: document.getElementById('noticeHidden').checked,
@@ -1310,6 +1374,7 @@ function noticeFormData() {
 async function submitNotice() {
   const f = noticeFormData();
   if (!f.title) { adminToast('제목은 필수예요!'); return; }
+  if (!((ntEd() && ntEd().textContent || '').trim()) && !/<img/i.test(f.body)) { adminToast('내용을 입력하세요!'); return; }
   if (noticeEditId) {
     await fetch(`/api/notices?id=${noticeEditId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) });
     adminToast('수정 완료');
@@ -1324,7 +1389,8 @@ function editNotice(id) {
   const n = notices.find(x => x.id === id); if (!n) return;
   noticeEditId = id;
   const set = (i, val) => { const el = document.getElementById(i); if (el) el.value = val; };
-  set('noticeType', n.type || 'notice'); set('noticeTitle', n.title || ''); set('noticeBody', n.body || '');
+  set('noticeType', n.type || 'notice'); set('noticeTitle', n.title || '');
+  if (ntEd()) ntEd().innerHTML = ntSanitize(n.body || '');
   set('noticeImageUrl', n.imageUrl || ''); set('noticeLinkUrl', n.linkUrl || '');
   set('noticePeriodStart', (n.periodStart || '').slice(0, 10)); set('noticePeriodEnd', (n.periodEnd || '').slice(0, 10));
   set('noticePublishedAt', (n.publishedAt || '').slice(0, 10));
@@ -1336,7 +1402,8 @@ function editNotice(id) {
 }
 function resetNoticeForm() {
   noticeEditId = null;
-  ['noticeTitle', 'noticeBody', 'noticeImageUrl', 'noticeLinkUrl', 'noticePeriodStart', 'noticePeriodEnd', 'noticePublishedAt'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+  ['noticeTitle', 'noticeImageUrl', 'noticeLinkUrl', 'noticePeriodStart', 'noticePeriodEnd', 'noticePublishedAt'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+  if (ntEd()) ntEd().innerHTML = '';
   document.getElementById('noticeType').value = 'notice';
   document.getElementById('noticePinned').checked = false;
   document.getElementById('noticeHidden').checked = false;

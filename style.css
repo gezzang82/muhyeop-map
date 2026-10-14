@@ -2223,6 +2223,15 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .notice-dt-body .nt-img { max-width: 100%; border-radius: 8px; display: block; margin: 10px 0; }
 .notice-dt-body .nt-ul, .notice-dt-body .nt-ol { margin: 6px 0 10px; padding-left: 22px; }
 .notice-dt-body .nt-ul li, .notice-dt-body .nt-ol li { margin: 2px 0; }
+/* 위지윅(HTML) 산출물 공통 태그 스타일 */
+.notice-dt-body b, .notice-dt-body strong { font-weight: 700; color: #111; }
+.notice-dt-body img { max-width: 100%; border-radius: 8px; display: block; margin: 10px 0; }
+.notice-dt-body ul, .notice-dt-body ol { margin: 6px 0 10px; padding-left: 22px; }
+.notice-dt-body ul li, .notice-dt-body ol li { margin: 2px 0; }
+.notice-dt-body a { color: #e82a2d; text-decoration: underline; }
+.notice-dt-body h1 { font-size: 20px; font-weight: 700; color: #111; margin: 16px 0 8px; }
+.notice-dt-body h2 { font-size: 18px; font-weight: 700; color: #111; margin: 14px 0 6px; }
+.notice-dt-body h3, .notice-dt-body h4 { font-size: 16px; font-weight: 700; color: #222; margin: 12px 0 6px; }
 .notice-dt-cta { display: inline-flex; align-items: center; justify-content: center; height: 52px; border-radius: 8px; background: #e82a2d; color: #fff; font-size: 16px; font-weight: 700; text-decoration: none; margin-top: 8px; }
 
 /* 모달 sticky 헤더 (step2 스크롤 시 나타남) */

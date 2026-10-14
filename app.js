@@ -3497,7 +3497,7 @@ function renderNoticeFeed() {
   const list = (_notices || []).filter(n => _noticeFilter === 'all' || n.type === _noticeFilter);
   if (!list.length) { feed.innerHTML = '<div class="notice-empty">등록된 소식이 없어요.</div>'; return; }
   feed.innerHTML = list.map(n => {
-    const excerpt = mlStripMd(n.body);
+    const excerpt = ntExcerpt(n.body);
     const img = n.imageUrl ? `<div class="notice-card-img"><img src="${n.imageUrl}" alt="" draggable="false"></div>` : '';
     return `<button class="notice-card" onclick="openNoticeDetail(${n.id})">${img}<div class="notice-card-main">`
       + `<div class="notice-card-top"><span class="notice-badge nb-${n.type}">${noticeTypeLabel(n.type)}</span><span class="notice-card-date">${noticeDateFmt(n.publishedAt)}</span></div>`
@@ -3522,7 +3522,7 @@ async function openNoticeDetail(id) {
   const cta = n.linkUrl ? `<a class="notice-dt-cta" href="${n.linkUrl}" target="_blank" rel="noopener">자세히 보기</a>` : '';
   if (box) box.innerHTML = `<div class="notice-dt-top"><span class="notice-badge nb-${n.type}">${noticeTypeLabel(n.type)}</span><span class="notice-card-date">${noticeDateFmt(n.publishedAt)}</span></div>`
     + `<h2 class="notice-dt-title">${mlEsc(n.title)}</h2>${period}${img}`
-    + `<div class="notice-dt-body">${mlMarkdown(n.body)}</div>${cta}`;
+    + `<div class="notice-dt-body">${ntRenderBody(n.body)}</div>${cta}`;
 }
 function closeNoticeDetail() {
   // PC MY: 상세 닫으면 오른쪽 상세 영역에 피드로 복귀
@@ -3579,6 +3579,59 @@ function mlStripMd(src) {
   return mlEsc(String(src == null ? '' : src)
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/[*#>`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60));
+}
+// 공지 본문 HTML 소독 — 위지윅 에디터 산출물을 안전한 태그/속성 화이트리스트로 (XSS 방어, 렌더 측 필수)
+const NT_ALLOW_TAGS = { A: 1, B: 1, STRONG: 1, I: 1, EM: 1, S: 1, STRIKE: 1, DEL: 1, U: 1, UL: 1, OL: 1, LI: 1, IMG: 1, BR: 1, P: 1, DIV: 1, SPAN: 1, H1: 1, H2: 1, H3: 1, H4: 1, FONT: 1 };
+function ntSanitizeStyle(style) {
+  const out = [];
+  String(style || '').split(';').forEach(part => {
+    const i = part.indexOf(':'); if (i < 0) return;
+    const prop = part.slice(0, i).trim().toLowerCase(); const v = part.slice(i + 1).trim();
+    if (/url\(|expression|javascript:|@import/i.test(v)) return;
+    if (prop === 'color' && /^(#[0-9a-f]{3,8}|rgba?\([\d\s,.%]+\)|[a-z]+)$/i.test(v)) out.push('color:' + v);
+    else if (prop === 'background-color' && /^(#[0-9a-f]{3,8}|rgba?\([\d\s,.%]+\)|[a-z]+)$/i.test(v)) out.push('background-color:' + v);
+    else if (prop === 'font-size' && /^([\d.]+(px|em|rem|%)|xx?-small|small|medium|large|x-large|xx-large|smaller|larger)$/i.test(v)) out.push('font-size:' + v);
+    else if (prop === 'font-weight' && /^(bold|bolder|normal|[1-9]00)$/i.test(v)) out.push('font-weight:' + v);
+    else if (prop === 'text-decoration' && /^(underline|line-through|none)$/i.test(v)) out.push('text-decoration:' + v);
+    else if (prop === 'text-align' && /^(left|center|right)$/i.test(v)) out.push('text-align:' + v);
+  });
+  return out.join(';');
+}
+function ntSanitize(html) {
+  let tpl; try { tpl = document.createElement('template'); tpl.innerHTML = String(html == null ? '' : html); } catch (e) { return ''; }
+  tpl.content.querySelectorAll('script,style,iframe,object,embed,link,meta,svg,math,form,input,button').forEach(e => e.remove());
+  let changed = true, guard = 0;
+  while (changed && guard++ < 50) {
+    changed = false;
+    tpl.content.querySelectorAll('*').forEach(el => {
+      if (!NT_ALLOW_TAGS[el.tagName]) { const p = el.parentNode; if (!p) return; while (el.firstChild) p.insertBefore(el.firstChild, el); p.removeChild(el); changed = true; }
+    });
+  }
+  tpl.content.querySelectorAll('*').forEach(el => {
+    const tag = el.tagName;
+    Array.from(el.attributes).forEach(a => {
+      const name = a.name.toLowerCase(); const val = a.value;
+      if (name.indexOf('on') === 0) { el.removeAttribute(a.name); return; }
+      if (name === 'href') { if (tag !== 'A' || !/^https?:\/\//i.test(val.trim())) el.removeAttribute(a.name); return; }
+      if (name === 'src') { if (tag !== 'IMG' || !(/^https?:\/\//i.test(val.trim()) || /^data:image\//i.test(val.trim()))) el.removeAttribute(a.name); return; }
+      if (name === 'color' && tag === 'FONT') { if (!/^#?[0-9a-z]+$/i.test(val)) el.removeAttribute(a.name); return; }
+      if (name === 'size' && tag === 'FONT') { if (!/^[1-7]$/.test(val)) el.removeAttribute(a.name); return; }
+      if (name === 'style') { const s = ntSanitizeStyle(val); if (s) el.setAttribute('style', s); else el.removeAttribute('style'); return; }
+      if (name === 'alt') return;
+      el.removeAttribute(a.name);
+    });
+    if (tag === 'A' && el.getAttribute('href')) { el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener nofollow'); }
+    if (tag === 'IMG') { if (!el.getAttribute('src')) el.remove(); else { el.setAttribute('loading', 'lazy'); el.classList.add('nt-img'); } }
+  });
+  return tpl.innerHTML;
+}
+// 공지 본문이 HTML(위지윅)이면 소독 렌더, 아니면 마크다운/평문 폴백
+function ntRenderBody(body) { return /<[a-z!/][\s\S]*>/i.test(String(body || '')) ? ntSanitize(body) : mlMarkdown(body); }
+// 피드 스니펫: HTML이면 태그 제거 평문, 아니면 마크다운 평문
+function ntExcerpt(body) {
+  body = String(body || '');
+  if (/<[a-z!/][\s\S]*>/i.test(body)) { let d; try { d = document.createElement('div'); d.innerHTML = ntSanitize(body); } catch (e) { return ''; } return mlEsc((d.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60)); }
+  return mlStripMd(body);
 }
 // dev/LAN 호스트 여부(운영 muhyeop.com이 아니면 dev 미리보기 로그인 버튼 노출)
 function mlIsDevHost() { const h = location.hostname; return /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) || (h.indexOf('muhyeop.com') < 0 && h !== ''); }
