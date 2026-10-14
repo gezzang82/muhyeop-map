@@ -799,3 +799,10 @@ body {
 .nt-content img { max-width: 100%; border-radius: 6px; display: block; margin: 8px 0; }
 .nt-content ul, .nt-content ol { padding-left: 22px; margin: 6px 0; }
 .nt-content a { color: #e82a2d; text-decoration: underline; }
+
+/* 공지 에디터 — 이미지 선택/크기 조절 */
+.nt-content img.nt-sel { outline: 2px solid #e82a2d; outline-offset: 1px; }
+.nt-img-size { display: inline-flex; align-items: center; gap: 4px; }
+.nt-img-size-lbl { font-size: 12px; color: #888; margin: 0 2px; }
+.nt-img-size button { height: 28px; padding: 0 10px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; color: #333; }
+.nt-img-size button:hover { background: #f0f0f0; border-color: #ccc; }

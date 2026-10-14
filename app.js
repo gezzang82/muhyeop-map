@@ -3594,6 +3594,8 @@ function ntSanitizeStyle(style) {
     else if (prop === 'font-weight' && /^(bold|bolder|normal|[1-9]00)$/i.test(v)) out.push('font-weight:' + v);
     else if (prop === 'text-decoration' && /^(underline|line-through|none)$/i.test(v)) out.push('text-decoration:' + v);
     else if (prop === 'text-align' && /^(left|center|right)$/i.test(v)) out.push('text-align:' + v);
+    else if (prop === 'width' && /^(\d{1,3}%|\d{1,4}px)$/i.test(v)) out.push('width:' + v);
+    else if (prop === 'height' && /^(auto|\d{1,4}px)$/i.test(v)) out.push('height:' + v);
   });
   return out.join(';');
 }

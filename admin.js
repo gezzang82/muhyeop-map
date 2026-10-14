@@ -1321,7 +1321,24 @@ function ntImgPick(input) {
 }
 function ntTogglePop(id) { const p = document.getElementById(id); if (!p) return; const show = !p.classList.contains('show'); ntClosePops(); if (show) p.classList.add('show'); }
 function ntClosePops() { ['ntColorPop', 'ntSizePop'].forEach(i => { const p = document.getElementById(i); if (p) p.classList.remove('show'); }); }
-document.addEventListener('click', function (e) { if (!e.target.closest || !e.target.closest('.nt-tb-wrap')) ntClosePops(); });
+// 에디터 이미지 클릭 → 선택 + 툴바에 '이미지 크기' 노출. 버튼으로 width(%) 지정(저장 시 sanitizer가 width 허용).
+let _ntSelImg = null;
+function ntSelectImg(img) {
+  if (_ntSelImg && _ntSelImg !== img) _ntSelImg.classList.remove('nt-sel');
+  _ntSelImg = img || null;
+  const ctl = document.getElementById('ntImgSizeCtl');
+  if (_ntSelImg) { _ntSelImg.classList.add('nt-sel'); if (ctl) ctl.style.display = ''; }
+  else if (ctl) ctl.style.display = 'none';
+}
+function ntImgSize(w) { if (!_ntSelImg) return; _ntSelImg.style.width = w; _ntSelImg.style.height = 'auto'; }
+document.addEventListener('click', function (e) {
+  if (!e.target.closest || !e.target.closest('.nt-tb-wrap')) ntClosePops();
+  const ed = document.getElementById('noticeEditor');
+  if (ed) {
+    if (e.target && e.target.tagName === 'IMG' && ed.contains(e.target)) ntSelectImg(e.target);
+    else if (!e.target.closest || !e.target.closest('#ntImgSizeCtl')) ntSelectImg(null);
+  }
+});
 // 본문 HTML 소독(ntSanitize/ntSanitizeStyle)은 app.js의 전역 함수를 재사용한다.
 // admin.html은 app.js를 admin.js보다 먼저 로드하므로 전역에 이미 존재.
 // ⚠️ 여기서 재정의하면 app.js의 `const NT_ALLOW_TAGS`와 전역 충돌(SyntaxError)로 admin.js 전체가 죽는다.
