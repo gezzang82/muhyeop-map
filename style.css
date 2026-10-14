@@ -2212,6 +2212,7 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .notice-dt-title { font-size: 20px; font-weight: 700; color: #111; margin: 0; line-height: 1.35; }
 .notice-dt-period { font-size: 13px; color: #e82a2d; font-weight: 600; }
 .notice-dt-img { width: 100%; border-radius: 12px; display: block; }
+.notice-dt-hr { border: 0; border-top: 1px solid #ececec; margin: 0; width: 100%; }
 .notice-dt-body { font-size: 15px; line-height: 1.7; color: #333; word-break: break-word; }
 .notice-dt-body > :first-child { margin-top: 0; }
 .notice-dt-body > :last-child { margin-bottom: 0; }

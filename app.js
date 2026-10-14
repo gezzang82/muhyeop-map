@@ -3522,6 +3522,7 @@ async function openNoticeDetail(id) {
   const cta = n.linkUrl ? `<a class="notice-dt-cta" href="${n.linkUrl}" target="_blank" rel="noopener">자세히 보기</a>` : '';
   if (box) box.innerHTML = `<div class="notice-dt-top"><span class="notice-badge nb-${n.type}">${noticeTypeLabel(n.type)}</span><span class="notice-card-date">${noticeDateFmt(n.publishedAt)}</span></div>`
     + `<h2 class="notice-dt-title">${mlEsc(n.title)}</h2>${period}${img}`
+    + `<hr class="notice-dt-hr">`
     + `<div class="notice-dt-body">${ntRenderBody(n.body)}</div>${cta}`;
 }
 function closeNoticeDetail() {
