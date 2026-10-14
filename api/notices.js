@@ -47,7 +47,7 @@ module.exports = async function handler(req, res) {
       if (!r.rows.length) return res.status(404).json({ error: 'not found' });
       const n = r.rows[0];
       if (!admin && n.hidden) return res.status(404).json({ error: 'not found' }); // 숨김은 실제 관리자만(쿠키). ?admin=1만으론 접근 불가
-      if (!admin && !wantAdmin) res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
+      if (!admin && !wantAdmin) res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
       return res.status(200).json(toNotice(n));
     }
 
@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
       ? 'SELECT * FROM notices ORDER BY pinned DESC, published_at DESC, id DESC'
       : 'SELECT * FROM notices WHERE COALESCE(hidden,0)=0 ORDER BY pinned DESC, published_at DESC, id DESC';
     const result = await db.execute(sql);
-    if (!admin && !wantAdmin) res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
+    if (!admin && !wantAdmin) res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
     return res.status(200).json(result.rows.map(toNotice));
   }
 

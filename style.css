@@ -2189,9 +2189,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
 /* 이벤트·공지 피드 (MY → 이벤트·공지) */
 .notice-modal .modal-body { padding-bottom: calc(32px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }
-.notice-filter { display: flex; gap: 8px; }
-.notice-chip { height: 34px; padding: 0 16px; border-radius: 999px; border: 1.5px solid #e5e5e5; background: #fff; color: #777; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; }
-.notice-chip.active { border-color: #111; color: #111; font-weight: 700; }
+/* 커뮤니티 탭(.cm-seg-btn)과 동일한 채움 pill 스타일로 통일 */
+.notice-filter { display: flex; gap: 6px; margin-bottom: 16px; }
+.notice-chip { flex: 0 0 auto; height: 40px; padding: 8px 16px; border-radius: 20px; border: 0; background: rgba(57,57,92,0.12); font-size: 16px; color: #39395c; cursor: pointer; font-family: inherit; }
+.notice-chip.active { background: #39395c; color: #fff; font-weight: 700; }
 .notice-feed { display: flex; flex-direction: column; gap: 12px; }
 .notice-card { display: flex; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 14px; cursor: pointer; font-family: inherit; }
 .notice-card-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }

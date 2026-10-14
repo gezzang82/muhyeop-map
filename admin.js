@@ -1280,7 +1280,7 @@ let notices = [];
 let noticeEditId = null;
 function nEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 async function renderNoticeList() {
-  try { const r = await fetch('/api/notices?admin=1'); notices = r.ok ? await r.json() : []; }
+  try { const r = await fetch('/api/notices?admin=1&_t=' + Date.now(), { cache: 'no-store' }); notices = r.ok ? await r.json() : []; }
   catch (e) { notices = []; }
   const tb = document.getElementById('noticeTableBody');
   const tot = document.getElementById('nvTotal'); if (tot) tot.textContent = notices.length;
