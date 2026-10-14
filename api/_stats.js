@@ -65,4 +65,23 @@ async function refreshStatsCache(db) {
   return payload;
 }
 
-module.exports = { computeCampaignStats, getCachedStats, refreshStatsCache };
+// 범용 블롭 캐시(같은 stats_cache 테이블을 cache_key로 공유). clickstats·visit 등 무거운 집계에 재사용.
+async function getCachedBlob(db, key, ttlMs) {
+  try {
+    await ensureTable(db);
+    const row = (await db.execute({ sql: "SELECT data, updated_at FROM stats_cache WHERE cache_key=?", args: [key] })).rows[0];
+    if (row && (Date.now() - Number(row.updated_at)) < ttlMs) return JSON.parse(row.data);
+  } catch (e) {}
+  return null;
+}
+async function setCachedBlob(db, key, payload) {
+  try {
+    await ensureTable(db);
+    await db.execute({
+      sql: "INSERT INTO stats_cache (cache_key, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(cache_key) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at",
+      args: [key, JSON.stringify(payload), Date.now()],
+    });
+  } catch (e) {}
+}
+
+module.exports = { computeCampaignStats, getCachedStats, refreshStatsCache, getCachedBlob, setCachedBlob };

@@ -2,6 +2,11 @@ const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { isAdmin, requireAdmin } = require('./auth/_admin');
 const { enforceRateLimit } = require('./_ratelimit');
+const { getCachedBlob, setCachedBlob } = require('./_stats');
+
+// ?visit=stats 캐시(기간별) — 쿼리 15개 순차 왕복(~2초+)을 캐시히트 1회 읽기로. 방문 지표는 2분 지연 무해.
+const VISIT_STATS_TTL = 120000;
+const _visitStatsCache = {}; // { 'day'|'week'|'month': { at, data } }
 
 function toPlace(row) {
   return {
@@ -143,6 +148,10 @@ module.exports = async function handler(req, res) {
     // 조회: 어드민 대시보드 GET ?visit=stats[&period=day|week|month]
     if (req.method === 'GET' && req.query.visit === 'stats') {
       if (!requireAdmin(req, res)) return;
+      const vsPeriod = req.query.period === 'week' ? 'week' : req.query.period === 'month' ? 'month' : 'day';
+      if (_visitStatsCache[vsPeriod] && Date.now() - _visitStatsCache[vsPeriod].at < VISIT_STATS_TTL) return res.status(200).json(_visitStatsCache[vsPeriod].data);
+      const vsCached = await getCachedBlob(db, 'visitstats:' + vsPeriod, VISIT_STATS_TTL);
+      if (vsCached) { _visitStatsCache[vsPeriod] = { at: Date.now(), data: vsCached }; return res.status(200).json(vsCached); }
       try {
       await ensureSiteVisitTables(db);
       const day = kstDay();
@@ -214,7 +223,7 @@ module.exports = async function handler(req, res) {
         (await db.execute({ sql: "SELECT tab, cnt FROM gnb_daily WHERE visit_date = ?", args: [day] })).rows.forEach(r => { gnbToday[r.tab] = Number(r.cnt || 0); });
         (await db.execute("SELECT tab, SUM(cnt) AS cnt FROM gnb_daily GROUP BY tab")).rows.forEach(r => { gnbTotal[r.tab] = Number(r.cnt || 0); });
       } catch (e) {}
-      return res.status(200).json({
+      const vsPayload = {
         gnbToday, gnbTotal,
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
@@ -227,7 +236,10 @@ module.exports = async function handler(req, res) {
         referrerDaily,
         todayPlatforms: todayPlatRows.map(r => ({ platform: r.platform, cnt: Number(r.cnt || 0) })),
         platformDaily
-      });
+      };
+      _visitStatsCache[vsPeriod] = { at: Date.now(), data: vsPayload };
+      await setCachedBlob(db, 'visitstats:' + vsPeriod, vsPayload);
+      return res.status(200).json(vsPayload);
       } catch (e) {
         // 500으로 통째 실패 대신, 에러 메시지를 응답에 담아 진단 가능하게(대시보드는 빈 값으로 degrade)
         return res.status(200).json({ todayPv: 0, todayUv: 0, totalPv: 0, totalUv: 0, period: 'day', series: [], referrers: [], _error: String((e && e.message) || e) });

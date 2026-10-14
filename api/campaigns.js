@@ -4,7 +4,7 @@ const { requireAdmin, isAdmin } = require('./auth/_admin');
 const { runScrape, reparsePending, AREA2_BY_REGION } = require('./_scrape');
 const { enforceRateLimit } = require('./_ratelimit');
 const { runAutopilot } = require('./_autopilot');
-const { getCachedStats, refreshStatsCache } = require('./_stats');
+const { getCachedStats, refreshStatsCache, getCachedBlob, setCachedBlob } = require('./_stats');
 
 // 어드민 대시보드 통계(?stats=1) 캐시 3단.
 //  1) 인메모리: 같은 웜 인스턴스 재요청 즉시.
@@ -18,6 +18,8 @@ const EXCLUDED_TRACK_IPS = new Set(
 const STATS_CACHE_TTL = 180000;    // 인메모리 3분
 const STATS_CACHE_DB_TTL = 900000; // DB 15분(크롤러가 더 자주 갱신하므로 사실상 항상 신선)
 let _statsCache = null; // { at:number, data:object }
+let _clickCache = null; // { at:number, data:object } — clickstats 인메모리 캐시
+const CLICK_CACHE_TTL = 300000; // 5분(조회/클릭 집계는 천천히 변해 5분 지연 무해)
 
 function toCampaign(row) {
   return {
@@ -303,6 +305,10 @@ module.exports = async function handler(req, res) {
     // 어드민: 캠페인 상세보기(view)/링크클릭(click) — 일별 + 지역(시/도)별. campaign_events 집계.
     if (q.clickstats) {
       if (!requireAdmin(req, res)) return;
+      // 캐시 3단(?stats=1과 동일 전략): campaign_events(4만여행)를 매 로드 3회 풀스캔하던 걸 캐시로.
+      if (_clickCache && Date.now() - _clickCache.at < CLICK_CACHE_TTL) return res.status(200).json(_clickCache.data);
+      const cachedClick = await getCachedBlob(db, 'clickstats', CLICK_CACHE_TTL);
+      if (cachedClick) { _clickCache = { at: Date.now(), data: cachedClick }; return res.status(200).json(cachedClick); }
       const daily = (await db.execute(`
         SELECT date(created_at,'+9 hours') AS d,
           SUM(CASE WHEN kind='view' THEN 1 ELSE 0 END) AS views,
@@ -348,7 +354,10 @@ module.exports = async function handler(req, res) {
         GROUP BY platform`)).rows
         .map(r => ({ platform: r.platform, views: Number(r.views || 0), clicks: Number(r.clicks || 0), viewsToday: Number(r.viewsToday || 0), clicksToday: Number(r.clicksToday || 0) }))
         .sort((a, b) => (b.views + b.clicks) - (a.views + a.clicks));
-      return res.status(200).json({ daily, regions: toSorted(byS, 'region'), categories: toSorted(byC, 'category'), platforms });
+      const clickPayload = { daily, regions: toSorted(byS, 'region'), categories: toSorted(byC, 'category'), platforms };
+      _clickCache = { at: Date.now(), data: clickPayload };
+      await setCachedBlob(db, 'clickstats', clickPayload);
+      return res.status(200).json(clickPayload);
     }
     // ── 지도 경량화(뷰포트 로딩) 공개 분기 — 2026-09-01 ──
     const kstDay = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);

@@ -1322,46 +1322,9 @@ function ntImgPick(input) {
 function ntTogglePop(id) { const p = document.getElementById(id); if (!p) return; const show = !p.classList.contains('show'); ntClosePops(); if (show) p.classList.add('show'); }
 function ntClosePops() { ['ntColorPop', 'ntSizePop'].forEach(i => { const p = document.getElementById(i); if (p) p.classList.remove('show'); }); }
 document.addEventListener('click', function (e) { if (!e.target.closest || !e.target.closest('.nt-tb-wrap')) ntClosePops(); });
-// 본문 HTML 소독 (저장 전 — 렌더 측 app.js와 동일 화이트리스트)
-var NT_ALLOW_TAGS = { A: 1, B: 1, STRONG: 1, I: 1, EM: 1, S: 1, STRIKE: 1, DEL: 1, U: 1, UL: 1, OL: 1, LI: 1, IMG: 1, BR: 1, P: 1, DIV: 1, SPAN: 1, H1: 1, H2: 1, H3: 1, H4: 1, FONT: 1 };
-function ntSanitizeStyle(style) {
-  const out = [];
-  String(style || '').split(';').forEach(part => {
-    const i = part.indexOf(':'); if (i < 0) return;
-    const prop = part.slice(0, i).trim().toLowerCase(); const vv = part.slice(i + 1).trim();
-    if (/url\(|expression|javascript:|@import/i.test(vv)) return;
-    if (prop === 'color' && /^(#[0-9a-f]{3,8}|rgba?\([\d\s,.%]+\)|[a-z]+)$/i.test(vv)) out.push('color:' + vv);
-    else if (prop === 'background-color' && /^(#[0-9a-f]{3,8}|rgba?\([\d\s,.%]+\)|[a-z]+)$/i.test(vv)) out.push('background-color:' + vv);
-    else if (prop === 'font-size' && /^([\d.]+(px|em|rem|%)|xx?-small|small|medium|large|x-large|xx-large|smaller|larger)$/i.test(vv)) out.push('font-size:' + vv);
-    else if (prop === 'font-weight' && /^(bold|bolder|normal|[1-9]00)$/i.test(vv)) out.push('font-weight:' + vv);
-    else if (prop === 'text-decoration' && /^(underline|line-through|none)$/i.test(vv)) out.push('text-decoration:' + vv);
-    else if (prop === 'text-align' && /^(left|center|right)$/i.test(vv)) out.push('text-align:' + vv);
-  });
-  return out.join(';');
-}
-function ntSanitize(html) {
-  let tpl; try { tpl = document.createElement('template'); tpl.innerHTML = String(html == null ? '' : html); } catch (e) { return ''; }
-  tpl.content.querySelectorAll('script,style,iframe,object,embed,link,meta,svg,math,form,input,button').forEach(e => e.remove());
-  let changed = true, guard = 0;
-  while (changed && guard++ < 50) { changed = false; tpl.content.querySelectorAll('*').forEach(el => { if (!NT_ALLOW_TAGS[el.tagName]) { const p = el.parentNode; if (!p) return; while (el.firstChild) p.insertBefore(el.firstChild, el); p.removeChild(el); changed = true; } }); }
-  tpl.content.querySelectorAll('*').forEach(el => {
-    const tag = el.tagName;
-    Array.from(el.attributes).forEach(a => {
-      const name = a.name.toLowerCase(); const val = a.value;
-      if (name.indexOf('on') === 0) { el.removeAttribute(a.name); return; }
-      if (name === 'href') { if (tag !== 'A' || !/^https?:\/\//i.test(val.trim())) el.removeAttribute(a.name); return; }
-      if (name === 'src') { if (tag !== 'IMG' || !(/^https?:\/\//i.test(val.trim()) || /^data:image\//i.test(val.trim()))) el.removeAttribute(a.name); return; }
-      if (name === 'color' && tag === 'FONT') { if (!/^#?[0-9a-z]+$/i.test(val)) el.removeAttribute(a.name); return; }
-      if (name === 'size' && tag === 'FONT') { if (!/^[1-7]$/.test(val)) el.removeAttribute(a.name); return; }
-      if (name === 'style') { const s = ntSanitizeStyle(val); if (s) el.setAttribute('style', s); else el.removeAttribute('style'); return; }
-      if (name === 'alt') return;
-      el.removeAttribute(a.name);
-    });
-    if (tag === 'A' && el.getAttribute('href')) { el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener nofollow'); }
-    if (tag === 'IMG') { if (!el.getAttribute('src')) el.remove(); else { el.setAttribute('loading', 'lazy'); el.classList.add('nt-img'); } }
-  });
-  return tpl.innerHTML;
-}
+// 본문 HTML 소독(ntSanitize/ntSanitizeStyle)은 app.js의 전역 함수를 재사용한다.
+// admin.html은 app.js를 admin.js보다 먼저 로드하므로 전역에 이미 존재.
+// ⚠️ 여기서 재정의하면 app.js의 `const NT_ALLOW_TAGS`와 전역 충돌(SyntaxError)로 admin.js 전체가 죽는다.
 function noticeFormData() {
   const v = id => (document.getElementById(id) || {}).value || '';
   return {
