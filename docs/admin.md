@@ -5,6 +5,9 @@
 - `admin.js` — 어드민 로직
 - `admin.css` — 어드민 전용 스타일
 
+## ⚠️ app.js와 admin.js는 전역 스코프 공유 (중복 선언 금지)
+`admin.html`은 **`app.js` → `admin.js` 순으로 둘 다** 로드한다(지오코딩·공용 유틸 재사용). 둘은 **같은 전역 스코프**라 **같은 이름의 `const`/`let`/`var`를 양쪽에 선언하면 `SyntaxError`로 admin.js 전체가 파싱 실패 → 대시보드가 통째로 먹통**(모든 집계 0으로 보임)이 된다. **`node --check`는 파일을 하나씩 검사해 이 충돌을 못 잡고, 브라우저에서 합쳐질 때만 터진다** → admin 관련 JS 수정 후엔 **배포된 `/admin.html`을 실제 브라우저로 열어 콘솔 에러 0건을 확인**할 것. 공통 유틸(예: 공지 본문 sanitizer `ntSanitize`/`NT_ALLOW_TAGS`)은 **app.js에만 정의하고 admin.js는 전역으로 재사용**한다(admin.js에서 재정의 금지). 실제 사고: 2026-10-14 위지윅 sanitizer를 양쪽에 중복 정의해 `NT_ALLOW_TAGS` 충돌 → 대시보드 전멸([[06-decision-log]]).
+
 ## 모바일 반응형 (로그인 + 대시보드만, 2026-09-18)
 - 어드민은 기본 PC 전용이나 **로그인 화면과 대시보드만** 폰에서 보이게 `admin.css`에 `@media (max-width:640px)` 블록 추가. 좌측 사이드바 숨김, 상단바에 `.topbar-brand-mobile`('무협맵 관리자') 노출, 통계 그리드 2열(값 26px/라벨 13.5px), 대시보드 행 1열, 마감임박/방문추이 등 넓은 카드는 `overflow-x:auto`. 로그인 박스도 반응형. 폰트는 너무 작지 않게. **나머지 관리 탭(장소/캠페인/수집 등)은 PC에서 사용**(모바일 미대응).
 - **가로 스크롤/바운스 수정(2026-09-23)**: `.admin-content`가 `overflow-y:auto`라 가로축이 `auto`로 계산돼, 넓은 카드/차트가 조금만 넘쳐도 페이지 전체가 좌우로 밀리던 문제 → 모바일에서 `.admin-content { overflow-x: hidden }`(넓은 차트는 자체 `overflow-x:auto`로 내부 스크롤 유지, 관리탭 표는 `display:block`+`overflow-x:auto`). 당길 때 밀리는 오버스크롤 바운스는 `overscroll-behavior:none`(html/body/.admin-content)로 차단.
