@@ -34,6 +34,7 @@ async function ensureSiteVisitTables(db) {
   await db.execute("CREATE TABLE IF NOT EXISTS site_platform_daily (visit_date TEXT NOT NULL, platform TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, platform))");
   // GNB 탭 클릭 일자 집계(홈/내장소/커뮤니티/MY) — 어느 메뉴를 많이 쓰나(switchTab에서 ?visit=gnb&tab=).
   await db.execute("CREATE TABLE IF NOT EXISTS gnb_daily (visit_date TEXT NOT NULL, tab TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, tab))");
+  await db.execute("CREATE TABLE IF NOT EXISTS app_install_daily (visit_date TEXT NOT NULL, action TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, action))"); // 모바일웹 앱 설치 팝업(show=노출/install=다운로드탭)
   // 체류시간 집계(일별 평균 = dwell_sum/dwell_count 초). 이탈 시 클라 sendBeacon(?visit=dwell)이 누적.
   try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_sum INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
   try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_count INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
@@ -145,6 +146,20 @@ module.exports = async function handler(req, res) {
       } catch (e) { /* 무시 */ }
       return res.status(200).json({ ok: true });
     }
+
+    // 모바일웹 앱 설치 팝업 집계: POST ?visit=appinstall&action=show|install (운영자 IP 제외)
+    if (req.method === 'POST' && req.query.visit === 'appinstall') {
+      try {
+        await ensureSiteVisitTables(db);
+        const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+        if (EXCLUDED_VISIT_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true });
+        const action = String(req.query.action || '');
+        if (['show', 'install'].includes(action)) {
+          await db.execute({ sql: "INSERT INTO app_install_daily (visit_date, action, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, action) DO UPDATE SET cnt = cnt + 1", args: [kstDay(), action] });
+        }
+      } catch (e) { /* 무시 */ }
+      return res.status(200).json({ ok: true });
+    }
     // 조회: 어드민 대시보드 GET ?visit=stats[&period=day|week|month]
     if (req.method === 'GET' && req.query.visit === 'stats') {
       if (!requireAdmin(req, res)) return;
@@ -223,8 +238,14 @@ module.exports = async function handler(req, res) {
         (await db.execute({ sql: "SELECT tab, cnt FROM gnb_daily WHERE visit_date = ?", args: [day] })).rows.forEach(r => { gnbToday[r.tab] = Number(r.cnt || 0); });
         (await db.execute("SELECT tab, SUM(cnt) AS cnt FROM gnb_daily GROUP BY tab")).rows.forEach(r => { gnbTotal[r.tab] = Number(r.cnt || 0); });
       } catch (e) {}
+      // 모바일웹 앱 설치 팝업: 노출(show)/다운로드탭(install) 오늘+누적
+      const appInstallToday = { show: 0, install: 0 }, appInstallTotal = { show: 0, install: 0 };
+      try {
+        (await db.execute({ sql: "SELECT action, cnt FROM app_install_daily WHERE visit_date = ?", args: [day] })).rows.forEach(r => { appInstallToday[r.action] = Number(r.cnt || 0); });
+        (await db.execute("SELECT action, SUM(cnt) AS cnt FROM app_install_daily GROUP BY action")).rows.forEach(r => { appInstallTotal[r.action] = Number(r.cnt || 0); });
+      } catch (e) {}
       const vsPayload = {
-        gnbToday, gnbTotal,
+        gnbToday, gnbTotal, appInstallToday, appInstallTotal,
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
         todayDwell: dwellAvg(today), todayDwellCount: Number(today.dwell_count || 0),

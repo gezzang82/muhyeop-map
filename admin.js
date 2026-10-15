@@ -587,6 +587,24 @@ function renderGnbClicks(today, total) {
   }).join('');
 }
 
+// 모바일웹 앱 설치 팝업: 노출(show)/다운로드 클릭(install)/전환율
+function renderAppInstall(today, total) {
+  const el = document.getElementById('appInstallStats');
+  if (!el) return;
+  today = today || {}; total = total || {};
+  const ts = Number(total.show || 0), ti = Number(total.install || 0);
+  const ds = Number(today.show || 0), di = Number(today.install || 0);
+  if (!ts && !ti) { el.innerHTML = '<div class="empty-msg">아직 설치 팝업 데이터가 없어요. (배포 이후 모바일웹부터 수집)</div>'; return; }
+  const conv = ts ? Math.round(ti / ts * 100) : 0, dconv = ds ? Math.round(di / ds * 100) : 0;
+  const row = (label, tot, tdy, color) => `<div class="stat-row">
+      <span class="stat-badge" style="background:${color}1a;color:${color}">${label}</span>
+      <div class="stat-bar-wrap"><div class="stat-bar" style="width:${ts ? Math.round(tot / ts * 100) : 0}%;background:${color}"></div></div>
+      <span class="stat-num">${tot.toLocaleString()} · 오늘 ${tdy}</span>
+    </div>`;
+  el.innerHTML = row('노출', ts, ds, '#888') + row('다운로드 클릭', ti, di, '#e82a2d')
+    + `<div class="stat-row"><span class="stat-badge" style="background:#18a9571a;color:#18a957">전환율</span><div class="stat-bar-wrap"><div class="stat-bar" style="width:${conv}%;background:#18a957"></div></div><span class="stat-num">${conv}% · 오늘 ${dconv}%</span></div>`;
+}
+
 // 캠페인 조회(상세보기)/클릭 — 일별 리스트 + 지역별 막대
 // 이벤트 푸시 전체 발송
 async function sendEventPush() {
@@ -768,6 +786,7 @@ function renderDashboard() {
     renderReferrerDaily(s.referrerDaily || []);
     renderPlatforms(s.todayPlatforms || []);
     renderGnbClicks(s.gnbToday || {}, s.gnbTotal || {});
+    renderAppInstall(s.appInstallToday || {}, s.appInstallTotal || {});
   }).catch(() => {});
 }
 

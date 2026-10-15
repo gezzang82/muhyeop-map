@@ -6331,7 +6331,8 @@ function openAppStore() {
 
 // ===== 모바일웹 앱 설치 안내 팝업(Figma 1824-54280) — mweb 전용 =====
 const APP_INSTALL_SNOOZE = 7 * 24 * 3600 * 1000; // 닫으면 7일간 재노출 안 함
-function appInstallGo() { try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} const el = document.getElementById('appInstallPopup'); if (el) el.style.display = 'none'; openAppStore(); }
+function aipTrack(action) { try { fetch('/api/places?visit=appinstall&action=' + action, { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {} }
+function appInstallGo() { aipTrack('install'); try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} const el = document.getElementById('appInstallPopup'); if (el) el.style.display = 'none'; openAppStore(); }
 function dismissAppInstall() { const el = document.getElementById('appInstallPopup'); if (el) { el.style.display = 'none'; el.setAttribute('aria-hidden', 'true'); } try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} }
 function maybeShowAppInstall() {
   try {
@@ -6339,7 +6340,7 @@ function maybeShowAppInstall() {
     const last = Number(localStorage.getItem('appInstallDismissed') || 0);
     if (last && (Date.now() - last) < APP_INSTALL_SNOOZE) return;
     const el = document.getElementById('appInstallPopup'); if (!el) return;
-    const show = () => { el.style.display = 'flex'; el.setAttribute('aria-hidden', 'false'); };
+    const show = () => { el.style.display = 'flex'; el.setAttribute('aria-hidden', 'false'); aipTrack('show'); };
     const bn = document.getElementById('bannerPopupOverlay');
     if (bn && bn.classList.contains('show')) { // 이벤트 팝업과 동시 노출 방지 → 닫힌 뒤에 노출
       const iv = setInterval(() => { if (!bn.classList.contains('show')) { clearInterval(iv); show(); } }, 500);
