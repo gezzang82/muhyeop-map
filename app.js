@@ -6318,10 +6318,34 @@ function cmpAppVer(a, b) { // a<b → -1, a>b → 1, 같음 → 0
   return 0;
 }
 function openAppStore() {
-  const plat = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
+  let plat = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
+  if (plat !== 'ios' && plat !== 'android') { // 웹(모바일웹 포함): UA로 기기 판별
+    const ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document)) plat = 'ios';
+    else if (/Android/i.test(ua)) plat = 'android';
+  }
   const url = plat === 'ios' ? 'https://apps.apple.com/app/id6794363402'
     : 'https://play.google.com/store/apps/details?id=com.muhyeop.app';
   if (typeof openExternal === 'function') openExternal(url); else window.open(url, '_blank', 'noopener');
+}
+
+// ===== 모바일웹 앱 설치 안내 팝업(Figma 1824-54280) — mweb 전용 =====
+const APP_INSTALL_SNOOZE = 7 * 24 * 3600 * 1000; // 닫으면 7일간 재노출 안 함
+function appInstallGo() { try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} const el = document.getElementById('appInstallPopup'); if (el) el.style.display = 'none'; openAppStore(); }
+function dismissAppInstall() { const el = document.getElementById('appInstallPopup'); if (el) { el.style.display = 'none'; el.setAttribute('aria-hidden', 'true'); } try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} }
+function maybeShowAppInstall() {
+  try {
+    if (typeof detectPlatform === 'function' && detectPlatform() !== 'mweb') return; // 모바일웹만(앱·PC 제외)
+    const last = Number(localStorage.getItem('appInstallDismissed') || 0);
+    if (last && (Date.now() - last) < APP_INSTALL_SNOOZE) return;
+    const el = document.getElementById('appInstallPopup'); if (!el) return;
+    const show = () => { el.style.display = 'flex'; el.setAttribute('aria-hidden', 'false'); };
+    const bn = document.getElementById('bannerPopupOverlay');
+    if (bn && bn.classList.contains('show')) { // 이벤트 팝업과 동시 노출 방지 → 닫힌 뒤에 노출
+      const iv = setInterval(() => { if (!bn.classList.contains('show')) { clearInterval(iv); show(); } }, 500);
+      setTimeout(() => clearInterval(iv), 60000);
+    } else { show(); }
+  } catch (e) {}
 }
 // MY 하단: 네이티브 버전을 알면 최신=버전표시 / 낮으면 '앱 업데이트' 버튼, 모르면(웹·구버전앱) 둘 다 숨김.
 async function renderAppVersionUI() {
@@ -6615,6 +6639,7 @@ window.addEventListener('load', async function() {
   renderAll();
   drainPendingPushNav(); // 지도+데이터 준비 완료 → 대기 중이던 푸시 탭 처리(콜드스타트)
   showBannerPopup();
+  maybeShowAppInstall(); // 모바일웹이면 앱 설치 팝업(이벤트 팝업 뒤에 노출)
   startLiveAlerts();
   hideAppLoading();
   // 스플래시(브랜드 애니)와 연동: 앱 준비됨을 알려 최소 노출시간만 채우고 즉시 내리게 함(초기 로딩 체감 단축).
