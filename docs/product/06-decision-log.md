@@ -11,6 +11,9 @@
 ### 🐛 어드민 대시보드 전멸 = app.js/admin.js 전역 중복선언 (2026-10-14)
 공지 위지윅 에디터 작업 중 HTML sanitizer를 **app.js·admin.js 양쪽에 중복 정의**했는데, `admin.html`이 둘을 **같은 전역에 로드**해 app.js `const NT_ALLOW_TAGS` ↔ admin.js `var NT_ALLOW_TAGS` **충돌(SyntaxError) → admin.js 전체 파싱 실패 → 대시보드가 통째로 먹통**(방문 등 모든 집계 0). **`node --check`는 파일 단독검사라 못 잡음**(브라우저에서 두 파일 합쳐질 때만 터짐) → 배포 후에야 드러남. **조치**: admin.js 중복 제거, app.js 전역 `ntSanitize` 재사용(admin.js v6). **교훈**: app.js·admin.js 공용 유틸은 app.js에만 정의, admin JS 수정 후 **실제 브라우저로 `/admin.html` 콘솔 에러 0건 확인** 필수. 상세 [[admin]] 'app.js와 admin.js는 전역 스코프 공유'. (덤으로 clickstats/visit=stats를 stats_cache에 캐시해 대시보드 속도도 개선.)
 
+### 🐛 iOS 하루요약 미발송 = 크롤러 env 파서가 APNS_KEY_P8 못 읽음 (2026-10-15)
+안드/Vercel broadcast는 iOS 푸시 오는데 **하루요약(로컬 크롤러 발송)만 iPhone 미수신**. 원인=**`scripts/crawl-worker.js`의 `.env.local` 파서 정규식 `^([A-Z_]+)=`**: ①**숫자 포함 키 `APNS_KEY_P8`(끝 '8')를 아예 매칭 못 함** + ②멀티라인 `.p8`를 첫 줄만 읽음 → `process.env.APNS_KEY_P8` 비어 `apnsJwt()` null → `sendApns` 전원 실패(안드는 FCM 단일줄 JSON이라 정상, Vercel broadcast는 Vercel이 P8 온전 저장이라 정상). **왜 어제 '타이밍'으로 오진**했나: 토큰 연결/가드는 정상이었고 발송코드도 동일(`sendToDevices`)이라, 로컬 크롤러 env 로딩 차이를 못 짚음. **수정**: 파서 정규식 `[A-Z0-9_]+` + **멀티라인 큰따옴표 값 이어붙이기**(실제 개행 보존). 검증: 수정 파서로 P8 257자/6줄 로드 + `sendApns {sent:1}`(실기기 테스트 푸시 수신). **운영 반영 = 크롤러 재시작 필요**(로컬 스크립트라 Vercel 배포 무관). [[api-db]]·[[16-push-notifications]].
+
 ### MY 버전 표시 → 실제 네이티브 버전 기반 + '앱 업데이트' 버튼 (2026-10-14)
 MY 하단 "1.1.1"은 app.js 상수라 **모두에게 동일**(구버전 셸 유저에게도 1.1.1로 보여 오해). → **네이티브 실제 설치버전 기준**으로 전환: 최신=버전 표시 / 설치버전<`LATEST_APP_VERSION`=**'앱 업데이트' 버튼(스토어)** / 버전 모름=**숨김**(`renderAppVersionUI`, `getNativeAppVer`=`@capacitor/app` `App.getInfo`). **현재 빌드엔 `@capacitor/app` 미탑재 → 전원 '버전 모름' → 지금은 자동 숨김**(사용자 요청: 지금 숨기고 다음 업데이트 때 재노출). **다음 빌드에 `@capacitor/app` 추가**하면 자동 활성(버전 재노출 + 구버전엔 업데이트 버튼). 소급 불가(현재 1.1.1 유저는 버전 보고 불가 → 업데이트 유도는 배너/푸시로 수동). 서버 기록(`users.last_app_version`)·어드민 버전 컬럼은 그다음(Phase 3). 4가지 상태 브라우저 검증 완료. [[02-roadmap]] Phase 3·[[frontend]]·[[project_mobile_app]].
 

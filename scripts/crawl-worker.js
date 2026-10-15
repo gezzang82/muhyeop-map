@@ -20,11 +20,30 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@libsql/client');
 
-// .env.local 로드
+// .env.local 로드 — 숫자 포함 키 + 멀티라인 큰따옴표 값 지원.
+// ⚠️ 2026-10-15 버그수정: 예전 정규식 `^([A-Z_]+)=`은 ①숫자 포함 키(APNS_KEY_P8의 끝 '8')를
+//    아예 매칭 못 하고 ②멀티라인 .p8를 첫 줄만 읽어서, process.env.APNS_KEY_P8이 비어
+//    apnsJwt() 실패 → iOS 하루요약 발송이 조용히 실패했음(안드 FCM은 단일줄 JSON이라 정상).
 const envPath = path.join(__dirname, '..', '.env.local');
-for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
-  const m = line.match(/^([A-Z_]+)=(.*)$/);
-  if (m) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+{
+  const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^([A-Z0-9_]+)=(.*)$/);
+    if (!m) continue;
+    let val = m[2];
+    if (val.startsWith('"') && !(val.length > 1 && val.endsWith('"'))) {
+      // 닫는 따옴표가 있는 줄까지 이어붙여 멀티라인 값 복원(실제 개행 보존)
+      const parts = [val.slice(1)];
+      while (++i < lines.length) {
+        if (lines[i].endsWith('"')) { parts.push(lines[i].slice(0, -1)); break; }
+        parts.push(lines[i]);
+      }
+      val = parts.join('\n');
+    } else {
+      val = val.replace(/^["']|["']$/g, '');
+    }
+    process.env[m[1]] = val;
+  }
 }
 
 const { runScrape, loadDedupe, SEOUL_AREA2, AREA2_BY_REGION } = require('../api/_scrape');
