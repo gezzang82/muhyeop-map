@@ -592,17 +592,21 @@ function renderAppInstall(today, total) {
   const el = document.getElementById('appInstallStats');
   if (!el) return;
   today = today || {}; total = total || {};
-  const ts = Number(total.show || 0), ti = Number(total.install || 0);
-  const ds = Number(today.show || 0), di = Number(today.install || 0);
-  if (!ts && !ti) { el.innerHTML = '<div class="empty-msg">아직 설치 팝업 데이터가 없어요. (배포 이후 모바일웹부터 수집)</div>'; return; }
+  const ts = Number(total.show || 0), ti = Number(total.install || 0), tx = Number(total.dismiss || 0);
+  const ds = Number(today.show || 0), di = Number(today.install || 0), dx = Number(today.dismiss || 0);
+  if (!ts && !ti && !tx) { el.innerHTML = '<div class="empty-msg">아직 설치 팝업 데이터가 없어요. (배포 이후 모바일웹부터 수집)</div>'; return; }
+  const tig = Math.max(0, ts - ti - tx), dig = Math.max(0, ds - di - dx); // 그냥 이탈(닫기·설치 안 누르고 나감)
   const conv = ts ? Math.round(ti / ts * 100) : 0, dconv = ds ? Math.round(di / ds * 100) : 0;
   const row = (label, tot, tdy, color) => `<div class="stat-row">
       <span class="stat-badge" style="background:${color}1a;color:${color}">${label}</span>
       <div class="stat-bar-wrap"><div class="stat-bar" style="width:${ts ? Math.round(tot / ts * 100) : 0}%;background:${color}"></div></div>
       <span class="stat-num">${tot.toLocaleString()} · 오늘 ${tdy}</span>
     </div>`;
-  el.innerHTML = row('노출', ts, ds, '#888') + row('다운로드 클릭', ti, di, '#e82a2d')
-    + `<div class="stat-row"><span class="stat-badge" style="background:#18a9571a;color:#18a957">전환율</span><div class="stat-bar-wrap"><div class="stat-bar" style="width:${conv}%;background:#18a957"></div></div><span class="stat-num">${conv}% · 오늘 ${dconv}%</span></div>`;
+  el.innerHTML = row('노출', ts, ds, '#888')
+    + row('설치 클릭', ti, di, '#e82a2d')
+    + row('모바일웹 볼게요', tx, dx, '#2e7dff')
+    + row('그냥 이탈', tig, dig, '#aaa')
+    + `<div class="stat-row"><span class="stat-badge" style="background:#18a9571a;color:#18a957">설치 전환율</span><div class="stat-bar-wrap"><div class="stat-bar" style="width:${conv}%;background:#18a957"></div></div><span class="stat-num">${conv}% · 오늘 ${dconv}%</span></div>`;
 }
 
 // 캠페인 조회(상세보기)/클릭 — 일별 리스트 + 지역별 막대

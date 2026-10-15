@@ -154,7 +154,7 @@ module.exports = async function handler(req, res) {
         const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
         if (EXCLUDED_VISIT_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true });
         const action = String(req.query.action || '');
-        if (['show', 'install'].includes(action)) {
+        if (['show', 'install', 'dismiss'].includes(action)) {
           await db.execute({ sql: "INSERT INTO app_install_daily (visit_date, action, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, action) DO UPDATE SET cnt = cnt + 1", args: [kstDay(), action] });
         }
       } catch (e) { /* 무시 */ }
@@ -239,7 +239,7 @@ module.exports = async function handler(req, res) {
         (await db.execute("SELECT tab, SUM(cnt) AS cnt FROM gnb_daily GROUP BY tab")).rows.forEach(r => { gnbTotal[r.tab] = Number(r.cnt || 0); });
       } catch (e) {}
       // 모바일웹 앱 설치 팝업: 노출(show)/다운로드탭(install) 오늘+누적
-      const appInstallToday = { show: 0, install: 0 }, appInstallTotal = { show: 0, install: 0 };
+      const appInstallToday = { show: 0, install: 0, dismiss: 0 }, appInstallTotal = { show: 0, install: 0, dismiss: 0 };
       try {
         (await db.execute({ sql: "SELECT action, cnt FROM app_install_daily WHERE visit_date = ?", args: [day] })).rows.forEach(r => { appInstallToday[r.action] = Number(r.cnt || 0); });
         (await db.execute("SELECT action, SUM(cnt) AS cnt FROM app_install_daily GROUP BY action")).rows.forEach(r => { appInstallTotal[r.action] = Number(r.cnt || 0); });

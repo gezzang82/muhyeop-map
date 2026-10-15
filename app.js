@@ -6333,7 +6333,7 @@ function openAppStore() {
 const APP_INSTALL_SNOOZE = 7 * 24 * 3600 * 1000; // 닫으면 7일간 재노출 안 함
 function aipTrack(action) { try { fetch('/api/places?visit=appinstall&action=' + action, { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {} }
 function appInstallGo() { aipTrack('install'); try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} const el = document.getElementById('appInstallPopup'); if (el) el.style.display = 'none'; openAppStore(); }
-function dismissAppInstall() { const el = document.getElementById('appInstallPopup'); if (el) { el.style.display = 'none'; el.setAttribute('aria-hidden', 'true'); } try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} }
+function dismissAppInstall() { aipTrack('dismiss'); const el = document.getElementById('appInstallPopup'); if (el) { el.style.display = 'none'; el.setAttribute('aria-hidden', 'true'); } try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} }
 function maybeShowAppInstall() {
   try {
     if (typeof detectPlatform === 'function' && detectPlatform() !== 'mweb') return; // 모바일웹만(앱·PC 제외)
