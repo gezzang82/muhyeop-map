@@ -609,6 +609,28 @@ function renderAppInstall(today, total) {
     + `<div class="stat-row"><span class="stat-badge" style="background:#18a9571a;color:#18a957">설치 전환율</span><div class="stat-bar-wrap"><div class="stat-bar" style="width:${conv}%;background:#18a957"></div></div><span class="stat-num">${conv}% · 오늘 ${dconv}%</span></div>`;
 }
 
+// 이벤트 후기 랭킹 (스벅 쿠폰) — 기간 내 후기 수 TOP + 좋아요 받은 수 TOP. 운영자 제외(서버).
+async function loadEventRanking() {
+  const from = (document.getElementById('erFrom') || {}).value || '';
+  const to = (document.getElementById('erTo') || {}).value || '';
+  const qs = []; if (from) qs.push('from=' + from); if (to) qs.push('to=' + to);
+  const elc = document.getElementById('erCount'), ell = document.getElementById('erLikes');
+  if (elc) elc.innerHTML = '<div class="empty-msg">불러오는 중…</div>';
+  let d = { byCount: [], byLikes: [] };
+  try { const r = await fetch('/api/places?reviews=ranking' + (qs.length ? '&' + qs.join('&') : '')); if (r.ok) d = await r.json(); } catch (e) {}
+  const medal = i => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '.';
+  const render = arr => {
+    if (!arr || !arr.length) return '<div class="empty-msg">해당 기간 후기 없음</div>';
+    return arr.map((u, i) => `<div class="stat-row">
+        <span class="stat-badge" style="background:${i < 3 ? '#e82a2d1a' : '#eee'};color:${i < 3 ? '#e82a2d' : '#888'};min-width:28px;text-align:center">${medal(i)}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nEsc(u.nickname)}</span>
+        <span class="stat-num">후기 ${Number(u.count || 0)} · 👍 ${Number(u.likes || 0)}</span>
+      </div>`).join('');
+  };
+  if (elc) elc.innerHTML = render(d.byCount);
+  if (ell) ell.innerHTML = render(d.byLikes);
+}
+
 // 캠페인 조회(상세보기)/클릭 — 일별 리스트 + 지역별 막대
 // 이벤트 푸시 전체 발송
 async function sendEventPush() {

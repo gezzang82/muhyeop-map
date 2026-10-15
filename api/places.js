@@ -309,6 +309,23 @@ module.exports = async function handler(req, res) {
     const action = req.query.reviews;
     const session = readSession(req);
 
+    // 어드민: 이벤트 후기 랭킹 GET ?reviews=ranking&from=YYYY-MM-DD&to=YYYY-MM-DD
+    //  후기 수 TOP(1·2·3등) + 좋아요 받은 수 TOP(특별상). 운영자(user_id 12) 제외. 기간 빈값=전체.
+    if (req.method === 'GET' && action === 'ranking') {
+      if (!requireAdmin(req, res)) return;
+      const kstD = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? s : null;
+      const from = kstD(req.query.from), to = kstD(req.query.to);
+      const where = ['COALESCE(r.hidden,0)=0', 'r.user_id IS NOT NULL', 'r.user_id <> 12'];
+      const args = [];
+      if (from) { where.push("date(r.created_at,'+9 hours') >= ?"); args.push(from); }
+      if (to) { where.push("date(r.created_at,'+9 hours') <= ?"); args.push(to); }
+      const w = where.join(' AND ');
+      const toRow = r => ({ userId: r.uid, nickname: r.nick || '(닉없음)', count: Number(r.n || 0), likes: Number(r.likes || 0) });
+      const byCount = (await db.execute({ sql: `SELECT r.user_id uid, NULLIF(u.nickname,'') nick, COUNT(*) n, SUM(COALESCE(r.like_count,0)) likes FROM reviews r LEFT JOIN users u ON u.id=r.user_id WHERE ${w} GROUP BY r.user_id ORDER BY n DESC, likes DESC LIMIT 20`, args })).rows.map(toRow);
+      const byLikes = (await db.execute({ sql: `SELECT r.user_id uid, NULLIF(u.nickname,'') nick, SUM(COALESCE(r.like_count,0)) likes, COUNT(*) n FROM reviews r LEFT JOIN users u ON u.id=r.user_id WHERE ${w} GROUP BY r.user_id ORDER BY likes DESC, n DESC LIMIT 20`, args })).rows.map(toRow);
+      return res.status(200).json({ from: from || null, to: to || null, byCount, byLikes });
+    }
+
     // 어드민 전체 목록: GET ?reviews=all (숨김 포함, 매장명/작성자 조인)
     if (req.method === 'GET' && action === 'all') {
       if (!requireAdmin(req, res)) return;

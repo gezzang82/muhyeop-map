@@ -358,6 +358,28 @@
           </div>
         </div>
 
+        <div class="dashboard-row" style="grid-template-columns: 1fr;">
+          <div class="dashboard-card">
+            <div class="card-title">🏆 이벤트 후기 랭킹 (스벅 쿠폰 · 운영자 제외)</div>
+            <div class="form-row" style="gap:8px; align-items:flex-end; margin-bottom:12px;">
+              <div class="form-group"><label style="font-size:12px;color:#888">시작일</label><input type="date" id="erFrom"></div>
+              <div class="form-group"><label style="font-size:12px;color:#888">종료일</label><input type="date" id="erTo"></div>
+              <button class="btn-edit-sm" onclick="loadEventRanking()">조회</button>
+              <span style="font-size:12px;color:#aaa">기간 비우면 전체 · 이벤트 기간 넣으면 그 기간만</span>
+            </div>
+            <div style="display:flex; gap:20px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:260px;">
+                <div style="font-weight:700; margin:0 0 8px;">📝 후기 수 TOP (1·2·3등)</div>
+                <div id="erCount" class="platform-stats"><div class="empty-msg">조회를 눌러주세요</div></div>
+              </div>
+              <div style="flex:1; min-width:260px;">
+                <div style="font-weight:700; margin:0 0 8px;">👍 좋아요 받은 수 TOP (특별상)</div>
+                <div id="erLikes" class="platform-stats"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="dashboard-row">
           <div class="dashboard-card">
             <div class="card-title">플랫폼별 현황</div>
@@ -1194,6 +1216,6 @@
   </script>
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=oq8hzgsl3y&submodules=geocoder"></script>
   <script src="app.js?v=257"></script>
-  <script src="admin.js?v=11"></script>
+  <script src="admin.js?v=12"></script>
 </body>
 </html>
