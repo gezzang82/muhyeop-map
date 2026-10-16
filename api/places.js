@@ -445,12 +445,12 @@ module.exports = async function handler(req, res) {
     if (req.method === 'GET') {
       const placeId = Number(req.query.placeId);
       if (!placeId) return res.status(400).json({ error: 'placeId가 필요합니다.' });
-      // 최초제보자(매장 등록자)의 후기는 정렬과 무관하게 최상단 고정 + isFounder 뱃지
+      // '첫 후기' 작성자(founder_kind='review')의 후기만 최상단 고정 + 뱃지. 최초제보자/크롤러는 미표시(2026-10-16).
       let founderUserId = null;
       try {
-        const pf = await db.execute({ sql: 'SELECT founder_user_id FROM places WHERE id = ?', args: [placeId] });
-        const fv = pf.rows[0]?.founder_user_id;
-        founderUserId = (fv == null) ? null : Number(fv);
+        const pf = await db.execute({ sql: 'SELECT founder_user_id, founder_kind FROM places WHERE id = ?', args: [placeId] });
+        const prow = pf.rows[0];
+        if (prow && prow.founder_kind === 'review') { const fv = prow.founder_user_id; founderUserId = (fv == null) ? null : Number(fv); }
       } catch (e) {}
       const baseOrder = req.query.sort === 'likes' ? 'r.like_count DESC, r.id DESC' : 'r.id DESC';
       // founderUserId는 우리 DB의 정수 PK(Number 강제)라 인라인 안전

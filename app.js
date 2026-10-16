@@ -1213,7 +1213,7 @@ function createInfoContent(place) {
   const active = getActiveCampaigns(place.id);
   const ALL_DAYS = ['월','화','수','목','금','토','일'];
 
-  const founderHtml = place.founderNickname ? `
+  const founderHtml = (place.founderNickname && place.founderKind === 'review') ? `
     <div class="iw-founder">
       <span class="iw-founder-label">${place.founderKind === 'review' ? '첫 후기' : '최초제보자'}</span>
       <div class="iw-founder-right">
@@ -1325,7 +1325,7 @@ function createMobileDetailContent(place) {
   const active = getActiveCampaigns(place.id);
 
   // 최초제보
-  const founderHtml = place.founderNickname ? `
+  const founderHtml = (place.founderNickname && place.founderKind === 'review') ? `
     <div class="detail-founder">
       <span class="detail-founder-label">${place.founderKind === 'review' ? '첫 후기' : '최초제보자'}</span>
       <div class="detail-founder-right">
@@ -1589,7 +1589,7 @@ function reviewCardHtml(r, isPreview) {
     ? `<img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()">`
     : '';
   const thumb = `<div class="rv-thumb${r.thumbnail ? '' : ' rv-thumb-empty'}">${thumbInner}${delBadge}</div>`;
-  const founderMedal = r.isFounder ? `<img class="rv-card-medal" src="image/ic_workspace_premium_24.svg" width="20" height="20" alt="최초 제보자">` : '';
+  const founderMedal = r.isFounder ? `<img class="rv-card-medal" src="image/ic_workspace_premium_24.svg" width="20" height="20" alt="첫 후기">` : '';
   const authorCls = r.isFounder ? 'rv-card-author rv-card-author--founder' : 'rv-card-author';
   const byline = `<span class="rv-card-byline">${founderMedal}<span class="${authorCls}">${rvEsc(r.author)}</span>${date ? `<span class="rv-card-dot"></span><span class="rv-card-date">${date}</span>` : ''}</span>`;
   const meta = isPreview
