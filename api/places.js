@@ -563,12 +563,13 @@ module.exports = async function handler(req, res) {
         sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id, post_date) VALUES (?,?,?,?,?,?,?,?,?,?)`,
         args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId, d.postDate || '']
       });
-      // 최초제보자 없는 매장(크롤러/어드민 등)이면 이 '첫 후기' 작성자를 founder로 승격(founder_kind='review').
-      //  이미 founder 있으면(제보자 또는 더 이른 후기) 덮어쓰지 않음 → '첫 후기' = 가장 먼저 후기 올린 사람 유지.
+      // '첫 후기' 작성자를 founder로 승격(founder_kind='review'). 최초제보자 개념 은퇴(2026-10-16)로
+      //  founder 필드 = '첫 후기 작성자'로 일원화 → founder_kind가 아직 'review'가 아니면(크롤러/어드민/운영자/구 제보자)
+      //  이 첫 후기 작성자로 승격. 이미 'review'면(먼저 후기 올린 사람) 덮어쓰지 않아 '가장 먼저 후기' 유지.
       try {
         const fUrl = result.data.blogId ? ('https://blog.naver.com/' + result.data.blogId) : '';
         await db.execute({
-          sql: "UPDATE places SET founder_user_id=?, founder_nickname=?, founder_url=?, founder_kind='review' WHERE id=? AND (founder_user_id IS NULL)",
+          sql: "UPDATE places SET founder_user_id=?, founder_nickname=?, founder_url=?, founder_kind='review' WHERE id=? AND (founder_kind IS NULL OR founder_kind <> 'review')",
           args: [session.userId, session.nickname || '', fUrl, pid],
         });
       } catch (e) {}
