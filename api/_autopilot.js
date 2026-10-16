@@ -18,7 +18,7 @@
 
 const { geocodeServer } = require('./_geocode');
 const { judgeCandidate } = require('./_ai');
-const { cleanStoreName } = require('./_scrape');
+const { cleanStoreName, mapNaverCat } = require('./_scrape');
 
 const MAX_PER_RUN = 300; // 한 실행 처리 상한(실질 상한은 시간 예산 deadlineTs)
 const MAX_AI_CALLS = 800; // 신규매장 AI 호출 상한(비용 안전판; gpt-4o-mini라 매우 저렴해 넉넉히)
@@ -80,7 +80,7 @@ async function naverCanonicalName(name, lat, lng) {
       if (!isFinite(nx) || !isFinite(ny) || nx < 124 || nx > 132 || ny < 33 || ny > 39.5) continue; // 한국 범위 밖(좌표계 다름 등) 제외
       if (_havMeters(Number(lat), Number(lng), ny, nx) <= 80) {
         const t = String(it.title || '').replace(/<[^>]+>/g, '').trim();
-        if (t) return t;
+        if (t) return { name: t, category: String(it.category || '').trim() }; // 정식명 + 네이버 카테고리
       }
     }
   } catch (e) {}
@@ -110,8 +110,12 @@ async function insertPlace(db, { name, address, lat, lng, category }) {
   // dedup 미스(신규 후보)일 때만 네이버 정식명 조회 → 정식명으로 재dedup(기존 "백소정 산본점"과 매칭). 쿼터 절약.
   const canon = await naverCanonicalName(name, lat, lng);
   if (canon) {
-    name = canon;
-    hit = findHit(canon.replace(/ /g, ''));
+    name = canon.name;
+    // 네이버 기준: 매칭된 네이버 카테고리를 우리 16종으로 매핑해 분류 덮어쓰기(2026-10-16).
+    //  매핑 실패(네이버 카테고리 없음/미지원)면 기존 키워드 분류(category) 유지.
+    const navCat = mapNaverCat(canon.category);
+    if (navCat) category = navCat;
+    hit = findHit(canon.name.replace(/ /g, ''));
     if (hit) return Number(hit.id);
   }
   const r = await db.execute({

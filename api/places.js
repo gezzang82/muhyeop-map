@@ -544,7 +544,8 @@ module.exports = async function handler(req, res) {
           pid = Number(dup.rows[0].id);
         } else {
           let category = '기타';
-          try { const { categoryByKeyword } = require('./_scrape'); category = categoryByKeyword(String(newPlace.naverCategory || '') + ' ' + placeName, placeName) || '기타'; } catch (e) {}
+          // 네이버 기준(2026-10-16): 클라가 넘긴 네이버 카테고리를 16종으로 매핑 우선, 실패 시 키워드 폴백.
+          try { const { categoryByKeyword, mapNaverCat } = require('./_scrape'); category = mapNaverCat(newPlace.naverCategory) || categoryByKeyword(String(newPlace.naverCategory || '') + ' ' + placeName, placeName) || '기타'; } catch (e) {}
           let femail = '';
           try { const er = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [session.userId] }); femail = er.rows[0]?.email || ''; } catch (e) {}
           // 최초제보자 블로그 링크: 후기 블로그 홈(blog.naver.com/{blogId}) — 상세 '최초제보자' 닉네임 클릭 시 이동(예전 제보 플로우처럼)

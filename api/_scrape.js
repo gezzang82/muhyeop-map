@@ -2181,4 +2181,28 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
   return { platform, newCandidates: moreLeft ? campCount : c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, campCount, timedOut };
 }
 
-module.exports = { categoryByKeyword, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+// 네이버 로컬검색 카테고리 문자열(예 "음식점>한식", "미용>미용실") → 우리 16종(2026-10-16).
+//  순서대로 첫 매치(구체적→일반). 크롤러가 naverCanonicalName 조회 때 받은 카테고리를 이걸로 매핑해
+//  '네이버 기준' 분류에 사용(키워드 추측 대체). 매칭 없으면 null → 호출측이 키워드 폴백.
+function mapNaverCat(cat) {
+  const c = String(cat || '');
+  if (!c) return null;
+  if (/반려동물|애견|고양이카페|동물카페|강아지|펫/.test(c) && !/동물원/.test(c)) return '반려동물';
+  if (/동물병원/.test(c)) return '반려동물';
+  if (/미용실|이용원|이용\b|바버|두피|탈모|머리염색/.test(c)) return '헤어';
+  if (/미용|피부|체형|속눈썹|네일|메이크업|반영구|미용문신|왁싱|제모|태닝|에스테틱|발관리|안마|마사지|지압|비만|슈가링/.test(c)) return '뷰티';
+  if (/사진|스튜디오|포토/.test(c)) return '사진관';
+  if (/세차|자동차정비|자동차수리|자동차\b|타이어|카센터|카케어|모터스/.test(c)) return '자동차';
+  if (/꽃집|꽃배달|화훼|플라워/.test(c)) return '꽃집';
+  if (/운세|사주|타로|점집|철학관|작명|무속|명리/.test(c)) return '운세';
+  if (/장소대여|파티룸|파티\b|이벤트,파티|공간대여/.test(c)) return '파티룸';
+  if (/헬스|필라테스|요가|골프|스크린골프|클라이밍|크로스핏|복싱|권투|주짓수|테니스|스쿼시|탁구|배드민턴|축구|풋살|농구|볼링(?!장\s*카페)|스포츠시설|스포츠센터|실내체육관|롤러,인라인|스케이트장|무용,발레|무예|격투|스킨스쿠버|킥복싱|펜싱|스피닝|폴댄스|승마|레크레이션교육|스포츠교실|수영/.test(c)) return '운동';
+  if (/숙박|펜션|호텔|모텔|민박|캠핑|야영|리조트|게스트하우스|전통숙소|여행|명소|관람,체험|체험여행|동물원|관광|놀이공원|워터파크|아쿠아리움|수족관/.test(c)) return '숙박/여가';
+  if (/카페,디저트|브런치카페|테마카페|힐링카페|북카페|디저트|베이커리|제과|빙수|도넛|커피/.test(c) && !/스터디카페|방탈출|보드카페|만화카페/.test(c)) return '카페';
+  if (/키즈카페|실내놀이터|음악교육|미술교육|문화,예술|미술관|박물관|공연|갤러리|공방|방탈출|보드카페|보드게임|PC방|노래방|만화|VR|테마파크|오락시설|전시|웅변,화술|학원|교습|학습지|어학|영어교육|댄스교육|레슨|스터디카페|독서실/.test(c)) return '문화';
+  if (/종합패션|의류|웨딩드레스|예복|한복|정장|아동복|신발/.test(c) && !/패션잡화/.test(c)) return '의류';
+  if (/안경|선글라스|패션잡화|귀금속|보석|시계|가방|잡화|액세서리|주얼리|휴대폰|가전|금매매|예물/.test(c)) return '안경/잡화';
+  if (/음식점|한식|중식|일식|양식|분식|술집|주점|이자카야|바\(BAR\)|포장마차|뷔페|도시락|컵밥|고기|육류|해물|생선|치킨|피자|요리|식당|국밥|면류|샐러드|샌드위치|햄버거|이탈리아|파스타|스파게티|레스토랑|떡,한과/.test(c)) return '음식점';
+  return '기타';
+}
+module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
