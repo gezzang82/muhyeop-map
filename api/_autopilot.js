@@ -113,7 +113,7 @@ async function insertPlace(db, { name, address, lat, lng, category }) {
     name = canon.name;
     // 네이버 기준: 매칭된 네이버 카테고리를 우리 16종으로 매핑해 분류 덮어쓰기(2026-10-16).
     //  매핑 실패(네이버 카테고리 없음/미지원)면 기존 키워드 분류(category) 유지.
-    const navCat = mapNaverCat(canon.category);
+    const navCat = mapNaverCat(canon.category, name);
     if (navCat) category = navCat;
     hit = findHit(canon.name.replace(/ /g, ''));
     if (hit) return Number(hit.id);
