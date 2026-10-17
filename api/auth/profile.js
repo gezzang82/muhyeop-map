@@ -21,8 +21,13 @@ module.exports = async function handler(req, res) {
   const hasUrl = Object.prototype.hasOwnProperty.call(body, 'urlPlatform') || Object.prototype.hasOwnProperty.call(body, 'urlId');
   const hasEmail = Object.prototype.hasOwnProperty.call(body, 'email');
   const hasImage = Object.prototype.hasOwnProperty.call(body, 'profileImage');
+  const hasNick = Object.prototype.hasOwnProperty.call(body, 'nickname');
 
-  let finalPlatform = '', finalId = '', finalEmail = '', finalImage = '';
+  let finalPlatform = '', finalId = '', finalEmail = '', finalImage = '', finalNick = '';
+  if (hasNick) {
+    finalNick = String(body.nickname || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+    if (!finalNick) { res.status(400).json({ error: '닉네임을 입력해주세요.' }); return; }
+  }
   if (hasUrl) {
     const { urlPlatform, urlId } = body;
     if (urlPlatform && !URL_PLATFORM_DOMAINS[urlPlatform]) {
@@ -66,6 +71,7 @@ module.exports = async function handler(req, res) {
   if (hasUrl) { sets.push('url_platform = ?', 'url_id = ?'); args.push(finalPlatform, finalId); }
   if (hasEmail) { sets.push('email = ?'); args.push(finalEmail); }
   if (hasImage) { sets.push('profile_image = ?'); args.push(finalImage); }
+  if (hasNick) { sets.push('nickname = ?'); args.push(finalNick); }
   if (sets.length) {
     args.push(session.userId);
     await db.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args });
@@ -73,11 +79,12 @@ module.exports = async function handler(req, res) {
 
   // email은 users 테이블에만 저장(위 UPDATE). 세션 쿠키에는 담지 않음 → 제보/신고 시 userId로 DB 조회
   res.setHeader('Set-Cookie', createSessionCookie({
-    userId: session.userId, nickname: session.nickname, provider: session.provider
+    userId: session.userId, nickname: hasNick ? finalNick : session.nickname, provider: session.provider
   }));
   const out = { ok: true };
   if (hasUrl) { out.urlPlatform = finalPlatform; out.urlId = finalId; }
   if (hasEmail) out.email = finalEmail;
   if (hasImage) out.profileImage = finalImage;
+  if (hasNick) out.nickname = finalNick;
   res.status(200).json(out);
 };

@@ -4450,6 +4450,17 @@ async function refreshAuthUI() {
   }
   // 홈 지도에 내 장소(집/회사/여행지) 마커 갱신 (로그인/로그아웃 반영)
   loadMyPlaceMarkers();
+  maybePromptNickname();
+}
+
+// 네이버 별명 미설정자는 네이버가 아이디를 마스킹("stra****")해서 내려줌 → 닉네임 설정 유도.
+function isMaskedNick(n) { return /\*\*\*\*/.test(String(n || '')); }
+function maybePromptNickname() {
+  if (!currentUser || !isMaskedNick(currentUser.nickname)) return;
+  const key = 'nickPrompted_' + currentUser.id;
+  try { if (localStorage.getItem(key) === '1') return; localStorage.setItem(key, '1'); } catch (e) {}
+  showAlert('닉네임을 설정해주세요', '지금 닉네임이 임시로 되어 있어요. 설정하면 후기·커뮤니티에 보여요.',
+    { twoButton: true, confirmText: '설정하기', cancelText: '나중에', onConfirm: openProfileSheet });
 }
 
 // 로그인 provider별 아이콘 (카카오/네이버/애플) — 닉네임 앞 표시용
@@ -4607,6 +4618,8 @@ function populateProfileFields() {
   if (pimg) pimg.src = currentUser.profileImage || 'image/img_profile_login.png?v=2';
   const pnick = document.getElementById('profileNickname');
   if (pnick) pnick.textContent = currentUser.nickname || '';
+  const pnickInput = document.getElementById('profileNicknameInput');
+  if (pnickInput) pnickInput.value = isMaskedNick(currentUser.nickname) ? '' : (currentUser.nickname || '');
   const pinput = document.getElementById('profilePhotoInput');
   if (pinput) pinput.value = '';
 }
@@ -4790,10 +4803,12 @@ async function saveProfile() {
   const urlId = document.getElementById('profileUrlId').value.trim();
   const email = document.getElementById('profileEmail')?.value.trim() || '';
   if (email && !isValidEmail(email)) { showAlert('이메일을 확인해주세요', '올바른 이메일 형식을 입력해주세요.'); return; }
+  const nickname = document.getElementById('profileNicknameInput')?.value.trim() || '';
+  if (!nickname) { showAlert('닉네임을 입력해주세요', '닉네임은 비워둘 수 없어요.'); return; }
   const btn = document.querySelector('#profileOverlay .btn-submit');
   setButtonLoading(btn, true);
   try {
-    const payload = { urlPlatform, urlId, email };
+    const payload = { urlPlatform, urlId, email, nickname };
     if (_pendingProfileImage !== undefined) payload.profileImage = _pendingProfileImage;  // 변경된 경우만 전송
     const res = await fetch('/api/auth/profile', {
       method: 'POST',
