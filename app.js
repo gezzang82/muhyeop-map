@@ -202,6 +202,22 @@ const CATEGORY_PINS = {
 };
 const DEFAULT_PIN = { color: '#8E8E8E', icon: '<circle cx="15" cy="15" r="2.2" fill="#fff"/>' };
 
+// 음식점 세부 핀 글리프(치킨·피자·고기·분식·술집) — 색은 음식점 red(#E82A2D) 유지, glyph만 교체.
+// 1차 롤아웃 5종만 전용 글리프(한식/중식/일식/양식 등은 음식점 기본 글리프 폴백). food_subtype는 서버에서 내려줌.
+const FOOD_PINS = {
+  '치킨': '<path d="M19.5013 18.0326C19.7387 17.8189 20.0235 17.7001 20.3557 17.795C20.8307 17.9137 21.1875 18.3653 21.1163 18.864C21.0449 19.3863 20.5932 19.6946 20.0233 19.5997C20.0945 19.8609 20.0238 20.0986 19.8576 20.3123C19.5252 20.7397 18.9552 20.8818 18.5041 20.502C18.1004 20.1696 18.0526 19.6234 18.4562 19.1485L17.3881 18.1274C17.8866 17.8661 18.2186 17.486 18.4323 16.9875L19.5013 18.0326ZM13.1925 8.84417C15.1147 8.87019 15.8938 9.80572 16.3354 11.5461C16.699 13.0265 16.8293 13.7277 17.6086 14.8965C18.2319 15.8057 18.3354 16.3256 17.8419 16.949C17.3224 17.6242 16.5953 18.0133 15.9201 17.7796C15.3746 17.5978 14.8545 17.1042 14.0752 16.7405C13.1143 16.2732 12.2054 16.1431 11.1665 15.7536C10.1015 15.364 9.47773 14.8704 9.24395 13.9352C9.03625 13.182 9.14029 12.2471 9.42595 11.4939C10.0494 9.88343 11.66 8.76624 13.1925 8.84417Z" fill="#fff"/>',
+  '피자': '<path d="M12.5281 10.8091C14.8776 11.7894 17.2278 13.9454 18.5984 16.1019C17.6195 15.5137 16.6403 15.7104 16.0529 16.6906C15.6614 17.4748 15.6613 18.2593 16.0529 18.8473L11.1575 20.2197C10.1789 20.4154 9.59146 19.6313 9.7869 18.8473L9.98344 18.0629C11.5497 18.6508 13.3114 17.8666 13.703 16.2984C14.0946 14.9261 13.116 13.5538 11.5497 13.1616L12.1368 11.397C12.1368 11.0052 12.3324 10.8094 12.5281 10.8091ZM17.209 17.105C17.4722 16.8089 17.8013 16.6774 18.1464 16.8257C18.5572 17.1386 18.5898 17.6975 18.3267 17.9937C18.0142 18.4051 17.5212 18.6026 17.0117 18.5201C16.8146 18.0263 16.7813 17.5867 17.209 17.105ZM11.1575 14.3382C12.1365 14.3382 12.724 15.122 12.3324 15.9062C12.1366 16.8864 11.3537 17.2784 10.3748 16.8863L11.1575 14.3382ZM13.3125 8.65327C13.5288 8.22128 14.0546 8.04588 14.4866 8.26191C17.3772 9.70915 20.2754 12.3919 21.7412 15.5371C21.9449 15.9749 21.7551 16.495 21.3174 16.6992C20.8796 16.9031 20.3596 16.7138 20.1553 16.2762C18.8802 13.5403 16.2953 11.125 13.7039 9.82734C13.2719 9.61107 13.0965 9.08531 13.3125 8.65327Z" fill="#fff"/>',
+  '고기': '<path fill-rule="evenodd" clip-rule="evenodd" d="M12.4096 12.1941C12.5782 10.1279 14.0952 8.72289 16.4551 8.88819C18.3093 8.97084 19.5735 9.71469 20.4163 11.2024C21.4277 12.938 21.3434 14.9216 20.2477 16.9877C18.8993 19.4672 16.5394 21.0376 13.5053 21.1202C11.2297 21.2029 9.37547 20.2111 8.95406 18.3101C8.61696 16.9051 9.37548 15.748 10.8925 15.0869C12.1567 14.5083 12.3253 13.7645 12.4096 12.1941ZM17.975 12.6812C17.975 13.3812 17.5113 13.8625 16.9075 13.8625C16.3038 13.8625 15.875 13.3637 15.875 12.725C15.875 12.0687 16.2862 11.6312 16.8812 11.6312C17.5025 11.6312 17.975 12.0687 17.975 12.6812ZM14.6062 14.6937C14.8104 14.4896 15.0146 14.4896 15.2187 14.6937L17.0563 16.5312C17.2604 16.7354 17.2604 16.9396 17.0563 17.1437C16.8521 17.3479 16.6479 17.3479 16.4437 17.1437L14.6062 15.3062C14.4021 15.1021 14.4021 14.8979 14.6062 14.6937ZM12.9875 15.9187C13.1917 15.7146 13.3958 15.7146 13.6 15.9187L15.4812 17.8C15.6854 18.0041 15.6854 18.2084 15.4812 18.4125C15.2771 18.6166 15.0729 18.6166 14.8687 18.4125L12.9875 16.5312C12.7833 16.3271 12.7833 16.1229 12.9875 15.9187ZM11.3687 17.1437C11.5729 16.9396 11.7771 16.9396 11.9812 17.1437L13.1187 18.2812C13.3229 18.4854 13.3229 18.6896 13.1187 18.8937C12.9146 19.0979 12.7104 19.0979 12.5062 18.8937L11.3687 17.7562C11.1646 17.5521 11.1646 17.3479 11.3687 17.1437Z" fill="#fff"/>',
+  '분식': '<g><path d="M19.9877 9.75C20.6158 9.7501 21.1249 10.2592 21.125 10.8873V12.1127C21.1249 12.7408 20.6158 13.2499 19.9877 13.25H15.875V21.125H14.125V13.25H10.0123C9.38424 13.2499 8.8751 12.7408 8.875 12.1127V10.8873C8.8751 10.2592 9.38424 9.7501 10.0123 9.75H19.9877Z" fill="#fff"/><path d="M12.375 12.375L12.375 14.5625C12.375 14.5625 12.375 16.75 15 16.75" stroke="#fff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.625 12.375V14.5625C17.625 14.5625 17.625 16.75 15 16.75" stroke="#fff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></g>',
+  '술집': '<path d="M20.25 10.9167V9.75H9.75V10.9167L14.4167 16.1667V19.0834H11.5V20.25H18.5V19.0834H15.5833V16.1667L20.25 10.9167ZM12.3342 12.0833L11.3017 10.9167H18.7041L17.6659 12.0833H12.3342Z" fill="#fff"/>'
+};
+// cat+세부에 맞는 {color, icon} — 음식점 세부가 있고 전용 글리프가 준비됐으면 그걸, 아니면 카테고리 기본.
+function pinParts(cat, foodSubtype) {
+  const base = CATEGORY_PINS[cat] || DEFAULT_PIN;
+  if (cat === '음식점' && foodSubtype && FOOD_PINS[foodSubtype]) return { color: base.color, icon: FOOD_PINS[foodSubtype] };
+  return base;
+}
+
 // referrer URL → 유입 채널(가입 유입경로용, 서버 classifyReferrer와 동일 계열)
 function classifyRefClient(ref) {
   try {
@@ -301,8 +317,8 @@ const PLATFORM_COLORS = {
   '기타': '#666666'
 };
 
-function getCategoryPin(cat) {
-  const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
+function getCategoryPin(cat, foodSubtype) {
+  const p = pinParts(cat, foodSubtype);
   return `<svg class="map-pin-svg" width="34" height="34" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">`
     + `<circle cx="15" cy="15" r="14" fill="#fff"/>`
     + `<circle cx="15" cy="15" r="14.5" stroke="#000" stroke-opacity="0.08"/>`
@@ -312,8 +328,8 @@ function getCategoryPin(cat) {
 }
 
 // 선택된 핀: 물방울(teardrop) 형태로 확대 + 흰 테두리 (기존 카테고리 아이콘 재사용)
-function getCategoryPinSelected(cat) {
-  const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
+function getCategoryPinSelected(cat, foodSubtype) {
+  const p = pinParts(cat, foodSubtype);
   return `<svg class="map-pin-svg" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">`
     + `<path d="M24 3.55675C28.5005 3.55684 32.8171 5.38047 36 8.63194H35.999C38.8639 11.5548 40.3793 14.8561 40.7793 18.3009C41.1758 21.7042 40.4635 25.0858 39.1445 28.212C36.533 34.4156 31.3755 40.005 26.457 43.631C25.7434 44.1586 24.8842 44.4444 24 44.4444C23.1152 44.4444 22.255 44.1583 21.541 43.63V43.629C16.6229 40.0028 11.4656 34.4127 8.85254 28.212C7.53549 25.0857 6.8255 21.7044 7.21973 18.2999V18.2989C7.61974 14.8559 9.13549 11.5565 12 8.63194L12.001 8.63097C15.1946 5.37825 19.5047 3.55254 24 3.55675Z" fill="${p.color}" stroke="#fff" stroke-width="1.77778"/>`
     + `<g transform="translate(3 1) scale(1.4)">${p.icon}</g>`
@@ -322,8 +338,8 @@ function getCategoryPinSelected(cat) {
 
 // 활성 캠페인 없지만 지도에 남는 매장 = 후기 있는 매장(지도 경량화 v2). 회색(#BABABA) 핀으로 '진행 협찬 없음+후기 있음'을
 // 구분하되, dim 없이 정상 노출(후기라는 가치가 있으므로). 죽은 매장(활성·후기 둘 다 없음)은 아예 로드 안 됨.
-function getGrayPin(cat) {
-  const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
+function getGrayPin(cat, foodSubtype) {
+  const p = pinParts(cat, foodSubtype);
   return `<svg class="map-pin-svg" width="34" height="34" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">`
     + `<circle cx="15" cy="15" r="14" fill="#fff"/>`
     + `<circle cx="15" cy="15" r="14.5" stroke="#000" stroke-opacity="0.08"/>`
@@ -331,8 +347,8 @@ function getGrayPin(cat) {
     + `<g opacity="0.5">${p.icon}</g>`
     + `</svg>`;
 }
-function getGrayPinSelected(cat) {
-  const p = CATEGORY_PINS[cat] || DEFAULT_PIN;
+function getGrayPinSelected(cat, foodSubtype) {
+  const p = pinParts(cat, foodSubtype);
   return `<svg class="map-pin-svg" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">`
     + `<path d="M24 3.55675C28.5005 3.55684 32.8171 5.38047 36 8.63194H35.999C38.8639 11.5548 40.3793 14.8561 40.7793 18.3009C41.1758 21.7042 40.4635 25.0858 39.1445 28.212C36.533 34.4156 31.3755 40.005 26.457 43.631C25.7434 44.1586 24.8842 44.4444 24 44.4444C23.1152 44.4444 22.255 44.1583 21.541 43.63V43.629C16.6229 40.0028 11.4656 34.4127 8.85254 28.212C7.53549 25.0857 6.8255 21.7044 7.21973 18.2999V18.2989C7.61974 14.8559 9.13549 11.5565 12 8.63194L12.001 8.63097C15.1946 5.37825 19.5047 3.55254 24 3.55675Z" fill="#BABABA" stroke="#fff" stroke-width="1.77778"/>`
     + `<g transform="translate(3 1) scale(1.4)" opacity="0.5">${p.icon}</g>`
@@ -344,8 +360,9 @@ function getGrayPinSelected(cat) {
 function getPlacePin(place, selected) {
   // 채널 필터 중엔 실제 활성(그 채널)만 컬러 — '후기없음=활성' 지름길은 미필터(전체)일 때만(깜빡임 방지용).
   const active = hasActiveCampaign(place.id) || (currentChannelFilter === '전체' && place.hasReview === false);
-  if (selected) return active ? getCategoryPinSelected(place.category) : getGrayPinSelected(place.category);
-  return active ? getCategoryPin(place.category) : getGrayPin(place.category);
+  const fs = place.foodSubtype || '';
+  if (selected) return active ? getCategoryPinSelected(place.category, fs) : getGrayPinSelected(place.category, fs);
+  return active ? getCategoryPin(place.category, fs) : getGrayPin(place.category, fs);
 }
 
 function setSelectedMarker(placeId) {

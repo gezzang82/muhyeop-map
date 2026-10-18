@@ -16,6 +16,7 @@ function toPlace(row) {
     lat: row.lat,
     lng: row.lng,
     category: row.category,
+    foodSubtype: row.food_subtype || '',   // 음식점 세부(치킨·피자·고기·분식·술집) — 지도 핀 글리프용
     founderNickname: row.founder_nickname || '',
     founderEmail: row.founder_email || '',
     founderUrl: row.founder_url || '',
@@ -90,6 +91,12 @@ module.exports = async function handler(req, res) {
   }
   try {
     await db.execute("ALTER TABLE places ADD COLUMN founder_user_id INTEGER REFERENCES users(id)");
+  } catch (e) {
+    // 컬럼이 이미 있으면 무시
+  }
+  try {
+    // 음식점 세부 핀(치킨·피자·고기·분식·술집) 지도 글리프용. 네이버 세부 카테고리에서 파생(backfill).
+    await db.execute("ALTER TABLE places ADD COLUMN food_subtype TEXT");
   } catch (e) {
     // 컬럼이 이미 있으면 무시
   }
