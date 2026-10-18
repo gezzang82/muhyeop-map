@@ -499,7 +499,7 @@ function fmtDwell(sec) {
   if (sec < 60) return sec + '초';
   return Math.floor(sec / 60) + '분 ' + (sec % 60) + '초';
 }
-const REF_LABELS = { direct: '직접·앱', naver: '네이버', instagram: '인스타그램', google: '구글', daum: '다음', kakao: '카카오', youtube: '유튜브', facebook: '페이스북', daangn: '당근' };
+const REF_LABELS = { direct: '직접·앱', naver: '네이버', instagram: '인스타그램', google: '구글', daum: '다음', kakao: '카카오', youtube: '유튜브', facebook: '페이스북', daangn: '당근', chatgpt: 'ChatGPT', perplexity: 'Perplexity', claude: 'Claude' };
 
 // 일별 유입경로: 날짜별로 채널 칩(개수) 나열. 외부 채널(네이버/인스타/카톡 등)은 강조색.
 function renderReferrerDaily(rows) {
@@ -558,7 +558,7 @@ function renderReferrers(refs) {
   const el = document.getElementById('referrerStats');
   if (!el) return;
   if (!refs || !refs.length) { el.innerHTML = '<div class="empty-msg">아직 유입 데이터가 없어요.</div>'; return; }
-  const labelMap = { direct: '직접·앱', naver: '네이버', instagram: '인스타그램', google: '구글', daum: '다음', kakao: '카카오', youtube: '유튜브', facebook: '페이스북', daangn: '당근' };
+  const labelMap = { direct: '직접·앱', naver: '네이버', instagram: '인스타그램', google: '구글', daum: '다음', kakao: '카카오', youtube: '유튜브', facebook: '페이스북', daangn: '당근', chatgpt: 'ChatGPT', perplexity: 'Perplexity', claude: 'Claude' };
   const max = Math.max(1, ...refs.map(r => r.cnt || 0));
   el.innerHTML = refs.map(r => `
       <div class="stat-row">
@@ -1499,7 +1499,7 @@ function applyUserFilter() {
   userView.page = 1;
   renderUserRows();
 }
-const SIGNUP_SRC_LABELS = { naver: '네이버', kakao: '카카오', instagram: '인스타', threads: '스레드', google: '구글', facebook: '페북', daangn: '당근', youtube: '유튜브', tiktok: '틱톡', app: '앱' };
+const SIGNUP_SRC_LABELS = { naver: '네이버', kakao: '카카오', instagram: '인스타', threads: '스레드', google: '구글', facebook: '페북', daangn: '당근', youtube: '유튜브', tiktok: '틱톡', app: '앱', chatgpt: 'ChatGPT', perplexity: 'Perplexity', claude: 'Claude' };
 function signupSrcLabel(src) {
   if (!src) return '<span style="color:#bbb">-</span>';
   return escHtml(SIGNUP_SRC_LABELS[src] || src);

@@ -216,6 +216,9 @@ function classifyRefClient(ref) {
     if (h.includes('daangn') || h.includes('karrot')) return 'daangn';
     if (h.includes('youtube') || h.includes('youtu.be')) return 'youtube';
     if (h.includes('tiktok')) return 'tiktok';
+    if (h.includes('chatgpt') || h.includes('openai')) return 'chatgpt'; // ChatGPT(chatgpt.com·chat.openai.com) 통합
+    if (h.includes('perplexity')) return 'perplexity';
+    if (h.includes('claude')) return 'claude';
     return h.replace(/^www\./, '').slice(0, 24);
   } catch (e) { return ''; }
 }

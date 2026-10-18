@@ -58,6 +58,9 @@ function classifyReferrer(ref) {
   if (host.includes('facebook') || host === 'fb.com') return 'facebook';
   if (host.includes('threads')) return 'threads'; // threads.com·threads.net 등 → 스레드로 통합
   if (host.includes('daangn') || host.includes('karrot')) return 'daangn';
+  if (host.includes('chatgpt') || host.includes('openai')) return 'chatgpt'; // ChatGPT(chatgpt.com·chat.openai.com) 통합
+  if (host.includes('perplexity')) return 'perplexity';
+  if (host.includes('claude')) return 'claude';
   return host;
 }
 
