@@ -1768,9 +1768,16 @@ async function rvSearchStores() {
   if (!q) { box.innerHTML = ''; return; }
   _rvQuery = q; _rvNaverResults = []; _rvVisibleCount = RV_PAGE_SIZE;
   box.innerHTML = '<div class="search-hint">검색 중…</div>';
-  try {
-    _rvNaverResults = await fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []);
-  } catch (e) { _rvNaverResults = []; }
+  // 우리 DB 전체(죽은 매장 포함) + 네이버(신규 매장) 병렬 조회.
+  // DB를 먼저 보므로 네이버 쿼터가 죽어도(search-place 502) 등록된 매장은 검색됨 — 메인 검색과 동일 원칙.
+  const [dbRows, naverRows] = await Promise.all([
+    fetch('/api/places?q=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []).catch(() => []),
+    fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []).catch(() => [])
+  ]);
+  if (Array.isArray(dbRows)) {
+    for (const r of dbRows) if (r && r.id != null && !places.some(p => p.id === r.id)) places.push(r);
+  }
+  _rvNaverResults = Array.isArray(naverRows) ? naverRows : [];
   rvRenderResults();
 }
 // DB 매장(기존) + 네이버(신규) 통합 렌더(.place-result-item), 더보기 포함
@@ -1782,7 +1789,9 @@ function rvRenderResults() {
   const existing = (typeof places !== 'undefined' ? places : []).filter(p => {
     const np = normalize(p.name); return nq && (np.includes(nq) || nq.includes(np));
   });
-  const naver = Array.isArray(_rvNaverResults) ? _rvNaverResults : [];
+  // 같은 매장이 DB(existing)와 네이버 양쪽에 있으면 네이버 쪽 중복 제거(이름 일치).
+  const existNames = new Set(existing.map(p => normalize(p.name)));
+  const naver = (Array.isArray(_rvNaverResults) ? _rvNaverResults : []).filter(item => !existNames.has(normalize(item.name)));
   const combined = [
     ...existing.map(p => ({ type: 'existing', place: p })),
     ...naver.map((item, i) => ({ type: 'naver', item, index: i }))
