@@ -2235,6 +2235,9 @@ async function searchRegion() {
   // 1-2. 부분 일치 — 이름 일부만 입력해도 후보 매장을 보여줌(2글자 이상). 관련도순 정렬 + 상한 40.
   //   정렬: 이름이 검색어로 '시작' 우선 → 활성 캠페인 우선 → 이름순.
   if (nq.length >= 2) {
+    // 죽은 매장(지도셋=활성·후기 에 없는)도 후보에 넣으려면 서버 DB 검색을 먼저 병합.
+    //  예전엔 in-memory(지도셋)만 봐서 '르카페'(비활성·후기없음)가 '디헤르카페'(활성)에 가려 picker에서 빠지던 버그.
+    await mergeServerPlaces(query);
     let partial = places.filter(p => normalize(p.name).includes(nq));
     if (partial.length) {
       partial = partial.sort((a, b) => {
@@ -2247,6 +2250,7 @@ async function searchRegion() {
       if (partial.length === 1) {
         clearSearchPin();
         const p = partial[0];
+        await ensurePlaceCampaigns(p.id);
         const ended = getActiveCampaigns(p.id).length === 0;
         focusPlace(p.id, ended ? GRAY_PIN_MIN_ZOOM : 16);
         return;
@@ -2254,9 +2258,12 @@ async function searchRegion() {
       showPlacePicker(partial, query);
       return;
     }
+    // DB 병합 후에도 이름 매칭 전혀 없음 → 지역/주소 검색
+    geocodeRegion(query);
+    return;
   }
 
-  // 2. 지도셋(활성·후기)에 없으면 서버에서 전체 매장 검색(죽은 매장=후기 등록용). 없으면 지역 geocode 폴백.
+  // nq<2 등 예외 폴백: 서버 매장검색(→없으면 지역 geocode)
   searchPlacesOnServer(query);
 }
 
@@ -2287,15 +2294,21 @@ async function tryStationByNaver(query) {
 
 // 서버 매장 검색(전체 비숨김) — 지도 경량화 v2로 죽은 매장은 클라 메모리에 없어, 이름 검색을 서버로.
 // 결과를 places에 병합해 마커/상세/후기 진입이 되게 함(검색으로 찾은 죽은 매장에 후기 등록 가능).
-async function searchPlacesOnServer(query) {
-  const normalize = s => s.replace(/\s/g, '').toLowerCase();
-  const nq = normalize(query);
+// 서버 DB에서 매장명 검색(전체 비숨김, 죽은 매장 포함) → in-memory places에 병합(dedupe). 병합한 rows 반환.
+// 지도 경량화 v2로 활성·후기 매장만 메모리에 있어, 죽은 매장 검색/후기등록을 위해 서버 검색분을 합친다.
+async function mergeServerPlaces(query) {
   let rows = [];
   try { rows = await fetch('/api/places?q=' + encodeURIComponent(query)).then(r => (r.ok ? r.json() : [])); } catch (e) {}
   rows = Array.isArray(rows) ? rows : [];
   let added = false;
   for (const r of rows) if (r && r.id != null && !places.some(p => p.id === r.id)) { places.push(r); added = true; }
   if (added) { invalidateActiveCache(); if (typeof map !== 'undefined' && map) renderMarkers(); }
+  return rows;
+}
+async function searchPlacesOnServer(query) {
+  const normalize = s => s.replace(/\s/g, '').toLowerCase();
+  const nq = normalize(query);
+  const rows = await mergeServerPlaces(query);
   const matches = rows.filter(p => normalize(p.name).includes(nq));
   if (matches.length === 1) {
     clearSearchPin();
