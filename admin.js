@@ -1517,13 +1517,15 @@ function getFilteredUsers() {
     return nick.includes(keyword) || email.includes(keyword) || url.includes(keyword);
   });
 }
-// 최종접속 옆 '+N일' = 직전 방문일 → 최종 방문일 간격(재방문 주기). user_visits 2번째최근~최종.
-function visitSpanLabel(u) {
-  if (!u || !u.prevVisitDate || !u.lastVisitDate) return '';
-  const p = Date.parse(u.prevVisitDate), l = Date.parse(u.lastVisitDate);
-  if (isNaN(p) || isNaN(l)) return '';
-  const d = Math.round((l - p) / 86400000);
-  return d > 0 ? ` <span style="color:#888;font-size:12px">(+${d}일)</span>` : '';
+// '이전방문 경과' = 오늘(KST) − 오늘 이전의 가장 최근 방문일(priorVisitDate). '며칠 만의 방문/접속' 지표(별도 컬럼).
+function visitRecencyLabel(u) {
+  if (!u || !u.priorVisitDate) return '-';
+  const p = Date.parse(u.priorVisitDate);
+  if (isNaN(p)) return '-';
+  const now = new Date();
+  const kstToday = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000).toISOString().slice(0, 10);
+  const n = Math.round((Date.parse(kstToday) - p) / 86400000);
+  return n >= 0 ? `+${n}일` : '-';
 }
 function renderUserRows() {
   let filtered = getFilteredUsers();
@@ -1551,11 +1553,12 @@ function renderUserRows() {
       <td>${u.urlPlatform && u.urlId ? `${escHtml(u.urlPlatform)}: ${escHtml(u.urlId)}` : '-'}</td>
       <td>${u.reviewCount != null ? u.reviewCount : 0}</td>
       <td>${u.visitCount != null ? u.visitCount : 0}</td>
-      <td style="white-space:nowrap">${u.lastSeenAt ? fmtKST(u.lastSeenAt) : (u.lastVisitDate || '-')}${visitSpanLabel(u)}</td>
+      <td style="white-space:nowrap">${u.lastSeenAt ? fmtKST(u.lastSeenAt) : (u.lastVisitDate || '-')}</td>
+      <td style="white-space:nowrap">${visitRecencyLabel(u)}</td>
       <td style="white-space:nowrap">${platLabelShort(u.lastPlatform)}</td>
       <td>${fmtKST(u.createdAt)}</td>
       <td>${signupSrcLabel(u.signupSource)}</td>
-    </tr>`).join('') || `<tr><td colspan="11" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="12" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
   renderUserPager(totalPages);
 }
 function renderUserPager(totalPages) {
