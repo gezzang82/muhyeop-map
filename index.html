@@ -534,7 +534,7 @@
           <button class="filter-chip filter-chip--category" data-category-chip onclick="toggleCategoryDropdown(event)">            <span class="cat-chip-label">카테고리</span>
             <svg class="cat-chip-caret" width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <div class="cat-dropdown" id="catDropdown" hidden>
+          <div class="cat-dropdown" id="catDropdown" hidden onwheel="event.stopPropagation()">
             <div class="cat-dropdown-item" data-cat="전체" onclick="pickCategoryDropdown('전체')">전체</div>
             <div class="cat-dropdown-item" data-cat="음식점" onclick="pickCategoryDropdown('음식점')">음식점</div>
             <div class="cat-dropdown-item" data-cat="카페" onclick="pickCategoryDropdown('카페')">카페</div>
