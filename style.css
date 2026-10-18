@@ -689,7 +689,12 @@ body.pc-myplaces-mode #mlItems .ml-card-bell { background: none; border: none; c
   background: #fff; border: 1px solid #eee; border-radius: 14px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
   padding: 8px; min-width: 132px; z-index: 60;
+  /* 17종 전부 펼치면 너무 길어 → 약 절반(8개+다음 항목 반 걸침)만 보이고 스크롤.
+     반 걸친 항목이 "더 있으니 스크롤" 신호. 8.5항목×36 + 상단패딩8 = 314px */
+  max-height: 314px; overflow-y: auto;
 }
+.cat-dropdown::-webkit-scrollbar { width: 4px; }
+.cat-dropdown::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
 .cat-dropdown[hidden] { display: none; }
 .cat-dropdown-item {
   padding: 9px 16px; border-radius: 8px; cursor: pointer;
@@ -2644,7 +2649,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .native-app .detail-scroll { padding-bottom: calc(12px + max(env(safe-area-inset-bottom), var(--and-sab, 0px))); }
   .detail-campaigns-wrap { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
 
-  .detail-meta-founder { display: flex; flex-direction: column; gap: 12px; }
+  /* 주소↔첫후기 간격은 디자인(1151-2536) 기준 4px: detail-fixed gap 12에 margin -8 더해 4 */
+  .detail-meta-founder { display: flex; flex-direction: column; gap: 12px; margin-top: -8px; }
   .detail-divider-top { margin-top: 0; }
 
   .detail-place { display: flex; flex-direction: column; }
