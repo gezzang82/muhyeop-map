@@ -246,6 +246,7 @@ function toUser(row) {
     createdAt: row.created_at,
     lastSeenAt: row.last_seen_at || '',           // 최종접속 시각(UTC, 어드민에서 KST 변환) — 신규 접속부터
     lastVisitDate: row.last_visit_date || '',     // 최종접속 날짜(시각 없음) — last_seen_at 없는 기존 회원 폴백
+    prevVisitDate: row.prev_visit_date || '',     // 직전(2번째 최근) 방문일 — 최종접속 옆 +N일(직전→최종 재방문 간격) 계산용
     lastPlatform: row.last_platform || '',        // 마지막 접속 기기(ios/android/app/mweb/pcweb) — 신규 접속부터
     reportCount: Number(row.report_count || 0),   // 협찬 제보수(캠페인)
     reviewCount: Number(row.review_count || 0),   // 후기 등록수
@@ -391,7 +392,8 @@ module.exports = async function handler(req, res) {
       (SELECT COUNT(*) FROM campaigns c WHERE c.user_id = u.id) AS report_count,
       (SELECT COUNT(*) FROM reviews r WHERE r.user_id = u.id) AS review_count,
       (SELECT COUNT(*) FROM user_visits v WHERE v.user_id = u.id) AS visit_count,
-      (SELECT MAX(v.visit_date) FROM user_visits v WHERE v.user_id = u.id) AS last_visit_date
+      (SELECT MAX(v.visit_date) FROM user_visits v WHERE v.user_id = u.id) AS last_visit_date,
+      (SELECT MAX(v.visit_date) FROM user_visits v WHERE v.user_id = u.id AND v.visit_date < (SELECT MAX(v2.visit_date) FROM user_visits v2 WHERE v2.user_id = u.id)) AS prev_visit_date
     FROM users u ORDER BY u.id DESC`);
   return res.status(200).json(result.rows.map(toUser));
 };
