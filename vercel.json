@@ -4,6 +4,14 @@
       "maxDuration": 300
     }
   },
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": ".*\\.vercel\\.app" }],
+      "destination": "https://muhyeop.com/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/app", "destination": "/app.html" }
   ]
