@@ -29,7 +29,12 @@ module.exports = async function handler(req, res) {
   try {
     const PLAT_OK = ['ios', 'android', 'app', 'mweb', 'pcweb'];
     const plat = PLAT_OK.includes(String(req.query.platform)) ? String(req.query.platform) : null;
-    if (plat) await db.execute({ sql: "UPDATE users SET last_platform = ? WHERE id = ?", args: [plat, session.userId] });
+    if (plat) {
+      await db.execute({ sql: "UPDATE users SET last_platform = ? WHERE id = ?", args: [plat, session.userId] });
+      // 유저별 플랫폼 이력 누적(교차사용 측정용) — (user_id, platform)당 최초/최종접속+횟수. last_platform이 '마지막 1개'만 담는 한계 보완.
+      await db.execute("CREATE TABLE IF NOT EXISTS user_platforms (user_id INTEGER NOT NULL, platform TEXT NOT NULL, first_seen TEXT, last_seen TEXT, cnt INTEGER DEFAULT 0, PRIMARY KEY(user_id, platform))");
+      await db.execute({ sql: "INSERT INTO user_platforms (user_id, platform, first_seen, last_seen, cnt) VALUES (?, ?, datetime('now'), datetime('now'), 1) ON CONFLICT(user_id, platform) DO UPDATE SET last_seen = datetime('now'), cnt = cnt + 1", args: [session.userId, plat] });
+    }
   } catch (e) {}
   try { await db.execute("ALTER TABLE users ADD COLUMN profile_image TEXT"); } catch (e) {}
 

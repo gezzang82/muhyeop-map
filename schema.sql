@@ -195,3 +195,15 @@ CREATE TABLE IF NOT EXISTS user_places (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_user_places_user ON user_places(user_id);
+
+-- 유저별 플랫폼 이력(교차사용 측정) — me.js가 로그인 접속 시 ?platform= 값으로 upsert.
+-- users.last_platform(마지막 1개)의 한계 보완: (user_id, platform)별 최초/최종접속 + 횟수 누적.
+-- 교차사용 = 한 user_id가 네이티브(ios/android/app)와 웹(mweb/pcweb) 둘 다 보유. 배포 이후부터 누적(소급 불가).
+CREATE TABLE IF NOT EXISTS user_platforms (
+  user_id INTEGER NOT NULL,
+  platform TEXT NOT NULL,         -- ios | android | app | mweb | pcweb
+  first_seen TEXT,
+  last_seen TEXT,
+  cnt INTEGER DEFAULT 0,
+  PRIMARY KEY(user_id, platform)
+);
