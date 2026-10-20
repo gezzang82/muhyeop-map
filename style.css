@@ -3728,12 +3728,15 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   }
   /* 새글(후기·서이추) 알림 점 — 커뮤니티 아이콘 우상단(모바일). 색=브랜드 레드. JS로 hidden 토글. */
   .gnb-dot {
-    position: absolute; top: 3px; right: 4px;
+    position: absolute; top: 1px; right: 2px;   /* 아이콘 코너 쪽으로 더 띄움(글리프와 간격) */
     width: 4px; height: 4px; border-radius: 50%;
     background: #e82a2d; box-shadow: 0 0 0 1px #fff;   /* 코어 4px + 흰 링(디자인 5×5 후광) */
     pointer-events: none;
+    animation: gnb-dot-pulse 1.3s ease-in-out infinite;   /* 은은한 깜박임(주목 유도) */
   }
   .gnb-dot[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) { .gnb-dot { animation: none; } }
+  @keyframes gnb-dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
   .gnb-tab:active .gnb-ico { transform: scale(0.82); }
   .gnb-tab .gnb-label { line-height: 1; letter-spacing: -0.02em; }
   .gnb-tab.active { color: #111; font-weight: 700; }
