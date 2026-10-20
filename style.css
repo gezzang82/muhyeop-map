@@ -118,9 +118,9 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 .pc-nav-tab { position: relative; }
 /* 새글(후기·서이추) 알림 점 — PC 좌측레일 커뮤니티 아이콘 우상단. 색=연한 코랄(모바일과 다름). JS로 hidden 토글. */
 .pc-nav-dot {
-  position: absolute; top: 15px; left: 50%; transform: translateX(9px);
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #ff9c8e; box-sizing: border-box; pointer-events: none;
+  position: absolute; top: 15px; left: 50%; transform: translateX(11px);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: #ff9c8e; pointer-events: none;
 }
 .pc-nav-dot[hidden] { display: none; }
 /* 레일 아이콘: 모바일 GNB 아이콘을 mask로 쓰고 색은 currentColor(비활성 흰색 / 활성 네이비). 활성 시 _on(채움)으로 스왑 */
@@ -3728,9 +3728,9 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   }
   /* 새글(후기·서이추) 알림 점 — 커뮤니티 아이콘 우상단(모바일). 색=브랜드 레드. JS로 hidden 토글. */
   .gnb-dot {
-    position: absolute; top: 2px; right: 3px;
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #e82a2d; border: 1.5px solid #fff; box-sizing: border-box;
+    position: absolute; top: 3px; right: 4px;
+    width: 4px; height: 4px; border-radius: 50%;
+    background: #e82a2d; box-shadow: 0 0 0 1px #fff;   /* 코어 4px + 흰 링(디자인 5×5 후광) */
     pointer-events: none;
   }
   .gnb-dot[hidden] { display: none; }
