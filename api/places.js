@@ -325,6 +325,17 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // 커뮤니티 '새글' 점 표시용: GET ?community=latest → 최신 유저글(후기·서이추) 작성시각(epoch ms, 0=글 없음).
+  //  클라가 localStorage '마지막 본 시각'과 비교해 GNB/PC 커뮤니티 아이콘 점 토글. (reviews 라우팅 밖 — 독립 분기)
+  if (req.method === 'GET' && req.query.community === 'latest') {
+    const toMs = t => t ? (Date.parse(String(t).replace(' ', 'T') + 'Z') || 0) : 0;
+    let latest = 0;
+    try { const r = (await db.execute("SELECT MAX(created_at) t FROM reviews WHERE COALESCE(hidden,0)=0")).rows[0]; latest = Math.max(latest, toMs(r && r.t)); } catch (e) {}
+    try { const r = (await db.execute("SELECT MAX(created_at) t FROM seoichu_posts WHERE COALESCE(hidden,0)=0")).rows[0]; latest = Math.max(latest, toMs(r && r.t)); } catch (e) {}
+    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    return res.status(200).json({ latestAt: latest });
+  }
+
   // ===== 후기(리뷰) 라우팅 — 함수 12개 제한 때문에 places.js에 합침 (?reviews=...) =====
   if (req.query.reviews !== undefined) {
     const { validateAndExtract, ensureReviewTables, toReview } = require('./_reviews');
@@ -380,17 +391,6 @@ module.exports = async function handler(req, res) {
         await db.execute({ sql: 'UPDATE reviews SET click_count = COALESCE(click_count,0) + 1 WHERE id = ?', args: [id] });
       } catch (e) { /* 트래킹 실패는 무시(fail-open) */ }
       return res.status(200).json({ ok: true });
-    }
-
-    // 커뮤니티 '새글' 점 표시용: GET ?community=latest → 최신 유저글(후기·서이추) 작성시각(epoch ms).
-    //  클라가 localStorage '마지막 본 시각'과 비교해 GNB 커뮤니티 아이콘 빨간 점 토글. 0 = 글 없음.
-    if (req.method === 'GET' && req.query.community === 'latest') {
-      const toMs = t => t ? (Date.parse(String(t).replace(' ', 'T') + 'Z') || 0) : 0;
-      let latest = 0;
-      try { const r = (await db.execute("SELECT MAX(created_at) t FROM reviews WHERE COALESCE(hidden,0)=0")).rows[0]; latest = Math.max(latest, toMs(r && r.t)); } catch (e) {}
-      try { const r = (await db.execute("SELECT MAX(created_at) t FROM seoichu_posts WHERE COALESCE(hidden,0)=0")).rows[0]; latest = Math.max(latest, toMs(r && r.t)); } catch (e) {}
-      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
-      return res.status(200).json({ latestAt: latest });
     }
 
     // 최근 등록 후기(공개, 라이브버블용): GET ?reviews=recent&limit=N — 매장명·닉네임 조인, 숨김/숨김매장 제외.
