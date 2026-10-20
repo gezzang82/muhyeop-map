@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=252">
+  <link rel="stylesheet" href="style.css?v=253">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -108,7 +108,7 @@
         <span>내 장소</span>
       </button>
       <button class="pc-nav-tab" id="tabCommunity" onclick="switchPcTab('community')">
-        <span class="pc-nav-ico"></span>
+        <span class="pc-nav-ico"></span><span class="pc-nav-dot" id="communityDotPc" hidden></span>
         <span>커뮤니티</span>
       </button>
       <button class="pc-nav-tab" id="tabMyInfo" onclick="switchPcTab('myinfo')">
@@ -1142,7 +1142,7 @@
       <span class="gnb-ico"></span><span class="gnb-label">내 장소</span>
     </button>
     <button class="gnb-tab" data-tab="community" onclick="switchTab('community')" aria-label="커뮤니티">
-      <span class="gnb-ico"></span><span class="gnb-label">커뮤니티</span>
+      <span class="gnb-ico"><span class="gnb-dot" id="communityDot" hidden></span></span><span class="gnb-label">커뮤니티</span>
     </button>
     <button class="gnb-tab" data-tab="my" onclick="switchTab('my')" aria-label="MY">
       <span class="gnb-ico"></span><span class="gnb-label">MY</span>
@@ -1442,7 +1442,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-  <script src="app.js?v=264"></script>
+  <script src="app.js?v=265"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

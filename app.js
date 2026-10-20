@@ -103,6 +103,7 @@ function loadInitialData() {
         await prefetchP; // 캠페인 시딩 완료 보장 후 아래 invalidateActiveCache
       }
       invalidateActiveCache();
+      initCommunityDot();  // 커뮤니티 새글 점(후기·서이추) — fire-and-forget
     })();
     // 실패 시 메모를 풀어 다음 호출(다시 시도)이 재요청하도록 함
     _dataLoadPromise.catch(() => { _dataLoadPromise = null; });
@@ -3007,6 +3008,24 @@ function hapticTap() {
   } catch (e) {}
 }
 const GNB_TABS = ['home', 'places', 'community', 'my'];
+
+// ===== GNB 커뮤니티 '새글' 알림 점 (후기·서이추 추가 시 표시, 커뮤니티 열람 시 제거) =====
+// 서버 ?community=latest(최신 유저글 시각) vs localStorage '마지막 본 시각' 비교. 모바일(#communityDot)+PC(#communityDotPc) 동시 토글.
+let _communityLatestAt = 0;
+function getCommunitySeenAt() { try { return Number(localStorage.getItem('communitySeenAt')) || 0; } catch (e) { return 0; } }
+function updateCommunityDot() {
+  const on = _communityLatestAt > 0 && _communityLatestAt > getCommunitySeenAt();
+  ['communityDot', 'communityDotPc'].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = !on; });
+}
+function markCommunitySeen() {
+  try { localStorage.setItem('communitySeenAt', String(Math.max(_communityLatestAt, Date.now()))); } catch (e) {}
+  updateCommunityDot();
+}
+async function initCommunityDot() {
+  try { const r = await fetch('/api/places?community=latest').then(x => x.ok ? x.json() : null); _communityLatestAt = (r && Number(r.latestAt)) || 0; } catch (e) {}
+  updateCommunityDot();
+}
+
 function switchTab(tab) {
   if (GNB_TABS.indexOf(tab) < 0) tab = 'home';
   hapticTap();
@@ -3034,6 +3053,7 @@ function switchTab(tab) {
     const sh = document.getElementById('cmStickyHeader'); if (sh) sh.classList.remove('show');
     const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
     openCommunity();
+    markCommunitySeen();  // 커뮤니티 열람 → GNB 새글 점 제거(봤음 기록)
   }
   if (tab === 'my') {
     // MY 탭: 기존 '메뉴'를 흡수(로그인/내정보/신고/소개/약관 등). 제보하기는 제외(후기+매장등록으로 대체 방향).
@@ -5293,6 +5313,7 @@ function switchPcTab(tab) {
   if (tab === 'community') {
     openCommunity();
     const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+    markCommunitySeen();  // 커뮤니티 열람 → 새글 점 제거(PC)
   }
 
   if (tab === 'report') {
