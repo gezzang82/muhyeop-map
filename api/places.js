@@ -71,8 +71,21 @@ function normalizeSrc(src) {
   if (!src) return null;
   const s = String(src).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '').slice(0, 20);
   if (!s) return null;
-  const alias = { kko: 'kakao', kakaotalk: 'kakao', 'open-chat': 'kakao', openchat: 'kakao', thread: 'threads', threadscom: 'threads', insta: 'instagram', ig: 'instagram', fb: 'facebook', blog: 'naver' };
-  return alias[s] || s;
+  // 알려진 채널은 '부분일치'로 흡수(변형 태그 통합): chatgptcom→chatgpt, ig_text_post_permali→instagram,
+  //  threadscom→threads, blognaver→naver 등. 정확일치 alias만 쓰던 과거 버전의 미분류 누락 해소.
+  if (s.includes('kakao') || s.includes('kko') || s.includes('openchat') || s.includes('opench')) return 'kakao';
+  if (s.includes('thread')) return 'threads';
+  if (s.includes('instagram') || s === 'insta' || s === 'ig' || s.startsWith('ig_') || s.startsWith('igsh')) return 'instagram';
+  if (s.includes('chatgpt') || s.includes('openai')) return 'chatgpt';
+  if (s.includes('perplexity')) return 'perplexity';
+  if (s.includes('claude')) return 'claude';
+  if (s.includes('naver') || s === 'blog') return 'naver';
+  if (s.includes('facebook') || s === 'fb') return 'facebook';
+  if (s.includes('youtube') || s.includes('youtu')) return 'youtube';
+  if (s.includes('google')) return 'google';
+  if (s.includes('daangn') || s.includes('karrot')) return 'daangn';
+  if (s.includes('tiktok')) return 'tiktok';
+  return s;
 }
 
 // 방문 집계 제외 IP(운영자 본인 등) — 자기 접속이 PV/UV/체류시간을 부풀리지 않게.
