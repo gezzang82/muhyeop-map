@@ -1280,10 +1280,9 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .refresh-btn span { font-size: 14px; color: #777; }
 .refresh-btn:hover img { animation: spin 0.5s linear; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
-/* 지도를 움직여 리스트와 현재 뷰가 달라졌을 때(갱신 가능): 배경 없이 은은하게 — 글자만 진하게 + 작은 점(경고 느낌 제거) */
-.refresh-btn.stale { position: relative; }
-.refresh-btn.stale span { color: #333; font-weight: 700; }
-.refresh-btn.stale::after { content: ''; position: absolute; top: 2px; right: 0; width: 5px; height: 5px; border-radius: 50%; background: #888; }
+/* 지도를 움직여 리스트와 현재 뷰가 달라졌을 때(갱신 가능): 배경·점 없이 '새로고침'만 검정으로(평상시 회색 → 검정) */
+.refresh-btn.stale span { color: #111; font-weight: 700; }
+.refresh-btn.stale img { filter: brightness(0); }
 .sidebar-title { font-size: 18px; font-weight: 600; color: #000; }
 .sidebar-count {
   font-size: 14px; font-weight: 700; color: #555;
