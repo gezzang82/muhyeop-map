@@ -330,6 +330,42 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ count: Number(c.n || 0) });
   }
 
+  // 회원 세그먼트(관리자): 최근 활동일(last_seen_at·user_visits 중 늦은 쪽) 기준 활동/잠재/이탈 집계.
+  // 활동신호 없으면 가입일로 대체. oneshot=가입만 하고 사실상 재방문 없이 이탈(원힛 가입). 서버 집계라 PII 미전송.
+  if (req.query.segments !== undefined) {
+    if (!requireAdmin(req, res)) return;
+    const r = (await db.execute(`
+      WITH m AS (
+        SELECT u.id,
+          date(u.created_at,'+9 hours') AS signup_day,
+          MAX(
+            COALESCE(date(u.last_seen_at,'+9 hours'),'1970-01-01'),
+            COALESCE((SELECT MAX(v.visit_date) FROM user_visits v WHERE v.user_id=u.id),'1970-01-01')
+          ) AS last_active,
+          (SELECT COUNT(*) FROM user_visits v WHERE v.user_id=u.id) AS visit_days
+        FROM users u
+      ),
+      r AS (
+        SELECT visit_days,
+          CAST(julianday(date('now','+9 hours')) - julianday(CASE WHEN last_active='1970-01-01' THEN signup_day ELSE last_active END) AS INTEGER) AS rec,
+          CAST(julianday(date('now','+9 hours')) - julianday(signup_day) AS INTEGER) AS s_ago
+        FROM m
+      )
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN rec <= 7 THEN 1 ELSE 0 END) AS active,
+        SUM(CASE WHEN rec > 7 AND rec <= 29 THEN 1 ELSE 0 END) AS potential,
+        SUM(CASE WHEN rec > 29 THEN 1 ELSE 0 END) AS churned,
+        SUM(CASE WHEN s_ago <= 7 THEN 1 ELSE 0 END) AS new7,
+        SUM(CASE WHEN visit_days <= 1 AND s_ago > 7 AND rec > 7 THEN 1 ELSE 0 END) AS oneshot
+      FROM r`)).rows[0] || {};
+    const n = k => Number(r[k] || 0);
+    return res.status(200).json({
+      total: n('total'), active: n('active'), potential: n('potential'),
+      churned: n('churned'), new7: n('new7'), oneshot: n('oneshot'),
+    });
+  }
+
   if (req.query.leaderboard) {
     const result = await db.execute(`
       SELECT u.nickname AS nickname, COUNT(*) AS count

@@ -553,6 +553,33 @@ function renderPushOpens(d) {
     row('└ 이벤트', (d.event || {}).users, (d.event || {}).taps);
 }
 
+// 회원 세그먼트(활동/잠재/이탈) — 서버 `?segments=1` 집계를 막대로. 최근 로그인 활동일 기준.
+function renderMemberSegments(d) {
+  const el = document.getElementById('memberSegments'); if (!el) return;
+  const total = Number(d && d.total || 0);
+  if (!total) { el.innerHTML = '<div class="empty-msg">회원 데이터가 없어요</div>'; return; }
+  const pct = n => total ? Math.round(n / total * 1000) / 10 : 0;
+  const seg = (color, label, sub, n) => {
+    const p = pct(n);
+    return `
+      <div class="ms-seg">
+        <div class="ms-seg-head">
+          <span class="ms-dot" style="background:${color}"></span>
+          <b class="ms-label">${label}</b>
+          <span class="ms-sub">${sub}</span>
+          <span class="ms-val">${Number(n).toLocaleString()}명 <span class="ms-pct">${p}%</span></span>
+        </div>
+        <div class="ms-bar"><i style="width:${p}%;background:${color}"></i></div>
+      </div>`;
+  };
+  const active = Number(d.active || 0), potential = Number(d.potential || 0), churned = Number(d.churned || 0);
+  el.innerHTML =
+    seg('#1aa86b', '활동회원', '최근 0~7일 활동', active) +
+    seg('#e8a33d', '잠재·휴면초기', '8~29일', potential) +
+    seg('#e2514f', '이탈', '30일+', churned) +
+    `<div class="ms-foot">총 ${total.toLocaleString()}명 · 최근 7일 신규가입 <b>${Number(d.new7 || 0).toLocaleString()}</b>명 · 원힛 가입(가입만 하고 재방문 없이 이탈) <b>${Number(d.oneshot || 0).toLocaleString()}</b>명</div>`;
+}
+
 // 유입경로 집계(누적). platform-stats 스타일 재사용(막대 + 개수).
 function renderReferrers(refs) {
   const el = document.getElementById('referrerStats');
@@ -787,6 +814,9 @@ function renderDashboard() {
   // 회원 수
   const statMembersEl = document.getElementById('statMembers');
   if (statMembersEl) fetch('/api/users?count=1').then(r => r.json()).then(d => { statMembersEl.textContent = (Number(d.count) || 0).toLocaleString(); }).catch(() => {});
+
+  // 회원 세그먼트(활동/잠재/이탈)
+  fetch('/api/users?segments=1').then(r => r.json()).then(renderMemberSegments).catch(() => {});
 
   // 이벤트 푸시 대상 기기수
   fetch('/api/users?push=count').then(r => r.json()).then(d => { const el = document.getElementById('pushDeviceCount'); if (el) el.textContent = (Number(d.devices) || 0).toLocaleString(); }).catch(() => {});
