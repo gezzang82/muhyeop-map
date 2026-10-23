@@ -776,8 +776,12 @@ function initMap() {
   });
 
   // 지도 이동/줌이 멈추면(idle) 현재 보이는 영역 기준으로 하단 '모집 중인 협찬' 리스트 갱신 (연속 idle은 디바운스)
+  // PC 매장 클릭(카드 오픈) 동안은 _suppressSidebarRender로 리스트 재빌드를 멈춰 스크롤/정렬이 튀지 않게 함.
   let _sbDebounce;
-  naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_sbDebounce); _sbDebounce = setTimeout(renderSidebar, 120); });
+  naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_sbDebounce); _sbDebounce = setTimeout(() => { if (!_suppressSidebarRender) renderSidebar(); }, 120); });
+  // 사용자가 직접 지도를 움직이면(드래그/줌) 탐색 의도이므로 리스트 고정을 해제해 현재 뷰로 갱신.
+  naver.maps.Event.addListener(map, 'dragstart', () => { _suppressSidebarRender = false; });
+  naver.maps.Event.addListener(map, 'zoom_changed', () => { _suppressSidebarRender = false; });
 
   // 지도 밖 영역 클릭 시 PC 카드 닫기
   document.addEventListener('click', (e) => {
@@ -2120,12 +2124,30 @@ function refreshOpenDetailCampaignPane(place) {
   _detailReviewByAbsence = false;
 }
 
+// PC에서 매장 카드를 여는 동안 사이드바(모집 중인 협찬) 리스트 재빌드를 멈추는 플래그.
+// 매장 클릭 시 리스트가 스크롤 리셋/재정렬되며 흔들리던 문제(유저 피드백) 방지용.
+let _suppressSidebarRender = false;
+
+// 좌표가 현재 지도 화면 안에 들어와 있는지(여유 마진 포함) — PC에서 '이미 보이는 매장'은 지도를 안 움직이게.
+function _placeInView(lat, lng) {
+  try {
+    const b = map.getBounds();
+    if (!b || !b.hasLatLng) return false;
+    return b.hasLatLng(new naver.maps.LatLng(lat, lng));
+  } catch (e) { return false; }
+}
+
 async function focusPlace(placeId, zoom) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
 
-  map.setCenter(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
-  map.setZoom(zoom || 16);
+  const _flat = place.displayLat ?? place.lat, _flng = place.displayLng ?? place.lng;
+  // PC: 이미 화면 안에 보이는 매장을 클릭하면 지도를 움직이지 않는다(옆으로 쏠림 + 좌측 리스트 흔들림 방지).
+  // 화면 밖(검색·버블·푸시) 매장이거나 모바일이면 기존대로 센터 이동.
+  if (isMobileView() || !_placeInView(_flat, _flng)) {
+    map.setCenter(new naver.maps.LatLng(_flat, _flng));
+    map.setZoom(zoom || 16);
+  }
   // 현재 기준으로 우선 렌더(마커 없으면 회색핀이라도 만들어 아래 상세 오픈의 setSelectedMarker가 선택).
   if (!markerMap[placeId]) renderMarkers();
 
@@ -2158,13 +2180,29 @@ async function focusPlace(placeId, zoom) {
 function panToCard(place) {
   const latlng = new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng);
   const proj = map.getProjection();
-  const mapWidth = document.getElementById('map').offsetWidth;
+  const mapEl = document.getElementById('map');
+  const mapWidth = mapEl.offsetWidth, mapHeight = mapEl.offsetHeight;
   // 핀을 지도 정중앙에 두고, 카드는 핀 기준 좌측에 고정 간격(370px)으로 따라붙음.
   // 화면이 좁아져 카드가 좌측 최소 여백(20px)에 닿으면 핀도 같이 좌측으로 밀림
   const CARD_LEFT_MIN = 20;
   const PIN_OFFSET = 370;
+  const CARD_WIDTH = 360;   // 카드가 가리는 영역(좌측부터)
+  const EDGE = 56;          // 화면 가장자리 여유(핀이 잘리지 않게)
   const cardLeft = Math.max(CARD_LEFT_MIN, Math.round(mapWidth / 2 - PIN_OFFSET));
   document.getElementById('pcCard').style.left = cardLeft + 'px';
+
+  // 핀의 현재 화면 위치 — 카드에 가리지 않고 화면 안(가장자리 여유 포함)이면 지도를 움직이지 않는다
+  // (이미 보이는 매장 클릭 시 '옆으로 쏠림' 방지). 그 외(카드 뒤/가장자리/화면 밖)에서만 살짝 팬.
+  // ⚠️ fromCoordToOffset은 뷰포트가 아니라 월드 픽셀을 반환하므로, 중심 대비 delta로 뷰포트 좌표를 환산한다.
+  if (proj) {
+    const cur = proj.fromCoordToOffset(latlng);
+    const ctr = proj.fromCoordToOffset(map.getCenter());
+    const pinVX = (cur.x - ctr.x) + mapWidth / 2;
+    const pinVY = (cur.y - ctr.y) + mapHeight / 2;
+    const clearOfCard = pinVX > cardLeft + CARD_WIDTH + 8;
+    const inViewport = pinVX > EDGE && pinVX < mapWidth - EDGE && pinVY > EDGE && pinVY < mapHeight - EDGE;
+    if (clearOfCard && inViewport) return;  // 이동 불필요
+  }
 
   const pinTargetX = cardLeft + PIN_OFFSET;
   const deltaX = Math.round(mapWidth / 2) - pinTargetX;
@@ -2180,6 +2218,8 @@ function panToCard(place) {
 function openPcCard(place) {
   resetMapSearch();  // 다른 매장/상세를 열면 검색 핀·FAB 제거 + 검색어 리셋
   if (openPcCardPlaceId === place.id) { closePcCard(); return; }
+  // 카드가 열려있는 동안 사이드바 리스트 재빌드 멈춤(스크롤/정렬 고정) — 매장 클릭 시 리스트 흔들림 방지.
+  _suppressSidebarRender = true;
   openPcCardPlaceId = place.id;
   openPcCardPlace = place;
   document.getElementById('pcCardContent').innerHTML = createInfoContent(place);
@@ -2202,6 +2242,9 @@ function closePcCard() {
   openPcCardPlace = null;
   document.getElementById('pcCard').classList.remove('visible');
   clearSelectedMarker();
+  // 리스트 고정 해제 + 현재 뷰 기준으로 한 번 갱신(카드 여는 동안 쌓인 뷰 변화 반영).
+  _suppressSidebarRender = false;
+  if (!isMobileView()) renderSidebar();
 }
 
 function renderAll() {
