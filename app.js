@@ -775,13 +775,19 @@ function initMap() {
     if (!isMobileView()) closePcCard();
   });
 
-  // 지도 이동/줌이 멈추면(idle) 현재 보이는 영역 기준으로 하단 '모집 중인 협찬' 리스트 갱신 (연속 idle은 디바운스)
-  // PC 매장 클릭(카드 오픈) 동안은 _suppressSidebarRender로 리스트 재빌드를 멈춰 스크롤/정렬이 튀지 않게 함.
+  // idle(지도 멈춤) 처리 — PC는 '고정 + 새로고침' 모델: 지도를 움직여도 리스트는 그대로 두고,
+  // 현재 뷰와 달라지면 새로고침 버튼만 강조(stale). 모바일은 기존대로 뷰 따라 자동 갱신.
+  //  · 저줌(캠페인 미로드): 리스트가 의미 없어 항상 '확대 안내'로 자동 동기화
+  //  · 저줌→고줌 첫 진입: 1회 자동 렌더(안 그러면 줌인해도 빈 리스트)
+  //  · 그 외 고줌 이동: 리스트 고정, (사용자 조작이고 카드팬이 아니면) stale 표시만
   let _sbDebounce;
-  naver.maps.Event.addListener(map, 'idle', () => { clearTimeout(_sbDebounce); _sbDebounce = setTimeout(() => { if (!_suppressSidebarRender) renderSidebar(); }, 120); });
-  // 사용자가 직접 지도를 움직이면(드래그/줌) 탐색 의도이므로 리스트 고정을 해제해 현재 뷰로 갱신.
-  naver.maps.Event.addListener(map, 'dragstart', () => { _suppressSidebarRender = false; });
-  naver.maps.Event.addListener(map, 'zoom_changed', () => { _suppressSidebarRender = false; });
+  naver.maps.Event.addListener(map, 'idle', () => {
+    clearTimeout(_sbDebounce);
+    _sbDebounce = setTimeout(maybeRenderSidebarForView, 120);
+  });
+  // 사용자가 직접 지도를 드래그하면(탐색 의도) 카드팬 제외를 풀어, 다음 idle에서 stale 표시가 뜨게 한다.
+  // (프로그램 panTo/setZoom은 dragstart를 안 쏘므로, 카드 오픈용 자동이동엔 영향 없음)
+  naver.maps.Event.addListener(map, 'dragstart', () => { _sbSkipStale = false; });
 
   // 지도 밖 영역 클릭 시 PC 카드 닫기
   document.addEventListener('click', (e) => {
@@ -1097,8 +1103,9 @@ async function _fetchCampaignTiles(vb) {
     for (const c of arr) { if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); } }
     keys.forEach(k => _loadedTiles.add(k)); // 빈 영역도 로드 표시(재요청 방지)
     // 로드 완료 → 재렌더(전체매장 클러스터 → 활성 핀 전환). map 없으면(프리페치) 시딩만 → 초기 렌더가 반영.
+    // 지도 핀(renderMarkers)은 항상 갱신하되, 리스트는 '고정+새로고침' 규칙을 따른다(새 영역 타일 로드가 프리즈를 깨지 않게).
     invalidateActiveCache();
-    if (map) { renderMarkers(); renderSidebar(); }
+    if (map) { renderMarkers(); maybeRenderSidebarForView(); }
   } catch (e) {} finally { _campInFlight.delete(bboxKey); }
 }
 async function loadCampaignsForView() {
@@ -1956,10 +1963,13 @@ function placeShuffleKey(id) {
 function renderSidebar() {
   const list = document.getElementById('campaignList');
   const countEl = document.getElementById('campaignCount');
+  // 어떤 경로로든 리스트를 그리면 현재 뷰와 동기화된 상태 → stale 해제.
+  setSidebarStale(false);
 
   // 저줌(전국·광역)에선 캠페인을 뷰포트로 안 받아 목록이 어차피 비어 '확대 안내'만 뜬다.
   //  → 2만+ 매장을 훑는 비싼 뷰포트 필터를 아예 건너뛰어 전국뷰(완전 아웃) 버벅임을 막는다(이 필터가 병목).
   if (map && typeof map.getZoom === 'function' && map.getZoom() < CAMPAIGN_MIN_ZOOM) {
+    _sbRenderedBounds = null;
     countEl.textContent = totalActiveCount ? totalActiveCount.toLocaleString() : '';
     list.innerHTML = `
       <div class="empty-state">
@@ -1976,6 +1986,9 @@ function renderSidebar() {
     const sw = b.getSW(), ne = b.getNE();
     const minLat = sw.lat(), maxLat = ne.lat(), minLng = sw.lng(), maxLng = ne.lng();
     visiblePlaces = places.filter(p => p.lat >= minLat && p.lat <= maxLat && p.lng >= minLng && p.lng <= maxLng);
+    _sbRenderedBounds = { minLat, maxLat, minLng, maxLng };   // 이 경계로 리스트를 그림 → 이후 지도 이동 감지 기준
+  } else {
+    _sbRenderedBounds = null;
   }
 
   // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래).
@@ -2124,30 +2137,57 @@ function refreshOpenDetailCampaignPane(place) {
   _detailReviewByAbsence = false;
 }
 
-// PC에서 매장 카드를 여는 동안 사이드바(모집 중인 협찬) 리스트 재빌드를 멈추는 플래그.
-// 매장 클릭 시 리스트가 스크롤 리셋/재정렬되며 흔들리던 문제(유저 피드백) 방지용.
-let _suppressSidebarRender = false;
+// PC 사이드바 리스트 '고정 + 새로고침' 상태.
+//  - _sbRenderedBounds: 리스트가 마지막으로 렌더된 지도 경계(이후 지도가 움직이면 현재 뷰와 비교해 stale 판정)
+//  - _sidebarStale: 지도가 움직여 리스트와 현재 뷰가 달라짐(새로고침 버튼 강조)
+//  - _sbSkipStale: 카드 열기용 지도 자동이동(핀↔카드 붙이기)은 stale로 치지 않음(매장 열 때마다 버튼 깜빡임 방지)
+let _sbRenderedBounds = null;
+let _sidebarStale = false;
+let _sbSkipStale = false;
 
-// 좌표가 현재 지도 화면 안에 들어와 있는지(여유 마진 포함) — PC에서 '이미 보이는 매장'은 지도를 안 움직이게.
-function _placeInView(lat, lng) {
-  try {
-    const b = map.getBounds();
-    if (!b || !b.hasLatLng) return false;
-    return b.hasLatLng(new naver.maps.LatLng(lat, lng));
-  } catch (e) { return false; }
+function setSidebarStale(on) {
+  _sidebarStale = !!on;
+  const btn = document.getElementById('refreshBtn');
+  if (btn) btn.classList.toggle('stale', _sidebarStale);
+}
+
+// 현재 지도 뷰가 리스트 렌더 당시 경계와 달라졌는지(작은 떨림은 무시)
+function _sidebarViewChanged() {
+  const b = (map && map.getBounds) ? map.getBounds() : null;
+  if (!b || !b.getSW || !_sbRenderedBounds) return false;
+  const sw = b.getSW(), ne = b.getNE(), r = _sbRenderedBounds, e = 1e-5;
+  return Math.abs(sw.lat() - r.minLat) > e || Math.abs(ne.lat() - r.maxLat) > e
+      || Math.abs(sw.lng() - r.minLng) > e || Math.abs(ne.lng() - r.maxLng) > e;
+}
+
+// 지도 이동/타일 로드 후 사이드바 '고정 + 새로고침' 규칙을 한 곳에서 적용.
+//  · 모바일: 기존대로 현재 뷰로 자동 렌더
+//  · 저줌(캠페인 미로드): 항상 '확대 안내'로 동기화
+//  · 저줌→고줌 첫 진입: 1회 자동 렌더
+//  · 그 외 고줌: 리스트 고정. 사용자 조작으로 뷰가 바뀌었고 카드팬이 아니면 새로고침 버튼만 강조(stale)
+// idle 핸들러와 캠페인 타일 로더(_fetchCampaignTiles) 양쪽에서 호출 → 한쪽만 렌더해 프리즈가 깨지지 않게.
+function maybeRenderSidebarForView() {
+  if (isMobileView()) { renderSidebar(); return; }
+  const below = map && map.getZoom && map.getZoom() < CAMPAIGN_MIN_ZOOM;
+  if (below) { renderSidebar(); return; }          // 저줌: 항상 '확대 안내'로 동기화(고정 안 함)
+  if (_sbSkipStale) return;                        // 카드 오픈용 자동이동 중: 완전 고정(렌더·stale 둘 다 안 함)
+  // 보던 리스트(내용 있음)가 있는데 지도가 다른 지역으로 이동 → 고정 + 새로고침 버튼 강조.
+  // 리스트가 비었거나(지역 진입/빈 지역) 같은 뷰면 → 그대로 렌더(진입 직후 자동 채움, 빈 리스트에 갇히지 않음).
+  const list = document.getElementById('campaignList');
+  const hasItems = !!(list && list.querySelector('.sb-item'));
+  if (hasItems && _sidebarViewChanged()) setSidebarStale(true);
+  else renderSidebar();
 }
 
 async function focusPlace(placeId, zoom) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
 
-  const _flat = place.displayLat ?? place.lat, _flng = place.displayLng ?? place.lng;
-  // PC: 이미 화면 안에 보이는 매장을 클릭하면 지도를 움직이지 않는다(옆으로 쏠림 + 좌측 리스트 흔들림 방지).
-  // 화면 밖(검색·버블·푸시) 매장이거나 모바일이면 기존대로 센터 이동.
-  if (isMobileView() || !_placeInView(_flat, _flng)) {
-    map.setCenter(new naver.maps.LatLng(_flat, _flng));
-    map.setZoom(zoom || 16);
-  }
+  // PC: 매장을 여는 지도 자동이동(카드↔핀 붙이기)은 리스트 고정 유지 + stale로 치지 않음.
+  if (!isMobileView()) _sbSkipStale = true;
+
+  map.setCenter(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
+  map.setZoom(zoom || 16);
   // 현재 기준으로 우선 렌더(마커 없으면 회색핀이라도 만들어 아래 상세 오픈의 setSelectedMarker가 선택).
   if (!markerMap[placeId]) renderMarkers();
 
@@ -2180,29 +2220,13 @@ async function focusPlace(placeId, zoom) {
 function panToCard(place) {
   const latlng = new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng);
   const proj = map.getProjection();
-  const mapEl = document.getElementById('map');
-  const mapWidth = mapEl.offsetWidth, mapHeight = mapEl.offsetHeight;
-  // 핀을 지도 정중앙에 두고, 카드는 핀 기준 좌측에 고정 간격(370px)으로 따라붙음.
+  const mapWidth = document.getElementById('map').offsetWidth;
+  // 핀을 지도 정중앙에 두고, 카드는 핀 기준 좌측에 고정 간격(370px)으로 따라붙음(카드가 핀 옆에 붙어 보이게).
   // 화면이 좁아져 카드가 좌측 최소 여백(20px)에 닿으면 핀도 같이 좌측으로 밀림
   const CARD_LEFT_MIN = 20;
   const PIN_OFFSET = 370;
-  const CARD_WIDTH = 360;   // 카드가 가리는 영역(좌측부터)
-  const EDGE = 56;          // 화면 가장자리 여유(핀이 잘리지 않게)
   const cardLeft = Math.max(CARD_LEFT_MIN, Math.round(mapWidth / 2 - PIN_OFFSET));
   document.getElementById('pcCard').style.left = cardLeft + 'px';
-
-  // 핀의 현재 화면 위치 — 카드에 가리지 않고 화면 안(가장자리 여유 포함)이면 지도를 움직이지 않는다
-  // (이미 보이는 매장 클릭 시 '옆으로 쏠림' 방지). 그 외(카드 뒤/가장자리/화면 밖)에서만 살짝 팬.
-  // ⚠️ fromCoordToOffset은 뷰포트가 아니라 월드 픽셀을 반환하므로, 중심 대비 delta로 뷰포트 좌표를 환산한다.
-  if (proj) {
-    const cur = proj.fromCoordToOffset(latlng);
-    const ctr = proj.fromCoordToOffset(map.getCenter());
-    const pinVX = (cur.x - ctr.x) + mapWidth / 2;
-    const pinVY = (cur.y - ctr.y) + mapHeight / 2;
-    const clearOfCard = pinVX > cardLeft + CARD_WIDTH + 8;
-    const inViewport = pinVX > EDGE && pinVX < mapWidth - EDGE && pinVY > EDGE && pinVY < mapHeight - EDGE;
-    if (clearOfCard && inViewport) return;  // 이동 불필요
-  }
 
   const pinTargetX = cardLeft + PIN_OFFSET;
   const deltaX = Math.round(mapWidth / 2) - pinTargetX;
@@ -2218,8 +2242,8 @@ function panToCard(place) {
 function openPcCard(place) {
   resetMapSearch();  // 다른 매장/상세를 열면 검색 핀·FAB 제거 + 검색어 리셋
   if (openPcCardPlaceId === place.id) { closePcCard(); return; }
-  // 카드가 열려있는 동안 사이드바 리스트 재빌드 멈춤(스크롤/정렬 고정) — 매장 클릭 시 리스트 흔들림 방지.
-  _suppressSidebarRender = true;
+  // 핀 직접 클릭 경로: 카드↔핀 붙이기용 지도 자동이동(panToCard)을 stale로 치지 않음(리스트 고정 유지).
+  if (!isMobileView()) _sbSkipStale = true;
   openPcCardPlaceId = place.id;
   openPcCardPlace = place;
   document.getElementById('pcCardContent').innerHTML = createInfoContent(place);
@@ -2242,9 +2266,9 @@ function closePcCard() {
   openPcCardPlace = null;
   document.getElementById('pcCard').classList.remove('visible');
   clearSelectedMarker();
-  // 리스트 고정 해제 + 현재 뷰 기준으로 한 번 갱신(카드 여는 동안 쌓인 뷰 변화 반영).
-  _suppressSidebarRender = false;
-  if (!isMobileView()) renderSidebar();
+  // 카드 닫기는 리스트를 강제로 갱신하지 않는다(고정 유지). 카드 열기용 자동이동 제외만 해제.
+  // 현재 뷰로 보려면 사용자가 새로고침 버튼을 누른다(카드팬은 stale로 치지 않으므로 여기서도 표시 안 함).
+  _sbSkipStale = false;
 }
 
 function renderAll() {

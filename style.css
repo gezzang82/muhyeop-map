@@ -1280,6 +1280,10 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .refresh-btn span { font-size: 14px; color: #777; }
 .refresh-btn:hover img { animation: spin 0.5s linear; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+/* 지도를 움직여 리스트와 현재 뷰가 달라졌을 때(갱신 가능): 버튼을 브랜드 컬러로 강조 — '이 지역 검색' 패턴 */
+.refresh-btn.stale { background: #fdecec; }
+.refresh-btn.stale span { color: #e82a2d; font-weight: 700; }
+.refresh-btn.stale img { filter: brightness(0) saturate(100%) invert(26%) sepia(89%) saturate(4728%) hue-rotate(350deg) brightness(93%) contrast(92%); }
 .sidebar-title { font-size: 18px; font-weight: 600; color: #000; }
 .sidebar-count {
   font-size: 14px; font-weight: 700; color: #555;
