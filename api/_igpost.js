@@ -70,6 +70,21 @@ const CATES = [
   { label: '헤어', cat: '헤어', emoji: '💇' }, { label: '카페', cat: '카페', emoji: '☕' },
   { label: '맛집', cat: '음식점', emoji: '🍽️' },
 ];
+// 서비스 소개(에버그린, DB 불필요) — 목·토 슬롯에서 로테이션
+const INTROS = [
+  { topic: 'intro:what', headline: '무협맵이 뭐냐면? 🤔', bullets: ['여기저기 흩어진 협찬을 지도 한 곳에', '내 주변 체험단·협찬을 한눈에', '맛집·카페·뷰티·숙소까지 전부'],
+    caption: '🗺️ 무협맵이 뭐냐면…\n\n블로그·인스타·유튜브에 흩어진 체험단·협찬을\n지도 한 곳에 모아주는 \'리뷰어를 위한 협찬 지도\'예요!\n\n내 주변 협찬부터 바로 찾아보세요.\n👉 프로필 링크 (@muhyeopmap)' },
+  { topic: 'intro:how', headline: '무협맵 이렇게 써요 ✨', bullets: ['① 지도에서 협찬 핀을 탭', '② 협찬 내용·마감일 확인', '③ 플랫폼에서 바로 신청!'],
+    caption: '✨ 무협맵 사용법, 3초면 끝!\n\n① 지도에서 핀 탭 → ② 협찬·마감일 확인 → ③ 신청\n\n복잡하게 여러 사이트 안 돌아다녀도 돼요.\n👉 프로필 링크 (@muhyeopmap)' },
+  { topic: 'intro:features', headline: '무협맵 이런 기능이 🧭', bullets: ['채널별 필터 (블로그·릴스·유튜브)', '실제 방문 후기 확인', '새 협찬 직접 제보'],
+    caption: '🧭 무협맵, 이런 것도 돼요\n\n· 채널별 필터(블로그·릴스·유튜브)\n· 실제 방문 후기 보고 믿고 신청\n· 새로 찾은 협찬 직접 제보\n\n👉 프로필 링크 (@muhyeopmap)' },
+  { topic: 'intro:why', headline: '리뷰어에게 왜 좋냐면 💡', bullets: ['여러 플랫폼 안 돌아다녀도 OK', '내 동선 근처 협찬만 쏙', '후기 보고 믿고 신청'],
+    caption: '💡 리뷰어라면 무협맵 쓰세요\n\n· 여러 플랫폼 뒤질 필요 없이 한 곳에\n· 내 동선 근처 협찬만 쏙\n· 실제 후기 보고 믿고 신청\n\n협찬 찾는 시간 확 줄여드려요.\n👉 프로필 링크 (@muhyeopmap)' },
+  { topic: 'intro:platform', headline: '앱·웹·PC 어디서나 📱💻', bullets: ['iOS·안드로이드 앱', 'PC·모바일 웹 그대로', '언제 어디서나 협찬 탐색'],
+    caption: '📱💻 무협맵은 어디서나!\n\n· iOS·안드로이드 앱\n· PC·모바일 웹\n\n기기 상관없이 내 주변 협찬을 지도에서 바로 찾아보세요.\n👉 앱스토어 \'무협맵\' 검색 · 프로필 링크 (@muhyeopmap)' },
+  { topic: 'intro:favorite', headline: '⭐ 즐겨찾기 기능 추가!', bullets: ['관심 매장을 ⭐로 저장', '즐겨찾기만 지도로 모아보기', '마감 놓치지 않게 한눈에'],
+    caption: '⭐ 새 기능! 즐겨찾기\n\n신청하고 싶은 매장을 ⭐로 저장해두면,\n즐겨찾기한 협찬만 지도·리스트로 모아볼 수 있어요.\n마감 임박도 한눈에!\n\n지금 무협맵에서 써보세요 👉 프로필 링크 (@muhyeopmap)' },
+];
 
 function ddayLabel(deadline) {
   if (!deadline) return '상시';
@@ -101,6 +116,11 @@ async function pickTopic(db) {
     return { topic: 'impact', headline: `전국 협찬 ${Number(total).toLocaleString()}건 🔥`, kind: 'hero',
       caption: `📍 전국 협찬, 지금 ${Number(total).toLocaleString()}건 🔥\n\n블로그·인스타·유튜브… 흩어진 체험단·협찬을\n무협맵 지도 한 곳에서 한눈에!\n\n👉 프로필 링크에서 바로 시작 (@muhyeopmap)` };
   }
+  if (dow === 4 || dow === 6) { // 목·토 — 서비스 소개(에버그린, 로테이션)
+    const wk = Math.floor(Date.now() / (7 * 86400e3));
+    const it = INTROS[(wk * 2 + (dow === 6 ? 1 : 0)) % INTROS.length];
+    return { topic: it.topic, headline: it.headline, bullets: it.bullets, kind: 'intro', caption: it.caption };
+  }
   if (dow === 3) { // 수 — 마감임박
     const rows = cleanRows((await db.execute(`SELECT p.name, p.address, p.category, c.deadline FROM campaigns c JOIN places p ON p.id=c.place_id
       WHERE c.hidden IS NOT 1 AND p.hidden IS NOT 1 AND c.deadline <> '' AND c.deadline >= date('now','+9 hours') AND c.deadline <= date('now','+9 hours','+2 days')
@@ -108,16 +128,16 @@ async function pickTopic(db) {
     if (rows.length >= 3) return { topic: 'deadline', headline: '마감임박 협찬 🚨', rows,
       caption: `🚨 곧 마감! 놓치면 다음 기회까지 기다려야 해요\n\n무협맵에서 내 주변 마감임박 협찬 확인하고 지금 신청하세요!\n\n👉 프로필 링크 (@muhyeopmap)` };
   }
-  if (dow === 1 || dow === 4) { // 월·목 — 지역
-    const idx = (Math.floor(Date.now() / 86400e3) + (dow === 4 ? 3 : 0)) % REGIONS.length;
+  if (dow === 1) { // 월 — 지역
+    const idx = Math.floor(Date.now() / 86400e3) % REGIONS.length;
     const reg = REGIONS[idx];
     const rows = cleanRows((await db.execute({ sql: `SELECT p.name, p.address, p.category, c.deadline FROM campaigns c JOIN places p ON p.id=c.place_id
       WHERE ${ACTIVE} AND p.address LIKE ? ORDER BY c.created_at DESC LIMIT 60`, args: ['%' + reg.like + '%'] })).rows);
     if (rows.length >= 3) return { topic: 'region:' + reg.label, headline: `${reg.label} 신규 협찬 🔥`, rows,
       caption: `📍 ${reg.label} 신규 협찬 모아봤어요!\n\n내 주변 협찬·체험단을 지도에서 한눈에.\n맛집·카페·뷰티·헤어까지 전부 무협맵에서!\n\n👉 프로필 링크 (@muhyeopmap)` };
   }
-  // 화·금·토 — 카테고리(토는 로테이션 뒤쪽)
-  const cidx = (Math.floor(Date.now() / 86400e3) + (kstDow() === 6 ? 2 : 0)) % CATES.length;
+  // 화·금 — 카테고리 (+ 수/월 소재부족 시 폴백)
+  const cidx = Math.floor(Date.now() / 86400e3) % CATES.length;
   const cte = CATES[cidx];
   const rows = cleanRows((await db.execute({ sql: `SELECT p.name, p.address, p.category, c.deadline FROM campaigns c JOIN places p ON p.id=c.place_id
     WHERE ${ACTIVE} AND p.category = ? ORDER BY c.created_at DESC LIMIT 60`, args: [cte.cat] })).rows);
@@ -138,6 +158,14 @@ Design a VERTICAL 4:5 PORTRAIT Instagram card (taller than wide), brand colors r
   if (t.kind === 'hero') {
     return `${pre}
 Center a HUGE bold hero text: "${t.headline}" as the focal point, with a small label above it "전국 협찬 지금". Headline below (Korean): "흩어진 협찬, 무협맵 지도 한 곳에".${foot}`;
+  }
+  if (t.kind === 'intro') {
+    const bl = t.bullets.map((b, i) => `${i + 1}. "${b}"`).join('\n');
+    return `${pre}
+Top headline (Korean, bold, large): "${t.headline}"
+Below it, a clean vertical list of ${t.bullets.length} short Korean benefit lines, each with a small red check or map-pin bullet icon:
+${bl}
+The swordsman boy is prominent and friendly (explaining/presenting pose, e.g. pointing at the list or giving a thumbs-up); the shiba dog beside him. Keep every Korean line spelled EXACTLY as written and clearly legible.${foot}`;
   }
   const list = t.rows.map((r, i) => `${i + 1}. "${r.name}" with a red pill "${r.meta}"`).join('\n');
   return `${pre}
