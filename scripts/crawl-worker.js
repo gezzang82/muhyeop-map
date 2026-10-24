@@ -51,6 +51,7 @@ const { runAutopilot } = require('../api/_autopilot');
 const { refreshStatsCache } = require('../api/_stats');
 const { notifyDailyDigest, serviceAccount } = require('../api/_push');
 const { runDailyIgPost } = require('../api/_igpost');
+const { runWebtoonPost } = require('../api/_igwebtoon');
 
 // 지역별 수집 단위(하위지역). '전체' 목록은 하위지역을 다 담지 않아 누락되므로 하위지역별로 순회한다.
 //  서울=17개 하위지역, 경기=7개, 인천=경기>인천/부천/부평(collectIds가 매핑, mode=jeonche), 부산=전체(하위지역 미정의).
@@ -232,6 +233,12 @@ async function pass() {
       if (process.env.PUSH_SEND_ENABLED === '1') {
         try { const dg = await notifyDailyDigest(db); if (dg.devices) console.log(`  [${ts()}] 하루요약 푸시: ${dg.devices}개 기기 (신규 후보 ${dg.candidates})`); } catch (e) { console.error(`  [${ts()}] 푸시 오류: ${e.message}`); }
       }
+      // 웹툰 캐러셀 자동 발행(웹툰 날이면 먼저, 하루 1포스트 유지 위해 카드보다 우선). 실패해도 무시.
+      try {
+        const wt = await runWebtoonPost(db);
+        if (wt.posted) console.log(`  [${ts()}] 🎞️ 웹툰 ${wt.episode}화 발행: ${wt.slides}장 → ${wt.permalink}`);
+        else if (wt.skipped && !['before-hour', 'not-due', 'posted-today', 'disabled', 'all-done'].includes(wt.skipped)) console.log(`  [${ts()}] 웹툰 발행 스킵: ${wt.skipped}`);
+      } catch (e) { console.error(`  [${ts()}] 웹툰 발행 오류: ${e.message}`); }
       // 하루 1회 인스타 자동 발행(IG_POST_ENABLED=1 + KST TARGET_HOUR 이후, 내부 1일1회 가드). 실패해도 무시.
       try {
         const ig = await runDailyIgPost(db);
