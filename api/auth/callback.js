@@ -192,17 +192,20 @@ module.exports = async function handler(req, res) {
     await ensureUsersTable(db);
 
     const existing = await db.execute({
-      sql: 'SELECT id FROM users WHERE provider = ? AND provider_user_id = ?',
+      sql: 'SELECT id, nickname FROM users WHERE provider = ? AND provider_user_id = ?',
       args: [stateData.provider, profile.providerUserId]
     });
 
     const isNewUser = !existing.rows.length;
     let userId;
+    let finalNick = profile.nickname;
     if (existing.rows.length) {
       userId = existing.rows[0].id;
-      // OAuth 이메일이 비어있으면(카카오 등) 기존 email 유지 — 사용자가 '내 정보'에서 직접 넣은 이메일을 매 로그인마다 지우지 않도록
+      // 닉네임: 사용자가 '내 정보'에서 바꾼 닉네임을 매 로그인마다 OAuth 닉으로 덮어쓰지 않도록 기존값 보존
+      //  (기존 닉이 비어있을 때만 OAuth 닉으로 보정). 이메일도 OAuth가 빈 값(카카오 등)이면 기존 유지.
+      finalNick = existing.rows[0].nickname || profile.nickname;
       await db.execute({
-        sql: "UPDATE users SET nickname = ?, email = CASE WHEN ? = '' THEN email ELSE ? END WHERE id = ?",
+        sql: "UPDATE users SET nickname = CASE WHEN nickname IS NULL OR nickname = '' THEN ? ELSE nickname END, email = CASE WHEN ? = '' THEN email ELSE ? END WHERE id = ?",
         args: [profile.nickname, profile.email || '', profile.email || '', userId]
       });
     } else {
@@ -213,8 +216,8 @@ module.exports = async function handler(req, res) {
       userId = Number(inserted.lastInsertRowid);
     }
 
-    // 세션 쿠키에는 email을 담지 않음(최소노출) — 제보/신고 시 userId로 DB에서 조회
-    const sessionCookie = createSessionCookie({ userId, nickname: profile.nickname, provider: stateData.provider });
+    // 세션 쿠키에는 email을 담지 않음(최소노출) — 제보/신고 시 userId로 DB에서 조회. 닉은 보존된 finalNick 사용.
+    const sessionCookie = createSessionCookie({ userId, nickname: finalNick, provider: stateData.provider });
     res.setHeader('Set-Cookie', [sessionCookie, clearStateCookie()]);
     // 오픈 리다이렉트 방지: 같은 출처의 상대경로('/...')만 허용, '//evil.com'·절대 URL 차단
     let redirectTo = stateData.redirectTo || '/';
