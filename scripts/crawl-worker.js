@@ -50,6 +50,7 @@ const { runScrape, loadDedupe, SEOUL_AREA2, AREA2_BY_REGION } = require('../api/
 const { runAutopilot } = require('../api/_autopilot');
 const { refreshStatsCache } = require('../api/_stats');
 const { notifyDailyDigest, serviceAccount } = require('../api/_push');
+const { runDailyIgPost } = require('../api/_igpost');
 
 // 지역별 수집 단위(하위지역). '전체' 목록은 하위지역을 다 담지 않아 누락되므로 하위지역별로 순회한다.
 //  서울=17개 하위지역, 경기=7개, 인천=경기>인천/부천/부평(collectIds가 매핑, mode=jeonche), 부산=전체(하위지역 미정의).
@@ -231,6 +232,12 @@ async function pass() {
       if (process.env.PUSH_SEND_ENABLED === '1') {
         try { const dg = await notifyDailyDigest(db); if (dg.devices) console.log(`  [${ts()}] 하루요약 푸시: ${dg.devices}개 기기 (신규 후보 ${dg.candidates})`); } catch (e) { console.error(`  [${ts()}] 푸시 오류: ${e.message}`); }
       }
+      // 하루 1회 인스타 자동 발행(IG_POST_ENABLED=1 + KST TARGET_HOUR 이후, 내부 1일1회 가드). 실패해도 무시.
+      try {
+        const ig = await runDailyIgPost(db);
+        if (ig.posted) console.log(`  [${ts()}] 📸 인스타 발행: ${ig.topic} → ${ig.permalink}`);
+        else if (ig.skipped && !['before-hour', 'already-today', 'disabled'].includes(ig.skipped)) console.log(`  [${ts()}] 인스타 발행 스킵: ${ig.skipped}`);
+      } catch (e) { console.error(`  [${ts()}] 인스타 발행 오류: ${e.message}`); }
       // 아직 긁을 게 남았으면 짧게, 다 따라잡았으면 길게 대기(불필요한 요청 방지)
       const wait = (r.more || r.remaining > 0) ? minWaitSec : IDLE_WAIT_SEC;
       console.log(`  다음 패스까지 ${wait}s 대기…\n`);
