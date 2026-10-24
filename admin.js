@@ -574,8 +574,8 @@ function renderMemberSegments(d) {
   };
   const active = Number(d.active || 0), potential = Number(d.potential || 0), churned = Number(d.churned || 0);
   el.innerHTML =
-    seg('#1aa86b', '활동회원', '최근 0~7일 활동', active) +
-    seg('#e8a33d', '잠재·휴면초기', '8~29일', potential) +
+    seg('#1aa86b', '활동회원', '최근 7일 · 재방문', active) +
+    seg('#e8a33d', '잠재·휴면초기', '1회 방문 또는 8~29일', potential) +
     seg('#e2514f', '이탈', '30일+', churned) +
     `<div class="ms-foot">총 ${total.toLocaleString()}명 · 최근 7일 신규가입 <b>${Number(d.new7 || 0).toLocaleString()}</b>명 · 원힛 가입(가입만 하고 재방문 없이 이탈) <b>${Number(d.oneshot || 0).toLocaleString()}</b>명</div>`;
 }

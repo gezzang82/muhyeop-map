@@ -330,8 +330,9 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ count: Number(c.n || 0) });
   }
 
-  // 회원 세그먼트(관리자): 최근 활동일(last_seen_at·user_visits 중 늦은 쪽) 기준 활동/잠재/이탈 집계.
-  // 활동신호 없으면 가입일로 대체. oneshot=가입만 하고 사실상 재방문 없이 이탈(원힛 가입). 서버 집계라 PII 미전송.
+  // 회원 세그먼트(관리자): 최근 활동일(last_seen_at·user_visits 중 늦은 쪽) 기준.
+  //  활동=최근7일 AND 방문2일+(재방문 증명) / 잠재=최근7일이지만 1회방문 OR 8~29일 / 이탈=30일+.
+  //  (1회만 방문한 최근 유저는 리텐션 미증명이라 활동 대신 잠재로) 활동신호 없으면 가입일 대체. 서버 집계라 PII 미전송.
   if (req.query.segments !== undefined) {
     if (!requireAdmin(req, res)) return;
     const r = (await db.execute(`
@@ -353,8 +354,8 @@ module.exports = async function handler(req, res) {
       )
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN rec <= 7 THEN 1 ELSE 0 END) AS active,
-        SUM(CASE WHEN rec > 7 AND rec <= 29 THEN 1 ELSE 0 END) AS potential,
+        SUM(CASE WHEN rec <= 7 AND visit_days >= 2 THEN 1 ELSE 0 END) AS active,
+        SUM(CASE WHEN (rec <= 7 AND visit_days <= 1) OR (rec > 7 AND rec <= 29) THEN 1 ELSE 0 END) AS potential,
         SUM(CASE WHEN rec > 29 THEN 1 ELSE 0 END) AS churned,
         SUM(CASE WHEN s_ago <= 7 THEN 1 ELSE 0 END) AS new7,
         SUM(CASE WHEN visit_days <= 1 AND s_ago > 7 AND rec > 7 THEN 1 ELSE 0 END) AS oneshot
