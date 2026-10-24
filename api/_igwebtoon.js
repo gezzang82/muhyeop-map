@@ -39,10 +39,10 @@ async function setState(db, k, v) { await db.execute({ sql: `INSERT INTO ig_stat
 async function episodeImageUrls(logNo, n) {
   const html = await (await fetch(`https://blog.naver.com/PostView.naver?blogId=muhyeopmap&logNo=${logNo}`, { headers: { 'User-Agent': 'Mozilla/5.0' } })).text();
   const grab = (re) => { const m = html.match(re); return m ? m[0] : null; };
-  const cover = grab(new RegExp(`https://postfiles\\.pstatic\\.net/[^"']*episode-${n}-cover\\.png`));
+  const cover = grab(new RegExp(`https://postfiles\\.pstatic\\.net/[^"']*episode-${n}(?:-v\\d+)?-cover\\.png`));
   const panels = [];
   for (let i = 1; i <= 8; i++) {
-    const p = grab(new RegExp(`https://postfiles\\.pstatic\\.net/[^"']*episode-${n}-panel-0${i}\\.png`));
+    const p = grab(new RegExp(`https://postfiles\\.pstatic\\.net/[^"']*episode-${n}(?:-v\\d+)?-panel-0${i}\\.png`));
     if (p) panels.push(p);
   }
   const urls = [];
@@ -55,6 +55,16 @@ async function downloadPng(url) {
   const res = await fetch(url + '?type=w966', { headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://blog.naver.com/' } });
   if (!res.ok) throw new Error('download ' + res.status);
   return Buffer.from(await res.arrayBuffer());
+}
+
+// 원본 버퍼: 서버에 미리 담아둔 것(ig_assets 'wtsrc-N-*') 우선, 없으면 네이버 블로그 실시간 폴백
+async function getSourceBuffers(db, n, logNo) {
+  const rows = (await db.execute({ sql: "SELECT data FROM ig_assets WHERE id LIKE ? ORDER BY id", args: [`wtsrc-${n}-%`] })).rows;
+  if (rows.length >= 2) return rows.map(r => Buffer.from(r.data, 'base64'));
+  const urls = await episodeImageUrls(logNo, n);
+  const bufs = [];
+  for (const u of urls) bufs.push(await downloadPng(u));
+  return bufs;
 }
 
 async function outpaint(buf) {
@@ -117,17 +127,16 @@ async function runWebtoonPost(db) {
   if ((await getState(db, 'last_post_date')) === today) return { skipped: 'posted-today' };
 
   const ep = EPISODES[next];
-  const urls = await episodeImageUrls(ep.logNo, next);
-  if (urls.length < 2) return { skipped: 'no-images', ep: next };
+  const srcBufs = await getSourceBuffers(db, next, ep.logNo);
+  if (srcBufs.length < 2) return { skipped: 'no-images', ep: next };
 
   // 날짜 선점(중복발행 방지) — 실패 시 webtoon_next는 안 올려 다음 사이클 재시도
   await setState(db, 'last_post_date', today);
   await setState(db, 'webtoon_last_date', today);
 
   const assetIds = [];
-  for (let i = 0; i < urls.length; i++) {
-    const buf = await downloadPng(urls[i]);
-    const b64 = await outpaint(buf);
+  for (let i = 0; i < srcBufs.length; i++) {
+    const b64 = await outpaint(srcBufs[i]);
     const id = `wt-${next}-${i}-${today.replace(/-/g, '')}`;
     await db.execute({ sql: `INSERT OR REPLACE INTO ig_assets (id, mime, data) VALUES (?, 'image/png', ?)`, args: [id, b64] });
     assetIds.push(id);
