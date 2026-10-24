@@ -156,14 +156,14 @@ module.exports = async function handler(req, res) {
       } catch (e) { /* 무시 */ }
       return res.status(200).json({ ok: true });
     }
-    // GNB 탭 클릭 기록: 탭 전환 시 POST ?visit=gnb&tab=home|places|community|my (fire-and-forget). 일별 탭 클릭수 누적.
+    // GNB 탭 클릭 기록: 탭 전환 시 POST ?visit=gnb&tab=home|places|favorites|community|my (fire-and-forget). 일별 탭 클릭수 누적.
     if (req.method === 'POST' && req.query.visit === 'gnb') {
       try {
         await ensureSiteVisitTables(db);
         const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
         if (EXCLUDED_VISIT_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true }); // 운영자 본인 클릭 제외
         const tab = String(req.query.tab || '');
-        if (['home', 'places', 'community', 'my'].includes(tab)) {
+        if (['home', 'places', 'favorites', 'community', 'my'].includes(tab)) {
           await db.execute({ sql: "INSERT INTO gnb_daily (visit_date, tab, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, tab) DO UPDATE SET cnt = cnt + 1", args: [kstDay(), tab] });
         }
       } catch (e) { /* 무시 */ }

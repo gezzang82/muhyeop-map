@@ -600,7 +600,7 @@ function renderGnbClicks(today, total) {
   const el = document.getElementById('gnbClicks');
   if (!el) return;
   today = today || {}; total = total || {};
-  const tabs = [['home', '홈'], ['places', '내 장소'], ['community', '커뮤니티'], ['my', 'MY']];
+  const tabs = [['home', '홈'], ['places', '내 장소'], ['favorites', '즐겨찾기'], ['community', '커뮤니티'], ['my', 'MY']];
   const totalAll = tabs.reduce((s, t) => s + (total[t[0]] || 0), 0);
   if (!totalAll) { el.innerHTML = '<div class="empty-msg">아직 GNB 클릭 데이터가 없어요. (배포 이후부터 수집)</div>'; return; }
   const max = Math.max(1, ...tabs.map(t => total[t[0]] || 0));
