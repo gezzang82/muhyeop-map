@@ -1170,9 +1170,12 @@ function renderMarkers() {
   //  - 활성 캠페인 매장 → 컬러핀 / 후기만 있는 매장 → 회색핀(dim 없이 정상 노출). 저줌은 클러스터.
   //  - 채널 필터 중(전체 아님)엔 그 채널 활성 매장만 표시(필터로 걸러진 건 숨김).
   const filtering = currentChannelFilter !== '전체';
-  const visiblePlaces = places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
-    matchesCategoryFilter(place) &&
-    (!filtering || hasActiveCampaign(place.id)));
+  // PC 즐겨찾기 모드: 뷰포트·채널·카테고리 필터와 무관하게 내 즐겨찾기 매장 핀만(개수 적어 부담 없음).
+  const visiblePlaces = (_favMode && !isMobileView())
+    ? (currentUser ? places.filter(place => !place.hidden && isFavorited(place.id)) : [])
+    : places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
+        matchesCategoryFilter(place) &&
+        (!filtering || hasActiveCampaign(place.id)));
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
   if (!renderMarkers._idleBound) {
@@ -1335,9 +1338,9 @@ function createInfoContent(place) {
     <div class="info-window">
       <div class="iw-place">
         <div class="iw-name-row">
-          <div class="iw-name-text-group iw-name-link" onclick="openNaverMapByPlace(${place.id})" title="네이버지도에서 보기">
+          <div class="iw-name-text-group">
             <span class="iw-name">${place.name}</span>
-            <img src="image/ic_link_16.svg" width="16" height="16" class="iw-name-link-icon" alt="네이버지도에서 보기">
+            ${favStarHtml(place.id)}
           </div>
           <span class="iw-report-link" onclick="openReportModalForPlace(${place.id})">신고하기</span>
           <button class="pc-card-close" onclick="closePcCard()">
@@ -1346,7 +1349,10 @@ function createInfoContent(place) {
             </svg>
           </button>
         </div>
-        <div class="iw-address">${place.address}</div>
+        <div class="iw-address iw-name-link" onclick="openNaverMapByPlace(${place.id})" title="네이버지도에서 보기">
+          <span>${place.address}</span>
+          <img src="image/ic_link_16.svg" width="16" height="16" class="iw-name-link-icon" alt="네이버지도에서 보기">
+        </div>
       </div>
       ${founderHtml ? `<div class="iw-meta-founder">${founderHtml}</div>` : ''}
       ${detailTabsHtml(place)}
@@ -1452,13 +1458,16 @@ function createMobileDetailContent(place) {
     <div class="detail-fixed">
       <div class="detail-place">
         <div class="detail-name-row">
-          <div class="detail-name-text-group detail-name-link" onclick="openNaverMapByPlace(${place.id})">
+          <div class="detail-name-text-group">
             <span class="detail-name">${place.name}</span>
-            <img src="image/ic_link_16.svg" width="16" height="16" class="detail-name-link-icon" alt="네이버지도에서 보기">
+            ${favStarHtml(place.id)}
           </div>
           <span class="detail-report-link" onclick="openReportModalForPlace(${place.id})">신고하기</span>
         </div>
-        <div class="detail-address">${place.address}</div>
+        <div class="detail-address detail-name-link" onclick="openNaverMapByPlace(${place.id})">
+          <span>${place.address}</span>
+          <img src="image/ic_link_16.svg" width="16" height="16" class="detail-name-link-icon" alt="네이버지도에서 보기">
+        </div>
       </div>
       ${founderHtml ? `<div class="detail-meta-founder">${founderHtml}</div>` : ''}
       ${detailTabsHtml(place)}
@@ -1960,9 +1969,53 @@ function placeShuffleKey(id) {
   return _placeShuffleKey.get(id);
 }
 
+// 장소별 활성 캠페인 중 가장 이른 마감일(상시·모집없음=Infinity). 홈/즐겨찾기 사이드바 정렬 공용.
+function earliestDeadlineOf(p) {
+  return getActiveCampaigns(p.id).reduce((min, c) => {
+    const d = deadlineToUTC(c.deadline);
+    return d < min ? d : min;
+  }, Infinity);
+}
+
+// 사이드바 카드 1개(홈·즐겨찾기 공용) — 매장명·채널아이콘·★·주소·캠페인 행(없으면 '모집 없음').
+function sidebarItemHtml(place) {
+  const active = getActiveCampaigns(place.id);
+  // 채널 아이콘 (중복 제거)
+  const channels = [...new Set(active.flatMap(c => c.channels))];
+  const channelIconsHtml = channels.map(ch =>
+    CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}">` : ''
+  ).join('');
+  // 캠페인 행들
+  const campaignsHtml = active.map(c => {
+    const color = getPlatformColor(c.platform);
+    const dl = getDeadlineText(c.deadline);
+    const ddayHtml = dl ? `<span class="sb-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : '';
+    return `
+      <div class="sb-campaign">
+        <span class="sb-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
+        <span class="sb-content">${c.content}</span>
+        ${ddayHtml}
+      </div>`;
+  }).join('');
+  // 활성 캠페인 없는 즐겨찾기 매장 → '모집 없음'
+  const bodyHtml = active.length ? campaignsHtml : '<div class="sb-campaign"><span class="sb-noactive">모집 없음</span></div>';
+  return `
+    <div class="sb-item" onclick="focusPlace(${place.id})">
+      <div class="sb-row-name">
+        <span class="sb-name">${place.name}</span>
+        <div class="sb-channels">${channelIconsHtml}</div>
+        ${favStarHtml(place.id)}
+      </div>
+      <div class="sb-address">${place.address}</div>
+      ${bodyHtml}
+    </div>`;
+}
+
 function renderSidebar() {
   const list = document.getElementById('campaignList');
   const countEl = document.getElementById('campaignCount');
+  // PC 즐겨찾기 모드: 지도·사이드바를 내 즐겨찾기로 스코프(stale/뷰포트 로직과 독립).
+  if (_favMode && !isMobileView()) { renderFavSidebar(list, countEl); return; }
   // 어떤 경로로든 리스트를 그리면 현재 뷰와 동기화된 상태 → stale 해제.
   setSidebarStale(false);
 
@@ -1993,14 +2046,10 @@ function renderSidebar() {
 
   // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래).
   // 마감일 동률이면 세션마다 무작위로 섞어 노출(같은 플랫폼 배치가 뭉치지 않게, 고정 편중 방지).
-  const earliestDeadline = p => getActiveCampaigns(p.id).reduce((min, c) => {
-    const d = deadlineToUTC(c.deadline);
-    return d < min ? d : min;
-  }, Infinity);
   const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id) && matchesCategoryFilter(p));
   // 가장 이른 마감일을 장소별로 1회만 계산(메모) → sort 비교마다 재계산(O(N log N)회) 방지.
   const _ed = new Map();
-  for (const p of activePlaces) _ed.set(p.id, earliestDeadline(p));
+  for (const p of activePlaces) _ed.set(p.id, earliestDeadlineOf(p));
   activePlaces.sort((a, b) => {
     const da = _ed.get(a.id), db = _ed.get(b.id);
     if (da !== db) return da - db;
@@ -2026,38 +2075,7 @@ function renderSidebar() {
   }
 
   const noticeHtml = '<div class="sidebar-notice">모집 일정·조건·내용은 변경될 수 있어요. 신청 전 <strong>해당 플랫폼에서 최신 정보를 꼭 확인</strong>해 주세요.</div>';
-  list.innerHTML = noticeHtml + activePlaces.map(place => {
-    const active = getActiveCampaigns(place.id);
-
-    // 채널 아이콘 (중복 제거)
-    const channels = [...new Set(active.flatMap(c => c.channels))];
-    const channelIconsHtml = channels.map(ch =>
-      CHANNEL_ICONS[ch] ? `<img src="${CHANNEL_ICONS[ch]}" width="20" height="20" alt="${ch}">` : ''
-    ).join('');
-
-    // 캠페인 행들
-    const campaignsHtml = active.map(c => {
-      const color = getPlatformColor(c.platform);
-      const dl = getDeadlineText(c.deadline);
-      const ddayHtml = dl ? `<span class="sb-dday ${dl.urgent ? 'urgent' : ''}">${dl.text}</span>` : '';
-      return `
-        <div class="sb-campaign">
-          <span class="sb-platform-tag" style="background:${color}29;color:${color}">${c.platform}</span>
-          <span class="sb-content">${c.content}</span>
-          ${ddayHtml}
-        </div>`;
-    }).join('');
-
-    return `
-      <div class="sb-item" onclick="focusPlace(${place.id})">
-        <div class="sb-row-name">
-          <span class="sb-name">${place.name}</span>
-          <div class="sb-channels">${channelIconsHtml}</div>
-        </div>
-        <div class="sb-address">${place.address}</div>
-        ${campaignsHtml}
-      </div>`;
-  }).join('');
+  list.innerHTML = noticeHtml + activePlaces.map(sidebarItemHtml).join('');
   updateSidebarListFade();
 }
 
@@ -3130,6 +3148,157 @@ function switchTab(tab) {
     const sc = document.getElementById('myScroll'); if (sc) sc.scrollTop = 0;
     bindMobileScrollHeader('myScroll', 'myScrollHeader', 'myStickyHeader');
   }
+}
+
+// ===== 즐겨찾기(관심 매장) =====
+// 로그인 계정 기반. _favorites = 내가 저장한 placeId Set. 매장상세 ★ 토글 + PC 즐겨찾기 '모드'(지도+사이드바 스코프).
+// API: GET /api/users?favorites=1 (목록+활성캠페인) / POST ?favorites=toggle {placeId} (추가·해제). [[api-db]]
+let _favorites = new Set();
+let _favItems = [];   // 즐겨찾기 목록 마지막 스냅샷(places/campaigns 병합 소스)
+let _favMode = false; // PC 즐겨찾기 모드(지도·사이드바를 내 즐겨찾기로 스코프) 여부
+let _favLoading = false;
+
+function _favEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function isFavorited(placeId) { return _favorites.has(Number(placeId)); }
+
+// 로그인 유저의 즐겨찾기 placeId 집합을 서버에서 로드(비로그인은 비움). refreshAuthUI에서 호출.
+async function loadFavorites() {
+  if (!currentUser) { _favorites = new Set(); return; }
+  try {
+    const res = await fetch('/api/users?favorites=1', { credentials: 'same-origin' });
+    if (!res.ok) return;
+    const arr = await res.json();
+    if (Array.isArray(arr)) { _favItems = arr; _favorites = new Set(arr.map(f => Number(f.placeId))); }
+  } catch (e) {}
+}
+
+// 매장상세(모바일 시트·PC 카드)의 ★ 버튼 — 즐겨찾기 상태면 금색 채움, 아니면 회색 아웃라인.
+function favStarHtml(placeId) {
+  const on = isFavorited(placeId);
+  return `<button class="fav-star${on ? ' on' : ''}" data-place="${placeId}" aria-label="즐겨찾기" aria-pressed="${on ? 'true' : 'false'}" onclick="event.stopPropagation(); toggleFavorite(${placeId}, this);"><img src="image/${on ? 'ic_fav_on' : 'ic_fav'}.svg" width="20" height="20" alt=""></button>`;
+}
+
+// 화면에 떠 있는 해당 매장 ★ 버튼들(모바일/PC 공존 가능) 상태 동기화
+function updateFavStars(placeId) {
+  const on = isFavorited(placeId);
+  document.querySelectorAll('.fav-star[data-place="' + Number(placeId) + '"]').forEach(b => {
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    const img = b.querySelector('img'); if (img) img.src = 'image/' + (on ? 'ic_fav_on' : 'ic_fav') + '.svg';
+  });
+}
+
+async function toggleFavorite(placeId, btn) {
+  placeId = Number(placeId);
+  if (!currentUser) {
+    showToast('로그인하면 관심 매장을 저장할 수 있어요');
+    if (typeof openLoginSheet === 'function') { try { openLoginSheet(); } catch (e) {} }
+    return;
+  }
+  const wasOn = isFavorited(placeId);
+  if (wasOn) _favorites.delete(placeId); else _favorites.add(placeId);  // 낙관적
+  updateFavStars(placeId);
+  try {
+    const res = await fetch('/api/users?favorites=toggle', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin', body: JSON.stringify({ placeId }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'fail');
+    if (d.favorited) _favorites.add(placeId); else _favorites.delete(placeId);
+    updateFavStars(placeId);
+    showToast(d.favorited ? '즐겨찾기에 추가했어요' : '즐겨찾기에서 뺐어요');
+    // OFF면 그 매장이 즐겨찾기 리스트·지도 핀에서 즉시 사라지게 재렌더(즐겨찾기 모드일 때).
+    if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }
+  } catch (e) {
+    if (wasOn) _favorites.add(placeId); else _favorites.delete(placeId);  // 롤백
+    updateFavStars(placeId);
+    showToast(e.message === 'limit_reached' ? '즐겨찾기는 최대 200개까지예요' : '잠시 후 다시 시도해주세요');
+  }
+}
+
+// 즐겨찾기 목록(활성 캠페인 포함)을 서버에서 받아 places/campaigns in-memory에 병합.
+//  지도 핀·사이드바 카드가 모두 in-memory 기준으로 그려지므로, 화면 밖 즐겨찾기도 이걸로 확보.
+async function loadFavoritesFull() {
+  if (!currentUser) { _favItems = []; _favorites = new Set(); return; }
+  let arr = [];
+  try {
+    const res = await fetch('/api/users?favorites=1', { credentials: 'same-origin' });
+    if (!res.ok) return;
+    arr = await res.json();
+    if (!Array.isArray(arr)) arr = [];
+  } catch (e) { return; }
+  _favItems = arr;
+  _favorites = new Set(arr.map(f => Number(f.placeId)));
+  for (const f of arr) {
+    const pid = Number(f.placeId);
+    if (!places.find(p => p.id === pid)) {
+      places.push({ id: pid, name: f.name, address: f.address, category: f.category || '', lat: f.lat, lng: f.lng, hasReview: (f.reviewCount || 0) > 0 });
+    }
+    (f.campaigns || []).forEach(c => {
+      if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); }
+    });
+  }
+  invalidateActiveCache();
+}
+
+// PC 즐겨찾기 모드 진입: 지도+좌측 사이드바를 내 즐겨찾기로 스코프. (모바일은 이번 차수 미대응)
+async function enterFavMode() {
+  _favMode = true;
+  _favLoading = true;
+  renderMarkers(); renderSidebar();   // 로딩/현재 스냅샷 먼저 반영
+  await loadFavoritesFull();
+  _favLoading = false;
+  if (!_favMode) return;              // 로드 중 다른 탭으로 이동했으면 중단
+  renderMarkers(); renderSidebar();
+}
+function exitFavMode() {
+  if (!_favMode) return;
+  _favMode = false;
+  renderMarkers(); renderSidebar();
+}
+
+// 즐겨찾기 모드 사이드바 — 로그인 안내 / 로딩 / 빈 / 내 즐겨찾기 전체(마감임박순, 모집없음은 맨 아래)
+function renderFavSidebar(list, countEl) {
+  _sbRenderedBounds = null;   // 즐겨찾기 모드는 뷰포트 무관 → stale/뷰변경 판정 비활성
+  if (!currentUser) {
+    countEl.textContent = '';
+    list.innerHTML = `
+      <div class="empty-state">
+        <img src="image/img_list_80.png" alt="" class="empty-img">
+        <p>로그인하고 관심 매장을 저장해보세요.<br>매장 상세에서 ★을 누르면 여기 모여요.</p>
+        <button class="fav-login-btn" onclick="(typeof openLoginSheet==='function')&&openLoginSheet()">로그인</button>
+      </div>`;
+    return;
+  }
+  if (_favLoading && !_favItems.length) {
+    countEl.textContent = '';
+    list.innerHTML = '<div class="sidebar-loading"></div>';
+    return;
+  }
+  const favPlaces = [];
+  _favorites.forEach(id => { const p = places.find(x => x.id === id); if (p && !p.hidden) favPlaces.push(p); });
+  countEl.textContent = favPlaces.length;
+  if (!favPlaces.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <img src="image/img_list_80.png" alt="" class="empty-img">
+        <p>아직 즐겨찾기한 매장이 없어요.<br>매장 상세에서 ★을 눌러 저장해보세요.</p>
+      </div>`;
+    return;
+  }
+  // 정렬: ①모집 없음(활성 0)은 항상 맨 아래 ②그 안에서 마감임박순(상시=Infinity는 뒤) ③동률은 세션 셔플.
+  const _ed = new Map();
+  for (const p of favPlaces) _ed.set(p.id, earliestDeadlineOf(p));
+  favPlaces.sort((a, b) => {
+    const aAct = hasActiveCampaign(a.id), bAct = hasActiveCampaign(b.id);
+    if (aAct !== bAct) return aAct ? -1 : 1;
+    const da = _ed.get(a.id), db = _ed.get(b.id);
+    if (da !== db) return da - db;
+    return placeShuffleKey(a.id) - placeShuffleKey(b.id);
+  });
+  list.innerHTML = favPlaces.map(sidebarItemHtml).join('');
+  updateSidebarListFade();
 }
 
 // ===== 커뮤니티 탭 =====
@@ -4541,6 +4710,10 @@ async function refreshAuthUI() {
     currentUser = null;
   }
   _authChecked = true;
+  // 즐겨찾기 상태 로드(로그인 유저) → 열려있는 상세 ★ 반영. PC 즐겨찾기 모드 중이면 목록도 갱신.
+  await loadFavorites();
+  _favorites.forEach(pid => updateFavStars(pid));
+  if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }
   const loggedIn = !!currentUser;
   // 로그인 상태에 따라 갱신되는 탭들 먼저 처리 — 아래 PC/사이드메뉴/마커 로직 중 하나가 실패해도 항상 반영되도록 앞에 둠
   renderMyPage();       // MY 탭
@@ -5361,11 +5534,13 @@ function switchPcTab(tab) {
   }
 
   pcTabActive = tab;
-  // 좌측 레일 active (홈/내장소/커뮤니티/MY)
+  // 좌측 레일 active (홈/내장소/즐겨찾기/커뮤니티/MY)
   document.getElementById('tabCampaigns')?.classList.toggle('active', tab === 'campaigns');
   document.getElementById('tabMyPlaces')?.classList.toggle('active', tab === 'myplaces');
+  document.getElementById('tabFavorites')?.classList.toggle('active', tab === 'favorites');
   document.getElementById('tabCommunity')?.classList.toggle('active', tab === 'community');
   document.getElementById('tabMyInfo')?.classList.toggle('active', tab === 'myinfo');
+  document.body.classList.toggle('pc-favorites-mode', tab === 'favorites');
   document.body.classList.toggle('pc-report-mode', tab === 'report');
   document.body.classList.toggle('pc-reportissue-mode', tab === 'reportissue');
   document.body.classList.toggle('pc-about-mode', tab === 'about');
@@ -5375,6 +5550,12 @@ function switchPcTab(tab) {
 
   // 내 장소 PC (좌측 리스트 패널 + 지도 + 플로팅 설정 카드)
   if (tab === 'myplaces') { openPcMyPlaces(); } else { closePcMyPlaces(); }
+
+  // 즐겨찾기 모드(지도+사이드바 스코프) 진입/해제 — 홈과 같은 지도 레이아웃을 쓰되 내 즐겨찾기로 스코프.
+  const sbTitle = document.querySelector('.sidebar-title');
+  if (sbTitle) sbTitle.textContent = (tab === 'favorites') ? '즐겨찾기' : '모집 중인 협찬';
+  if (tab === 'favorites') { enterFavMode(); }
+  else if (_favMode) { exitFavMode(); }
 
   // 커뮤니티 PC (전체폭 콘텐츠 — 모바일 #tabView-community 재사용, 이웃찾기=masonry/후기=grid는 CSS)
   if (tab === 'community') {

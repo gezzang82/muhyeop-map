@@ -135,6 +135,8 @@ img, a { -webkit-user-drag: none; user-drag: none; }
 #tabCampaigns.active .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_home_on.svg); mask-image: url(image/ic_gnb_home_on.svg); }
 #tabMyPlaces .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_place.svg); mask-image: url(image/ic_gnb_place.svg); }
 #tabMyPlaces.active .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_place_on.svg); mask-image: url(image/ic_gnb_place_on.svg); }
+#tabFavorites .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_fav.svg); mask-image: url(image/ic_gnb_fav.svg); }
+#tabFavorites.active .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_fav_on.svg); mask-image: url(image/ic_gnb_fav_on.svg); }
 #tabCommunity .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_community.svg); mask-image: url(image/ic_gnb_community.svg); }
 #tabCommunity.active .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_community_on.svg); mask-image: url(image/ic_gnb_community_on.svg); }
 #tabMyInfo .pc-nav-ico { -webkit-mask-image: url(image/ic_gnb_my.svg); mask-image: url(image/ic_gnb_my.svg); }
@@ -1526,6 +1528,22 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .iw-channels img { border-radius: 4px; display: block; }
 .iw-address { font-size: 14px; color: #777; padding: 5px 0; }
 
+/* 매장상세 즐겨찾기 ★ 토글 (이름 옆, 모바일 시트·PC 카드 공통) */
+.fav-star { flex-shrink: 0; width: 24px; height: 24px; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+.fav-star img { display: block; width: 20px; height: 20px; }
+.fav-star:active { transform: scale(0.88); }
+/* 사이드바 카드 행의 ★는 오른쪽 끝으로(채널 아이콘 뒤) */
+.sb-row-name .fav-star { margin-left: auto; }
+/* 즐겨찾기 리스트에서 활성 협찬 없는 매장 */
+.sb-noactive { font-size: 14px; color: #999; }
+/* 즐겨찾기 모드(PC): 리스트 고정/새로고침 로직과 독립 → 새로고침 버튼 숨김 */
+body.pc-favorites-mode .refresh-btn { display: none; }
+/* 즐겨찾기 빈/로그인 안내(empty-state)의 로그인 버튼 — PC 사이드바에서도 사용 */
+.fav-login-btn { margin-top: 12px; height: 44px; padding: 0 28px; border: 0; border-radius: 22px; background: #e82a2d; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+/* 주소줄에 네이버지도 링크 아이콘 인라인 → flex 정렬(이름 옆자리는 이제 ★ 전용) */
+.iw-address, .detail-address { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.iw-address > span, .detail-address > span { min-width: 0; }
+
 /* 최초제보자 */
 .iw-meta-founder { padding: 0 20px 0; display: flex; flex-direction: column; gap: 12px; }
 .iw-founder { display: flex; align-items: center; gap: 8px; height: 26px; }
@@ -2666,7 +2684,7 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 
   .detail-place { display: flex; flex-direction: column; }
   .detail-name-row { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; }
-  .detail-name-text-group { display: flex; flex: 1; min-width: 0; align-items: flex-start; }
+  .detail-name-text-group { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; }
   .detail-report-link { font-size: 13px; color: #777; text-decoration: underline; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
   .detail-name-link { cursor: pointer; gap: 6px; }
   .detail-name-link-icon { flex-shrink: 0; display: block; margin-top: 2px; }

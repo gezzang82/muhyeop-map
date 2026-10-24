@@ -234,6 +234,105 @@ async function handleUserPlaces(req, res, db) {
   return res.status(405).json({ error: 'Method Not Allowed' });
 }
 
+async function ensureFavoritesTable(db) {
+  try {
+    await db.execute("CREATE TABLE IF NOT EXISTS user_favorites (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, place_id INTEGER NOT NULL, created_at TEXT DEFAULT (datetime('now')), UNIQUE(user_id, place_id))");
+  } catch (e) {}
+  try { await db.execute("CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(user_id)"); } catch (e) {}
+}
+
+// 즐겨찾기 리치 카드/지도 핀용 캠페인 변환(app.js `campaigns`/`toCampaign`와 호환, PII는 제외)
+function favToCampaign(row) {
+  return {
+    id: row.id,
+    placeId: row.place_id,
+    platform: row.platform,
+    channels: JSON.parse(row.channels || '[]'),
+    content: row.content,
+    deadline: row.deadline,
+    link: row.link || '',
+    operatingDays: JSON.parse(row.operating_days || '[]'),
+    operatingHours: row.operating_hours || '',
+    excludeHoliday: !!row.exclude_holiday,
+    source: row.source || 'unknown',
+    hidden: !!row.hidden,
+  };
+}
+
+// 즐겨찾기(관심 매장) — 로그인 필수. GET=내 즐겨찾기 목록(매장+활성협찬수) / POST ?favorites=toggle=추가·해제
+async function handleFavorites(req, res, db) {
+  const session = readSession(req);
+  const userId = (session && session.userId) ? session.userId : null;
+  if (!userId) return res.status(401).json({ error: 'login_required' });
+  await ensureFavoritesTable(db);
+
+  if (req.method === 'GET') {
+    // KST 오늘 — 활성 캠페인 판정(상시는 등록 45일 이내만 활성, 그 외 마감>=오늘)
+    const kstToday = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const r = await db.execute({
+      sql: `SELECT f.place_id AS place_id, f.created_at AS fav_at,
+                   p.name, p.address, p.category, p.lat, p.lng,
+                   (SELECT COUNT(*) FROM reviews rv WHERE rv.place_id = p.id AND COALESCE(rv.hidden,0)=0) AS review_count
+            FROM user_favorites f JOIN places p ON p.id = f.place_id
+            WHERE f.user_id = ? AND COALESCE(p.hidden,0)=0
+            ORDER BY f.id DESC`,
+      args: [userId],
+    });
+    const items = r.rows.map(row => ({
+      placeId: row.place_id,
+      name: row.name || '',
+      address: row.address || '',
+      category: row.category || '',
+      lat: row.lat, lng: row.lng,
+      activeCount: 0,
+      reviewCount: Number(row.review_count || 0),
+      favoritedAt: row.fav_at,
+      campaigns: [],
+    }));
+    // 각 즐겨찾기 매장의 활성 캠페인(리치 카드/지도 핀용) — 한 번에 조회해 매장별로 묶음.
+    //  활성 판정은 공개 앱과 동일(hidden=0 + (상시 45일 이내 OR deadline>=오늘)).
+    if (items.length) {
+      const ids = items.map(it => it.placeId);
+      const ph = ids.map(() => '?').join(',');
+      const cr = await db.execute({
+        sql: `SELECT * FROM campaigns
+                WHERE place_id IN (${ph}) AND COALESCE(hidden,0)=0
+                  AND (((deadline='' OR deadline IS NULL) AND created_at >= datetime('now','-45 days')) OR deadline >= ?)`,
+        args: [...ids, kstToday],
+      });
+      const byPlace = new Map();
+      for (const c of cr.rows) {
+        const cam = favToCampaign(c);
+        let arr = byPlace.get(cam.placeId); if (!arr) { arr = []; byPlace.set(cam.placeId, arr); }
+        arr.push(cam);
+      }
+      for (const it of items) { it.campaigns = byPlace.get(it.placeId) || []; it.activeCount = it.campaigns.length; }
+    }
+    return res.status(200).json(items);
+  }
+
+  if (req.method === 'POST') {
+    const placeId = Number((req.body || {}).placeId);
+    if (!placeId) return res.status(400).json({ error: 'placeId required' });
+    const ex = (await db.execute({ sql: "SELECT id FROM user_favorites WHERE user_id=? AND place_id=?", args: [userId, placeId] })).rows[0];
+    if (ex) {
+      await db.execute({ sql: "DELETE FROM user_favorites WHERE id=?", args: [ex.id] });
+      return res.status(200).json({ ok: true, favorited: false });
+    }
+    // 과도 저장 방지(최대 200개)
+    const cnt = (await db.execute({ sql: "SELECT COUNT(*) AS n FROM user_favorites WHERE user_id=?", args: [userId] })).rows[0];
+    if (Number(cnt.n || 0) >= 200) return res.status(400).json({ error: 'limit_reached' });
+    // 존재하는 매장만
+    const pl = (await db.execute({ sql: "SELECT id FROM places WHERE id=?", args: [placeId] })).rows[0];
+    if (!pl) return res.status(404).json({ error: 'place not found' });
+    await db.execute({ sql: "INSERT OR IGNORE INTO user_favorites (user_id, place_id) VALUES (?,?)", args: [userId, placeId] });
+    return res.status(200).json({ ok: true, favorited: true });
+  }
+
+  res.setHeader('Allow', 'GET, POST');
+  return res.status(405).json({ error: 'Method Not Allowed' });
+}
+
 function toUser(row) {
   return {
     id: row.id,
@@ -279,6 +378,11 @@ module.exports = async function handler(req, res) {
   // 내 장소(집/회사/여행지) CRUD — 로그인 계정 기반. GET/POST/DELETE 모두 여기서(GET 가드 이전).
   if (req.query.places !== undefined) {
     return handleUserPlaces(req, res, db);
+  }
+
+  // 즐겨찾기(관심 매장) — 로그인 계정 기반. GET=목록 / POST ?favorites=toggle=토글. (GET 가드 이전)
+  if (req.query.favorites !== undefined) {
+    return handleFavorites(req, res, db);
   }
 
   // 서이추 글쓰기(POST) — GET 가드 이전. 로그인+블로그 필요.
