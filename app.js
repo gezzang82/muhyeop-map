@@ -3157,6 +3157,7 @@ let _favorites = new Set();
 let _favItems = [];   // 즐겨찾기 목록 마지막 스냅샷(places/campaigns 병합 소스)
 let _favMode = false; // PC 즐겨찾기 모드(지도·사이드바를 내 즐겨찾기로 스코프) 여부
 let _favLoading = false;
+let _favBusy = new Set(); // 토글 처리 중인 placeId(연타/경합 방지 잠금)
 
 function _favEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function isFavorited(placeId) { return _favorites.has(Number(placeId)); }
@@ -3175,7 +3176,7 @@ async function loadFavorites() {
 // 매장상세(모바일 시트·PC 카드)의 ★ 버튼 — 즐겨찾기 상태면 금색 채움, 아니면 회색 아웃라인.
 function favStarHtml(placeId) {
   const on = isFavorited(placeId);
-  return `<button class="fav-star${on ? ' on' : ''}" data-place="${placeId}" aria-label="즐겨찾기" aria-pressed="${on ? 'true' : 'false'}" onclick="event.stopPropagation(); toggleFavorite(${placeId}, this);"><img src="image/${on ? 'ic_fav_on' : 'ic_fav'}.svg" width="20" height="20" alt=""></button>`;
+  return `<button class="fav-star${on ? ' on' : ''}" data-place="${placeId}" aria-label="즐겨찾기" aria-pressed="${on ? 'true' : 'false'}" onclick="event.stopPropagation(); toggleFavorite(${placeId}, this);"><span class="fav-star-icons" aria-hidden="true"><img class="fav-star-off" src="image/ic_fav.svg" width="20" height="20" alt=""><img class="fav-star-on" src="image/ic_fav_on.svg" width="20" height="20" alt=""></span></button>`;
 }
 
 // 화면에 떠 있는 해당 매장 ★ 버튼들(모바일/PC 공존 가능) 상태 동기화
@@ -3184,8 +3185,46 @@ function updateFavStars(placeId) {
   document.querySelectorAll('.fav-star[data-place="' + Number(placeId) + '"]').forEach(b => {
     b.classList.toggle('on', on);
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
-    const img = b.querySelector('img'); if (img) img.src = 'image/' + (on ? 'ic_fav_on' : 'ic_fav') + '.svg';
   });
+}
+
+// Only the initiating button moves; login sync, server reconciliation and rollback stay instant.
+function animateFavStar(btn, on) {
+  if (!btn || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const icons = btn.querySelector('.fav-star-icons');
+  if (!icons) return;
+  icons.getAnimations().forEach(a => a.cancel());
+  // 별 팝 — ON은 크게 튀는 오버슈트(바운스), OFF는 담백.
+  icons.animate(
+    on ? [
+      { transform: 'scale(1)', offset: 0 },
+      { transform: 'scale(0.6)', offset: 0.15 },
+      { transform: 'scale(1.4)', offset: 0.5 },
+      { transform: 'scale(0.9)', offset: 0.72 },
+      { transform: 'scale(1)', offset: 1 },
+    ] : [
+      { transform: 'scale(1)', offset: 0 },
+      { transform: 'scale(0.8)', offset: 0.4 },
+      { transform: 'scale(1)', offset: 1 },
+    ],
+    { duration: on ? 440 : 180, easing: 'cubic-bezier(0.34, 1.4, 0.5, 1)', fill: 'none' }
+  );
+  if (!on) return;                 // 반짝 버스트는 ON(찜 추가)에만
+  // 링 펄스 + 방사형 반짝 파티클(주입 후 자동 제거). transform/opacity만 사용.
+  const burst = document.createElement('span');
+  burst.className = 'fav-burst';
+  const ring = document.createElement('i');
+  ring.className = 'fav-burst-ring';
+  burst.appendChild(ring);
+  const N = 6;
+  for (let i = 0; i < N; i++) {
+    const p = document.createElement('i');
+    p.className = 'fav-burst-p';
+    p.style.transform = 'rotate(' + (i * (360 / N)) + 'deg)';
+    burst.appendChild(p);
+  }
+  btn.appendChild(burst);
+  setTimeout(() => burst.remove(), 650);
 }
 
 async function toggleFavorite(placeId, btn) {
@@ -3195,9 +3234,24 @@ async function toggleFavorite(placeId, btn) {
     if (typeof openLoginSheet === 'function') { try { openLoginSheet(); } catch (e) {} }
     return;
   }
+  // 연타/경합 방지: 같은 매장 토글이 처리 중이면 무시(서버 응답 올 때까지 잠금).
+  if (_favBusy.has(placeId)) return;
+  _favBusy.add(placeId);
+  const setBusy = (b) => document.querySelectorAll('.fav-star[data-place="' + placeId + '"]').forEach(el => el.classList.toggle('busy', b));
+  setBusy(true);
   const wasOn = isFavorited(placeId);
+  // Enable crossfade only for this user action, never for bulk synchronization.
+  if (btn) {
+    btn.classList.add('just-toggled');
+    clearTimeout(btn._favMotionTimer);
+    btn._favMotionTimer = setTimeout(() => btn.classList.remove('just-toggled'), 300);
+  }
   if (wasOn) _favorites.delete(placeId); else _favorites.add(placeId);  // 낙관적
   updateFavStars(placeId);
+  animateFavStar(btn, !wasOn);
+  // 즐겨찾기 모드: OFF면 리스트·지도 핀에서 '즉시' 제거(서버 응답 안 기다림). 지연 제거로 생기던
+  //  "몇 초 뒤 사라짐 + 그 사이 재ON 시 유지" 혼란 방지.
+  if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }
   try {
     const res = await fetch('/api/users?favorites=toggle', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3205,15 +3259,22 @@ async function toggleFavorite(placeId, btn) {
     });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || 'fail');
-    if (d.favorited) _favorites.add(placeId); else _favorites.delete(placeId);
-    updateFavStars(placeId);
-    showToast(d.favorited ? '즐겨찾기에 추가했어요' : '즐겨찾기에서 뺐어요');
-    // OFF면 그 매장이 즐겨찾기 리스트·지도 핀에서 즉시 사라지게 재렌더(즐겨찾기 모드일 때).
-    if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }
+    // 서버 확정값이 낙관값과 다르면(드문 경합) 보정.
+    const serverOn = !!d.favorited;
+    if (serverOn !== _favorites.has(placeId)) {
+      if (serverOn) _favorites.add(placeId); else _favorites.delete(placeId);
+      updateFavStars(placeId);
+      if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }
+    }
+    showToast(serverOn ? '즐겨찾기에 추가했어요' : '즐겨찾기에서 뺐어요');
   } catch (e) {
     if (wasOn) _favorites.add(placeId); else _favorites.delete(placeId);  // 롤백
     updateFavStars(placeId);
+    if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }  // 롤백 반영
     showToast(e.message === 'limit_reached' ? '즐겨찾기는 최대 200개까지예요' : '잠시 후 다시 시도해주세요');
+  } finally {
+    _favBusy.delete(placeId);
+    setBusy(false);
   }
 }
 
