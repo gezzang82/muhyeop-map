@@ -23,6 +23,22 @@ function toBanner(row) {
 
 module.exports = async function handler(req, res) {
   const db = getDb();
+
+  // 공개: 인스타 자동발행용 이미지 서빙. IG Graph API는 '공개 이미지 URL'만 받으므로,
+  // 생성한 카드 PNG를 ig_assets에 base64로 저장해두고 이 URL(?asset=<id>)로 서빙한다.
+  // (함수 12개 제한 때문에 새 파일 대신 banners.js에 분기로 합침)
+  if (req.method === 'GET' && req.query.asset) {
+    try {
+      await db.execute(`CREATE TABLE IF NOT EXISTS ig_assets (id TEXT PRIMARY KEY, mime TEXT, data TEXT, created_at TEXT DEFAULT (datetime('now')))`);
+      const r = await db.execute({ sql: 'SELECT mime, data FROM ig_assets WHERE id=?', args: [String(req.query.asset)] });
+      if (!r.rows.length) return res.status(404).json({ error: 'not found' });
+      const buf = Buffer.from(r.rows[0].data, 'base64');
+      res.setHeader('Content-Type', r.rows[0].mime || 'image/png');
+      res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+      return res.status(200).send(buf);
+    } catch (e) { return res.status(500).json({ error: 'asset error' }); }
+  }
+
   await db.execute(`CREATE TABLE IF NOT EXISTS banners (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     image_url TEXT NOT NULL,
