@@ -767,7 +767,7 @@ function initMap() {
     if (openInfoWindow) { openInfoWindow.close(); openInfoWindow = null; }
     const sheet = document.getElementById('mobileSheet');
     if (isMobileView() && sheet && sheet.classList.contains('show')) {
-      closeMobileSheet();
+      closeMobileSheet(false);   // 지도 탐색 중 → 리스트 자동 재펼침 안 함(peek로)
     }
   });
 
@@ -2184,8 +2184,10 @@ function _sidebarViewChanged() {
 //  · 저줌→고줌 첫 진입: 1회 자동 렌더
 //  · 그 외 고줌: 리스트 고정. 사용자 조작으로 뷰가 바뀌었고 카드팬이 아니면 새로고침 버튼만 강조(stale)
 // idle 핸들러와 캠페인 타일 로더(_fetchCampaignTiles) 양쪽에서 호출 → 한쪽만 렌더해 프리즈가 깨지지 않게.
+// 모바일: 리스트에서 상세를 연 동안엔 리스트를 프리즈(지도 이동으로 재렌더되지 않게) → 닫을 때 스크롤 위치 복원 가능.
+let _mobileListReturn = null;   // {full, scrollTop} — 확장 리스트에서 상세를 연 경우만. 복원 대기 중엔 프리즈.
 function maybeRenderSidebarForView() {
-  if (isMobileView()) { renderSidebar(); return; }
+  if (isMobileView()) { if (_mobileListReturn) return; renderSidebar(); return; }
   const below = map && map.getZoom && map.getZoom() < CAMPAIGN_MIN_ZOOM;
   if (below) { renderSidebar(); return; }          // 저줌: 항상 '확대 안내'로 동기화(고정 안 함)
   if (_sbSkipStale) return;                        // 카드 오픈용 자동이동 중: 완전 고정(렌더·stale 둘 다 안 함)
@@ -2212,15 +2214,22 @@ async function focusPlace(placeId, zoom) {
   if (isMobileView()) {
     // 모바일: 바텀시트 열고 사이드바 닫기
     const sidebar = document.getElementById('sidebar');
+    const _list = document.getElementById('campaignList');
+    // 확장된 리스트에서 탭한 경우만: 스크롤·확장상태 저장 → 상세 닫을 때 그 자리로 복원(+그동안 리스트 프리즈).
+    if (sidebar.classList.contains('expanded')) {
+      _mobileListReturn = { full: sidebar.classList.contains('expanded-full'), scrollTop: _list ? _list.scrollTop : 0 };
+    } else {
+      _mobileListReturn = null;
+    }
     sidebar.classList.remove('expanded');
     sidebar.classList.remove('expanded-full');
     const arrow = document.getElementById('sidebarArrow');
     if (arrow) arrow.textContent = '︿';
     setTimeout(() => openMobileSheet(place), 150);
-    setTimeout(() => {
-      const list = document.getElementById('campaignList');
-      if (list) list.scrollTop = 0;
-    }, 350);
+    // 리스트에서 연 게 아니면 기존대로 스크롤 리셋(핀/검색 등). 리스트에서 열었으면 보존(프리즈+복원).
+    if (!_mobileListReturn) {
+      setTimeout(() => { const l = document.getElementById('campaignList'); if (l) l.scrollTop = 0; }, 350);
+    }
   } else {
     // PC: 팝업 카드 열기
     setTimeout(() => openPcCard(place), 200);
@@ -6347,15 +6356,32 @@ function openMobileSheet(place) {
   }
 }
 
-function closeMobileSheet() {
+function closeMobileSheet(restoreList = true) {
   const sheet = document.getElementById('mobileSheet');
   sheet.style.transform = '';
   sheet.classList.remove('show');
   document.getElementById('mobileSheetOverlay').classList.remove('show');
   clearSelectedMarker();
-  // 사이드바 78px 상태로 복귀
   const sidebar = document.getElementById('sidebar');
-  if (sidebar) {
+  // restoreList=false(지도 드래그로 닫기 등)면 프리즈만 풀고 리스트는 peek. 배경탭·스와이프 닫기는 복원.
+  const restore = restoreList ? _mobileListReturn : null; _mobileListReturn = null;   // 항상 소비(프리즈 해제)
+  if (!sidebar) return;
+  if (restore && isMobileView()) {
+    // 확장 리스트에서 열었던 경우: 저장한 확장상태로 다시 펼치고 스크롤 위치 복원(리스트는 프리즈라 내용 동일).
+    sidebar.classList.add('expanded');
+    if (restore.full) sidebar.classList.add('expanded-full');
+    const arrow = document.getElementById('sidebarArrow'); if (arrow) arrow.textContent = '﹀';
+    if (typeof setNaverLogoVisible === 'function') setNaverLogoVisible(false);
+    if (typeof setSheetTopMax === 'function') setSheetTopMax();
+    if (typeof ensureSidebarList === 'function') ensureSidebarList();
+    sidebar.style.transition = 'transform 0.3s ease';
+    sidebar.style.transform = '';
+    const list = document.getElementById('campaignList');
+    if (list) list.scrollTop = restore.scrollTop;
+    requestAnimationFrame(() => { if (list) list.scrollTop = restore.scrollTop; });
+    setTimeout(() => { sidebar.style.transition = ''; if (list) list.scrollTop = restore.scrollTop; }, 320);
+  } else {
+    // 그 외: 기존대로 78px(peek) 복귀
     sidebar.style.transition = 'transform 0.3s ease';
     sidebar.style.transform = '';
     setTimeout(() => { sidebar.style.transition = ''; }, 300);
@@ -6520,18 +6546,10 @@ function initSheetSwipeToDismiss() {
     if (delta > 80) {
       sheet.style.transition = 'transform 0.3s ease';
       sheet.style.transform = 'translateY(100%)';
-      // 사이드바 동시에 올라오기
-      const sidebar = document.getElementById('sidebar');
-      if (sidebar) {
-        sidebar.style.transition = 'transform 0.3s ease';
-        sidebar.style.transform = '';
-        setTimeout(() => { sidebar.style.transition = ''; }, 300);
-      }
       setTimeout(() => {
         sheet.style.transition = 'none';
         sheet.style.transform = '';
-        sheet.classList.remove('show');
-        document.getElementById('mobileSheetOverlay').classList.remove('show');
+        closeMobileSheet();   // 숨김 + 사이드바 복원(리스트에서 열었으면 재펼침+스크롤)
         requestAnimationFrame(() => { sheet.style.transition = ''; });
       }, 300);
     } else {
