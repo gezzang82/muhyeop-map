@@ -3803,6 +3803,8 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   .gnb-tab[data-tab="home"].active .gnb-ico { background-image: url(image/ic_gnb_home_on.svg); }
   .gnb-tab[data-tab="places"] .gnb-ico { background-image: url(image/ic_gnb_place.svg); }
   .gnb-tab[data-tab="places"].active .gnb-ico { background-image: url(image/ic_gnb_place_on.svg); }
+  .gnb-tab[data-tab="favorites"] .gnb-ico { background-image: url(image/ic_gnb_fav.svg); }
+  .gnb-tab[data-tab="favorites"].active .gnb-ico { background-image: url(image/ic_gnb_fav_on.svg); }
   .gnb-tab[data-tab="community"] .gnb-ico { background-image: url(image/ic_gnb_community.svg); }
   .gnb-tab[data-tab="community"].active .gnb-ico { background-image: url(image/ic_gnb_community_on.svg); }
   .gnb-tab[data-tab="my"] .gnb-ico { background-image: url(image/ic_gnb_my.svg); }

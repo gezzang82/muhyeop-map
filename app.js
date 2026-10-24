@@ -1170,8 +1170,8 @@ function renderMarkers() {
   //  - 활성 캠페인 매장 → 컬러핀 / 후기만 있는 매장 → 회색핀(dim 없이 정상 노출). 저줌은 클러스터.
   //  - 채널 필터 중(전체 아님)엔 그 채널 활성 매장만 표시(필터로 걸러진 건 숨김).
   const filtering = currentChannelFilter !== '전체';
-  // PC 즐겨찾기 모드: 뷰포트·채널·카테고리 필터와 무관하게 내 즐겨찾기 매장 핀만(개수 적어 부담 없음).
-  const visiblePlaces = (_favMode && !isMobileView())
+  // 즐겨찾기 모드(PC·모바일): 뷰포트·채널·카테고리 필터와 무관하게 내 즐겨찾기 매장 핀만(개수 적어 부담 없음).
+  const visiblePlaces = (_favMode)
     ? (currentUser ? places.filter(place => !place.hidden && isFavorited(place.id)) : [])
     : places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
         matchesCategoryFilter(place) &&
@@ -2015,7 +2015,7 @@ function renderSidebar() {
   const list = document.getElementById('campaignList');
   const countEl = document.getElementById('campaignCount');
   // PC 즐겨찾기 모드: 지도·사이드바를 내 즐겨찾기로 스코프(stale/뷰포트 로직과 독립).
-  if (_favMode && !isMobileView()) { renderFavSidebar(list, countEl); return; }
+  if (_favMode) { renderFavSidebar(list, countEl); return; }
   // 어떤 경로로든 리스트를 그리면 현재 뷰와 동기화된 상태 → stale 해제.
   setSidebarStale(false);
 
@@ -3092,7 +3092,7 @@ function hapticTap() {
     if (navigator.vibrate) navigator.vibrate(15);
   } catch (e) {}
 }
-const GNB_TABS = ['home', 'places', 'community', 'my'];
+const GNB_TABS = ['home', 'places', 'favorites', 'community', 'my'];
 
 // ===== GNB 커뮤니티 '새글' 알림 점 (후기·서이추 추가 시 표시, 커뮤니티 열람 시 제거) =====
 // 서버 ?community=latest(최신 유저글 시각) vs localStorage '마지막 본 시각' 비교. 모바일(#communityDot)+PC(#communityDotPc) 동시 토글.
@@ -3125,7 +3125,11 @@ function switchTab(tab) {
     const v = document.getElementById('tabView-' + t);
     if (v) v.hidden = (t !== tab);
   });
-  document.body.classList.toggle('tab-active', tab !== 'home');
+  // 홈/즐겨찾기는 '지도 모드'(전체화면 tabView 아님) → tab-active를 켜지 않아 지도+바텀시트가 보임.
+  document.body.classList.toggle('tab-active', tab !== 'home' && tab !== 'favorites');
+  // 즐겨찾기 모드(지도+바텀시트 스코프) 진입/해제 — 다른 탭으로 가면 반드시 해제.
+  if (tab === 'favorites') { enterFavMode(); }
+  else if (_favMode) { exitFavMode(); }
   if (tab === 'places') {
     renderMyPlaces();
     // 제보/신고와 동일: 스크롤 시 컴팩트 sticky 헤더 노출 (스크롤러는 #mlScroll)
@@ -3251,7 +3255,7 @@ async function toggleFavorite(placeId, btn) {
   animateFavStar(btn, !wasOn);
   // 즐겨찾기 모드: OFF면 리스트·지도 핀에서 '즉시' 제거(서버 응답 안 기다림). 지연 제거로 생기던
   //  "몇 초 뒤 사라짐 + 그 사이 재ON 시 유지" 혼란 방지.
-  if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }
+  if (_favMode) { renderMarkers(); renderSidebar(); }
   try {
     const res = await fetch('/api/users?favorites=toggle', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3264,13 +3268,13 @@ async function toggleFavorite(placeId, btn) {
     if (serverOn !== _favorites.has(placeId)) {
       if (serverOn) _favorites.add(placeId); else _favorites.delete(placeId);
       updateFavStars(placeId);
-      if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }
+      if (_favMode) { renderMarkers(); renderSidebar(); }
     }
     showToast(serverOn ? '즐겨찾기에 추가했어요' : '즐겨찾기에서 뺐어요');
   } catch (e) {
     if (wasOn) _favorites.add(placeId); else _favorites.delete(placeId);  // 롤백
     updateFavStars(placeId);
-    if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }  // 롤백 반영
+    if (_favMode) { renderMarkers(); renderSidebar(); }  // 롤백 반영
     showToast(e.message === 'limit_reached' ? '즐겨찾기는 최대 200개까지예요' : '잠시 후 다시 시도해주세요');
   } finally {
     _favBusy.delete(placeId);
@@ -3303,10 +3307,15 @@ async function loadFavoritesFull() {
   invalidateActiveCache();
 }
 
-// PC 즐겨찾기 모드 진입: 지도+좌측 사이드바를 내 즐겨찾기로 스코프. (모바일은 이번 차수 미대응)
+// 즐겨찾기 모드 진입: 지도+사이드바(PC 좌측패널/모바일 바텀시트)를 내 즐겨찾기로 스코프.
+function setSidebarTitle(favMode) {
+  const el = document.querySelector('.sidebar-title');
+  if (el) el.textContent = favMode ? '즐겨찾기' : '모집 중인 협찬';
+}
 async function enterFavMode() {
   _favMode = true;
   _favLoading = true;
+  setSidebarTitle(true);
   renderMarkers(); renderSidebar();   // 로딩/현재 스냅샷 먼저 반영
   await loadFavoritesFull();
   _favLoading = false;
@@ -3316,6 +3325,7 @@ async function enterFavMode() {
 function exitFavMode() {
   if (!_favMode) return;
   _favMode = false;
+  setSidebarTitle(false);
   renderMarkers(); renderSidebar();
 }
 
@@ -4774,7 +4784,7 @@ async function refreshAuthUI() {
   // 즐겨찾기 상태 로드(로그인 유저) → 열려있는 상세 ★ 반영. PC 즐겨찾기 모드 중이면 목록도 갱신.
   await loadFavorites();
   _favorites.forEach(pid => updateFavStars(pid));
-  if (_favMode && !isMobileView()) { renderMarkers(); renderSidebar(); }
+  if (_favMode) { renderMarkers(); renderSidebar(); }
   const loggedIn = !!currentUser;
   // 로그인 상태에 따라 갱신되는 탭들 먼저 처리 — 아래 PC/사이드메뉴/마커 로직 중 하나가 실패해도 항상 반영되도록 앞에 둠
   renderMyPage();       // MY 탭
@@ -5613,8 +5623,7 @@ function switchPcTab(tab) {
   if (tab === 'myplaces') { openPcMyPlaces(); } else { closePcMyPlaces(); }
 
   // 즐겨찾기 모드(지도+사이드바 스코프) 진입/해제 — 홈과 같은 지도 레이아웃을 쓰되 내 즐겨찾기로 스코프.
-  const sbTitle = document.querySelector('.sidebar-title');
-  if (sbTitle) sbTitle.textContent = (tab === 'favorites') ? '즐겨찾기' : '모집 중인 협찬';
+  setSidebarTitle(tab === 'favorites');
   if (tab === 'favorites') { enterFavMode(); }
   else if (_favMode) { exitFavMode(); }
 
