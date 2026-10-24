@@ -3315,6 +3315,7 @@ function setSidebarTitle(favMode) {
 async function enterFavMode() {
   _favMode = true;
   _favLoading = true;
+  document.body.classList.add('fav-mode');   // 즐겨찾기 모드: 라이브 캐릭터·PC 앱다운로드 숨김(CSS)
   setSidebarTitle(true);
   renderMarkers(); renderSidebar();   // 로딩/현재 스냅샷 먼저 반영
   await loadFavoritesFull();
@@ -3325,6 +3326,7 @@ async function enterFavMode() {
 function exitFavMode() {
   if (!_favMode) return;
   _favMode = false;
+  document.body.classList.remove('fav-mode');
   setSidebarTitle(false);
   renderMarkers(); renderSidebar();
 }
