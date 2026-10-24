@@ -154,12 +154,26 @@ async function pickTopic(db) {
 
 const HASHTAGS = '\n\n#무협맵 #협찬 #체험단 #체험단모집 #블로그체험단 #리뷰어 #인플루언서 #맛집협찬 #뷰티협찬 #협찬찾기 #무료체험단 #체험단일상 #인스타협찬';
 
+// 캐릭터 동적 포즈 풀 — 매번 서있는 정적 포즈 방지(무협 검객답게 역동적으로). 날짜별 로테이션.
+const POSES = [
+  'DASHING/running energetically toward the viewer, clothes and sash flowing, bold motion/speed lines',
+  'LEAPING high in the air mid-jump with an excited grin, dynamic action pose, motion lines',
+  'in a dynamic ninja ready-to-sprint crouch, determined look, about to dash off',
+  'striking a heroic action pose while whipping out his pin-tipped sword, speed lines, low dramatic angle',
+  'running side-by-side with the shiba dog, both in full motion and excited, motion lines',
+  'pointing forward dynamically from a low heroic camera angle, wind and motion lines around him',
+  'sliding/landing with a triumphant fist-pump, dust and speed lines, energetic',
+];
+const pickPose = () => POSES[Math.floor(Date.now() / 86400e3) % POSES.length];
+
 // ── 이미지 생성 ──
 function buildPrompt(t) {
+  const pose = pickPose();
   const pre = `Reference image is the official character design sheet for "무협맵" (Muhyeop Map). Use the EXACT same characters — the red-and-black little swordsman boy (pin-shaped 삿갓 hat, black hanbok with red trim, black hair, same face) and the orange shiba dog with pin hat and map-pin necklace. Keep their faces, proportions, outfit and art style IDENTICAL to the reference. Ignore the sheet's labels/swatches/multi-view layout — create ONE brand-new single illustration.
 
-Design a VERTICAL 4:5 PORTRAIT Instagram card (taller than wide), brand colors red (#E53935) and white, clean modern flat style, mobile-friendly, crisp PERFECTLY-LEGIBLE Korean text. Full vertical hierarchy with clean padding at top/bottom edges.`;
-  const foot = `\nBottom ribbon/banner: white map-pin logo + Korean caption "내 주변 협찬, 무협맵에서 한눈에". The swordsman boy and the shiba dog appear together (small), the boy cheerfully gesturing. Subtle map / location-pin motif in the background. All Korean text spelled EXACTLY as given.`;
+Design a VERTICAL 4:5 PORTRAIT Instagram card (taller than wide), brand colors red (#E53935) and white, clean modern flat style, mobile-friendly, crisp PERFECTLY-LEGIBLE Korean text. Full vertical hierarchy with clean padding at top/bottom edges.
+IMPORTANT — make it feel ENERGETIC and DYNAMIC: the swordsman character strikes a lively ACTION pose (NOT a stiff standing/pointing pose), with a clear sense of movement, motion/speed lines, and lively composition.`;
+  const foot = `\nBottom ribbon/banner: white map-pin logo + Korean caption "내 주변 협찬, 무협맵에서 한눈에". The swordsman boy appears ${pose}; the shiba dog nearby, also lively. Subtle map / location-pin motif in the background. All Korean text spelled EXACTLY as given.`;
   if (t.kind === 'hero') {
     return `${pre}
 Center a HUGE bold hero text: "${t.headline}" as the focal point, with a small label above it "전국 협찬 지금". Headline below (Korean): "흩어진 협찬, 무협맵 지도 한 곳에".${foot}`;
@@ -170,7 +184,7 @@ Center a HUGE bold hero text: "${t.headline}" as the focal point, with a small l
 Top headline (Korean, bold, large): "${t.headline}"
 Below it, a clean vertical list of ${t.bullets.length} short Korean benefit lines, each with a small red check or map-pin bullet icon:
 ${bl}
-The swordsman boy is prominent and friendly (explaining/presenting pose, e.g. pointing at the list or giving a thumbs-up); the shiba dog beside him. Keep every Korean line spelled EXACTLY as written and clearly legible.${foot}`;
+The swordsman boy is prominent and ENERGETIC (${pose}); the shiba dog nearby, lively. Keep every Korean line spelled EXACTLY as written and clearly legible.${foot}`;
   }
   const list = t.rows.map((r, i) => `${i + 1}. "${r.name}" with a red pill "${r.meta}"`).join('\n');
   return `${pre}
