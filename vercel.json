@@ -4,6 +4,9 @@
       "maxDuration": 300
     }
   },
+  "crons": [
+    { "path": "/api/campaigns?action=igcron", "schedule": "0 2 * * *" }
+  ],
   "redirects": [
     {
       "source": "/(.*)",

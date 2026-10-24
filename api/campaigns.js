@@ -108,6 +108,17 @@ module.exports = async function handler(req, res) {
   // ===== 데이터수집(Phase 1): ?action=scrape|staged|runs|review (모두 관리자 전용) =====
   const action = req.query.action;
   if (action) {
+    // 인스타 자동 발행 크론: Vercel Cron(Authorization: Bearer CRON_SECRET) 또는 관리자. 컴퓨터(크롤러) 꺼져 있어도 서버가 발행.
+    // 웹툰(날이면) + 카드. last_post_date 가드로 하루 1포스트·크롤러와 중복 안 됨.
+    if (action === 'igcron' && (req.method === 'GET' || req.method === 'POST')) {
+      const cronAuth = !!process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+      if (!cronAuth && !isAdmin(req)) return res.status(401).json({ error: '권한이 없습니다.' });
+      process.env.IG_POST_ENABLED = '1'; // 서버 env에 플래그 없이도 크론 경로는 발행 허용
+      let webtoon = null, card = null;
+      try { webtoon = await require('./_igwebtoon').runWebtoonPost(db); } catch (e) { webtoon = { error: String(e.message || e) }; }
+      try { card = await require('./_igpost').runDailyIgPost(db); } catch (e) { card = { error: String(e.message || e) }; }
+      return res.status(200).json({ webtoon, card });
+    }
     // 오토파일럿: 크론(Authorization: Bearer CRON_SECRET) 또는 관리자만. requireAdmin 게이트 앞에서 자체 인증.
     // Vercel 크론은 GET으로 호출하므로 GET/POST 모두 허용. dry=1이면 미리보기(쓰기 없음).
     if (action === 'autopilot' && (req.method === 'GET' || req.method === 'POST')) {

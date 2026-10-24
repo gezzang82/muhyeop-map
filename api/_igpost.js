@@ -194,8 +194,16 @@ ${list}
 Keep every Korean store name spelled exactly as written and clearly legible.${foot}`;
 }
 
+// 레퍼런스 이미지: 로컬(크롤러)은 파일, 서버(Vercel 함수)는 파일이 없으니 호스팅 URL(ig_assets 'ref-char')로 폴백
+async function loadRefBuf() {
+  try { return fs.readFileSync(REF_IMG); } catch (_) {}
+  const res = await fetch(`${PUBLIC_BASE}/api/banners?asset=ref-char`);
+  if (!res.ok) throw new Error('ref image load fail ' + res.status);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 async function genImage(prompt) {
-  const buf = fs.readFileSync(REF_IMG);
+  const buf = await loadRefBuf();
   const fd = new FormData();
   fd.append('model', IMG_MODEL);
   fd.append('prompt', prompt);
