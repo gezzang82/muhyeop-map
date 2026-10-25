@@ -11,8 +11,17 @@ async function setState(db, k, v) { await db.execute({ sql: `INSERT INTO ig_stat
 
 async function getToken(db) {
   let v = await getState(db, 'threads_token');
-  if (!v) { v = process.env.THREADS_ACCESS_TOKEN; if (v) await setState(db, 'threads_token', v); }
-  return v || null;
+  if (!v) { v = process.env.THREADS_ACCESS_TOKEN; if (v) await setState(db, 'threads_token', v); return v || null; }
+  // 7일마다 장기토큰 갱신(60일 만료 방지)
+  try {
+    const r = await db.execute({ sql: 'SELECT updated_at FROM ig_state WHERE k=?', args: ['threads_token'] });
+    const age = Date.now() - (Date.parse(String(r.rows[0] && r.rows[0].updated_at || '').replace(' ', 'T') + 'Z') || Date.now());
+    if (age > 7 * 86400e3) {
+      const j = await (await fetch(`https://graph.threads.net/refresh_access_token?grant_type=th_refresh_token&access_token=${encodeURIComponent(v)}`)).json();
+      if (j && j.access_token) { await setState(db, 'threads_token', j.access_token); return j.access_token; }
+    }
+  } catch (_) {}
+  return v;
 }
 async function getUserId(db, tok) {
   let id = await getState(db, 'threads_user_id');
