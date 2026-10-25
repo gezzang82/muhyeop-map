@@ -13,7 +13,7 @@ const path = require('path');
 
 const USER_ID = '17841444037888902';           // @muhyeopmap IG user id
 const IG_BASE = 'https://graph.instagram.com/v21.0';
-const REF_IMG = path.join(__dirname, '..', '무협맵_image.png');
+const REF_IMG = path.join(__dirname, '..', '무협맵_3d.png');
 const PUBLIC_BASE = (process.env.PUBLIC_BASE_URL || 'https://muhyeop.com').replace(/\/$/, '');
 const TARGET_HOUR = Number(process.env.IG_POST_HOUR || 11); // KST 발행 시각(이 시각 이후 첫 패스)
 const IMG_MODEL = process.env.IG_IMG_MODEL || 'gpt-image-2.5-flare';
@@ -107,7 +107,7 @@ function cleanRows(rows) {
     if (!nm || nm.length < 2 || seen.has(nm)) continue;
     seen.add(nm);
     out.push({ name: nm, meta: ddayLabel(r.deadline), cat: r.category || '', region: (String(r.address || '').split(/\s+/).slice(0, 2).join(' ')) });
-    if (out.length >= 4) break;
+    if (out.length >= 3) break;
   }
   return out;
 }
@@ -154,50 +154,44 @@ async function pickTopic(db) {
 
 const HASHTAGS = '\n\n#무협맵 #협찬 #체험단 #체험단모집 #블로그체험단 #리뷰어 #인플루언서 #맛집협찬 #뷰티협찬 #협찬찾기 #무료체험단 #체험단일상 #인스타협찬';
 
-// 캐릭터 동적 포즈 풀 — 매번 서있는 정적 포즈 방지(무협 검객답게 역동적으로). 날짜별 로테이션.
+// 3D 캐릭터 포즈(날짜별 로테이션) — 프리미엄 3D라 과한 모션 대신 친근·차분한 포즈
 const POSES = [
-  'DASHING/running energetically toward the viewer, clothes and sash flowing, bold motion/speed lines',
-  'LEAPING high in the air mid-jump with an excited grin, dynamic action pose, motion lines',
-  'in a dynamic ninja ready-to-sprint crouch, determined look, about to dash off',
-  'striking a heroic action pose while whipping out his pin-tipped sword, speed lines, low dramatic angle',
-  'running side-by-side with the shiba dog, both in full motion and excited, motion lines',
-  'pointing forward dynamically from a low heroic camera angle, wind and motion lines around him',
-  'sliding/landing with a triumphant fist-pump, dust and speed lines, energetic',
+  'standing together cheerfully, the boy giving a friendly little wave',
+  'the boy with a happy fist-pump, the shiba sitting cheerfully beside him',
+  'both with big happy smiles, the boy presenting with an open hand',
+  'the two standing close together, cheerful and friendly',
+  'the boy pointing up toward the headline with a bright smile, shiba wagging its tail',
 ];
-const pickPose = () => POSES[Math.floor(Date.now() / 86400e3) % POSES.length];
 
-// ── 이미지 생성 ──
+// ── 이미지 생성 (3D 미니멀 스타일) ──
 function buildPrompt(t) {
-  const pose = pickPose();
-  const pre = `Reference image is the official character design sheet for "무협맵" (Muhyeop Map). Use the EXACT same characters — the red-and-black little swordsman boy (pin-shaped 삿갓 hat, black hanbok with red trim, black hair, same face) and the orange shiba dog with pin hat and map-pin necklace. Keep their faces, proportions, outfit and art style IDENTICAL to the reference. Ignore the sheet's labels/swatches/multi-view layout — create ONE brand-new single illustration.
+  const pose = POSES[Math.floor(Date.now() / 86400e3) % POSES.length];
+  const pre = `The reference image shows our "무협맵" premium 3D mascots — a cute glossy 3D swordsman boy (pin-shaped 삿갓 hat, black hanbok with red trim, a sword with a pin-ring tip) and an orange 3D Shiba dog with a matching pin hat and a round pin medallion. USE THESE EXACT 3D characters and keep their identity and soft premium 3D render style.
 
-Design a VERTICAL 4:5 PORTRAIT Instagram card (taller than wide), brand colors red (#E53935) and white, clean modern flat style, mobile-friendly, crisp PERFECTLY-LEGIBLE Korean text. Full vertical hierarchy with clean padding at top/bottom edges.
-IMPORTANT — make it feel ENERGETIC and DYNAMIC: the swordsman character strikes a lively ACTION pose (NOT a stiff standing/pointing pose), with a clear sense of movement, motion/speed lines, and lively composition.`;
-  const foot = `\nBottom ribbon/banner: white map-pin logo + Korean caption "내 주변 협찬, 무협맵에서 한눈에". The swordsman boy appears ${pose}; the shiba dog nearby, also lively. Subtle map / location-pin motif in the background. All Korean text spelled EXACTLY as given.`;
+Design a VERTICAL 4:5 PORTRAIT Instagram card in a CLEAN, MINIMAL, PREMIUM style like modern Korean brand/fintech event cards: a soft pastel background (gentle blue-to-cream gradient), LOTS of negative space, uncluttered. Korean text is bold, clean and well-kerned (modern rounded sans) and kept MINIMAL. No busy decorations, no scattered pins/icons, no ribbons.`;
+  const foot = `\nPlace the two 3D mascots together in the lower area, ${pose}, with a soft contact shadow. Keep the whole composition clean, airy and spacious. A small "무협맵 · @muhyeopmap" wordmark at the very bottom. Spell all Korean exactly as given, crisp and legible.`;
   if (t.kind === 'hero') {
     return `${pre}
-Center a HUGE bold hero text: "${t.headline}" as the focal point, with a small label above it "전국 협찬 지금". Headline below (Korean): "흩어진 협찬, 무협맵 지도 한 곳에".${foot}`;
+A small light label near the top ("전국 협찬 지금"), then a BIG bold short Korean headline as the focal point: "${t.headline}". One short lighter sub-line beneath it: "흩어진 협찬, 무협맵 지도 한 곳에". Keep text minimal and airy.${foot}`;
   }
   if (t.kind === 'intro') {
-    const bl = t.bullets.map((b, i) => `${i + 1}. "${b}"`).join('\n');
+    const bl = t.bullets.slice(0, 3).map(b => `• "${b}"`).join('\n');
     return `${pre}
-Top headline (Korean, bold, large): "${t.headline}"
-Below it, a clean vertical list of ${t.bullets.length} short Korean benefit lines, each with a small red check or map-pin bullet icon:
+A big bold Korean headline near the top: "${t.headline}". Below it, up to 3 short Korean lines with small simple bullet dots and airy spacing:
 ${bl}
-The swordsman boy is prominent and ENERGETIC (${pose}); the shiba dog nearby, lively. Keep every Korean line spelled EXACTLY as written and clearly legible.${foot}`;
+Keep it minimal and clean.${foot}`;
   }
-  const list = t.rows.map((r, i) => `${i + 1}. "${r.name}" with a red pill "${r.meta}"`).join('\n');
+  // 지역/카테고리/마감임박 — 미니멀: 헤드라인 + 매장 최대 3곳만, 깔끔한 여백
+  const list = t.rows.slice(0, 3).map(r => `"${r.name}" (${r.meta})`).join(', ');
   return `${pre}
-Top headline (Korean, bold): "${t.headline}"
-A vertical list of ${t.rows.length} rounded white cards, each row: store name (Korean, left) and a red rounded pill on the right:
-${list}
-Keep every Korean store name spelled exactly as written and clearly legible.${foot}`;
+A big bold Korean headline near the top: "${t.headline}". Below it, a clean minimal list of up to 3 Korean store names, each with a small light deadline tag, with generous spacing (NOT heavy pills, NOT a busy table): ${list}.
+Keep text minimal and airy.${foot}`;
 }
 
 // 레퍼런스 이미지: 로컬(크롤러)은 파일, 서버(Vercel 함수)는 파일이 없으니 호스팅 URL(ig_assets 'ref-char')로 폴백
 async function loadRefBuf() {
   try { return fs.readFileSync(REF_IMG); } catch (_) {}
-  const res = await fetch(`${PUBLIC_BASE}/api/banners?asset=ref-char`);
+  const res = await fetch(`${PUBLIC_BASE}/api/banners?asset=ref-char-3d`);
   if (!res.ok) throw new Error('ref image load fail ' + res.status);
   return Buffer.from(await res.arrayBuffer());
 }
