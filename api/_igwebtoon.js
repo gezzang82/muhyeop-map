@@ -147,7 +147,9 @@ async function runWebtoonPost(db) {
   const { mediaId, permalink } = await publishCarousel(db, token, assetIds, caption);
   await db.execute({ sql: `INSERT INTO ig_posts (post_date, topic, media_id, permalink, asset_id, caption) VALUES (?,?,?,?,?,?)`, args: [today, 'webtoon:' + next, mediaId, permalink, assetIds[0], caption] });
   await setState(db, 'webtoon_next', next + 1);
-  return { posted: true, episode: next, permalink, slides: assetIds.length };
+  let thread = null;
+  try { thread = await require('./_igthread').crossPost(db, caption, `${PUBLIC_BASE}/api/banners?asset=${assetIds[0]}`); } catch (e) { thread = { error: String(e.message || e) }; }
+  return { posted: true, episode: next, permalink, slides: assetIds.length, thread };
 }
 
 module.exports = { runWebtoonPost };
