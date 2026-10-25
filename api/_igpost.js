@@ -263,9 +263,7 @@ async function runDailyIgPost(db) {
   const caption = (t.caption || '') + HASHTAGS;
   const { mediaId, permalink } = await publish(token, imageUrl, caption);
   await db.execute({ sql: `INSERT INTO ig_posts (post_date, topic, media_id, permalink, asset_id, caption) VALUES (?,?,?,?,?,?)`, args: [today, t.topic, mediaId, permalink, assetId, caption] });
-  let thread = null;
-  try { thread = await require('./_igthread').crossPost(db, caption, imageUrl); } catch (e) { thread = { error: String(e.message || e) }; }
-  return { posted: true, topic: t.topic, permalink, mediaId, thread };
+  return { posted: true, topic: t.topic, permalink, mediaId };
 }
 
 module.exports = { runDailyIgPost, ensureTables, pickTopic, buildPrompt };
