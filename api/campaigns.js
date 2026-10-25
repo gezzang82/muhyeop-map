@@ -113,6 +113,11 @@ module.exports = async function handler(req, res) {
     if (action === 'igcron' && (req.method === 'GET' || req.method === 'POST')) {
       const cronAuth = !!process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
       if (!cronAuth && !isAdmin(req)) return res.status(401).json({ error: '권한이 없습니다.' });
+      // 검증용: dry=1이면 발행 없이 '오늘 카드'만 서버에서 생성해 미리보기 URL 반환
+      if (req.query.dry === '1') {
+        let preview; try { preview = await require('./_igpost').generatePreview(db); } catch (e) { preview = { error: String(e.message || e) }; }
+        return res.status(200).json({ dry: true, preview });
+      }
       process.env.IG_POST_ENABLED = '1'; // 서버 env에 플래그 없이도 크론 경로는 발행 허용
       let webtoon = null, card = null;
       try { webtoon = await require('./_igwebtoon').runWebtoonPost(db); } catch (e) { webtoon = { error: String(e.message || e) }; }

@@ -261,4 +261,16 @@ async function runDailyIgPost(db) {
   return { posted: true, topic: t.topic, permalink, mediaId };
 }
 
-module.exports = { runDailyIgPost, ensureTables, pickTopic, buildPrompt };
+// 서버 생성 검증용: 오늘 토픽으로 카드 1장 '생성만'(발행·상태변경 없음) → 미리보기 URL 반환
+async function generatePreview(db) {
+  if (!process.env.OPENAI_API_KEY) return { error: 'no-openai' };
+  await ensureTables(db);
+  const t = await pickTopic(db);
+  if (!t) return { error: 'no-material' };
+  const b64 = await genImage(buildPrompt(t));
+  const id = 'preview-' + Date.now().toString(36);
+  await db.execute({ sql: `INSERT OR REPLACE INTO ig_assets (id, mime, data) VALUES (?, 'image/png', ?)`, args: [id, b64] });
+  return { topic: t.topic, kind: t.kind || 'list', assetUrl: `${PUBLIC_BASE}/api/banners?asset=${id}` };
+}
+
+module.exports = { runDailyIgPost, ensureTables, pickTopic, buildPrompt, generatePreview };
