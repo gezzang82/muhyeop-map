@@ -1,0 +1,21 @@
+name: 인스타 자동 발행 (매일 11시 KST)
+
+# Vercel Hobby 크론이 안정적으로 안 돌아서, GitHub Actions로 매일 발행 엔드포인트를 호출한다.
+# 서버(igcron)가 하루 1회 가드(last_post_date)로 중복 방지하므로, 02:00/02:20 두 번 시도해도 1장만 발행.
+on:
+  schedule:
+    - cron: '0 2 * * *'    # 02:00 UTC = 11:00 KST (정시)
+    - cron: '20 2 * * *'   # 02:20 UTC = 11:20 KST (지연/누락 대비 백업, 가드로 중복 안 됨)
+  workflow_dispatch: {}    # 수동 실행 버튼(테스트용)
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 발행 엔드포인트 호출
+        run: |
+          echo "igcron 호출…"
+          RESP=$(curl -fsS --max-time 290 -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://muhyeop.com/api/campaigns?action=igcron")
+          echo "응답: $RESP"
