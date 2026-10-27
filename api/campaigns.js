@@ -1,6 +1,7 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
 const { requireAdmin, isAdmin } = require('./auth/_admin');
+const { waitUntil } = require('@vercel/functions'); // 응답 후에도 백그라운드 작업 완료 보장(인스타 발행)
 const { runScrape, reparsePending, AREA2_BY_REGION } = require('./_scrape');
 const { enforceRateLimit } = require('./_ratelimit');
 const { runAutopilot } = require('./_autopilot');
@@ -119,10 +120,13 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ dry: true, preview });
       }
       process.env.IG_POST_ENABLED = '1'; // 서버 env에 플래그 없이도 크론 경로는 발행 허용
-      let webtoon = null, card = null;
-      try { webtoon = await require('./_igwebtoon').runWebtoonPost(db); } catch (e) { webtoon = { error: String(e.message || e) }; }
-      try { card = await require('./_igpost').runDailyIgPost(db); } catch (e) { card = { error: String(e.message || e) }; }
-      return res.status(200).json({ webtoon, card });
+      // 이미지 생성이 30~165초라 호출자(cron-job.org 등)가 타임아웃(30s)으로 '실패' 오인 → 즉시 202 응답하고
+      // 발행은 waitUntil로 백그라운드에서 완료(함수는 maxDuration 300s까지 살아있음). 서버 가드로 중복 방지.
+      waitUntil((async () => {
+        try { await require('./_igwebtoon').runWebtoonPost(db); } catch (e) {}
+        try { await require('./_igpost').runDailyIgPost(db); } catch (e) {}
+      })());
+      return res.status(202).json({ accepted: true });
     }
     // 오토파일럿: 크론(Authorization: Bearer CRON_SECRET) 또는 관리자만. requireAdmin 게이트 앞에서 자체 인증.
     // Vercel 크론은 GET으로 호출하므로 GET/POST 모두 허용. dry=1이면 미리보기(쓰기 없음).
