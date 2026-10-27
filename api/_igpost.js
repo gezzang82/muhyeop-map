@@ -163,14 +163,34 @@ const POSES = [
   'the boy in a playful heroic pose lightly holding the pin-sword, dynamic but cute, the shiba barking happily',
 ];
 
-// ── 이미지 생성 (3D 미니멀 + 생동감 스타일) ──
+// 포맷 다양화 — 한 톤 반복 방지. 팔레트·장면(구도)을 날짜별로 로테이션(토스/네이버/삼성 레퍼런스 톤).
+const PALETTES = [
+  'a soft blue-to-cream pastel gradient',
+  'a soft mint-green and white pastel gradient',
+  'a warm peach-and-cream pastel gradient',
+  'a soft lavender-to-white pastel gradient',
+  'a bright clean sky-blue gradient',
+  'a deep navy background with a soft glow (dark premium theme), text in white',
+];
+const SCENES = [
+  'a cute soft 3D map world with floating red location pins, small 3D shops/buildings and a stylized map path — characters integrated into it',
+  'a clean soft studio with a few floating 3D props (location pins, stars, little gift boxes) and gentle shadows — minimal with lots of space',
+  'ONE big glossy 3D hero object as the centerpiece (a giant location pin OR a big gold star) with the mascots smaller beside it, interacting with it',
+  'a minimal airy composition with lots of negative space and just a few subtle floating 3D accents (a couple of pins and sparkles)',
+  'a playful 3D isometric mini-city/neighborhood scene with tiny shops and pins, characters walking through it',
+];
+
+// ── 이미지 생성 (3D 프리미엄, 포맷 로테이션) ──
 function buildPrompt(t) {
-  const pose = POSES[Math.floor(Date.now() / 86400e3) % POSES.length];
+  const di = Math.floor(Date.now() / 86400e3);
+  const pose = POSES[di % POSES.length];
+  const palette = PALETTES[di % PALETTES.length];
+  const scene = SCENES[(di + 2) % SCENES.length]; // 팔레트×장면 조합이 매번 달라지게 오프셋
   const pre = `The reference image shows our "무협맵" premium 3D mascots — a cute glossy 3D swordsman boy (pin-shaped 삿갓 hat, black hanbok with red trim, a sword with a pin-ring tip) and an orange 3D Shiba dog with a matching pin hat and a round pin medallion. USE THESE EXACT 3D characters and keep their identity and soft premium 3D render style.
 
-Design a VERTICAL 4:5 PORTRAIT Instagram card in a PREMIUM, POLISHED 3D style like modern Korean brand/fintech event cards: a soft pastel background (gentle blue-to-cream gradient). Korean text is bold, clean, well-kerned (modern rounded sans) and kept MINIMAL.
-The scene should feel LIVELY and FULL (not flat-empty): add a few tasteful 3D illustration elements with depth in the background/midground — e.g. floating 3D location pins, small cute 3D shops/buildings or storefronts, a soft stylized 3D map or path, little clouds — arranged cleanly and balanced (rich but not cluttered). The characters are integrated into this little 3D world.`;
-  const foot = `\nThe two 3D mascots are the hero of the lower area with a DYNAMIC, lively action: ${pose}; soft contact shadow. Keep the composition balanced and premium (text area stays airy up top). A small "무협맵 · @muhyeopmap" wordmark at the very bottom. Spell all Korean exactly as given, crisp and legible.`;
+Design a VERTICAL 4:5 PORTRAIT Instagram card in a PREMIUM, POLISHED 3D style like modern Korean brand/fintech event cards. Background: ${palette}. Korean text is bold, clean, well-kerned (modern rounded sans) and kept MINIMAL. Red (#E53935) stays the brand accent.
+Scene / composition: ${scene}. Balanced and premium — rich but not cluttered, with an airy text area at the top.`;
+  const foot = `\nThe two 3D mascots appear with a lively, friendly action: ${pose}; soft contact shadow. Keep the composition balanced (text area stays airy up top). A small "무협맵 · @muhyeopmap" wordmark at the very bottom. Spell all Korean exactly as given, crisp and legible.`;
   if (t.kind === 'hero') {
     return `${pre}
 A small light label near the top ("전국 협찬 지금"), then a BIG bold short Korean headline as the focal point: "${t.headline}". One short lighter sub-line beneath it: "흩어진 협찬, 무협맵 지도 한 곳에". Keep text minimal and airy.${foot}`;
