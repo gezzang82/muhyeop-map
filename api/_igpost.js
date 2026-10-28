@@ -217,12 +217,12 @@ async function loadRefBuf() {
   return Buffer.from(await res.arrayBuffer());
 }
 
-async function genImage(prompt) {
+async function genImage(prompt, size) {
   const buf = await loadRefBuf();
   const fd = new FormData();
   fd.append('model', IMG_MODEL);
   fd.append('prompt', prompt);
-  fd.append('size', IMG_SIZE);
+  fd.append('size', size || IMG_SIZE);
   fd.append('image[]', new Blob([buf], { type: 'image/png' }), 'ref.png');
   const res = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY }, body: fd });
   const j = await res.json();
@@ -293,4 +293,33 @@ async function generatePreview(db) {
   return { topic: t.topic, kind: t.kind || 'list', assetUrl: `${PUBLIC_BASE}/api/banners?asset=${id}` };
 }
 
-module.exports = { runDailyIgPost, ensureTables, pickTopic, buildPrompt, generatePreview };
+// 9:16 스토리 프롬프트 (하단은 링크 스티커 자리로 비움)
+function buildStoryPrompt(t) {
+  const di = Math.floor(Date.now() / 86400e3);
+  const palette = PALETTES[di % PALETTES.length];
+  const head = (t && t.headline) || '내 주변 협찬 🔥';
+  return `The reference image shows our "무협맵" premium 3D mascots — a cute glossy 3D swordsman boy (pin-shaped 삿갓 hat, black hanbok with red trim, pin-ring sword) and an orange 3D Shiba dog with a pin hat and medallion. USE THESE EXACT 3D characters, keep identity and soft premium 3D style.
+
+Design a VERTICAL 9:16 Instagram STORY, premium 3D. Background: ${palette}. Brand red (#E53935) accent. Clean MINIMAL Korean text (modern rounded sans; white text if the background is dark).
+TOP: a big bold Korean headline "${head}" and a small sub-line "흩어진 체험단·협찬을 지도에서 한눈에".
+MIDDLE: the two 3D mascots lively and cheerful, the swordsman boy pointing DOWNWARD with a big smile, a small 3D map with location pins.
+BOTTOM THIRD: keep it CLEAN and relatively EMPTY (soft background only) — reserved for a tappable link sticker added later — with a subtle "여기 👇" cue pointing down.
+Small "무협맵 · @muhyeopmap" wordmark near the bottom. Spell all Korean EXACTLY as given, crisp and legible.`;
+}
+
+// 매일 1회 스토리 이미지 생성 → ig_assets 'story-latest'(+날짜본)로 저장. 발행은 수동(링크 스티커는 API 불가).
+async function generateDailyStory(db) {
+  if (process.env.OPENAI_API_KEY == null) return { skipped: 'no-openai' };
+  await ensureTables(db);
+  const today = kstDate();
+  const last = await getState(db, 'story_last_date');
+  if (last && last.v === today) return { skipped: 'story-already' };
+  const t = await pickTopic(db);
+  const b64 = await genImage(buildStoryPrompt(t), '1088x1920');
+  await db.execute({ sql: `INSERT OR REPLACE INTO ig_assets (id, mime, data) VALUES ('story-latest', 'image/png', ?)`, args: [b64] });
+  await db.execute({ sql: `INSERT OR REPLACE INTO ig_assets (id, mime, data) VALUES (?, 'image/png', ?)`, args: ['story-' + today.replace(/-/g, ''), b64] });
+  await setState(db, 'story_last_date', today);
+  return { posted: true, topic: t ? t.topic : 'generic' };
+}
+
+module.exports = { runDailyIgPost, ensureTables, pickTopic, buildPrompt, generatePreview, generateDailyStory };

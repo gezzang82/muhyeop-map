@@ -125,6 +125,7 @@ module.exports = async function handler(req, res) {
       waitUntil((async () => {
         try { await require('./_igwebtoon').runWebtoonPost(db); } catch (e) {}
         try { await require('./_igpost').runDailyIgPost(db); } catch (e) {}
+        try { await require('./_igpost').generateDailyStory(db); } catch (e) {} // 9:16 스토리 이미지(수동 발행용)
       })());
       return res.status(202).json({ accepted: true });
     }

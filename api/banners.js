@@ -34,7 +34,8 @@ module.exports = async function handler(req, res) {
       if (!r.rows.length) return res.status(404).json({ error: 'not found' });
       const buf = Buffer.from(r.rows[0].data, 'base64');
       res.setHeader('Content-Type', r.rows[0].mime || 'image/png');
-      res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+      // 'story-latest'는 매일 덮어써지므로 캐시 금지(최신 보장). 나머지(고정 id 카드)는 장기 캐시.
+      res.setHeader('Cache-Control', String(req.query.asset) === 'story-latest' ? 'no-store, max-age=0' : 'public, s-maxage=86400, stale-while-revalidate=604800');
       return res.status(200).send(buf);
     } catch (e) { return res.status(500).json({ error: 'asset error' }); }
   }
