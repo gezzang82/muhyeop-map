@@ -36,6 +36,9 @@ async function ensureSiteVisitTables(db) {
   // GNB 탭 클릭 일자 집계(홈/내장소/커뮤니티/MY) — 어느 메뉴를 많이 쓰나(switchTab에서 ?visit=gnb&tab=).
   await db.execute("CREATE TABLE IF NOT EXISTS gnb_daily (visit_date TEXT NOT NULL, tab TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, tab))");
   await db.execute("CREATE TABLE IF NOT EXISTS app_install_daily (visit_date TEXT NOT NULL, action TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, action))"); // 모바일웹 앱 설치 팝업(show=노출/install=다운로드탭)
+  // 지도 검색창 사용 집계 — 일별 검색 횟수 + 최근 검색어 로그(어드민: 얼마나 쓰나 + 뭘 검색하나 태그)
+  await db.execute("CREATE TABLE IF NOT EXISTS search_daily (visit_date TEXT PRIMARY KEY, cnt INTEGER DEFAULT 0)");
+  await db.execute("CREATE TABLE IF NOT EXISTS search_log (id INTEGER PRIMARY KEY AUTOINCREMENT, term TEXT, created_at TEXT DEFAULT (datetime('now')))");
   // 체류시간 집계(일별 평균 = dwell_sum/dwell_count 초). 이탈 시 클라 sendBeacon(?visit=dwell)이 누적.
   try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_sum INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
   try { await db.execute("ALTER TABLE site_daily ADD COLUMN dwell_count INTEGER DEFAULT 0"); } catch (e) { /* 이미 있음 */ }
@@ -170,6 +173,24 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    // 지도 검색창 사용 집계: POST ?visit=search {q:검색어} (searchRegion에서 fire-and-forget, 운영자 IP 제외).
+    //  일별 검색 횟수(search_daily) + 최근 검색어 로그(search_log, 최근 500건만 유지). 빈 검색은 클라에서 이미 제외.
+    if (req.method === 'POST' && req.query.visit === 'search') {
+      try {
+        await ensureSiteVisitTables(db);
+        const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+        if (EXCLUDED_VISIT_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true }); // 운영자 본인 검색 제외
+        await db.execute({ sql: "INSERT INTO search_daily (visit_date, cnt) VALUES (?, 1) ON CONFLICT(visit_date) DO UPDATE SET cnt = cnt + 1", args: [kstDay()] });
+        const q = String((req.body && req.body.q) || '').trim().slice(0, 60);
+        if (q) {
+          await db.execute({ sql: "INSERT INTO search_log (term) VALUES (?)", args: [q] });
+          // 로그 무한증가 방지: 가끔(5%) 최근 500건만 남기고 정리
+          if (Math.random() < 0.05) { try { await db.execute("DELETE FROM search_log WHERE id <= (SELECT MAX(id) - 500 FROM search_log)"); } catch (e) {} }
+        }
+      } catch (e) { /* 무시 */ }
+      return res.status(200).json({ ok: true });
+    }
+
     // 모바일웹 앱 설치 팝업 집계: POST ?visit=appinstall&action=show|install (운영자 IP 제외)
     if (req.method === 'POST' && req.query.visit === 'appinstall') {
       try {
@@ -261,6 +282,14 @@ module.exports = async function handler(req, res) {
         (await db.execute({ sql: "SELECT tab, cnt FROM gnb_daily WHERE visit_date = ?", args: [day] })).rows.forEach(r => { gnbToday[r.tab] = Number(r.cnt || 0); });
         (await db.execute("SELECT tab, SUM(cnt) AS cnt FROM gnb_daily GROUP BY tab")).rows.forEach(r => { gnbTotal[r.tab] = Number(r.cnt || 0); });
       } catch (e) {}
+      // 지도 검색: 오늘/누적 횟수 + 최근 검색어 태그(최근 100건 내 중복 묶어 최신순)
+      let searchToday = 0, searchTotal = 0, recentSearches = [];
+      try {
+        searchToday = Number(((await db.execute({ sql: "SELECT cnt FROM search_daily WHERE visit_date = ?", args: [day] })).rows[0] || {}).cnt || 0);
+        searchTotal = Number(((await db.execute("SELECT COALESCE(SUM(cnt),0) AS n FROM search_daily")).rows[0] || {}).n || 0);
+        const srows = (await db.execute("SELECT term, COUNT(*) AS cnt, MAX(id) AS mx FROM (SELECT id, term FROM search_log ORDER BY id DESC LIMIT 100) GROUP BY term ORDER BY mx DESC")).rows;
+        recentSearches = srows.map(r => ({ term: r.term, cnt: Number(r.cnt || 0) }));
+      } catch (e) {}
       // 모바일웹 앱 설치 팝업: 노출(show)/다운로드탭(install) 오늘+누적
       const appInstallToday = { show: 0, install: 0, dismiss: 0 }, appInstallTotal = { show: 0, install: 0, dismiss: 0 };
       try {
@@ -269,6 +298,7 @@ module.exports = async function handler(req, res) {
       } catch (e) {}
       const vsPayload = {
         gnbToday, gnbTotal, appInstallToday, appInstallTotal,
+        searchToday, searchTotal, recentSearches,
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
         todayDwell: dwellAvg(today), todayDwellCount: Number(today.dwell_count || 0),

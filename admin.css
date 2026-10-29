@@ -819,3 +819,8 @@ body {
 .nt-img-size-lbl { font-size: 12px; color: #888; margin: 0 2px; }
 .nt-img-size button { height: 28px; padding: 0 10px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; color: #333; }
 .nt-img-size button:hover { background: #f0f0f0; border-color: #ccc; }
+
+/* 지도 검색 사용 — 최근 검색어 태그 */
+.search-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.search-tag { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; background: #f1f1f6; color: #39395c; border-radius: 14px; font-size: 13px; line-height: 1.2; }
+.search-tag b { font-weight: 700; color: #e82a2d; font-size: 11px; }

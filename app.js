@@ -2309,6 +2309,8 @@ async function searchRegion() {
   _suppressInitialLocation = true;  // 검색 시작 → 늦게 오는 초기 위치이동 취소(검색 중 지도 튐 방지)
   const query = document.getElementById('regionSearch').value.trim();
   if (!query) return;
+  // 검색창 사용 집계(fire-and-forget, 운영자 집IP는 서버에서 제외): 일별 횟수 + 최근 검색어
+  try { fetch('/api/places?visit=search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ q: query.slice(0, 60) }) }).catch(function () {}); } catch (e) {}
 
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(query);
