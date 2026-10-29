@@ -700,6 +700,7 @@ async function runScrape({ db, platform, mode, limit, region, deadlineTs, dedupe
   if (platform === 'ramirami' || platform === '라미라미') return runRamirami({ db, limit, deadlineTs, dedupe });
   if (platform === 'revu' || platform === '레뷰') return runRevu({ db, limit, deadlineTs, dedupe });
   if (platform === 'popomon' || platform === '포포몬') return runPopomon({ db, limit, deadlineTs, dedupe });
+  if (platform === 'mrblog' || platform === '미블') return runMrblog({ db, limit, deadlineTs, dedupe });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs, dedupe });
 }
 
@@ -1834,6 +1835,180 @@ async function runRamirami({ db, limit = 300, deadlineTs = 0, dedupe: _dedupe = 
   return { platform, newCandidates: processed, processed, staged, excluded, dupActive, noAddr, expired, failed, timedOut };
 }
 
+// ===== 미블 (mrblog.net) — 네이버 간편로그인 계정, 쿠키 세션 재사용(MRBLOG_COOKIE) =====
+// 로그인이 네이버 OAuth라 ID/PW POST가 안 돼, 브라우저에서 '로그인 유지'로 받은 세션 쿠키를
+// MRBLOG_COOKIE(.env.local/Vercel)에 넣어 그대로 재사용한다(만료 시 재복사). 창업자 허락 기반 수집(라미라미와 동일 정책).
+// 리스트: GET /xhr/campaigns?type=all&page=N → JSON {count, html}. count=24면 다음 페이지. X-CSRF-TOKEN 헤더 필수(meta).
+// 상세: GET /campaigns/{id} → JS var keyword(매장명)·var address(도로명)·모집기간 종료일(마감)·체험상품(내용)·영업시간(rbHoursDays).
+// 좌표 없음 → 승인/오토파일럿이 도로명 지오코딩 + naverCanonicalName으로 네이버 정식명/카테고리 정규화(공용 경로).
+const MB_BASE = 'https://www.mrblog.net';
+
+function mbDecodeJs(s) { try { return JSON.parse('"' + String(s).replace(/"/g, '\\"') + '"'); } catch (e) { return String(s); } }
+
+// 쿠키 세션 확보 + csrf 토큰(세션바운드). 쿠키 만료(→/login) 시 null.
+async function mbSession() {
+  const cookie0 = process.env.MRBLOG_COOKIE;
+  if (!cookie0) return null;
+  const r = await fetch(`${MB_BASE}/campaigns`, { headers: { 'User-Agent': UA, Cookie: cookie0 }, redirect: 'manual' });
+  if (r.status >= 300 && r.status < 400) return null; // → /login = 쿠키 만료/오류
+  const html = await r.text();
+  const csrf = (html.match(/<meta name="csrf-token" content="([^"]+)"/) || [])[1] || '';
+  if (!csrf) return null;
+  // 세션 회전(Set-Cookie) 병합 — remember 쿠키로 재인증 시 새 laravel_session이 와도 이어지게
+  let cookie = cookie0;
+  const set = r.headers.getSetCookie ? r.headers.getSetCookie() : [];
+  if (set.length) {
+    const jar = {};
+    cookie0.split(/;\s*/).forEach((kv) => { const i = kv.indexOf('='); if (i > 0) jar[kv.slice(0, i)] = kv.slice(i + 1); });
+    set.forEach((c) => { const kv = String(c).split(';')[0]; const i = kv.indexOf('='); if (i > 0) jar[kv.slice(0, i)] = kv.slice(i + 1); });
+    cookie = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
+  }
+  return { cookie, csrf };
+}
+
+// 리스트 item HTML → [{ id, channel }] (채널 뱃지: blog/insta/clip/reels, 복수 가능)
+function mbListItems(html) {
+  const out = [];
+  const re = /<a href="[^"]*campaigns\/(\d+)"[^>]*class="campaign_item">([\s\S]*?)<\/a>/g;
+  let m;
+  while ((m = re.exec(html))) {
+    const area = (m[2].match(/<span class="area">([\s\S]*?)<\/span>\s*<strong/) || [])[1] || m[2];
+    const ch = [];
+    if (/sns_icon\s+blog/.test(area)) ch.push('블로그');
+    if (/sns_icon\s+insta/.test(area)) ch.push('인스타그램');
+    if (/class="clip"/.test(area)) ch.push('클립');
+    if (/class="reels"/.test(area)) ch.push('릴스');
+    out.push({ id: m[1], channel: [...new Set(ch)].join(',') });
+  }
+  return out;
+}
+
+async function mbFetchList(sess, page) {
+  const url = `${MB_BASE}/xhr/campaigns?type=all&page=${page}&category=&order_by=&is_premium=&category_seq=`;
+  const r = await fetch(url, { headers: { 'User-Agent': UA, Cookie: sess.cookie, 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': sess.csrf, Referer: `${MB_BASE}/campaigns`, Accept: 'application/json' } });
+  if (!r.ok) return { items: [], count: 0 };
+  const j = await r.json().catch(() => ({}));
+  const html = (j && j.html) || '';
+  return { items: mbListItems(html), count: Number(j && j.count) || 0 };
+}
+
+// 상세 HTML → { name, address, deadline, content, hours, days, excludeHoliday }
+function mbParseDetail(html) {
+  const strip = (h) => String(h || '').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+  // 매장명: JS var keyword(카카오 장소검색용 깨끗한 상호). 폴백: subject의 "[지역] 상호"에서 접두 제거.
+  let name = mbDecodeJs((html.match(/var keyword = "([^"]*)"/) || [])[1] || '').trim();
+  if (!name) name = cleanStoreName(strip((html.match(/<strong class="subject">([^<]+)<\/strong>/) || [])[1] || ''));
+  // 주소: JS var address(전체) → 괄호(동/건물) 이후 제거 = 도로명만(지오코딩 정확). 없으면 배송형/무매장.
+  const address = mbDecodeJs((html.match(/var address = "([^"]*)"/) || [])[1] || '').replace(/\s*\([^)]*\).*$/, '').trim();
+  // 마감 = 모집 기간 종료일
+  const dd = (label) => { const mm = html.match(new RegExp('<dt>\\s*' + label + '\\s*</dt>\\s*<dd[^>]*>([\\s\\S]*?)</dd>')); return mm ? mm[1] : ''; };
+  const dm = strip(dd('모집 기간')).match(/~\s*(\d{4})\.(\d{2})\.(\d{2})/);
+  const deadline = dm ? `${dm[1]}-${dm[2]}-${dm[3]}` : '';
+  // 내용 = 체험 상품(제공내역). 안내문(**, ※) 앞까지.
+  let content = strip(dd('체험 상품')).split(/\*\*|※/)[0].trim();
+  if (!content) content = strip((html.match(/<h3 class="subject">\s*제공 내역\s*<\/h3>\s*<div class="data[^"]*">([\s\S]*?)<\/div>/) || [])[1] || '').split(/\*\*|※/)[0].trim();
+  content = content.slice(0, 200);
+  // 영업(방문가능)시간 → rbHoursDays로 요일/시간 분리. 자유텍스트라 라벨·안내문·괄호주석을 정리하고
+  // 휴무 절은 따로 보존(컷에 날아가지 않게)해 요일 제외가 유지되게 함.
+  let hours = '', days = '', excludeHoliday = 0;
+  const hb = html.match(/<h3 class="subject">\s*영업 시간\s*<\/h3>\s*<div class="data">([\s\S]*?)<\/div>/);
+  if (hb) {
+    let t = strip(hb[1])
+      .replace(/방문\s*가능\s*요일\s*&?\s*방문\s*가능\s*시간/g, ' ')
+      .replace(/(체험가능시간|방문가능시간|영업시간|방문시간|이용시간)\s*[:：]?/g, ' ')
+      .replace(/[（(][^)）]*[)）]/g, ' ') // 괄호 주석(라스트오더/브레이크 등) 제거
+      .replace(/(\d{1,2}\s*:\s*\d{2})\s*-\s*(\d{1,2}\s*:\s*\d{2})/g, '$1~$2') // 범위 하이픈 → ~
+      .replace(/\s+/g, ' ').trim();
+    const holiday = (t.match(/(?:매주\s*)?[월화수목금토일]+\s*(?:,\s*[월화수목금토일]+\s*)*(?:요일)?\s*(?:정기)?\s*휴무/) || [])[0] || '';
+    // 안내문/비시간 경계에서 컷(요일·시간·'/'범위는 보존; '-'는 범위라 경계 제외)
+    let seg = t.split(/[*※•·]|브레이크|두\s*타임|타임만|시간\s*조율|시간\/?날짜|협의\s*후?|예약\s*필수|당일\s*예약|방문\s*\d|\d일\s*전|선정\s*후|콘텐츠|필수입니다|매장\s*운영/)[0].trim();
+    if (holiday && !seg.includes('휴무')) seg += ' / ' + holiday; // 휴무 절 복원(요일 제외 유지)
+    seg = seg.replace(/\s+/g, ' ').trim();
+    if (seg) {
+      const hd = rbHoursDays('방문가능시간: ' + seg);
+      if (hd.days || hd.hours) { days = hd.days; hours = hd.hours || ''; excludeHoliday = hd.excludeHoliday || 0; }
+      if (!/\d{1,2}\s*:\s*\d{2}/.test(hours)) hours = ''; // 시각 없으면 신뢰불가 → 빈값(요일은 유지)
+      hours = hours.slice(0, 90);
+    }
+  }
+  return { name, address, deadline, content, hours, days, excludeHoliday };
+}
+
+// 스테이징 대상 아님(만료/이름없음)을 rejected로 기록 → 다음 패스 doneIds가 재요청 차단(라미라미 rrMarkSeen와 동일).
+async function mbMarkSeen(db, id, url, name, reason) {
+  try {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO scraped_items
+        (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status, auto_seen, auto_note)
+        VALUES ('미블',?,?,?,'','','','','','','',0,?,'',NULL,'rejected',1,?)`,
+      args: [id, url, name || '', reason, reason],
+    });
+  } catch (e) {}
+}
+
+async function runMrblog({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = null }) {
+  const platform = '미블';
+  const today = new Date().toISOString().slice(0, 10);
+  const sess = await mbSession();
+  if (!sess) {
+    await db.execute({
+      sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note) VALUES ('미블', 0, 0, 0, 0, 0, ?)`,
+      args: ['세션 실패(MRBLOG_COOKIE 미설정/만료 — 브라우저에서 쿠키 재복사 필요)'],
+    });
+    return { platform, error: 'session_failed', staged: 0 };
+  }
+  const dedupe = _dedupe || await loadDedupe(db);
+  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='미블'")).rows.map((r) => String(r.source_id)));
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, noAddr = 0, expired = 0, timedOut = false;
+  let page = 1;
+  while (page <= 200) {
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    const { items, count } = await mbFetchList(sess, page);
+    if (!items.length) break;
+    for (const it of items) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      if (doneIds.has(it.id)) continue;
+      if (processed >= limit) { timedOut = true; break; }
+      processed++;
+      doneIds.add(it.id);
+      try {
+        const url = `${MB_BASE}/campaigns/${it.id}`;
+        const dres = await fetch(url, { headers: { 'User-Agent': UA, Cookie: sess.cookie, Referer: `${MB_BASE}/campaigns` } });
+        await sleep(150);
+        if (!dres.ok) { failed++; continue; }
+        const d = mbParseDetail(await dres.text());
+        if (!d.name) { excluded++; await mbMarkSeen(db, it.id, url, '', '이름없음'); continue; }
+        if (!d.address) { noAddr++; continue; } // 배송형/주소없음 → 지도에 못 올림(파싱실패 가능성 있어 재요청 허용)
+        if (d.deadline && d.deadline < today) { expired++; await mbMarkSeen(db, it.id, url, d.name, `마감지남(${d.deadline})`); continue; }
+        const channel = it.channel || '블로그';
+        const auto = categoryByKeyword((d.content || '') + ' ' + d.name, d.name);
+        const category = auto || '기타'; // 미블 목록은 업종 미제공 → 승인 시 naverCanonicalName이 네이버 카테고리로 교정
+        const cls = classify({ name: d.name, channel, address: d.address }, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; continue; }
+        const flags = [];
+        if (!auto) flags.push('카테고리확인(기본값 기타)');
+        if (!it.channel) flags.push('채널확인');
+        const ins = await db.execute({
+          sql: `INSERT OR IGNORE INTO scraped_items
+            (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+          args: [platform, it.id, url, d.name, d.address, category, channel, d.content || '', d.deadline || '', d.hours || '', d.days || '', d.excludeHoliday ? 1 : 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+        });
+        if (ins.rowsAffected > 0) staged++;
+      } catch (e) { failed++; }
+    }
+    if (timedOut) break;      // limit 도달/시간예산 초과 → 다음 페이지 안 받음(불필요 XHR 방지)
+    if (count < 24) break;    // 마지막 페이지(한 페이지 24건 미만)
+    page++;
+  }
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('미블', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive + noAddr + expired, `처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 마감지남 ${expired}, 주소없음 ${noAddr}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, noAddr, expired, failed, timedOut };
+}
+
 // ===== 레뷰 (revu.net → 백엔드 api.weble.net 공개 API) =====
 // revu.net은 AngularJS SPA라 HTML엔 데이터가 없고, 백엔드 api.weble.net에서 JSON을 받는다.
 // 두 가지 모드:
@@ -2218,4 +2393,4 @@ function mapNaverCat(cat, name) {
   if (/음식점|한식|중식|일식|양식|분식|술집|주점|이자카야|바\(BAR\)|포장마차|뷔페|도시락|컵밥|고기|육류|해물|생선|치킨|피자|요리|식당|국밥|면류|샐러드|샌드위치|햄버거|이탈리아|파스타|스파게티|레스토랑|떡,한과/.test(c)) return '음식점';
   return '기타';
 }
-module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };

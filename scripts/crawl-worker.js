@@ -216,6 +216,19 @@ async function pass() {
     remaining = pma.remaining;
     console.log(`  [${ts()}] └ [포포몬] AI검증: 자동등록 ${pma.registered} · 검수 ${pma.review} · 스킵 ${pma.skipped} · 남은대기 ${pma.remaining}`);
   }
+  // 미블 (mrblog.net 네이버 간편로그인 계정 → 쿠키세션 MRBLOG_COOKIE 재사용, 만료 시 재복사. 방문형만: 상세 도로명→승인 시 지오코딩)
+  if (!stopping) {
+    if (!process.env.MRBLOG_COOKIE) {
+      console.log(`  [${ts()}] 수집(미블): 건너뜀 — MRBLOG_COOKIE 미설정(.env.local)`);
+    } else {
+      const mb = await runScrape({ db, platform: '미블', limit: 400, dedupe });
+      if ((mb.newCandidates || 0) > (mb.processed || 0)) more = true;
+      console.log(`  [${ts()}] 수집(미블): 처리 ${mb.processed} · 적재 ${mb.staged} · 마감지남 ${mb.expired} · 주소없음 ${mb.noAddr} · 중복 ${mb.dupActive} · 제외 ${mb.excluded}${mb.error ? ' · ' + mb.error : ''}`);
+      const mba = await runAutopilot({ db, places: apPlaces });
+      remaining = mba.remaining;
+      console.log(`  [${ts()}] └ [미블] AI검증: 자동등록 ${mba.registered} · 검수 ${mba.review} · 스킵 ${mba.skipped} · 남은대기 ${mba.remaining}`);
+    }
+  }
   return { collected, more, remaining };
 }
 
