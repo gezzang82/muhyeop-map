@@ -103,6 +103,9 @@ function loadInitialData() {
         await prefetchP; // 캠페인 시딩 완료 보장 후 아래 invalidateActiveCache
       }
       invalidateActiveCache();
+      // 즐겨찾기 모드 중에 홈 데이터 로드가 끝나 places가 통째로 교체됐으면 병합분이 사라짐 → 재병합+재렌더.
+      //  (로딩 중 즐겨찾기 진입 시 지도 핀/리스트가 일부만 남던 레이스 방지)
+      if (_favMode && _favItems && _favItems.length) { _mergeFavIntoPlaces(); renderMarkers(); renderSidebar(); }
       initCommunityDot();  // 커뮤니티 새글 점(후기·서이추) — fire-and-forget
     })();
     // 실패 시 메모를 풀어 다음 호출(다시 시도)이 재요청하도록 함
@@ -3302,7 +3305,12 @@ async function loadFavoritesFull() {
   } catch (e) { return; }
   _favItems = arr;
   _favorites = new Set(arr.map(f => Number(f.placeId)));
-  for (const f of arr) {
+  _mergeFavIntoPlaces();
+}
+
+// _favItems(즐겨찾기 전체)를 in-memory places/campaigns에 병합(멱등). 화면 밖·캠페인 없는 즐겨찾기도 지도 핀·리스트에서 확보.
+function _mergeFavIntoPlaces() {
+  for (const f of _favItems) {
     const pid = Number(f.placeId);
     if (!places.find(p => p.id === pid)) {
       places.push({ id: pid, name: f.name, address: f.address, category: f.category || '', lat: f.lat, lng: f.lng, hasReview: (f.reviewCount || 0) > 0 });
@@ -3321,14 +3329,51 @@ function setSidebarTitle(favMode) {
 }
 async function enterFavMode() {
   _favMode = true;
-  _favLoading = true;
   document.body.classList.add('fav-mode');   // 즐겨찾기 모드: 라이브 캐릭터·PC 앱다운로드 숨김(CSS)
   setSidebarTitle(true);
-  renderMarkers(); renderSidebar();   // 로딩/현재 스냅샷 먼저 반영
-  await loadFavoritesFull();
-  _favLoading = false;
-  if (!_favMode) return;              // 로드 중 다른 탭으로 이동했으면 중단
-  renderMarkers(); renderSidebar();
+  if (_favItems.length) {
+    // 이미 로그인 때 받아둔 전체 목록 즉시 병합 → 리스트·지도 핀을 느린 재호출 대기 없이 바로 전부 표시
+    _mergeFavIntoPlaces();
+    renderMarkers(); renderSidebar();
+    fitMapToFavorites();
+    // 백그라운드로 최신 캠페인/목록 반영(조용히 재렌더)
+    loadFavoritesFull().then(() => { if (_favMode) { renderMarkers(); renderSidebar(); } });
+  } else {
+    // 최초(목록 미로드): 로딩 표시 후 받아옴
+    _favLoading = true;
+    renderMarkers(); renderSidebar();
+    await loadFavoritesFull();
+    _favLoading = false;
+    if (!_favMode) return;              // 로드 중 다른 탭으로 이동했으면 중단
+    renderMarkers(); renderSidebar();
+    fitMapToFavorites();
+  }
+}
+
+// 즐겨찾기 모드 진입 시 지도를 내 즐겨찾기 매장 전체 범위로 맞춤.
+//  - 지도가 직전 위치/줌 그대로면 다른 지역 즐겨찾기 핀이 화면 밖이라 안 보임 → 전체 bounds로 fit.
+//  - 0개=스킵, 1개=그 지점으로 이동(적당 줌). PC 좌측 즐겨찾기 패널(≈360px)에 안 가리게 좌측 패딩 크게.
+function fitMapToFavorites() {
+  if (!map || !window.naver || !naver.maps) return;
+  const pts = [];
+  _favorites.forEach(id => {
+    const p = places.find(x => x.id === id);
+    if (p && !p.hidden && isFinite(p.lat) && isFinite(p.lng)) pts.push(p);
+  });
+  if (!pts.length) return;
+  try {
+    if (pts.length === 1) { map.setCenter(new naver.maps.LatLng(pts[0].lat, pts[0].lng)); map.setZoom(14); return; }
+    let b = new naver.maps.LatLngBounds(
+      new naver.maps.LatLng(pts[0].lat, pts[0].lng),
+      new naver.maps.LatLng(pts[0].lat, pts[0].lng)
+    );
+    for (const p of pts) b = b.extend(new naver.maps.LatLng(p.lat, p.lng));
+    // PC는 좌측 패널(≈360px)이 지도를 덮으므로 좌측 패딩을 크게(핀이 패널 뒤로 숨지 않게).
+    // 객체 패딩은 naver 버전에 따라 미지원일 수 있어 실패 시 숫자 패딩으로 폴백(그래도 전체는 보임).
+    const pad = isMobileView() ? { top: 80, right: 40, bottom: 140, left: 40 } : { top: 80, right: 60, bottom: 80, left: 400 };
+    try { map.fitBounds(b, pad); }
+    catch (e2) { map.fitBounds(b, 60); }
+  } catch (e) {}
 }
 function exitFavMode() {
   if (!_favMode) return;
@@ -3356,8 +3401,17 @@ function renderFavSidebar(list, countEl) {
     list.innerHTML = '<div class="sidebar-loading"></div>';
     return;
   }
+  // 리스트는 '이미 로그인 때 받아둔 전체 즐겨찾기(_favItems)' 기준으로 그린다.
+  //  - 지도 경량화로 캠페인 없는 즐겨찾기는 places에 없어, places.find로 그리면 loadFavoritesFull(느린 재호출) 완료 전까지
+  //    리스트에서 빠져 보임 → _favItems로 바로 전부 표시(캠페인 정보는 있으면 places 항목으로 보강).
   const favPlaces = [];
-  _favorites.forEach(id => { const p = places.find(x => x.id === id); if (p && !p.hidden) favPlaces.push(p); });
+  const _seen = new Set();
+  for (const f of _favItems) {
+    const id = Number(f.placeId);
+    if (_seen.has(id)) continue; _seen.add(id);
+    const p = places.find(x => x.id === id) || { id, name: f.name, address: f.address, category: f.category || '', lat: f.lat, lng: f.lng, hasReview: (f.reviewCount || 0) > 0 };
+    if (!p.hidden) favPlaces.push(p);
+  }
   countEl.textContent = favPlaces.length;
   if (!favPlaces.length) {
     list.innerHTML = `
