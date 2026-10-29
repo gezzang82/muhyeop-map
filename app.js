@@ -1513,8 +1513,6 @@ function detailTabsHtml(place) {
 function campaignEmptyHtml(place) {
   return `<div class="rv-empty">
       <p class="rv-empty-text"><b>${rvEsc(place.name)}</b>에는<br>진행 중인 협찬이 없어요.</p>
-      <p class="rv-empty-sub">신규 캠페인이 있다면 제보해주세요.</p>
-      <button class="rv-empty-btn" onclick="openReportForPlace(${place.id})">제보하기</button>
     </div>`;
 }
 
