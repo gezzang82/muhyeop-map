@@ -262,8 +262,6 @@ async function runDailyIgPost(db) {
   const today = kstDate();
   const last = await getState(db, 'last_post_date');
   if (last && last.v === today) return { skipped: 'already-today' };
-  // 중복발행 레이스 방지: 먼저 날짜 선점(실패 시 롤백 안 해도 다음날 재개)
-  await setState(db, 'last_post_date', today);
 
   const token = await getToken(db);
   const t = await pickTopic(db);
@@ -277,6 +275,8 @@ async function runDailyIgPost(db) {
 
   const caption = (t.caption || '') + HASHTAGS;
   const { mediaId, permalink } = await publish(token, imageUrl, caption);
+  // 발행 성공 후에만 날짜 선점(생성/발행 실패 시 백업 트리거가 재시도). 트리거 간격 20분이라 레이스 없음.
+  await setState(db, 'last_post_date', today);
   await db.execute({ sql: `INSERT INTO ig_posts (post_date, topic, media_id, permalink, asset_id, caption) VALUES (?,?,?,?,?,?)`, args: [today, t.topic, mediaId, permalink, assetId, caption] });
   return { posted: true, topic: t.topic, permalink, mediaId };
 }

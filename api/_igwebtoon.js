@@ -130,21 +130,23 @@ async function runWebtoonPost(db) {
   const srcBufs = await getSourceBuffers(db, next, ep.logNo);
   if (srcBufs.length < 2) return { skipped: 'no-images', ep: next };
 
-  // 날짜 선점(중복발행 방지) — 실패 시 webtoon_next는 안 올려 다음 사이클 재시도
-  await setState(db, 'last_post_date', today);
+  // 웹툰 선점(웹툰 중복/레이스 방지). last_post_date는 발행 성공 후에만 찍어 → 웹툰 실패 시 카드가 폴백 발행.
   await setState(db, 'webtoon_last_date', today);
 
+  // 5장 아웃페인팅을 '병렬'로(순차 ~175s → 병렬 ~40s, 서버 300s 타임아웃 방지)
+  const b64s = await Promise.all(srcBufs.map(b => outpaint(b)));
   const assetIds = [];
-  for (let i = 0; i < srcBufs.length; i++) {
-    const b64 = await outpaint(srcBufs[i]);
+  for (let i = 0; i < b64s.length; i++) {
     const id = `wt-${next}-${i}-${today.replace(/-/g, '')}`;
-    await db.execute({ sql: `INSERT OR REPLACE INTO ig_assets (id, mime, data) VALUES (?, 'image/png', ?)`, args: [id, b64] });
+    await db.execute({ sql: `INSERT OR REPLACE INTO ig_assets (id, mime, data) VALUES (?, 'image/png', ?)`, args: [id, b64s[i]] });
     assetIds.push(id);
   }
-  const caption = `[무협맵 웹툰] 오늘도 협찬 뛴다 ${['','①','②','③','④','⑤','⑥'][next]}화\n${ep.sub}\n\n흩어진 체험단·협찬, 이제 무협맵 지도 한 곳에서 한눈에! 🗺️\n👉 프로필 링크 (@muhyeopmap) · 앱스토어 '무협맵' 검색` + HASHTAGS;
+  const caption = `[무협맵 웹툰] 오늘도 협찬 뛴다 ${['', '①', '②', '③', '④', '⑤', '⑥'][next]}화\n${ep.sub}\n\n흩어진 체험단·협찬, 이제 무협맵 지도 한 곳에서 한눈에! 🗺️\n👉 프로필 링크 (@muhyeopmap) · 앱스토어 '무협맵' 검색` + HASHTAGS;
 
   const token = await getToken(db);
   const { mediaId, permalink } = await publishCarousel(db, token, assetIds, caption);
+  // 성공했을 때만 공용 가드 선점 + 다음화로
+  await setState(db, 'last_post_date', today);
   await db.execute({ sql: `INSERT INTO ig_posts (post_date, topic, media_id, permalink, asset_id, caption) VALUES (?,?,?,?,?,?)`, args: [today, 'webtoon:' + next, mediaId, permalink, assetIds[0], caption] });
   await setState(db, 'webtoon_next', next + 1);
   return { posted: true, episode: next, permalink, slides: assetIds.length };
