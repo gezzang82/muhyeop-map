@@ -615,19 +615,25 @@ function renderGnbClicks(today, total) {
 }
 
 // 지도 검색창 사용: 누적/오늘 횟수 + 최근 검색어 태그(최근 100건 내 중복 묶음, 최신순)
-function renderSearchStats(today, total, recent) {
+//  + 결과 0건 검색(수요 있는데 못 찾은 검색어 = 데이터/지역 공백) 별도 섹션.
+function renderSearchStats(today, total, recent, zeroToday, zeroTotal, zeroRecent) {
   const el = document.getElementById('searchStats');
   if (!el) return;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   today = Number(today || 0); total = Number(total || 0); recent = Array.isArray(recent) ? recent : [];
+  zeroToday = Number(zeroToday || 0); zeroTotal = Number(zeroTotal || 0); zeroRecent = Array.isArray(zeroRecent) ? zeroRecent : [];
   if (!total && !recent.length) { el.innerHTML = '<div class="empty-msg">아직 검색 데이터가 없어요. (배포 이후부터 수집)</div>'; return; }
-  const tags = recent.map(r => {
-    const c = Number(r.cnt || 0);
-    return `<span class="search-tag">${esc(r.term)}${c > 1 ? `<b>×${c}</b>` : ''}</span>`;
-  }).join('');
+  const tag = (r, zero) => { const c = Number(r.cnt || 0); return `<span class="search-tag${zero ? ' zero' : ''}">${esc(r.term)}${c > 1 ? `<b>×${c}</b>` : ''}</span>`; };
+  const tags = recent.map(r => tag(r, false)).join('');
+  const zeroRate = total ? Math.round(zeroTotal / total * 100) : 0;
+  const zeroBlock = (zeroTotal || zeroRecent.length) ? `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #eee">
+      <div style="margin-bottom:8px;font-size:13.5px;color:#555">🕳️ 결과 0건 <strong style="color:#e82a2d">${zeroTotal.toLocaleString()}</strong>회 (전체의 ${zeroRate}%) · 오늘 ${zeroToday.toLocaleString()} <span style="color:#aaa">— 수요 있는데 못 찾은 검색어(데이터 공백)</span></div>
+      <div class="search-tags">${zeroRecent.map(r => tag(r, true)).join('') || '<span class="empty-msg">0건 검색 없음 👍</span>'}</div>
+    </div>` : '';
   el.innerHTML = `
     <div style="margin-bottom:10px;font-size:14px;color:#555">누적 <strong style="color:#39395c">${total.toLocaleString()}</strong>회 · 오늘 <strong style="color:#39395c">${today.toLocaleString()}</strong>회</div>
-    <div class="search-tags">${tags || '<span class="empty-msg">최근 검색어 없음</span>'}</div>`;
+    <div class="search-tags">${tags || '<span class="empty-msg">최근 검색어 없음</span>'}</div>${zeroBlock}`;
 }
 
 // 모바일웹 앱 설치 팝업: 노출(show)/다운로드 클릭(install)/전환율
@@ -858,7 +864,7 @@ function renderDashboard() {
     renderReferrerDaily(s.referrerDaily || []);
     renderPlatforms(s.todayPlatforms || []);
     renderGnbClicks(s.gnbToday || {}, s.gnbTotal || {});
-    renderSearchStats(s.searchToday || 0, s.searchTotal || 0, s.recentSearches || []);
+    renderSearchStats(s.searchToday || 0, s.searchTotal || 0, s.recentSearches || [], s.searchZeroToday || 0, s.searchZeroTotal || 0, s.recentZeroSearches || []);
     renderAppInstall(s.appInstallToday || {}, s.appInstallTotal || {});
   }).catch(() => {});
 }

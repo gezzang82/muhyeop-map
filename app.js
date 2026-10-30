@@ -2529,6 +2529,8 @@ async function searchRegionViaLocalSearch(query) {
     const res = await fetch('/api/search-place?query=' + encodeURIComponent(query));
     const items = res.ok ? await res.json() : [];
     if (!items.length) {
+      // 결과 0건 집계(수요는 있는데 못 찾은 검색어 = 데이터/지역 공백 신호). 운영자 집IP는 서버에서 제외.
+      try { fetch('/api/places?visit=search&zero=1', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ q: String(query || '').slice(0, 60) }) }).catch(function () {}); } catch (e) {}
       showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
       return;
     }

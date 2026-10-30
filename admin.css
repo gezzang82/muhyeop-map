@@ -824,3 +824,5 @@ body {
 .search-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .search-tag { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; background: #f1f1f6; color: #39395c; border-radius: 14px; font-size: 13px; line-height: 1.2; }
 .search-tag b { font-weight: 700; color: #e82a2d; font-size: 11px; }
+.search-tag.zero { background: #fdeaea; color: #c0282b; }
+.search-tag.zero b { color: #c0282b; }
