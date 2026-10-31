@@ -4,6 +4,23 @@ const { readSession, createSessionCookie } = require('./_session');
 const URL_PLATFORM_DOMAINS = { '블로그': 'blog.naver.com/', '인스타그램': 'instagram.com/' };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// SNS 아이디 정규화: 공유 URL을 통째로 붙여넣어도(쿼리파라미터 ?igsh=/?mdxt= 포함) 순수 핸들만 저장.
+//  링크는 'instagram.com/'+id 로 만들어지므로 도메인 프리픽스·@·쿼리/해시·하위경로를 제거해야 깨끗함.
+function normalizeSnsId(raw) {
+  let s = String(raw || '').trim();
+  if (!s) return '';
+  s = s.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+  s = s.replace(/^m?\.?instagram\.com\//i, '')
+       .replace(/^(m\.)?blog\.naver\.com\//i, '')
+       .replace(/^naver\.me\//i, '');
+  s = s.replace(/^@+/, '');          // 선행 @
+  s = s.split(/[?#]/)[0];            // 쿼리/해시 이후 제거(공유 추적파라미터)
+  s = s.split('/')[0];              // 첫 경로 세그먼트만(블로그 하위경로 제거)
+  s = s.trim().toLowerCase();        // 인스타/네이버블로그 ID는 소문자
+  const m = s.match(/^[a-z0-9._-]+/); // 유효 핸들 문자만(인스타 . _ · 블로그 - _)
+  return (m ? m[0] : '').slice(0, 60);
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -34,9 +51,10 @@ module.exports = async function handler(req, res) {
       res.status(400).json({ error: '지원하지 않는 링크 플랫폼입니다.' });
       return;
     }
-    finalPlatform = urlPlatform && urlId ? urlPlatform : '';
-    // 블로그(네이버)·인스타 ID는 소문자만 유효 → 대문자로 입력해도 링크가 열리도록 소문자 정규화
-    finalId = urlPlatform && urlId ? String(urlId).trim().toLowerCase() : '';
+    // 공유 URL 통째 붙여넣기(쿼리파라미터 포함)·@·도메인 프리픽스를 제거해 순수 핸들만 저장
+    finalId = urlPlatform && urlId ? normalizeSnsId(urlId) : '';
+    // 정규화 후 빈 값이면 플랫폼도 비움(짝 유지)
+    finalPlatform = finalId ? urlPlatform : '';
   }
   if (hasEmail) {
     finalEmail = String(body.email || '').trim();
