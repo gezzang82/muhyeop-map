@@ -2276,7 +2276,7 @@ function panToCard(place) {
 }
 
 function openPcCard(place) {
-  resetMapSearch();  // 다른 매장/상세를 열면 검색 핀·FAB 제거 + 검색어 리셋
+  const _nf = _nameFilter; resetMapSearch(); _nameFilter = _nf;  // 핀 상세 열 때는 지역+키워드 이름필터 보존(필터된 핀들 유지)
   if (openPcCardPlaceId === place.id) { closePcCard(); return; }
   // 핀 직접 클릭 경로: 카드↔핀 붙이기용 지도 자동이동(panToCard)을 stale로 치지 않음(리스트 고정 유지).
   if (!isMobileView()) _sbSkipStale = true;
@@ -6501,7 +6501,7 @@ function openNaverMap(name, address, lat, lng) {
 
 // ===== 모바일 바텀시트 =====
 function openMobileSheet(place) {
-  resetMapSearch();  // 다른 매장/상세를 열면 검색 핀·FAB 제거 + 검색어 리셋
+  const _nf = _nameFilter; resetMapSearch(); _nameFilter = _nf;  // 핀 상세 열 때는 지역+키워드 이름필터 보존(필터된 핀들 유지)
   // 검색 키패드가 떠 있으면 먼저 닫아 바텀시트가 올바른 위치에 뜨도록
   if (document.activeElement && typeof document.activeElement.blur === 'function') {
     document.activeElement.blur();
