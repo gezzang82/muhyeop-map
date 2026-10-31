@@ -2340,6 +2340,10 @@ async function searchRegion() {
     return;
   }
 
+  // 지역+카테고리("전라북도 숙소"·"성수 카페") → 지역 범위로 이동 + 카테고리 필터(지도에 핀 표시, 리스트 없음).
+  //   매장명 정확일치 다음 우선. 지역부가 지오코딩돼야 발동(아니면 아래 일반 검색으로 폴백).
+  if (await tryRegionCategorySearch(query)) return;
+
   // 짧은 한글 검색어(시/군/동 등 지역명 가능성)는 매장 부분일치 리스트보다 먼저 '지역 이동' 시도.
   //  '군산'처럼 시/구/군 접미 없는 시·군명 대응(200+개라 목록 대신 지오코딩으로 판별). 매장명은 지오코딩이 안 돼 아래 매장검색으로 넘어감.
   if (q2.length >= 2 && q2.length <= 5 && /^[가-힣]+$/.test(q2)) {
@@ -2464,6 +2468,67 @@ function tryRegionByGeocode(query) {
             map.setCenter(new naver.maps.LatLng(y, x));
             map.setZoom(regionZoom(it));
             showSearchPin(y, x);
+            resolve(true); return;
+          }
+        }
+        resolve(false);
+      });
+    } catch (e) { resolve(false); }
+  });
+}
+
+// ===== 지역 + 카테고리 검색("전라북도 숙소"·"성수 카페") =====
+// 검색어에 카테고리 키워드가 있으면 → (지역부가 지오코딩되면) 그 지역 범위로 지도 이동 + 카테고리 필터.
+//  결과를 '리스트'로 안 띄우고 지도에 '핀/클러스터'로 보여줌. 지역부 없으면(카테고리만) 현재 지도에 필터만.
+// 키워드는 긴 것 우선(게스트하우스→하우스 같은 부분충돌 방지). 카테고리 정규명은 CATEGORY_PINS 키와 일치.
+const SEARCH_CATEGORY_KEYWORDS = [
+  ['게스트하우스', '숙박/여가'], ['풀빌라', '숙박/여가'], ['펜션', '숙박/여가'], ['리조트', '숙박/여가'], ['호텔', '숙박/여가'], ['모텔', '숙박/여가'], ['숙소', '숙박/여가'], ['숙박', '숙박/여가'], ['놀거리', '숙박/여가'], ['여가', '숙박/여가'],
+  ['레스토랑', '음식점'], ['맛집', '음식점'], ['식당', '음식점'], ['밥집', '음식점'], ['음식점', '음식점'],
+  ['베이커리', '카페'], ['디저트', '카페'], ['커피', '카페'], ['카페', '카페'],
+  ['에스테틱', '뷰티'], ['왁싱', '뷰티'], ['속눈썹', '뷰티'], ['네일', '뷰티'], ['태닝', '뷰티'], ['피부', '뷰티'], ['뷰티', '뷰티'],
+  ['미용실', '헤어'], ['헤어', '헤어'], ['염색', '헤어'],
+  ['프로필사진', '사진관'], ['셀프사진', '사진관'], ['사진관', '사진관'], ['스튜디오', '사진관'], ['사진', '사진관'],
+  ['원데이클래스', '문화'], ['클래스', '문화'], ['전시', '문화'], ['공연', '문화'], ['문화', '문화'],
+  ['옷가게', '의류'], ['의류', '의류'], ['패션', '의류'],
+  ['선글라스', '안경/잡화'], ['액세서리', '안경/잡화'], ['안경', '안경/잡화'], ['잡화', '안경/잡화'],
+  ['필라테스', '운동'], ['크로스핏', '운동'], ['클라이밍', '운동'], ['헬스', '운동'], ['복싱', '운동'], ['골프', '운동'], ['요가', '운동'], ['수영', '운동'], ['운동', '운동'],
+];
+function detectSearchCategory(query) {
+  const s = String(query || '');
+  for (const [kw, cat] of SEARCH_CATEGORY_KEYWORDS) if (s.includes(kw)) return { kw, cat };
+  return null;
+}
+// 지역 범위 줌: 도(道)는 넓게(전체가 보이게), 광역시/시/구/동은 좁혀서.
+function regionExtentZoom(it) {
+  const s = (it && (it.roadAddress || it.jibunAddress)) || '';
+  if (/(특별자치도|도)$/.test(s)) return 9;                 // 도 = 전체 범위
+  if (/(광역시|특별시|특별자치시)$/.test(s)) return 11;      // 광역시/특별시
+  return regionZoom(it);
+}
+async function tryRegionCategorySearch(query) {
+  const hit = detectSearchCategory(query);
+  if (!hit) return false;
+  const regionPart = String(query).split(hit.kw).join(' ').replace(/\s+/g, ' ').trim();
+  if (!regionPart) {
+    // 카테고리만 입력(예: "숙소") → 현재 보고 있는 지도에 그 카테고리만 핀 표시
+    applyCategoryFilter(hit.cat);
+    showToast(`현재 지도에서 '${hit.cat}'만 표시했어요`);
+    return true;
+  }
+  // 지역부가 한국 좌표로 지오코딩될 때만 발동(아니면 false → 일반 매장검색으로)
+  return await new Promise(resolve => {
+    try {
+      naver.maps.Service.geocode({ query: regionPart }, function(status, response) {
+        const it = response?.v2?.addresses?.[0];
+        if (status === naver.maps.Service.Status.OK && it) {
+          const y = parseFloat(it.y), x = parseFloat(it.x);
+          if (y >= 33 && y <= 39 && x >= 124 && x <= 132) {
+            const z = regionExtentZoom(it);
+            clearSearchPin();
+            map.setCenter(new naver.maps.LatLng(y, x));
+            map.setZoom(z);
+            applyCategoryFilter(hit.cat);  // 지도에 카테고리 핀만 표시(리스트 없음)
+            showToast(`'${regionPart}' · '${hit.cat}' 협찬을 지도에 표시했어요${z < CAMPAIGN_MIN_ZOOM ? '<br>확대하면 협찬 핀이 자세히 보여요' : ''}`);
             resolve(true); return;
           }
         }
