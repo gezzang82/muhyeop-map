@@ -470,6 +470,13 @@ function matchesCategoryFilter(place) {
   if (!currentCategoryFilter) return true;
   return (place.category || '기타') === currentCategoryFilter;
 }
+// 매장명 키워드 필터 — 지역+키워드 검색("경주 순대국")에서 설정. 지도/사이드바가 이 키워드를 매장명에 포함한 매장만 표시.
+//  카테고리에 없는 메뉴/상호(순대국·노티드 등)를 지역과 함께 찾을 때 사용. 새 검색/카테고리칩 선택 시 해제.
+let _nameFilter = '';
+function matchesNameFilter(place) {
+  if (!_nameFilter) return true;
+  return String(place.name || '').replace(/\s/g, '').toLowerCase().includes(_nameFilter);
+}
 // PC/모바일 카테고리 칩 라벨·활성상태 갱신(아이콘 없이 텍스트만)
 function updateCategoryChip() {
   const cat = currentCategoryFilter;
@@ -893,6 +900,7 @@ function clearSearchInput() {
 }
 // 검색 상태 초기화: 검색 핀+후기등록 FAB 제거 + 검색창 검색어 리셋 (핀 선택·바텀시트·칩스·GNB 등에서 호출)
 function resetMapSearch() {
+  _nameFilter = '';  // 이름 키워드 필터 해제(카테고리칩 선택·검색 리셋 시)
   clearSearchPin();
   clearSearchInput();
 }
@@ -1177,7 +1185,7 @@ function renderMarkers() {
   const visiblePlaces = (_favMode)
     ? (currentUser ? places.filter(place => !place.hidden && isFavorited(place.id)) : [])
     : places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
-        matchesCategoryFilter(place) &&
+        matchesCategoryFilter(place) && matchesNameFilter(place) &&
         (!filtering || hasActiveCampaign(place.id)));
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
@@ -2047,7 +2055,7 @@ function renderSidebar() {
 
   // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래).
   // 마감일 동률이면 세션마다 무작위로 섞어 노출(같은 플랫폼 배치가 뭉치지 않게, 고정 편중 방지).
-  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id) && matchesCategoryFilter(p));
+  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id) && matchesCategoryFilter(p) && matchesNameFilter(p));
   // 가장 이른 마감일을 장소별로 1회만 계산(메모) → sort 비교마다 재계산(O(N log N)회) 방지.
   const _ed = new Map();
   for (const p of activePlaces) _ed.set(p.id, earliestDeadlineOf(p));
@@ -2311,6 +2319,7 @@ async function searchRegion() {
   if (!query) return;
   // 검색창 사용 집계(fire-and-forget, 운영자 집IP는 서버에서 제외): 일별 횟수 + 최근 검색어
   try { fetch('/api/places?visit=search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ q: query.slice(0, 60) }) }).catch(function () {}); } catch (e) {}
+  _nameFilter = '';  // 새 검색마다 이름 키워드 필터 초기화(지역+키워드 성공 시 아래에서 다시 설정)
 
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(query);
@@ -2343,6 +2352,10 @@ async function searchRegion() {
   // 지역+카테고리("전라북도 숙소"·"성수 카페") → 지역 범위로 이동 + 카테고리 필터(지도에 핀 표시, 리스트 없음).
   //   매장명 정확일치 다음 우선. 지역부가 지오코딩돼야 발동(아니면 아래 일반 검색으로 폴백).
   if (await tryRegionCategorySearch(query)) return;
+
+  // 지역+매장명 키워드("경주 순대국"·"역삼 스타벅스") → 지역 이동 + 이름필터(지도에 해당 핀, 리스트 없음).
+  //   카테고리에 없는 메뉴/상호용. 지역부 지오코딩 + 키워드 매장 존재 시만 발동(아니면 일반 검색으로).
+  if (await tryRegionNameKeyword(query)) return;
 
   // 짧은 한글 검색어(시/군/동 등 지역명 가능성)는 매장 부분일치 리스트보다 먼저 '지역 이동' 시도.
   //  '군산'처럼 시/구/군 접미 없는 시·군명 대응(200+개라 목록 대신 지오코딩으로 판별). 매장명은 지오코딩이 안 돼 아래 매장검색으로 넘어감.
@@ -2536,6 +2549,47 @@ async function tryRegionCategorySearch(query) {
       });
     } catch (e) { resolve(false); }
   });
+}
+
+// ===== 지역 + 매장명 키워드 검색("경주 순대국"·"역삼 스타벅스") =====
+// 카테고리에 없는 메뉴/상호도 지역과 함께 찾기. 마지막 토큰=키워드, 앞=지역.
+//  지역부가 지오코딩되고 + 그 키워드를 매장명에 포함한 매장이 (서버 전체 기준) 존재할 때만 발동.
+//  → 지역 이동 + 이름필터(matchesNameFilter) 적용해 지도에 해당 핀만 표시(리스트 없음). 아니면 false(일반 검색으로).
+async function tryRegionNameKeyword(query) {
+  const parts = String(query).trim().split(/\s+/);
+  if (parts.length < 2) return false;                 // 공백 구분 2토큰 이상만(지역+키워드)
+  const keywordRaw = parts[parts.length - 1];
+  const regionStr = parts.slice(0, -1).join(' ');
+  const keyword = keywordRaw.replace(/\s/g, '').toLowerCase();
+  if (keyword.length < 2) return false;
+  // 지역부가 한국 좌표로 지오코딩돼야 발동
+  const geo = await new Promise(resolve => {
+    try {
+      naver.maps.Service.geocode({ query: regionStr }, function(status, response) {
+        const it = response?.v2?.addresses?.[0];
+        if (status === naver.maps.Service.Status.OK && it) {
+          const y = parseFloat(it.y), x = parseFloat(it.x);
+          if (y >= 33 && y <= 39 && x >= 124 && x <= 132) return resolve(it);
+        }
+        resolve(null);
+      });
+    } catch (e) { resolve(null); }
+  });
+  if (!geo) return false;
+  // 키워드로 서버 매장검색 병합(죽은 매장 포함) → 지역 내 이름매칭 핀이 보이게
+  await mergeServerPlaces(keywordRaw);
+  const anyMatch = places.some(p => !p.hidden && String(p.name || '').replace(/\s/g, '').toLowerCase().includes(keyword));
+  if (!anyMatch) return false;                        // 전국적으로 매칭 0 → 일반 폴백에 맡김
+  _nameFilter = keyword;
+  currentCategoryFilter = '';                          // 이름필터 모드에선 카테고리 필터 해제(혼선 방지)
+  updateCategoryChip();
+  clearSearchPin();
+  const z = regionExtentZoom(geo);
+  map.setCenter(new naver.maps.LatLng(parseFloat(geo.y), parseFloat(geo.x)));
+  map.setZoom(z);
+  renderAll();
+  showToast(`'${regionStr}'에서 '${keywordRaw}' 매장을 지도에 표시했어요${z < CAMPAIGN_MIN_ZOOM ? '<br>확대하면 더 자세히 보여요' : ''}`);
+  return true;
 }
 
 // 주소/지역명 → 지도 이동(등록 매장이 아닐 때). (구 searchRegion 내부 trySearch 분리)
