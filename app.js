@@ -484,6 +484,13 @@ function matchesRegionFilter(place) {
   if (!_regionFilter) return true;
   return String(place.address || '').replace(/\s/g, '').includes(_regionFilter);
 }
+// 지역+카테고리 검색("인천 카페")의 카테고리 필터 — 칩(currentCategoryFilter) 대신 '내부 필터'로.
+//  → 검색창엔 "인천 카페" 유지, 카테고리 칩은 '전체'로 두고 내부적으로만 카페 매장만 표시(지역+키워드와 동일한 UX).
+let _searchCatFilter = '';
+function matchesSearchCatFilter(place) {
+  if (!_searchCatFilter) return true;
+  return (place.category || '기타') === _searchCatFilter;
+}
 // 지오코딩 결과에서 매칭키 추출: 시/군/구(SIGUGU) 우선(없으면 시/도 SIDO 약칭). 예: 인천→"인천", 부평구→"부평구".
 function regionMatchKey(it) {
   const els = (it && it.addressElements) || [];
@@ -912,15 +919,33 @@ function toggleSearchPinFab(on) {
   }
 }
 // 지도 검색창(모바일/PC/히든 프록시) 검색어 비우기
+let _suppressSearchResetOnInput = false;  // 프로그램적 검색어 비우기(핀 선택 등) 땐 input 리스너의 지도 리셋 억제
 function clearSearchInput() {
+  _suppressSearchResetOnInput = true;
   ['regionSearch', 'regionSearchPC', 'regionSearchMobile', 'regionSearchMobileTop', 'regionSearchMobileOverlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.value !== '') { el.value = ''; el.dispatchEvent(new Event('input')); }  // input 이벤트로 .btn-input-clear(X) 숨김 동기화(핀 선택 등 프로그램적 리셋 대응)
   });
+  _suppressSearchResetOnInput = false;
+}
+// 검색창을 '사용자가' 비우면(네이티브 X·백스페이스) 검색필터 해제 + 전체 재렌더('제자리로'). 프로그램적 클리어는 억제됨.
+function initMapSearchReset() {
+  ['regionSearch', 'regionSearchPC', 'regionSearchMobile', 'regionSearchMobileTop', 'regionSearchMobileOverlay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el._mapResetBound) return;
+    el._mapResetBound = true;
+    el.addEventListener('input', () => {
+      if (_suppressSearchResetOnInput) return;
+      if (el.value.trim() === '' && (_nameFilter || _regionFilter || _searchCatFilter)) {
+        _nameFilter = ''; _regionFilter = ''; _searchCatFilter = '';
+        renderAll();
+      }
+    });
+  });
 }
 // 검색 상태 초기화: 검색 핀+후기등록 FAB 제거 + 검색창 검색어 리셋 (핀 선택·바텀시트·칩스·GNB 등에서 호출)
 function resetMapSearch() {
-  _nameFilter = ''; _regionFilter = '';  // 이름/지역 필터 해제(카테고리칩 선택·검색 리셋 시)
+  _nameFilter = ''; _regionFilter = ''; _searchCatFilter = '';  // 검색필터 해제(카테고리칩 선택·검색 리셋 시)
   clearSearchPin();
   clearSearchInput();
 }
@@ -1205,7 +1230,7 @@ function renderMarkers() {
   const visiblePlaces = (_favMode)
     ? (currentUser ? places.filter(place => !place.hidden && isFavorited(place.id)) : [])
     : places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
-        matchesCategoryFilter(place) && matchesNameFilter(place) && matchesRegionFilter(place) &&
+        matchesCategoryFilter(place) && matchesNameFilter(place) && matchesRegionFilter(place) && matchesSearchCatFilter(place) &&
         (!filtering || hasActiveCampaign(place.id)));
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
@@ -2075,7 +2100,7 @@ function renderSidebar() {
 
   // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래).
   // 마감일 동률이면 세션마다 무작위로 섞어 노출(같은 플랫폼 배치가 뭉치지 않게, 고정 편중 방지).
-  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id) && matchesCategoryFilter(p) && matchesNameFilter(p) && matchesRegionFilter(p));
+  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id) && matchesCategoryFilter(p) && matchesNameFilter(p) && matchesRegionFilter(p) && matchesSearchCatFilter(p));
   // 가장 이른 마감일을 장소별로 1회만 계산(메모) → sort 비교마다 재계산(O(N log N)회) 방지.
   const _ed = new Map();
   for (const p of activePlaces) _ed.set(p.id, earliestDeadlineOf(p));
@@ -2296,7 +2321,7 @@ function panToCard(place) {
 }
 
 function openPcCard(place) {
-  const _nf = _nameFilter, _rf = _regionFilter; resetMapSearch(); _nameFilter = _nf; _regionFilter = _rf;  // 핀 상세 열 때는 지역/이름 필터 보존(필터된 핀들 유지)
+  const _nf = _nameFilter, _rf = _regionFilter, _scf = _searchCatFilter; resetMapSearch(); _nameFilter = _nf; _regionFilter = _rf; _searchCatFilter = _scf;  // 핀 상세 열 때는 검색필터 보존(필터된 핀들 유지)
   if (openPcCardPlaceId === place.id) { closePcCard(); return; }
   // 핀 직접 클릭 경로: 카드↔핀 붙이기용 지도 자동이동(panToCard)을 stale로 치지 않음(리스트 고정 유지).
   if (!isMobileView()) _sbSkipStale = true;
@@ -2339,7 +2364,7 @@ async function searchRegion() {
   if (!query) return;
   // 검색창 사용 집계(fire-and-forget, 운영자 집IP는 서버에서 제외): 일별 횟수 + 최근 검색어
   try { fetch('/api/places?visit=search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ q: query.slice(0, 60) }) }).catch(function () {}); } catch (e) {}
-  _nameFilter = ''; _regionFilter = '';  // 새 검색마다 이름/지역 필터 초기화(지역+카테고리/키워드 성공 시 아래에서 다시 설정)
+  _nameFilter = ''; _regionFilter = ''; _searchCatFilter = '';  // 새 검색마다 검색필터 초기화(지역+카테고리/키워드 성공 시 아래에서 다시 설정)
 
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(query);
@@ -2557,11 +2582,15 @@ async function tryRegionCategorySearch(query) {
           const y = parseFloat(it.y), x = parseFloat(it.x);
           if (y >= 33 && y <= 39 && x >= 124 && x <= 132) {
             const z = regionExtentZoom(it);
-            clearSearchPin();
+            clearSearchPin();  // 검색 핀만 제거(검색어는 유지 — "인천 순대국"과 동일 UX)
+            // 카테고리를 '칩'이 아닌 '내부 필터'로: 검색창엔 "인천 카페" 유지, 카테고리 칩은 전체.
+            _searchCatFilter = hit.cat;
+            _regionFilter = regionMatchKey(it);  // 행정구역 밖(뷰포트에 걸친 인접 지역) 핀 제외
+            _nameFilter = '';
+            currentCategoryFilter = '';  // 카테고리 칩 = 전체
+            updateCategoryChip();
             map.setCenter(new naver.maps.LatLng(y, x));
             map.setZoom(z);
-            applyCategoryFilter(hit.cat);  // 카테고리 필터(내부 resetMapSearch가 _regionFilter 리셋 → 아래서 다시 설정)
-            _regionFilter = regionMatchKey(it);  // 행정구역 밖(뷰포트에 걸친 인접 지역) 핀 제외
             renderAll();
             showToast(`'${regionPart}' · '${hit.cat}' 협찬을 지도에 표시했어요${z < CAMPAIGN_MIN_ZOOM ? '<br>확대하면 협찬 핀이 자세히 보여요' : ''}`);
             resolve(true); return;
@@ -6524,7 +6553,7 @@ function openNaverMap(name, address, lat, lng) {
 
 // ===== 모바일 바텀시트 =====
 function openMobileSheet(place) {
-  const _nf = _nameFilter, _rf = _regionFilter; resetMapSearch(); _nameFilter = _nf; _regionFilter = _rf;  // 핀 상세 열 때는 지역/이름 필터 보존(필터된 핀들 유지)
+  const _nf = _nameFilter, _rf = _regionFilter, _scf = _searchCatFilter; resetMapSearch(); _nameFilter = _nf; _regionFilter = _rf; _searchCatFilter = _scf;  // 핀 상세 열 때는 검색필터 보존(필터된 핀들 유지)
   // 검색 키패드가 떠 있으면 먼저 닫아 바텀시트가 올바른 위치에 뜨도록
   if (document.activeElement && typeof document.activeElement.blur === 'function') {
     document.activeElement.blur();
@@ -6876,6 +6905,7 @@ function updateStatCount() {
 }
 
 document.addEventListener('DOMContentLoaded', setupClearButtons);
+document.addEventListener('DOMContentLoaded', initMapSearchReset);
 document.addEventListener('DOMContentLoaded', initAppDownloadCard);
 
 // ===== 초기 로딩 애니메이션 =====
