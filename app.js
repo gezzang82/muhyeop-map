@@ -477,6 +477,26 @@ function matchesNameFilter(place) {
   if (!_nameFilter) return true;
   return String(place.name || '').replace(/\s/g, '').toLowerCase().includes(_nameFilter);
 }
+// 지역(행정구역) 필터 — 지역+카테고리/지역+키워드 검색에서 설정. 매장 주소가 그 시/군/구(또는 시/도)에 속한 것만 표시.
+//  뷰포트가 사각형이라 "인천 카페"에서 인접 서울·경기 카페가 핀으로 새던 것 방지(행정경계로 제한). 지오코딩 addressElements에서 키 추출.
+let _regionFilter = '';
+function matchesRegionFilter(place) {
+  if (!_regionFilter) return true;
+  return String(place.address || '').replace(/\s/g, '').includes(_regionFilter);
+}
+// 지오코딩 결과에서 매칭키 추출: 시/군/구(SIGUGU) 우선(없으면 시/도 SIDO 약칭). 예: 인천→"인천", 부평구→"부평구".
+function regionMatchKey(it) {
+  const els = (it && it.addressElements) || [];
+  const pick = (type) => {
+    const e = els.find(x => Array.isArray(x.types) && x.types.includes(type));
+    return e ? (e.shortName || e.longName || '') : '';
+  };
+  const sigugu = pick('SIGUGUN');  // 부평구·부천시·강남구 — 그대로 매칭(주소에 그대로 등장). ※네이버 타입명은 SIGUGUN
+  if (sigugu) return sigugu.replace(/\s/g, '');
+  // 시/도만: 어미 제거해 약칭 stem으로(인천광역시→인천, 전북특별자치도→전북, 경기도→경기) — 주소 표기 변형에 견고
+  const sido = pick('SIDO').replace(/\s/g, '');
+  return sido.replace(/(특별자치도|특별자치시|특별시|광역시|도|시)$/, '');
+}
 // PC/모바일 카테고리 칩 라벨·활성상태 갱신(아이콘 없이 텍스트만)
 function updateCategoryChip() {
   const cat = currentCategoryFilter;
@@ -900,7 +920,7 @@ function clearSearchInput() {
 }
 // 검색 상태 초기화: 검색 핀+후기등록 FAB 제거 + 검색창 검색어 리셋 (핀 선택·바텀시트·칩스·GNB 등에서 호출)
 function resetMapSearch() {
-  _nameFilter = '';  // 이름 키워드 필터 해제(카테고리칩 선택·검색 리셋 시)
+  _nameFilter = ''; _regionFilter = '';  // 이름/지역 필터 해제(카테고리칩 선택·검색 리셋 시)
   clearSearchPin();
   clearSearchInput();
 }
@@ -1185,7 +1205,7 @@ function renderMarkers() {
   const visiblePlaces = (_favMode)
     ? (currentUser ? places.filter(place => !place.hidden && isFavorited(place.id)) : [])
     : places.filter(place => !place.hidden && inView(place.lat, place.lng) &&
-        matchesCategoryFilter(place) && matchesNameFilter(place) &&
+        matchesCategoryFilter(place) && matchesNameFilter(place) && matchesRegionFilter(place) &&
         (!filtering || hasActiveCampaign(place.id)));
 
   // 지도 이동/줌이 멈출 때 뷰포트 기준 재렌더 (리스너 1회, 디바운스). 회색핀 임계 처리도 여기서 같이 됨.
@@ -2055,7 +2075,7 @@ function renderSidebar() {
 
   // 마감임박순: 장소별 활성 캠페인 중 가장 이른 마감일 오름차순(상시=Infinity는 맨 아래).
   // 마감일 동률이면 세션마다 무작위로 섞어 노출(같은 플랫폼 배치가 뭉치지 않게, 고정 편중 방지).
-  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id) && matchesCategoryFilter(p) && matchesNameFilter(p));
+  const activePlaces = visiblePlaces.filter(p => hasActiveCampaign(p.id) && matchesCategoryFilter(p) && matchesNameFilter(p) && matchesRegionFilter(p));
   // 가장 이른 마감일을 장소별로 1회만 계산(메모) → sort 비교마다 재계산(O(N log N)회) 방지.
   const _ed = new Map();
   for (const p of activePlaces) _ed.set(p.id, earliestDeadlineOf(p));
@@ -2276,7 +2296,7 @@ function panToCard(place) {
 }
 
 function openPcCard(place) {
-  const _nf = _nameFilter; resetMapSearch(); _nameFilter = _nf;  // 핀 상세 열 때는 지역+키워드 이름필터 보존(필터된 핀들 유지)
+  const _nf = _nameFilter, _rf = _regionFilter; resetMapSearch(); _nameFilter = _nf; _regionFilter = _rf;  // 핀 상세 열 때는 지역/이름 필터 보존(필터된 핀들 유지)
   if (openPcCardPlaceId === place.id) { closePcCard(); return; }
   // 핀 직접 클릭 경로: 카드↔핀 붙이기용 지도 자동이동(panToCard)을 stale로 치지 않음(리스트 고정 유지).
   if (!isMobileView()) _sbSkipStale = true;
@@ -2319,7 +2339,7 @@ async function searchRegion() {
   if (!query) return;
   // 검색창 사용 집계(fire-and-forget, 운영자 집IP는 서버에서 제외): 일별 횟수 + 최근 검색어
   try { fetch('/api/places?visit=search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ q: query.slice(0, 60) }) }).catch(function () {}); } catch (e) {}
-  _nameFilter = '';  // 새 검색마다 이름 키워드 필터 초기화(지역+키워드 성공 시 아래에서 다시 설정)
+  _nameFilter = ''; _regionFilter = '';  // 새 검색마다 이름/지역 필터 초기화(지역+카테고리/키워드 성공 시 아래에서 다시 설정)
 
   const normalize = s => s.replace(/\s/g, '').toLowerCase();
   const nq = normalize(query);
@@ -2540,7 +2560,9 @@ async function tryRegionCategorySearch(query) {
             clearSearchPin();
             map.setCenter(new naver.maps.LatLng(y, x));
             map.setZoom(z);
-            applyCategoryFilter(hit.cat);  // 지도에 카테고리 핀만 표시(리스트 없음)
+            applyCategoryFilter(hit.cat);  // 카테고리 필터(내부 resetMapSearch가 _regionFilter 리셋 → 아래서 다시 설정)
+            _regionFilter = regionMatchKey(it);  // 행정구역 밖(뷰포트에 걸친 인접 지역) 핀 제외
+            renderAll();
             showToast(`'${regionPart}' · '${hit.cat}' 협찬을 지도에 표시했어요${z < CAMPAIGN_MIN_ZOOM ? '<br>확대하면 협찬 핀이 자세히 보여요' : ''}`);
             resolve(true); return;
           }
@@ -2581,6 +2603,7 @@ async function tryRegionNameKeyword(query) {
   const anyMatch = places.some(p => !p.hidden && String(p.name || '').replace(/\s/g, '').toLowerCase().includes(keyword));
   if (!anyMatch) return false;                        // 전국적으로 매칭 0 → 일반 폴백에 맡김
   _nameFilter = keyword;
+  _regionFilter = regionMatchKey(geo);                 // 행정구역 밖(뷰포트에 걸친 인접 지역) 핀 제외
   currentCategoryFilter = '';                          // 이름필터 모드에선 카테고리 필터 해제(혼선 방지)
   updateCategoryChip();
   clearSearchPin();
@@ -6501,7 +6524,7 @@ function openNaverMap(name, address, lat, lng) {
 
 // ===== 모바일 바텀시트 =====
 function openMobileSheet(place) {
-  const _nf = _nameFilter; resetMapSearch(); _nameFilter = _nf;  // 핀 상세 열 때는 지역+키워드 이름필터 보존(필터된 핀들 유지)
+  const _nf = _nameFilter, _rf = _regionFilter; resetMapSearch(); _nameFilter = _nf; _regionFilter = _rf;  // 핀 상세 열 때는 지역/이름 필터 보존(필터된 핀들 유지)
   // 검색 키패드가 떠 있으면 먼저 닫아 바텀시트가 올바른 위치에 뜨도록
   if (document.activeElement && typeof document.activeElement.blur === 'function') {
     document.activeElement.blur();
