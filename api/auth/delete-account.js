@@ -16,6 +16,32 @@ module.exports = async function handler(req, res) {
   try {
     const db = getDb();
 
+    // 탈퇴 로그(이탈 분석용, PII 최소: 닉네임/이메일 미기록). 삭제 '직전'에 비식별 메타만 적재.
+    try {
+      await db.execute(`CREATE TABLE IF NOT EXISTS deleted_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        orig_user_id INTEGER,
+        provider TEXT,
+        signup_source TEXT,
+        last_platform TEXT,
+        signup_date TEXT,
+        reason TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      )`);
+      const u = (await db.execute({
+        sql: "SELECT provider, signup_source, last_platform, date(created_at,'+9 hours') AS signup_date FROM users WHERE id = ?",
+        args: [session.userId],
+      })).rows[0];
+      if (u) {
+        const body = req.body || {};
+        const reason = (typeof body.reason === 'string' ? body.reason : '').slice(0, 40) || null;
+        await db.execute({
+          sql: 'INSERT INTO deleted_users (orig_user_id, provider, signup_source, last_platform, signup_date, reason) VALUES (?,?,?,?,?,?)',
+          args: [session.userId, u.provider || null, u.signup_source || null, u.last_platform || null, u.signup_date || null, reason],
+        });
+      }
+    } catch (e) {}
+
     try {
       await db.execute({ sql: 'UPDATE campaigns SET user_id = NULL WHERE user_id = ?', args: [session.userId] });
     } catch (e) {}

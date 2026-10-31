@@ -29,6 +29,8 @@
 - **📊 GNB 탭 클릭 카드**(`#gnbClicks`, `renderGnbClicks`, `?visit=stats`의 `gnbToday`/`gnbTotal`, 2026-10-13): 하단 GNB 탭(홈/내 장소/커뮤니티/MY) **탭별 누적 클릭수 + 비율% + 오늘** 막대. 어느 메뉴를 많이 쓰나 파악용. 수집은 `switchTab`→`?visit=gnb`→`gnb_daily`([[api-db]], 운영자 집IP 제외). **배포 이후부터**(소급 불가). 홈은 기본화면이라 상대적으로 적게 잡힐 수 있음(이미 홈이면 안 누름).
 - **🔍 지도 검색 사용 카드**(`#searchStats`, `renderSearchStats`, `?visit=stats`의 `searchToday`/`searchTotal`/`recentSearches` + `searchZeroToday`/`searchZeroTotal`/`recentZeroSearches`, 2026-10-30): 지도 검색창을 **얼마나 쓰나(누적·오늘 횟수)** + **무엇을 검색하나(최근 검색어 태그, 최근 100건 내 중복 묶어 최신순·반복 ×N 배지)** + **🕳️ 결과 0건 섹션**(0건 횟수·0건율%·0건 검색어 빨강 태그 = **수요 있는데 못 찾은 검색어=데이터/지역 공백**). 수집은 `searchRegion`→`?visit=search {q}`(0건이면 `searchRegionViaLocalSearch`가 `&zero=1` 추가)→`search_daily`/`search_log`(+`search_zero_*`)([[api-db]], 운영자 집IP 제외·빈 검색 제외·검색어 60자/이스케이프). **배포 이후부터**(소급 불가). 사람들이 찾는 지역·매장 + 데이터 공백 파악용.
 
+- **👋 회원 탈퇴 카드**(`#withdrawStats`, `renderWithdrawStats`, `GET /api/users?withdrawals=stats`, 2026-10-31): 회원 탈퇴(이탈) 집계 — **오늘·누적 탈퇴수** + **당일가입→당일탈퇴 수**(온보딩/첫인상 문제 신호) + **사유 분포 태그**(찾는협찬없음/쓰기불편/다른앱/그냥기타, 클라 탈퇴 시트 선택 칩) + **최근 20건 목록**(비식별: `#id·provider·가입경로·기기·가입일→탈퇴일`, 당일탈퇴는 빨강 뱃지). 회원 세그먼트 카드 바로 아래 배치. 수집: `delete-account.js`가 users row **hard delete 직전** `deleted_users`에 비식별 메타만 적재(PII 없음)([[api-db]]). **소급 불가**(배포 이후 탈퇴부터)·사유는 선택(미응답 집계). 당일 가입→탈퇴가 반복되면 온보딩 점검 신호.
+
 ## 이벤트 푸시 (전체 발송, 2026-09-23)
 - 대시보드 상단 **"📣 이벤트 푸시"** 카드(`sendEventPush`): 제목/내용/(선택)이동대상(매장ID 숫자 또는 `https://` 링크) → 확인창 후 **`POST /api/users?push=broadcast`**(requireAdmin, 활성 `push_tokens` 전체에 FCM 발송, 무효 토큰 자동 비활성화). 대상 기기수는 **`GET /api/users?push=count`**(활성 토큰 수)로 카드에 표시.
 - 탭 동작: `placeId`면 매장 상세(`focusPlace`), `url`이면 외부링크(`openExternal`), 없으면 앱만 열림([[frontend]] applyPushNav).

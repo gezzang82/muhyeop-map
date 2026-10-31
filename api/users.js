@@ -427,6 +427,35 @@ module.exports = async function handler(req, res) {
     });
   }
 
+  // 회원탈퇴 집계(관리자): 오늘/누적 탈퇴수 + 당일가입→당일탈퇴(onboarding 신호) + 최근목록 + 사유/제공자 분포.
+  //  탈퇴는 users row를 hard delete → delete-account.js가 삭제 직전 deleted_users에 비식별 메타만 적재(PII 없음).
+  if (req.query.withdrawals !== undefined) {
+    if (!requireAdmin(req, res)) return;
+    try { await db.execute("SELECT 1 FROM deleted_users LIMIT 1"); } catch (e) {
+      return res.status(200).json({ today: 0, total: 0, sameDayToday: 0, recent: [], reasons: [], providers: [] });
+    }
+    const rows = async (sql) => (await db.execute(sql)).rows || [];
+    const one = async (sql) => (await db.execute(sql)).rows[0] || {};
+    const n = (r, k) => Number(r[k] || 0);
+    const t = await one("SELECT COUNT(*) c FROM deleted_users WHERE date(created_at,'+9 hours') = date('now','+9 hours')");
+    const tot = await one("SELECT COUNT(*) c FROM deleted_users");
+    const sd = await one("SELECT COUNT(*) c FROM deleted_users WHERE date(created_at,'+9 hours') = date('now','+9 hours') AND signup_date = date('now','+9 hours')");
+    const recent = await rows("SELECT orig_user_id, provider, signup_source, last_platform, signup_date, reason, date(created_at,'+9 hours') AS deleted_date, time(created_at,'+9 hours') AS deleted_time FROM deleted_users ORDER BY id DESC LIMIT 20");
+    const reasons = await rows("SELECT COALESCE(NULLIF(reason,''),'(미응답)') AS reason, COUNT(*) AS cnt FROM deleted_users GROUP BY reason ORDER BY cnt DESC");
+    const providers = await rows("SELECT COALESCE(NULLIF(provider,''),'-') AS provider, COUNT(*) AS cnt FROM deleted_users GROUP BY provider ORDER BY cnt DESC");
+    return res.status(200).json({
+      today: n(t, 'c'), total: n(tot, 'c'), sameDayToday: n(sd, 'c'),
+      recent: recent.map(x => ({
+        origUserId: Number(x.orig_user_id || 0), provider: x.provider || '-', signupSource: x.signup_source || '',
+        lastPlatform: x.last_platform || '', signupDate: x.signup_date || '', reason: x.reason || '',
+        deletedAt: ((x.deleted_date || '') + ' ' + String(x.deleted_time || '').slice(0, 5)).trim(),
+        sameDay: !!(x.signup_date && x.deleted_date && x.signup_date === x.deleted_date),
+      })),
+      reasons: reasons.map(x => ({ reason: x.reason, cnt: Number(x.cnt || 0) })),
+      providers: providers.map(x => ({ provider: x.provider, cnt: Number(x.cnt || 0) })),
+    });
+  }
+
   // 대시보드 회원 '수'만 필요할 때: 전체 목록(상관 서브쿼리로 수 초) 대신 COUNT 1줄 → 즉시.
   if (req.query.count) {
     if (!requireAdmin(req, res)) return;

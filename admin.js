@@ -636,6 +636,30 @@ function renderSearchStats(today, total, recent, zeroToday, zeroTotal, zeroRecen
     <div class="search-tags">${tags || '<span class="empty-msg">최근 검색어 없음</span>'}</div>${zeroBlock}`;
 }
 
+// 회원 탈퇴(이탈) — `?withdrawals=stats`. 오늘/누적 + 당일가입→당일탈퇴 신호 + 사유 분포 + 최근목록.
+const WD_REASON_LABELS = { no_campaign: '찾는 협찬이 없어요', hard_to_use: '쓰기 불편해요', other_app: '다른 앱을 써요', etc: '그냥/기타', '(미응답)': '(미응답)' };
+function renderWithdrawStats(d) {
+  const el = document.getElementById('withdrawStats'); if (!el) return;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  d = d || {};
+  const total = Number(d.total || 0), today = Number(d.today || 0), sameDay = Number(d.sameDayToday || 0);
+  const recent = Array.isArray(d.recent) ? d.recent : [];
+  const reasons = Array.isArray(d.reasons) ? d.reasons : [];
+  if (!total && !recent.length) { el.innerHTML = '<div class="empty-msg">아직 탈퇴 기록이 없어요. (배포 이후 탈퇴부터 집계)</div>'; return; }
+  const srcLabel = s => (typeof SIGNUP_SRC_LABELS !== 'undefined' && SIGNUP_SRC_LABELS[s]) || s || '-';
+  const platLabel = p => (typeof PLAT_SHORT !== 'undefined' && PLAT_SHORT[p]) || p || '-';
+  const summary = `<div style="margin-bottom:10px;font-size:14px;color:#555">누적 <strong style="color:#e82a2d">${total.toLocaleString()}</strong>명 · 오늘 <strong style="color:#e82a2d">${today.toLocaleString()}</strong>명`
+    + (sameDay ? ` <span style="color:#e82a2d">(당일가입→당일탈퇴 ${sameDay})</span>` : '') + `</div>`;
+  const reasonBlock = reasons.length ? `<div class="search-tags" style="margin-bottom:12px">`
+    + reasons.map(r => `<span class="search-tag">${esc(WD_REASON_LABELS[r.reason] || r.reason)}<b>×${Number(r.cnt || 0)}</b></span>`).join('') + `</div>` : '';
+  const list = recent.length ? recent.map(x => `
+      <div class="stat-row">
+        <span class="stat-badge" style="background:${x.sameDay ? '#e82a2d1a' : '#39395c1a'};color:${x.sameDay ? '#e82a2d' : '#39395c'};min-width:118px">#${x.origUserId} ${esc(x.provider)}${x.sameDay ? ' · 당일' : ''}</span>
+        <span class="stat-num" style="flex:1">${esc(srcLabel(x.signupSource))} · ${esc(platLabel(x.lastPlatform))} · 가입 ${esc(x.signupDate)} → 탈퇴 ${esc(x.deletedAt)}${x.reason ? ` · <b>${esc(WD_REASON_LABELS[x.reason] || x.reason)}</b>` : ''}</span>
+      </div>`).join('') : '';
+  el.innerHTML = summary + reasonBlock + list;
+}
+
 // 모바일웹 앱 설치 팝업: 노출(show)/다운로드 클릭(install)/전환율
 function renderAppInstall(today, total) {
   const el = document.getElementById('appInstallStats');
@@ -839,6 +863,9 @@ function renderDashboard() {
 
   // 회원 세그먼트(활동/잠재/이탈)
   fetch('/api/users?segments=1').then(r => r.json()).then(renderMemberSegments).catch(() => {});
+
+  // 회원 탈퇴(이탈) 집계
+  fetch('/api/users?withdrawals=stats').then(r => r.json()).then(renderWithdrawStats).catch(() => {});
 
   // 이벤트 푸시 대상 기기수
   fetch('/api/users?push=count').then(r => r.json()).then(d => { const el = document.getElementById('pushDeviceCount'); if (el) el.textContent = (Number(d.devices) || 0).toLocaleString(); }).catch(() => {});

@@ -5275,7 +5275,22 @@ function deleteAccount() {
   openWithdrawConfirm();
 }
 
+let _withdrawReason = '';
+function resetWithdrawReason() {
+  _withdrawReason = '';
+  document.querySelectorAll('#withdrawReasonChips .wd-reason-chip.selected').forEach(el => el.classList.remove('selected'));
+}
+function pickWithdrawReason(el) {
+  const r = el.getAttribute('data-reason');
+  const already = el.classList.contains('selected');
+  document.querySelectorAll('#withdrawReasonChips .wd-reason-chip.selected').forEach(x => x.classList.remove('selected'));
+  if (already) { _withdrawReason = ''; return; } // 다시 누르면 해제
+  el.classList.add('selected');
+  _withdrawReason = r;
+}
+
 function openWithdrawConfirm() {
+  resetWithdrawReason();
   document.getElementById('withdrawConfirmOverlay').classList.add('open');
 }
 function closeWithdrawConfirm() {
@@ -5287,7 +5302,11 @@ async function confirmWithdraw() {
   if (_withdrawing) return;
   _withdrawing = true;
   try {
-    const res = await fetch('/api/auth/delete-account', { method: 'POST' });
+    const res = await fetch('/api/auth/delete-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: _withdrawReason || '' }),
+    });
     if (!res.ok) {
       closeWithdrawConfirm();
       showToast('탈퇴 처리 중 오류가 발생했어요. 다시 시도해주세요.');

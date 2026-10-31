@@ -1386,6 +1386,15 @@
         <p class="withdraw-message-title">정말 회원 탈퇴하시겠어요?</p>
         <p class="withdraw-message-desc">로그인 계정 정보가 삭제되며 복구할 수 없습니다.</p>
       </div>
+      <div class="withdraw-reasons">
+        <p class="withdraw-reason-label">괜찮으시다면 떠나시는 이유를 알려주세요 (선택)</p>
+        <div class="withdraw-reason-chips" id="withdrawReasonChips">
+          <button type="button" class="wd-reason-chip" data-reason="no_campaign" onclick="pickWithdrawReason(this)">찾는 협찬이 없어요</button>
+          <button type="button" class="wd-reason-chip" data-reason="hard_to_use" onclick="pickWithdrawReason(this)">쓰기 불편해요</button>
+          <button type="button" class="wd-reason-chip" data-reason="other_app" onclick="pickWithdrawReason(this)">다른 앱을 써요</button>
+          <button type="button" class="wd-reason-chip" data-reason="etc" onclick="pickWithdrawReason(this)">그냥 / 기타</button>
+        </div>
+      </div>
       <div class="withdraw-actions">
         <button class="withdraw-btn withdraw-btn-cancel" onclick="closeWithdrawConfirm()">취소</button>
         <button class="withdraw-btn withdraw-btn-danger" onclick="confirmWithdraw()">탈퇴하기</button>

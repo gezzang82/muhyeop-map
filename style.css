@@ -420,6 +420,22 @@ body.pc-myplaces-mode #mlItems .ml-card-bell { background: none; border: none; c
 .withdraw-btn-cancel { flex: 4 1 0; background: #fff; border: 1px solid rgba(170,170,170,0.87); color: #000; font-weight: 400; }
 .withdraw-btn-danger { flex: 6 1 0; background: #e82a2d; color: #fff; font-weight: 700; }
 
+/* 회원탈퇴 사유(선택) */
+#withdrawConfirmOverlay .withdraw-message { padding-bottom: 12px; }
+.withdraw-reasons {
+  padding: 0 20px 20px; width: 100%;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.withdraw-reason-label { font-size: 13px; color: #888; text-align: center; margin: 0 0 10px; }
+.withdraw-reason-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.wd-reason-chip {
+  padding: 8px 14px; border-radius: 999px;
+  background: #f5f5f5; border: 1.5px solid transparent; color: #555;
+  font-family: inherit; font-size: 14px; cursor: pointer; transition: background .12s ease, border-color .12s ease;
+}
+.wd-reason-chip:hover { background: #ededed; }
+.wd-reason-chip.selected { background: #fff; border-color: #333; color: #000; font-weight: 700; }
+
 /* 공통 알림 팝업: 타이틀 항상 중앙정렬, 빈 서브텍스트 숨김 */
 .alert-popup .login-modal-header h2 { text-align: center; }
 .alert-popup .withdraw-message-desc:empty { display: none; }

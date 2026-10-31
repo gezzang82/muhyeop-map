@@ -10,6 +10,18 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE(provider, provider_user_id)
 );
 
+-- 회원 탈퇴 로그(이탈 분석). users row는 hard delete라, 삭제 직전 비식별 메타만 적재(PII 없음: 닉네임/이메일 미기록).
+CREATE TABLE IF NOT EXISTS deleted_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  orig_user_id INTEGER,
+  provider TEXT,
+  signup_source TEXT,
+  last_platform TEXT,
+  signup_date TEXT,              -- 원 가입일(KST date)
+  reason TEXT,                   -- 탈퇴 사유 코드(no_campaign/hard_to_use/other_app/etc), 선택
+  created_at TEXT DEFAULT (datetime('now'))  -- 탈퇴 시각(UTC)
+);
+
 CREATE TABLE IF NOT EXISTS places (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
