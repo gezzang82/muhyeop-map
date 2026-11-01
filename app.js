@@ -2377,6 +2377,11 @@ async function searchRegion() {
   const isRegionLike = q2.length <= 8 && (/(동|읍|면|리|로|길|가|거리)$/.test(q2) || (/(구|시|군|도)$/.test(q2) && q2.length >= 3) || KNOWN_AREAS.has(q2) || KNOWN_REGIONS.has(q2));
   if (isRegionLike) { clearSearchPin(); geocodeRegion(query); return; }
 
+  // 랜드마크·명소·역(경복궁·남산·OO대교·OO대학교 등)은 동명 상호보다 '위치'를 우선(예: 경복궁 → 상호 아닌 서울 경복궁).
+  //  접미사 게이트로 네이버 1회 조회 → 카테고리가 '여행,명소'·교통·대학일 때만 이동(음식점 등 상호면 false → 아래 매장검색).
+  const LANDMARK_SUFFIX = /(역|궁|릉|대교|대학교|공원|수목원|식물원|해수욕장|해변|계곡|폭포|산)$/;
+  if (LANDMARK_SUFFIX.test(q2) && q2.length <= 10 && await tryLandmarkByNaver(query)) return;
+
   // 등록된 매장명과 정확히 일치하는 매장 찾기
   const placeMatches = places.filter(p => normalize(p.name) === nq);
   if (placeMatches.length === 1) {
@@ -2408,9 +2413,7 @@ async function searchRegion() {
     if (await tryRegionByGeocode(query)) return;
   }
 
-  // 역명 후보('역'으로 끝남) → 네이버 지역검색 카테고리가 교통(지하철·전철…)이면 진짜 역 → 그 위치로 이동+핀.
-  //   ('종착역' 같은 매장명은 네이버가 음식점 카테고리로 줘서 역으로 오인 안 함 → 아래 매장 검색으로.)
-  if (/역$/.test(q2) && q2.length <= 7 && await tryStationByNaver(query)) return;
+  // (역·명소 등 랜드마크는 위에서 exact 매칭 전에 tryLandmarkByNaver로 처리됨)
 
   // 1-2. 부분 일치 — 이름 일부만 입력해도 후보 매장을 보여줌(2글자 이상). 관련도순 정렬 + 상한 40.
   //   정렬: 이름이 검색어로 '시작' 우선 → 활성 캠페인 우선 → 이름순.
@@ -2447,12 +2450,14 @@ async function searchRegion() {
   searchPlacesOnServer(query);
 }
 
-// 네이버 지역검색 최상위 결과가 교통(역)이면 그 위치로 이동+핀 → true. 아니면 false(→매장 검색 계속).
-async function tryStationByNaver(query) {
+// 네이버 지역검색 최상위 결과가 '교통(역)·여행,명소(고궁·산·공원·수목원 등)·대학'이면 그 위치로 이동+핀 → true.
+//  상호(음식점 등)면 false(→매장 검색 계속). '여행,명소' 상위카테고리로 매칭해 '수산물' 같은 부분문자열 오매칭 방지.
+async function tryLandmarkByNaver(query) {
   try {
     const items = await fetch('/api/search-place?query=' + encodeURIComponent(query)).then(r => (r.ok ? r.json() : []));
     const top = Array.isArray(items) ? items[0] : null;
-    if (top && /지하철|전철|기차|철도|경전철|버스\s*터미널|공항|고속\s*버스|시외\s*버스/.test(top.category || '')) {
+    const LANDMARK_CAT = /지하철|전철|기차|철도|경전철|버스\s*터미널|공항|고속\s*버스|시외\s*버스|여행,?\s*명소|관광,?\s*명소|대학교/;
+    if (top && LANDMARK_CAT.test(top.category || '')) {
       const addr = top.roadAddress || top.address;
       if (addr) {
         clearSearchPin();
