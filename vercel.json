@@ -16,6 +16,9 @@
     }
   ],
   "rewrites": [
-    { "source": "/app", "destination": "/app.html" }
+    { "source": "/app", "destination": "/app.html" },
+    { "source": "/r/:region", "destination": "/api/places?seo=region&region=:region" },
+    { "source": "/p/:id", "destination": "/api/places?seo=place&id=:id" },
+    { "source": "/sitemap.xml", "destination": "/api/places?seo=sitemap" }
   ]
 }

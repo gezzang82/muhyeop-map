@@ -101,6 +101,108 @@ const EXCLUDED_VISIT_IPS = new Set(
     .map(s => s.trim()).filter(Boolean)
 );
 
+// ===== SEO 서버렌더(지역/매장 랜딩 + 동적 sitemap) =====
+// 함수 12개 제한으로 새 파일 대신 places.js에 합침. vercel.json rewrite로 예쁜 URL 매핑:
+//   /r/:region → ?seo=region&region= / /p/:id → ?seo=place&id= / /sitemap.xml → ?seo=sitemap
+// SPA(JS렌더)는 네이버 Yeti·구글 크롤러에 콘텐츠가 안 잡혀, 지역·매장별 '사실필드+후기링크' HTML을 서버렌더해 롱테일 색인.
+// 노출은 사실필드(매장명·주소·카테고리·플랫폼·마감일)+후기 블로그 링크백만(법적 노선 동일), 이미지/원문 미복제.
+const SEO_BASE = 'https://muhyeop.com';
+function seoEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function seoToday() { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
+function sigunguOf(addr) {
+  const all = String(addr || '').match(/[가-힣]+(?:시|군|구)/g) || [];
+  const spec = all.filter(t => !/(광역시|특별시|특별자치시|특별자치도|도)$/.test(t));
+  return spec.length ? spec[spec.length - 1] : '';
+}
+function seoNotFound() { return '<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>찾을 수 없음 | 무협맵</title><meta name="robots" content="noindex"></head><body><p>페이지를 찾을 수 없어요. <a href="https://muhyeop.com/">무협맵 홈</a></p></body></html>'; }
+function seoPage({ title, desc, canonical, bodyHtml, jsonld }) {
+  return `<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${seoEsc(title)}</title>
+<meta name="description" content="${seoEsc(desc)}">
+<link rel="canonical" href="${seoEsc(canonical)}">
+<meta property="og:title" content="${seoEsc(title)}"><meta property="og:description" content="${seoEsc(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${seoEsc(canonical)}">
+${jsonld ? `<script type="application/ld+json">${jsonld}</script>` : ''}
+<style>body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;max-width:720px;margin:0 auto;padding:20px;color:#222;line-height:1.6}h1{font-size:22px}h2{font-size:17px;margin-top:28px}a{color:#1a56db;text-decoration:none}ul{padding-left:0;list-style:none}li{padding:10px 0;border-bottom:1px solid #eee}.tag{display:inline-block;background:#f1f1f4;border-radius:6px;padding:1px 7px;font-size:12px;color:#555;margin-right:4px}.cta{display:inline-block;margin:18px 0;background:#e82a2d;color:#fff;padding:12px 20px;border-radius:10px;font-weight:700}.muted{color:#888;font-size:13px}</style>
+</head><body>${bodyHtml}
+<p class="muted">무협맵은 리뷰노트·디너의여왕·강남맛집·레뷰·미블 등 여러 체험단·협찬 플랫폼 정보를 지도 한곳에 모아 보여주는 서비스입니다. 신청은 각 플랫폼에서 진행됩니다.</p>
+</body></html>`;
+}
+async function renderSeo(req, res, db) {
+  const type = req.query.seo;
+  const today = seoToday();
+  const activeSub = "EXISTS(SELECT 1 FROM campaigns c WHERE c.place_id=p.id AND COALESCE(c.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline>=?))";
+  const reviewSub = "EXISTS(SELECT 1 FROM reviews r WHERE r.place_id=p.id AND COALESCE(r.hidden,0)=0)";
+
+  if (type === 'sitemap') {
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=172800');
+    const rows = (await db.execute({ sql: `SELECT p.id, p.address FROM places p WHERE COALESCE(p.hidden,0)=0 AND ((${activeSub}) OR (${reviewSub}))`, args: [today] })).rows;
+    const regions = new Set();
+    for (const r of rows) { const sg = sigunguOf(r.address); if (sg) regions.add(sg); }
+    const urls = ['/', '/privacy.html', '/terms.html'].map(u => `<url><loc>${SEO_BASE}${u}</loc></url>`)
+      .concat([...regions].map(rg => `<url><loc>${SEO_BASE}/r/${encodeURIComponent(rg)}</loc><changefreq>daily</changefreq></url>`))
+      .concat(rows.map(r => `<url><loc>${SEO_BASE}/p/${r.id}</loc></url>`));
+    res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`);
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=172800');
+
+  if (type === 'region') {
+    const region = String(req.query.region || '').slice(0, 20);
+    if (!region) { res.status(404).send(seoNotFound()); return; }
+    const rows = (await db.execute({
+      sql: `SELECT p.id,p.name,p.category,c.platform,c.deadline FROM campaigns c JOIN places p ON p.id=c.place_id
+            WHERE COALESCE(p.hidden,0)=0 AND COALESCE(c.hidden,0)=0 AND p.address LIKE ?
+              AND (c.deadline='' OR c.deadline IS NULL OR c.deadline>=?)
+            ORDER BY (c.deadline='' OR c.deadline IS NULL) ASC, c.deadline ASC LIMIT 150`,
+      args: [`%${region}%`, today],
+    })).rows;
+    const seen = new Set(), items = [];
+    for (const r of rows) { if (seen.has(r.id)) continue; seen.add(r.id); items.push(r); }
+    const n = items.length;
+    const title = `${region} 체험단·협찬${n ? ` ${n}곳` : ''} | 무협맵`;
+    const desc = `${region}에서 모집 중인 무료 체험단·협찬 ${n}곳. 맛집·카페·뷰티·숙박 등 ${region} 협찬을 무협맵 지도에서 한눈에.`;
+    const canonical = `${SEO_BASE}/r/${encodeURIComponent(region)}`;
+    const list = items.map(r => `<li><a href="${SEO_BASE}/p/${r.id}">${seoEsc(r.name)}</a> <span class="tag">${seoEsc(r.category || '기타')}</span>${r.platform ? `<span class="tag">${seoEsc(r.platform)}</span>` : ''}<span class="muted">${r.deadline ? ` ~${seoEsc(r.deadline)}` : ' 상시'}</span></li>`).join('');
+    const jsonld = JSON.stringify({ '@context': 'https://schema.org', '@type': 'ItemList', name: `${region} 체험단·협찬`, numberOfItems: n, itemListElement: items.slice(0, 30).map((r, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SEO_BASE}/p/${r.id}`, name: r.name })) });
+    const body = `<h1>${seoEsc(region)} 체험단·협찬</h1>
+<p>${seoEsc(region)}에서 모집 중인 무료 협찬(체험단) ${n}곳을 모았어요. 내 주변 맛집·카페·뷰티·숙박 협찬을 지도에서 확인하세요.</p>
+<a class="cta" href="${SEO_BASE}/">지도에서 보기 →</a>
+${n ? `<h2>모집 중인 협찬</h2><ul>${list}</ul>` : '<p>지금은 모집 중인 협찬이 없어요. 지도에서 다른 지역을 둘러보세요.</p>'}`;
+    res.status(200).send(seoPage({ title, desc, canonical, bodyHtml: body, jsonld }));
+    return;
+  }
+
+  if (type === 'place') {
+    const id = Number(req.query.id);
+    if (!id) { res.status(404).send(seoNotFound()); return; }
+    const p = (await db.execute({ sql: "SELECT * FROM places WHERE id=? AND COALESCE(hidden,0)=0", args: [id] })).rows[0];
+    if (!p) { res.status(404).send(seoNotFound()); return; }
+    const camps = (await db.execute({ sql: `SELECT platform,content,deadline FROM campaigns WHERE place_id=? AND COALESCE(hidden,0)=0 AND (deadline='' OR deadline IS NULL OR deadline>=?) ORDER BY (deadline='' OR deadline IS NULL) ASC, deadline ASC LIMIT 20`, args: [id, today] })).rows;
+    const revs = (await db.execute({ sql: `SELECT url,title,author FROM reviews WHERE place_id=? AND COALESCE(hidden,0)=0 ORDER BY id DESC LIMIT 20`, args: [id] })).rows;
+    const cat = p.category || '기타';
+    const title = `${p.name} 체험단·협찬·후기 | 무협맵`;
+    const desc = `${p.name}(${p.address || ''}) 체험단·협찬 정보와 블로그 후기 ${revs.length}건. ${cat} 협찬을 무협맵 지도에서 확인하세요.`;
+    const canonical = `${SEO_BASE}/p/${id}`;
+    const campHtml = camps.length ? `<h2>진행 중인 협찬</h2><ul>${camps.map(c => `<li>${c.platform ? `<span class="tag">${seoEsc(c.platform)}</span>` : ''}${seoEsc(c.content || '체험 제공')}<span class="muted">${c.deadline ? ` ~${seoEsc(c.deadline)}` : ' 상시'}</span></li>`).join('')}</ul>` : '';
+    const revHtml = revs.length ? `<h2>블로그 후기 ${revs.length}건</h2><ul>${revs.map(r => `<li><a href="${seoEsc(r.url)}" rel="nofollow">${seoEsc(r.title || (p.name + ' 후기'))}</a>${r.author ? `<span class="muted"> · ${seoEsc(r.author)}</span>` : ''}</li>`).join('')}</ul>` : '';
+    const jo = { '@context': 'https://schema.org', '@type': 'LocalBusiness', name: p.name };
+    if (p.address) jo.address = p.address;
+    if (revs.length) jo.review = revs.slice(0, 5).map(r => ({ '@type': 'Review', name: r.title || undefined, url: r.url, author: { '@type': 'Person', name: r.author || '리뷰어' } }));
+    const body = `<h1>${seoEsc(p.name)}</h1>
+<p class="muted">${seoEsc(p.address || '')} · ${seoEsc(cat)}</p>
+<a class="cta" href="${SEO_BASE}/">무협맵 지도에서 보기 →</a>
+${campHtml}${revHtml}
+${(!camps.length && !revs.length) ? '<p>아직 등록된 협찬·후기가 없어요.</p>' : ''}`;
+    res.status(200).send(seoPage({ title, desc, canonical, bodyHtml: body, jsonld: JSON.stringify(jo) }));
+    return;
+  }
+  res.status(404).send(seoNotFound());
+}
+
 module.exports = async function handler(req, res) {
   const db = getDb();
   try {
@@ -118,6 +220,13 @@ module.exports = async function handler(req, res) {
     await db.execute("ALTER TABLE places ADD COLUMN food_subtype TEXT");
   } catch (e) {
     // 컬럼이 이미 있으면 무시
+  }
+
+  // ===== SEO 서버렌더 페이지(지역/매장/사이트맵) — 크롤러용, 공개 GET =====
+  if (req.query.seo !== undefined) {
+    if (req.method !== 'GET') { res.status(405).end(); return; }
+    try { return await renderSeo(req, res, db); }
+    catch (e) { res.status(500).send('error'); return; }
   }
 
   // ===== 사이트 방문 집계 (?visit=1 기록 / ?visit=stats 조회) — 함수 12개 제한 때문에 places.js에 합침 =====
