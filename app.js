@@ -6967,8 +6967,9 @@ function initSplash() {
 }
 // 사용자 표기 버전(MY 하단). 스토어 versionName(iOS/안드)과 동기화 — 릴리스 때 여기와 LATEST_APP_VERSION을 같이 올림.
 // 빌드번호(iOS CURRENT_PROJECT_VERSION·안드 versionCode)와 웹 캐시버전(app.js?v=)은 별개(사용자 비노출).
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 // 스토어 최신 버전(릴리스마다 스토어 versionName과 함께 올림). 설치버전 < 이 값이면 MY에 '앱 업데이트' 버튼.
+// ⚠️ 1.1.2 심사중 — 승인/라이브되면 '1.1.2'로 올릴 것(지금 올리면 승인 전 업데이트 유도됨).
 const LATEST_APP_VERSION = '1.1.1';
 // 네이티브 설치버전: undefined=미확인 / ''=웹·@capacitor/app 없는 구버전앱(버전 신뢰 불가) / 'x.y.z'=확인됨
 let _nativeAppVer = undefined;
