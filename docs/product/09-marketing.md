@@ -50,6 +50,7 @@ Corey Haines marketingskills의 content-strategy(Proprietary Data #6·stats roun
 - 1호(2026-11-02) 실측: 활성 협찬 30,370건·매장 23,742곳·12플랫폼, 수도권 52%(경기·서울 47%)·음식점 57%·리뷰노트+디너의여왕+강남맛집 80%.
 - **운영**: 매주 수동 실행(또는 크론) → 초안 검수 후 발행. 같은 1개 리포트를 블로그·스레드·인스타 + 지역별 쪼개 /r/ 페이지와 재활용(Create Once Distribute Twice). `output/`는 gitignore(생성물).
 - ⚠️ "마감임박·7일신규"는 크롤러 재스크랩으로 행이 갱신돼 집계 왜곡 → 리포트에서 제외(신뢰 수치만).
+- **자동 발행(2026-11-02)**: `weekly-data-report.js`가 `aggregate`/`derive`/`genThreads` 등 export → **`scripts/weekly-publish.js`** 가 집계→**스레드 자동 발행**(`THREADS_ACCESS_TOKEN`, `--dry`로 미리보기). **스레드는 텍스트라 완전 무인 자동**(크론/크롤러에 얹기 가능). **인스타는 카드 이미지 필요(헤드리스 렌더 미설치)라 반자동** — HTML 카드(1080²) 렌더+발행은 세션/수동(데이터 공개글이라 시각 검수 권장). 1호 실발행: 스레드 `reel/DfPTqCCiZ1t`… 아님 post, 인스타 단일이미지 `p/DfPT-iGCTr3`. IG 카드 발행 패턴은 `ig_assets`→`/api/banners?asset=`→Graph API(기존 route-card 재사용).
 
 ## 블로그 콘텐츠 + 웹툰 시리즈 (2026-09-09~)
 

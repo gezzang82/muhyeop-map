@@ -126,7 +126,7 @@ function genInsta(d, x) {
 6 (CTA)    흩어진 ${manRound(d.total)}만 건, 지도 한 곳에서 👉 '무협맵' 검색`;
 }
 
-(async () => {
+async function main() {
   const d = await aggregate();
   const x = derive(d);
   const out = `# 무협맵 주간 데이터 리포트 — ${today}
@@ -160,4 +160,8 @@ ${genInsta(d, x)}
   fs.writeFileSync(file, out);
   console.log(out);
   console.log('\n✅ 저장:', file);
-})().catch(e => { console.error('ERR', e.message); process.exit(1); });
+  return { d, x, file };
+}
+
+module.exports = { aggregate, derive, genBlog, genThreads, genInsta, today, fmt, manRound, manCheon, db };
+if (require.main === module) main().catch(e => { console.error('ERR', e.message); process.exit(1); });
