@@ -27,3 +27,6 @@ crawl-worker.log
 # 로컬 dev DB(vercel dev용, 커밋 금지)
 dev.db
 dev.db-*
+
+# 주간 데이터 리포트 생성물(scripts/weekly-data-report.js)
+output/
