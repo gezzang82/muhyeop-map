@@ -9,7 +9,18 @@ const report = require('./weekly-data-report.js');
 const env = fs.readFileSync(path.join(REPO, '.env.local'), 'utf8');
 const g = (k) => { const m = env.match(new RegExp('^' + k + '\\s*=\\s*"?([^"\\n]+)"?', 'm')); return m ? m[1].trim() : ''; };
 const DRY = process.argv.includes('--dry');
+const FORCE = process.argv.includes('--force');
 const TH_TOKEN = g('THREADS_ACCESS_TOKEN');
+// 주간 중복방지 마커(로컬 파일) — 같은 ISO주에 한 번만 발행. 저녁에 Mac 켤 때마다 cron이 체크해도 1회만.
+const MARKER = path.join(REPO, 'output', '.weekly-last-week');
+function isoWeekKST() {
+  const dt = new Date(Date.now() + 9 * 3600e3);
+  const d = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()));
+  const day = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - day);
+  const ys = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const wk = Math.ceil((((d - ys) / 86400000) + 1) / 7);
+  return d.getUTCFullYear() + '-W' + String(wk).padStart(2, '0');
+}
 const TH_UID = '28091621880512563';
 const TH = 'https://graph.threads.net/v1.0';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -31,10 +42,17 @@ async function postThreads(text) {
   console.log('===== 스레드 발행 내용 =====\n' + threadsText + '\n');
 
   if (DRY) { console.log('[--dry] 발행 안 함(미리보기).'); process.exit(0); }
+
+  // 주간 가드: 이번 ISO주에 이미 발행했으면 스킵(저녁마다 cron이 돌아도 1회만). --force로 무시.
+  const week = isoWeekKST();
+  let last = ''; try { last = fs.readFileSync(MARKER, 'utf8').trim(); } catch (e) {}
+  if (last === week && !FORCE) { console.log(`이번 주(${week}) 이미 발행됨 — 스킵.`); process.exit(0); }
+
   if (!TH_TOKEN) throw new Error('THREADS_ACCESS_TOKEN 없음');
-  console.log('스레드 발행 중…');
+  console.log(`[${new Date().toISOString()}] 스레드 발행 중… (주 ${week})`);
   const link = await postThreads(threadsText);
   console.log('✅ 스레드 발행 완료:', link);
+  try { fs.mkdirSync(path.dirname(MARKER), { recursive: true }); fs.writeFileSync(MARKER, week); } catch (e) {}
 
   // 인스타는 카드 이미지 필요 → 캡션/수치만 안내(반자동)
   console.log('\n===== 인스타(반자동) — 카드 렌더 후 발행 필요 =====');
