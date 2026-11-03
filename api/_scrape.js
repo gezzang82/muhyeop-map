@@ -1342,6 +1342,48 @@ async function rnResolveAddress(name, city, sigungu) {
   }
   return null;
 }
+// 리뷰노트 상세(인증) — possibleDays/possibleTime/address1/lat/lng 등. 세션 쿠키 필요
+//   (.env.local REVIEWNOTE_COOKIE="reviewNoteSession=Fe26.2*..." — 네이버 간편로그인 세션, ~2주 만료 시 재복사. 미블과 동일 정책).
+let _rnCookieCache;
+function rnCookie() {
+  if (_rnCookieCache !== undefined) return _rnCookieCache;
+  const f = process.env.REVIEWNOTE_COOKIE_FILE; // 권장: 쿠키 파일 경로(쉘 glob로 * 뭉개짐 방지)
+  if (f) { try { _rnCookieCache = require('fs').readFileSync(f.replace(/^~/, process.env.HOME || ''), 'utf8').trim(); } catch (e) { _rnCookieCache = ''; } }
+  else _rnCookieCache = (process.env.REVIEWNOTE_COOKIE || '').trim();
+  return _rnCookieCache;
+}
+async function rnFetchDetail(id) {
+  const ck = rnCookie();
+  if (!ck) return null; // 쿠키 없으면 상세 생략(요일/시간 빈 값 + 주소는 네이버검색 폴백)
+  try {
+    const res = await fetch(`${RN_BASE}/api/campaign?id=${id}`, { headers: { 'User-Agent': UA, Accept: 'application/json', Referer: `${RN_BASE}/campaigns/${id}`, Cookie: ck } });
+    if (res.status === 401 || res.status === 403) return { _auth: false }; // 세션 만료 신호
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) { return null; }
+}
+// possibleDays → 요일 CSV. "월 / 화 / 수"(요일리스트) 또는 "11월 14일 토요일"(특정일=끝의 X요일만). impossibleDays는 제외.
+function rnDays(possibleDays, impossibleDays) {
+  const p = String(possibleDays || '').trim();
+  if (!p) return '';
+  let picked;
+  if (/\d+\s*월\s*\d+\s*일/.test(p)) {            // 특정 날짜: "N월 N일 X요일" → X만(날짜의 월/일 글자 오추출 방지)
+    const m = p.match(/([월화수목금토일])\s*요일/);
+    picked = m ? [m[1]] : [];
+  } else {                                        // 요일 리스트
+    picked = [...new Set((p.match(/[월화수목금토일]/g) || []))];
+  }
+  const closed = new Set((String(impossibleDays || '').match(/[월화수목금토일]/g) || []));
+  return ALL_DAYS.filter((d) => picked.includes(d) && !closed.has(d)).join(',');
+}
+// possibleTime → "HH:MM" 또는 "HH:MM~HH:MM". 한글시간은 parseOneTime(오전/오후 컨텍스트)로 정규화.
+function rnHours(possibleTime) {
+  const t = String(possibleTime || '').trim();
+  if (!t) return '';
+  const parts = t.split(/\s*[~\-–]\s*/);
+  if (parts.length >= 2) { const a = parseOneTime(parts[0]), b = parseOneTime(parts[1]); return a && b ? `${a}~${b}` : (a || b || ''); }
+  return parseOneTime(t) || '';
+}
 async function runReviewnote({ db, limit = 300, deadlineTs = 0, region = '', dedupe: _dedupe = null }) {
   const platform = '리뷰노트';
   const today = new Date().toISOString().slice(0, 10);
@@ -1355,7 +1397,7 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0, region = '', ded
   const stRes = await db.execute({ sql: 'SELECT last_max_id FROM scrape_state WHERE platform = ?', args: [stateKey] });
   const startPage = Math.max(1, Number(stRes.rows[0]?.last_max_id || 0) || 1);
   const MAX_PAGES = region ? 12 : 40; // 지역별은 17개 순회라 패스당 12페이지(≈190건)씩; 전국모드는 40
-  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, geoFail = 0, timedOut = false;
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, geoFail = 0, authFail = 0, timedOut = false;
   let page = startPage, pagesThis = 0, reachedEnd = false, stopped = false;
   for (; pagesThis < MAX_PAGES; pagesThis++, page++) {
     if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; stopped = true; break; }
@@ -1374,17 +1416,25 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0, region = '', ded
       processed++;
       try {
         const name = rnName;
-        const address = await rnResolveAddress(name, city, sigungu);
-        await sleep(120);
+        // 상세(인증): 실주소(address1)·요일(possibleDays)·시간(possibleTime) 확보.
+        // 쿠키 있으면 address1 사용(네이버 추정검색 대체=정확·요청↓), 없거나 만료면 네이버검색 폴백 + 요일/시간 빈 값.
+        const detail = await rnFetchDetail(id);
+        await sleep(150);
+        if (detail && detail._auth === false) authFail++;
+        let address = ((detail && detail.address1) || '').replace(/<[^>]+>/g, '').trim();
+        if (!address) address = await rnResolveAddress(name, city, sigungu);
         if (!address) { geoFail++; continue; } // 도로명 못 찾으면 스킵(이벤트·팝업 등)
+        const days = detail ? rnDays(detail.possibleDays, detail.impossibleDays) : '';
+        const hours = detail ? rnHours(detail.possibleTime) : '';
+        const exHol = detail && /공휴일/.test(String(detail.impossibleDays || '')) ? 1 : 0;
         const category = categoryByKeyword(o.offer || '', name) || RN_CAT[(o.category || {}).title] || '기타';
         const cls = classify({ name, channel, address }, dedupe, today);
         if (cls.status === 'dup_active') { dupActive++; continue; }
         const ins = await db.execute({
           sql: `INSERT OR IGNORE INTO scraped_items
             (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
-            VALUES (?,?,?,?,?,?,?,?,?,'','',0,'',?,?,'pending')`,
-          args: [platform, id, `${RN_BASE}/campaigns/${id}`, name, address, category, channel, o.offer || '', rnDeadline(o.applyEndAt), cls.status, cls.matchedPlaceId],
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'',?,?,'pending')`,
+          args: [platform, id, `${RN_BASE}/campaigns/${id}`, name, address, category, channel, o.offer || '', rnDeadline(o.applyEndAt), hours, days, exHol, cls.status, cls.matchedPlaceId],
         });
         if (ins.rowsAffected > 0) staged++;
       } catch (e) { failed++; }
@@ -1402,7 +1452,7 @@ async function runReviewnote({ db, limit = 300, deadlineTs = 0, region = '', ded
   await db.execute({
     sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
           VALUES ('리뷰노트', ?, ?, ?, ?, ?, ?)`,
-    args: [startPage, nextPage, processed, staged, excluded + dupActive, `${region || '전국'} page ${startPage}~${page}${reachedEnd ? '(끝→1)' : ''} 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 좌표실패 ${geoFail}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 시간중단' : ''})`],
+    args: [startPage, nextPage, processed, staged, excluded + dupActive, `${region || '전국'} page ${startPage}~${page}${reachedEnd ? '(끝→1)' : ''} 처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 좌표실패 ${geoFail}, 제외 ${excluded}, 실패 ${failed}${authFail ? `, ⚠️세션만료 ${authFail}(REVIEWNOTE_COOKIE 갱신 필요)` : ''}${timedOut ? ', 시간중단' : ''})`],
   });
   return { platform, region, newCandidates: processed, processed, staged, excluded, dupActive, geoFail, failed, timedOut, fromPage: startPage, toPage: page, reachedEnd };
 }
@@ -2395,4 +2445,4 @@ function mapNaverCat(cat, name) {
   if (/음식점|한식|중식|일식|양식|분식|술집|주점|이자카야|바\(BAR\)|포장마차|뷔페|도시락|컵밥|고기|육류|해물|생선|치킨|피자|요리|식당|국밥|면류|샐러드|샌드위치|햄버거|이탈리아|파스타|스파게티|레스토랑|떡,한과/.test(c)) return '음식점';
   return '기타';
 }
-module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, rnFetchDetail, rnDays, rnHours, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
