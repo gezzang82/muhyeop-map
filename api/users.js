@@ -51,6 +51,8 @@ async function handleSeoichuDelete(req, res, db) {
   await ensureSeoichuTable(db);
   const r = await db.execute({ sql: "DELETE FROM seoichu_posts WHERE id = ? AND user_id = ?", args: [id, session.userId] });
   if (!r.rowsAffected) return res.status(404).json({ error: '삭제할 글이 없거나 권한이 없어요.' });
+  // 글 삭제 시 그 글의 댓글도 함께 삭제(고아 댓글 방지). 본인 글 확정(rowsAffected>0) 후 수행.
+  try { await db.execute({ sql: "DELETE FROM seoichu_comments WHERE post_id = ?", args: [id] }); } catch (e) {}
   return res.status(200).json({ ok: true });
 }
 
