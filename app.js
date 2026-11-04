@@ -4102,11 +4102,14 @@ async function submitPcInlineComment(postId, el) {
   if (btn) btn.disabled = true;
   const r = await _postSeoichuComment(postId, content);
   if (!r.ok) { if (btn) btn.disabled = false; showToast(r.error || '댓글 등록에 실패했어요.'); return; }
-  await reloadSeoichuPostComments(postId);  // 인라인 입력창은 reload가 보존
-  const keepTa = document.querySelector('.cm-sc-post[data-post-id="' + postId + '"] .cm-sc-inline-input');
-  if (keepTa) { keepTa.value = ''; keepTa.style.height = 'auto'; try { keepTa.focus(); } catch (e) {} }
-  const keepBtn = document.querySelector('.cm-sc-post[data-post-id="' + postId + '"] .cm-sc-inline-submit');
-  if (keepBtn) keepBtn.disabled = false;
+  await reloadSeoichuPostComments(postId);
+  // 등록 후 인라인 입력창 닫기(모바일과 통일) — reload가 보존·재삽입한 인라인을 제거 + 대상 해제.
+  const card = document.querySelector('.cm-sc-post[data-post-id="' + postId + '"]');
+  if (card) {
+    const inlineNow = card.querySelector('.cm-sc-inline');
+    if (inlineNow) inlineNow.remove();
+    card.classList.remove('sc-target');
+  }
 }
 function deleteSeoichuComment(cid) {
   showAlert('댓글을 삭제할까요?', '삭제하면 되돌릴 수 없어요.', {
