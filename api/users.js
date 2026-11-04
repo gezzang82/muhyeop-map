@@ -54,6 +54,62 @@ async function handleSeoichuDelete(req, res, db) {
   return res.status(200).json({ ok: true });
 }
 
+// ===== 이웃찾기 댓글 (연속성/대화 루프 + 작성자 푸시 알림) =====
+async function ensureSeoichuCommentsTable(db) {
+  try {
+    await db.execute(`CREATE TABLE IF NOT EXISTS seoichu_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      hidden INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')))`);
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_seoichu_comments_post ON seoichu_comments(post_id)");
+  } catch (e) {}
+}
+
+// 댓글 작성(POST ?comments=add&postId=) — 로그인 필수·레이트리밋·비속어차단, 작성자에게 푸시 알림(본인 제외).
+async function handleSeoichuCommentAdd(req, res, db) {
+  const session = readSession(req);
+  if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+  if (!await enforceRateLimit(req, res, { name: 'seoichu_comment', limit: 20, windowSec: 300 })) return;
+  const postId = Number(req.query.postId || (req.body && req.body.postId));
+  if (!postId) return res.status(400).json({ error: '글 id가 필요해요.' });
+  const content = String((req.body && req.body.content) || '').replace(/\s*\n\s*/g, ' ').trim().slice(0, 300);
+  if (!content) return res.status(400).json({ error: '내용을 입력해주세요.' });
+  const { hasProfanity } = require('./_profanity');
+  if (hasProfanity(content)) return res.status(400).json({ error: '부적절한 표현이 포함되어 있어요. 수정 후 다시 등록해주세요.' });
+  await ensureSeoichuTable(db); await ensureSeoichuCommentsTable(db);
+  // 대상 글 존재(+숨김 아님) 확인 → 작성자 id 확보
+  const post = (await db.execute({ sql: "SELECT user_id FROM seoichu_posts WHERE id = ? AND COALESCE(hidden,0)=0", args: [postId] })).rows[0];
+  if (!post) return res.status(404).json({ error: '글을 찾을 수 없어요.' });
+  const ins = await db.execute({ sql: "INSERT INTO seoichu_comments (post_id, user_id, content) VALUES (?, ?, ?)", args: [postId, session.userId, content] });
+  // 작성자에게 푸시(본인 댓글이면 생략) — fire-and-forget. 실패해도 댓글은 성공 응답.
+  const authorId = Number(post.user_id);
+  if (authorId && authorId !== session.userId) {
+    try {
+      const toks = (await db.execute({ sql: "SELECT token, platform FROM push_tokens WHERE enabled=1 AND user_id = ?", args: [authorId] })).rows.filter(r => r.token);
+      if (toks.length) {
+        const { sendToDevices } = require('./_push');
+        await sendToDevices(toks, { title: '💬 새 댓글', body: `${session.nickname || '누군가'}님이 회원님 글에 댓글을 남겼어요`, data: { kind: 'comment', postId: String(postId) } });
+      }
+    } catch (e) {}
+  }
+  return res.status(201).json({ ok: true, id: Number(ins.lastInsertRowid || 0) });
+}
+
+// 댓글 삭제(DELETE ?comments=1&id=) — 본인 것만.
+async function handleSeoichuCommentDelete(req, res, db) {
+  const session = readSession(req);
+  if (!session) return res.status(401).json({ error: '로그인이 필요해요.' });
+  const id = Number(req.query.id);
+  if (!id) return res.status(400).json({ error: 'id가 필요해요.' });
+  await ensureSeoichuCommentsTable(db);
+  const r = await db.execute({ sql: "DELETE FROM seoichu_comments WHERE id = ? AND user_id = ?", args: [id, session.userId] });
+  if (!r.rowsAffected) return res.status(404).json({ error: '삭제할 댓글이 없거나 권한이 없어요.' });
+  return res.status(200).json({ ok: true });
+}
+
 // 앱 푸시(FCM) — 기기 토큰 + 관심위치 저장 테이블(로그인 안 해도 기기 단위). 설계: docs/product/16-push-notifications.md
 async function ensurePushTables(db) {
   try { await db.execute("CREATE TABLE IF NOT EXISTS push_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, device_id TEXT, platform TEXT, token TEXT UNIQUE, enabled INTEGER DEFAULT 1, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')))"); } catch (e) {}
@@ -395,6 +451,14 @@ module.exports = async function handler(req, res) {
     return handleSeoichuDelete(req, res, db);
   }
 
+  // 이웃찾기 댓글 작성(POST)/삭제(DELETE) — GET 가드 이전.
+  if (req.method === 'POST' && req.query.comments !== undefined) {
+    return handleSeoichuCommentAdd(req, res, db);
+  }
+  if (req.method === 'DELETE' && req.query.comments !== undefined) {
+    return handleSeoichuCommentDelete(req, res, db);
+  }
+
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -515,10 +579,42 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ nickname: top.nickname || '', count: Number(top.count) });
   }
 
+  // 이웃찾기 댓글 목록(공개) GET ?comments=1&postId= — 글 상세 펼칠 때 로드. 시간순(대화 흐름).
+  if (req.query.comments !== undefined) {
+    await ensureSeoichuCommentsTable(db);
+    const postId = Number(req.query.postId);
+    if (!postId) return res.status(400).json({ error: 'postId가 필요해요.' });
+    let rows = [];
+    try {
+      rows = (await db.execute({
+        sql: `SELECT c.id AS id, c.content AS content, c.created_at AS created_at, c.user_id AS user_id,
+                     u.nickname AS nickname, u.provider AS provider,
+                     u.url_platform AS url_platform, u.url_id AS url_id, u.profile_image AS profile_image
+              FROM seoichu_comments c JOIN users u ON u.id = c.user_id
+              WHERE c.post_id = ? AND COALESCE(c.hidden,0)=0
+              ORDER BY c.created_at ASC, c.id ASC`,
+        args: [postId]
+      })).rows;
+    } catch (e) { rows = []; }
+    res.setHeader('Cache-Control', 'private, no-store'); // 실시간 + 작성자 삭제버튼 개인화라 공유캐시 금지
+    return res.status(200).json(rows.map(x => ({
+      id: x.id,
+      userId: x.user_id,
+      content: x.content,
+      createdAt: x.created_at,
+      nickname: x.nickname || '익명',
+      provider: x.provider || '',
+      urlPlatform: x.url_platform || '',
+      urlId: x.url_id || '',
+      profileImage: x.profile_image || ''
+    })));
+  }
+
   // 서이추 게시판 글 목록(공개) — 블로그 등록자가 쓴 글만. 프사·닉·작성시간·작성글·블로그.
   // GET ?seoichu=1&limit=&offset=. 커뮤니티 '서이추' 세그먼트.
   if (req.query.seoichu !== undefined) {
     await ensureSeoichuTable(db);
+    await ensureSeoichuCommentsTable(db); // comment_count 서브쿼리용
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 30));
     const offset = Math.max(0, Number(req.query.offset) || 0);
     let rows = [];
@@ -526,7 +622,8 @@ module.exports = async function handler(req, res) {
       rows = (await db.execute({
         sql: `SELECT s.id AS id, s.content AS content, s.created_at AS created_at, s.user_id AS user_id,
                      u.nickname AS nickname, u.provider AS provider,
-                     u.url_platform AS url_platform, u.url_id AS url_id, u.profile_image AS profile_image
+                     u.url_platform AS url_platform, u.url_id AS url_id, u.profile_image AS profile_image,
+                     (SELECT COUNT(*) FROM seoichu_comments c WHERE c.post_id = s.id AND COALESCE(c.hidden,0)=0) AS comment_count
               FROM seoichu_posts s JOIN users u ON u.id = s.user_id
               WHERE COALESCE(s.hidden,0)=0 AND u.url_id IS NOT NULL AND u.url_id <> '' AND u.url_platform IN ('블로그','인스타그램')
               ORDER BY s.created_at DESC, s.id DESC
@@ -544,7 +641,8 @@ module.exports = async function handler(req, res) {
       urlId: x.url_id || '',
       profileImage: x.profile_image || '',
       content: x.content || '',
-      createdAt: x.created_at || ''
+      createdAt: x.created_at || '',
+      commentCount: Number(x.comment_count) || 0
     })));
   }
 

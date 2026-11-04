@@ -1,5 +1,5 @@
 const { getDb } = require('../_db');
-const { readSession } = require('./_session');
+const { readSession, createSessionCookie } = require('./_session');
 
 module.exports = async function handler(req, res) {
   const session = readSession(req);
@@ -7,6 +7,10 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ user: null });
     return;
   }
+
+  // 로그인 유지(슬라이딩 갱신): me는 앱/페이지 로드마다 호출되므로, 매 호출 세션 쿠키를 새 30일로 재발급.
+  // → 30일 안에 한 번이라도 열면 만료되지 않음(활성 유저 영구 로그인). 웹뷰가 쿠키를 유지해야 효과(iOS 네이티브 영속은 별도).
+  try { res.setHeader('Set-Cookie', createSessionCookie(session)); } catch (e) {}
 
   const db = getDb();
   try {
