@@ -3338,6 +3338,8 @@ function switchTab(tab) {
     // MY 탭: 기존 '메뉴'를 흡수(로그인/내정보/신고/소개/약관 등). 제보하기는 제외(후기+매장등록으로 대체 방향).
     // 다른 서브화면과 동일하게 전체 콘텐츠가 스크롤되고, 큰 'MY'(scroll-header)가 사라지면 compact sticky 등장.
     renderMyPage();
+    loadMyStats();  // 기여통계는 MY 열 때만 지연 로드(me?stats=1) → 로드 후 재렌더
+
     const sticky = document.getElementById('myStickyHeader'); if (sticky) sticky.classList.remove('show');
     const sc = document.getElementById('myScroll'); if (sc) sc.scrollTop = 0;
     bindMobileScrollHeader('myScroll', 'myScrollHeader', 'myStickyHeader');
@@ -5218,6 +5220,24 @@ window.mlToggleBell = mlToggleBell;
 // ===== 간편로그인 =====
 let currentUser = null;
 let _authChecked = false; // /api/auth/me 응답 수신 여부 — 확인 전엔 로그인 CTA를 그리지 않아 깜빡임 방지
+let _myStatsLoaded = false; // 기여통계(제보/후기/도움돼요/접속일)는 MY·회원정보 열 때만 me?stats=1로 로드(비용↓). 세션 갱신 시 리셋.
+// MY/회원정보 열 때 기여통계만 지연 로드 — 매 페이지 로드 me가 COUNT 4개를 안 돌리게 분리(Vercel/Turso 비용 절감).
+async function loadMyStats(force) {
+  if (!currentUser) return;
+  if (_myStatsLoaded && !force) return;
+  try {
+    const data = await fetch('/api/auth/me?stats=1&platform=' + detectPlatform()).then(r => r.ok ? r.json() : null);
+    if (data && data.user) {
+      currentUser.reportCount = data.user.reportCount || 0;
+      currentUser.reviewCount = data.user.reviewCount || 0;
+      currentUser.helpfulCount = data.user.helpfulCount || 0;
+      currentUser.visitCount = data.user.visitCount || 0;
+      _myStatsLoaded = true;
+      try { renderMyPage(); } catch (e) {}
+      try { if (document.getElementById('profileOverlay') && document.getElementById('profileOverlay').classList.contains('open')) populateProfileFields(); } catch (e) {}
+    }
+  } catch (e) {}
+}
 
 async function refreshAuthUI() {
   try {
@@ -5228,6 +5248,7 @@ async function refreshAuthUI() {
     currentUser = null;
   }
   _authChecked = true;
+  _myStatsLoaded = false;  // 세션 갱신 → 기여통계 재로드 대상(다음 MY/회원정보 열 때 me?stats=1).
   // 즐겨찾기 상태 로드(로그인 유저) → 열려있는 상세 ★ 반영. PC 즐겨찾기 모드 중이면 목록도 갱신.
   await loadFavorites();
   _favorites.forEach(pid => updateFavStars(pid));
@@ -5267,6 +5288,7 @@ async function refreshAuthUI() {
   // PC MY 패널이 열려 있으면 로그인 상태 변화 반영(메뉴 패널 재렌더 + 회원정보관리 열려 있으면 재채움)
   if (document.body.classList.contains('pc-myinfo-mode')) {
     renderMyPage();
+    if (loggedIn) loadMyStats();  // PC MY 상주패널 — 기여통계 지연 로드
     if (document.getElementById('profileOverlay')?.classList.contains('open')) {
       showProfileMode(loggedIn ? 'in' : 'out');
       if (loggedIn) populateProfileFields();
@@ -5542,11 +5564,13 @@ function openProfileSheet() {
     if (loggedIn) populateProfileFields();
     const pBody = document.getElementById('profileBody'); if (pBody) pBody.scrollTop = 0;
     document.getElementById('profileOverlay').classList.add('open');
+    if (loggedIn) loadMyStats();  // 기여통계 지연 로드 → 완료 시 populateProfileFields 재채움
     return;
   }
   if (!currentUser) { openLoginSheet(); return; }
   showProfileMode('in');
   populateProfileFields();
+  loadMyStats();  // 기여통계 지연 로드(me?stats=1) → 완료 시 재채움
   syncMobileModalHeader('#profileOverlay');
   bindMobileScrollHeader('profileBody', 'profileScrollHeader', 'profileStickyHeader');
   document.getElementById('profileStickyHeader').classList.remove('show');
