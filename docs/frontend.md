@@ -85,6 +85,14 @@
 ## 커뮤니티 후기 정렬 (2026-10-10)
 - 후기 피드(`_cmFeedSort`)·내 후기(`_myRevSort`) **기본 정렬을 좋아요순 → 최신순(`latest`)** 으로 변경(새 후기가 바로 안 보여 최신순이 자연스러움). 매장별 후기 리스트(`_reviewSort`)는 기존대로 최신순. 좋아요순은 정렬 버튼 토글로 유지.
 
+## 수다방(커뮤니티) 댓글 (2026-11-04)
+- 커뮤니티 세그먼트 **'이웃찾기' → '수다방'** 리네이밍(내부 키 `seoichu`는 유지, 표시 라벨·소개문구만). 댓글로 소통 공간 성격이 커짐.
+- **댓글 표시**: 글 카드(`seoichuPostHtml`) 아래 **항상 전부 노출**(연회색 `.cm-sc-comments`), 메타행 우측 `💬 댓글 N`(`cmCommentIcon`=Figma 실물 `image/ic_comm_14.svg`). 목록 GET이 `comments[]` 임베드라 추가 요청 없음. 본인 댓글 🗑(`deleteSeoichuComment`).
+- **입력 — 모바일**: `💬 댓글` 탭 → `openSeoichuCommentInput` → 키보드 위 고정 바텀바(`#scCmtBar`, auto-grow `cmAutoGrow`), 등록(`submitSeoichuComment`) 시 **바 닫힘+키보드 내림+대상 해제**, blur로도 닫힘. `initNativeKeyboard`가 `--kb-inset`로 키보드 위에 띄움.
+- **입력 — PC**(`pc-community-mode`): 바텀바 대신 **글 댓글영역 아래 인라인 입력창**(`openPcInlineComment`, 한 번에 하나), 등록(`submitPcInlineComment`) 시 **인라인 닫힘**(PC/모바일 동작 통일). 공용 POST `_postSeoichuComment`, 갱신 `reloadSeoichuPostComments`(그 카드 댓글·카운트만 교체).
+- **작성자 푸시**: 서버가 댓글 작성 시 작성자에 FCM/APNs 발송([[api-db]]). 탭 네비(`applyPushNav` `kind:'comment'`)는 미구현(탭하면 앱만 열림, 추후).
+- **auth 깜빡임 수정**: `refreshAuthUI`가 커뮤니티 탭 열려있으면 재렌더(첫 진입 로그인 확정 전 로그아웃 CTA가 뜨던 것). `seoichuComposeHtml`은 `_authChecked` 전엔 compose를 **미렌더**(빈박스·깜빡임 없음), 확정 후 등장. (근본은 `/api/auth/me` 응답 지연.)
+
 ## 가입 유입경로(클라, 2026-09-23)
 - 방문 시 유입소스를 세션(`sessionStorage mh_src`)에 저장: `?ref`/`utm_source` 태그가 있으면 그 값, 없으면 최초 `document.referrer`를 채널로 분류(`classifyRefClient` — 네이버/카카오/인스타/스레드/구글/페북/당근/유튜브/틱톡, 그 외 host, 내부/빈값 제외).
 - 로그인 시 그 소스를 로그인 URL `src`로 실어보냄: 카카오/네이버는 `oauthLogin(provider)`(index.html 로그인 버튼 `onclick`), 애플은 `appleSignIn`. `getSignupSrc()`가 `mh_src` 반환. 서버가 신규 가입 시 `users.signup_source`에 기록 → 어드민 회원목록 가입경로 [[api-db]]·[[admin]]. (방문 집계의 `?ref`와 같은 소스, 여기선 회원 단위 귀속)
