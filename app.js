@@ -3880,7 +3880,9 @@ function seoichuComposeHtml() {
   // auth 확정 전(_authChecked=false)엔 로그인 CTA를 그리지 않음 — 로그인 상태인데 로그아웃 레이아웃이
   // 먼저 떴다가 바뀌는 깜빡임 방지. 높이만 예약하고, refreshAuthUI가 확정 후 재렌더한다.
   if (!currentUser && !_authChecked) {
-    return `<div class="cm-compose cm-compose-loading" aria-hidden="true"></div>`;
+    // auth 확정 전: 빈 compose 박스가 크게 보여 → 아무것도 안 그림(확정 후 refreshAuthUI가 재렌더).
+    // 로그인 CTA 깜빡임도, 큰 빈 박스도 둘 다 방지. compose는 확정 후 등장(작은 레이아웃 시프트만).
+    return '';
   }
   if (!currentUser) {
     return `<div class="cm-compose cm-compose-cta">

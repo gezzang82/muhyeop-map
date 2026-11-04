@@ -3909,7 +3909,6 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   .cm-sc-prov { flex-shrink: 0; }
   /* 글쓰기 박스 (이웃찾기) */
   .cm-compose { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 16px 16px 12px; margin-bottom: 12px; box-shadow: 0 0 2px rgba(0,0,0,0.08); transition: border-color 0.15s; }
-  .cm-compose-loading { min-height: 108px; box-shadow: none; } /* auth 확정 전 중립 플레이스홀더(높이 예약, 깜빡임 방지) */
   /* 입력 포커스 시 박스 테두리만 강조(이웃찾기 테마 네이비) — 1px 유지로 레이아웃 시프트 없음. 내부 구분선은 유지 */
   .cm-compose:focus-within { border-color: #39395c; }
   .cm-compose-input { width: 100%; border: 0; resize: none; overflow-y: auto; min-height: 42px; max-height: 180px; font-size: 15px; line-height: 1.4; color: #000; background: transparent; outline: none; font-family: inherit; }
