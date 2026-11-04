@@ -3877,6 +3877,11 @@ function setMyRevSort(s) {
 
 // 글쓰기 영역: 로그인 + SNS(블로그/인스타) 등록자만. 아니면 안내 CTA.
 function seoichuComposeHtml() {
+  // auth 확정 전(_authChecked=false)엔 로그인 CTA를 그리지 않음 — 로그인 상태인데 로그아웃 레이아웃이
+  // 먼저 떴다가 바뀌는 깜빡임 방지. 높이만 예약하고, refreshAuthUI가 확정 후 재렌더한다.
+  if (!currentUser && !_authChecked) {
+    return `<div class="cm-compose cm-compose-loading" aria-hidden="true"></div>`;
+  }
   if (!currentUser) {
     return `<div class="cm-compose cm-compose-cta">
       <p class="cm-compose-msg">로그인하고 SNS를 등록하면 인사를 남길 수 있어요.</p>
