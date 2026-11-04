@@ -4083,7 +4083,12 @@ async function submitSeoichuComment() {
   if (!r.ok) { showToast(r.error || '댓글 등록에 실패했어요.'); return; }
   ta.value = ''; cmAutoGrow(ta);
   await reloadSeoichuPostComments(postId);
-  try { ta.focus(); } catch (e) {}
+  // 등록 후 입력바 닫기(사용자 피드백): 포커스 유지 대신 blur→키보드 내림 + 바 숨김 + 대상 해제.
+  if (_scHideTimer) { clearTimeout(_scHideTimer); _scHideTimer = null; }
+  try { ta.blur(); } catch (e) {}
+  _scCommentTarget = null;
+  document.querySelectorAll('.cm-sc-post.sc-target').forEach(function (el) { el.classList.remove('sc-target'); });
+  showSeoichuCommentBar(false);
 }
 // PC 인라인 제출 — 그 글 인라인 입력창. 성공 시 목록·카운트 갱신 + 비움, 입력창은 열린 채 유지(연속 작성).
 async function submitPcInlineComment(postId, el) {
