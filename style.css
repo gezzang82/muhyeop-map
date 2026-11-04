@@ -4220,3 +4220,52 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
 .aip-install { margin-top: 24px; width: 100%; height: 56px; border: 0; border-radius: 8px; background: #e82a2d; color: #fff; font-size: 18px; font-weight: 700; cursor: pointer; font-family: inherit; }
 .aip-install:active { opacity: 0.9; }
 .aip-dismiss { margin-top: 24px; background: none; border: 0; padding: 0; font-size: 13px; color: #555; text-decoration: underline; cursor: pointer; font-family: inherit; }
+
+/* ===== 이웃찾기 댓글 (Figma 1984:83418 디스플레이 / 1984:83831 입력바) ===== */
+/* 글 메타행: 시간(좌) + 💬 댓글 N(우). 시간은 닉네임 옆에서 이리로 이동(디자인 개편). PC/모바일 공용(동일 DOM 재사용). */
+.cm-sc-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.cm-sc-meta .cm-sc-time { flex: 1 1 auto; font-size: 12px; color: #aaa; }
+.cm-sc-cmt-count { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; font-family: inherit; }
+.cm-sc-cmt-ico { display: block; flex-shrink: 0; }
+.cm-sc-cmt-n { font-size: 13px; color: #000; }
+/* 댓글 리스트: 내용 아래 연회색 박스(항상 전부 노출). 비어있으면(:empty) 박스 숨김. 박스 탭=그 글에 댓글 달기. */
+.cm-sc-comments { margin-top: 12px; background: #f7f9fa; border-radius: 8px; padding: 12px 16px; cursor: pointer; }
+.cm-sc-comments:empty { display: none; }
+.cm-sc-comment { display: flex; flex-direction: column; gap: 6px; }
+.cm-sc-comment + .cm-sc-comment { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e9ebed; }
+.cm-sc-cmt-top { display: flex; align-items: center; gap: 8px; }
+.cm-sc-cmt-avatar { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; overflow: hidden; background: #eee; }
+.cm-sc-cmt-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cm-sc-cmt-nickrow { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+.cm-sc-cmt-nick { min-width: 0; font-size: 14px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cm-sc-cmt-trash { flex-shrink: 0; width: 16px; height: 16px; padding: 0; border: 0; background: none; cursor: pointer; line-height: 0; }
+.cm-sc-cmt-trash img { width: 16px; height: 16px; display: block; }
+.cm-sc-cmt-time { flex-shrink: 0; margin-left: auto; font-size: 12px; color: #aaa; white-space: nowrap; }
+.cm-sc-cmt-text { margin: 0; font-size: 14px; line-height: 20px; color: #222; white-space: pre-wrap; word-break: break-word; }
+/* 댓글 대상으로 선택된 글 하이라이트(네이비 테두리) */
+.cm-sc-post.sc-target { box-shadow: 0 0 0 1.5px #39395c, 0 0 2px rgba(0,0,0,0.08); }
+
+/* 댓글 입력바: 키보드 위(네이티브 --kb-inset) / 평소 GNB 위에 고정. 세그먼트=이웃찾기 + 로그인 시만 노출. */
+.sc-cmt-bar { display: flex; align-items: center; gap: 8px; position: fixed; left: 0; right: 0;
+  bottom: max(calc(var(--gnb-h, 60px) + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))), var(--kb-inset, 0px));
+  padding: 10px 16px; background: #fff; border-top: 1px solid #ebebeb; z-index: 290; }
+.sc-cmt-bar[hidden] { display: none; }
+.sc-cmt-input { flex: 1; min-width: 0; resize: none; overflow-y: auto; min-height: 24px; max-height: 96px;
+  border: 0; outline: none; background: transparent; font-family: inherit; font-size: 15px; line-height: 21px; color: #222; padding: 2px 0; }
+.sc-cmt-input::placeholder { color: #bbb; }
+.sc-cmt-submit { flex-shrink: 0; height: 32px; padding: 0 16px; border: 0; border-radius: 8px; background: #39395c; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.sc-cmt-submit:disabled { opacity: 0.5; }
+/* 입력바가 뜬 동안 마지막 글이 바에 가리지 않게 스크롤 하단 여백 추가 */
+.cm-scroll.sc-has-bar .cm-inner { padding-bottom: calc(28px + var(--gnb-h, 60px) + 52px); }
+/* PC(pc-community-mode)에선 뷰포트 고정 바 미사용(모바일 Figma 전용) */
+body.pc-community-mode .sc-cmt-bar { display: none !important; }
+
+/* PC 인라인 댓글 입력(pc-community-mode 전용 경로, 모바일은 바텀바). 댓글블록(.cm-sc-comments) 맨 끝에 삽입. */
+.cm-sc-inline { display: flex; align-items: center; gap: 8px; }
+.cm-sc-comment + .cm-sc-inline { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e9ebed; }  /* 위에 댓글 있으면 구분선 */
+.cm-sc-inline-input { flex: 1; min-width: 0; resize: none; overflow-y: auto; min-height: 24px; max-height: 96px;
+  border: 1px solid #ddd; border-radius: 8px; background: #fff; font-family: inherit; font-size: 14px; line-height: 20px; color: #222; padding: 6px 10px; outline: none; }
+.cm-sc-inline-input:focus { border-color: #39395c; }
+.cm-sc-inline-input::placeholder { color: #bbb; }
+.cm-sc-inline-submit { flex-shrink: 0; height: 34px; padding: 0 16px; border: 0; border-radius: 8px; background: #39395c; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.cm-sc-inline-submit:disabled { opacity: 0.5; }

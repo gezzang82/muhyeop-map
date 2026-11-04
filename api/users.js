@@ -631,6 +631,34 @@ module.exports = async function handler(req, res) {
         args: [limit, offset]
       })).rows;
     } catch (e) { rows = []; }
+    // 댓글은 항상 전부 노출이라 각 글에 임베드(글 id들로 1회 조회 → post_id별 그룹핑, N+1 방지).
+    // 댓글 객체도 글과 마찬가지로 userId만 노출해 클라에서 삭제버튼 판정(공유캐시 안전).
+    const commentsByPost = {};
+    const ids = rows.map(r => r.id);
+    if (ids.length) {
+      let crows = [];
+      try {
+        crows = (await db.execute({
+          sql: `SELECT c.id AS id, c.post_id AS post_id, c.content AS content, c.created_at AS created_at, c.user_id AS user_id,
+                       u.nickname AS nickname, u.provider AS provider, u.profile_image AS profile_image
+                FROM seoichu_comments c JOIN users u ON u.id = c.user_id
+                WHERE c.post_id IN (${ids.map(() => '?').join(',')}) AND COALESCE(c.hidden,0)=0
+                ORDER BY c.created_at ASC, c.id ASC`,
+          args: ids
+        })).rows;
+      } catch (e) { crows = []; }
+      for (const c of crows) {
+        (commentsByPost[c.post_id] = commentsByPost[c.post_id] || []).push({
+          id: c.id,
+          userId: c.user_id,
+          content: c.content || '',
+          createdAt: c.created_at || '',
+          nickname: c.nickname || '익명',
+          provider: c.provider || '',
+          profileImage: c.profile_image || ''
+        });
+      }
+    }
     res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     return res.status(200).json(rows.map(x => ({
       id: x.id,
@@ -642,7 +670,8 @@ module.exports = async function handler(req, res) {
       profileImage: x.profile_image || '',
       content: x.content || '',
       createdAt: x.created_at || '',
-      commentCount: Number(x.comment_count) || 0
+      comments: commentsByPost[x.id] || [],
+      commentCount: (commentsByPost[x.id] || []).length
     })));
   }
 

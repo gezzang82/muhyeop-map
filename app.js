@@ -3720,9 +3720,11 @@ async function renderCommunity(fresh) {
       listEl.insertAdjacentHTML('beforeend', posts.map(seoichuPostHtml).join(''));
       return posts.length;
     });
+    showSeoichuCommentBar(false);  // 입력바는 평소 숨김 — 글의 '댓글 N' 탭 시 등장(openSeoichuCommentInput)
     return;
   }
 
+  showSeoichuCommentBar(false);  // 후기 세그먼트에선 댓글 입력바 숨김
   // 후기 피드 — feed(전체) / myreviews(내 후기=mine)
   const mine = (_cmSeg === 'myreviews');
   if (mine && !currentUser) {
@@ -3928,7 +3930,8 @@ async function submitSeoichu() {
   } catch (e) { showToast('등록에 실패했어요.'); }
   finally { if (btn) btn.disabled = false; }
 }
-// 이웃찾기 글 카드: 아바타 · 닉/시간 · SNS 링크 / 내용 + 방문하기 CTA (블로그·인스타 공통).
+// 이웃찾기 글 카드: 아바타 · 닉 · SNS 링크 / 내용 + 시간·댓글수 + 댓글목록 (블로그·인스타 공통).
+// 시간은 (Figma 1984:83418 개편) 닉네임 옆이 아니라 내용 아래 메타행으로 이동, 그 우측에 '💬 댓글 N'.
 function seoichuPostHtml(p) {
   const full = snsFullUrl(p.urlPlatform, p.urlId);
   const avatar = p.profileImage || 'image/img_profile_login.png?v=2';
@@ -3936,18 +3939,204 @@ function seoichuPostHtml(p) {
   const trashBtn = mine
     ? `<button class="cm-sc-trash" onclick="deleteSeoichu(${p.id})" aria-label="삭제"><img src="image/ic_trash_16_gray.svg" width="16" height="16" alt=""></button>`
     : '';
-  return `<div class="cm-sc-post">
+  const cnt = Number(p.commentCount != null ? p.commentCount : (p.comments ? p.comments.length : 0)) || 0;
+  return `<div class="cm-sc-post" data-post-id="${p.id}">
     <div class="cm-sc-head">
       <span class="cm-sc-avatar"><img src="${rvEsc(avatar)}" alt="" width="40" height="40"></span>
       <div class="cm-sc-head-text">
-        <div class="cm-sc-nick-row"><span class="cm-sc-nick">${rvEsc(p.nickname)}</span><span class="cm-sc-time">${cmTimeAgo(p.createdAt)}</span>${trashBtn}</div>
+        <div class="cm-sc-nick-row"><span class="cm-sc-nick">${rvEsc(p.nickname)}</span>${trashBtn}</div>
         <div class="cm-sc-linkrow"><img class="cm-sc-plat" src="${snsIconSrc(p.urlPlatform)}" width="12" height="12" alt=""><span class="cm-sc-linktext">${rvEsc(snsLinkText(p.urlPlatform, p.urlId))}</span></div>
       </div>
       <button class="cm-sc-cta" onclick="openExternal('${rvEsc(full)}')">방문하기</button>
     </div>
     <div class="cm-sc-divider"></div>
     <p class="cm-sc-content">${rvEsc(p.content)}</p>
+    <div class="cm-sc-meta">
+      <span class="cm-sc-time">${cmTimeAgo(p.createdAt)}</span>
+      <button class="cm-sc-cmt-count" onclick="openSeoichuCommentInput(${p.id})" aria-label="댓글 달기">${cmCommentIcon()}<span class="cm-sc-cmt-n">댓글 ${cnt}</span></button>
+    </div>
+    <div class="cm-sc-comments" onclick="openSeoichuCommentInput(${p.id})">${seoichuCommentListHtml(p.comments)}</div>
   </div>`;
+}
+// 댓글 말풍선 아이콘 — Figma ic_comm_14(node 1984:83606) export한 image/ic_comm_14.svg. 16px 회색 말풍선.
+function cmCommentIcon() {
+  return `<img class="cm-sc-cmt-ico" src="image/ic_comm_14.svg?v=1" width="16" height="16" alt="" aria-hidden="true">`;
+}
+// 글 카드 안 댓글 리스트(항상 전부 노출, 연회색 박스). 비어있으면 박스 자체를 안 그림.
+function seoichuCommentListHtml(comments) {
+  const arr = Array.isArray(comments) ? comments : [];
+  if (!arr.length) return '';
+  return arr.map(seoichuCommentItemHtml).join('');
+}
+// 댓글 1개: 아바타(20) + [닉 + 내댓글이면 🗑 + 시간] / 내용.
+function seoichuCommentItemHtml(c) {
+  const avatar = c.profileImage || 'image/img_profile_login.png?v=2';
+  const mine = !!(currentUser && currentUser.id != null && c.userId === currentUser.id);
+  const trash = mine
+    ? `<button class="cm-sc-cmt-trash" onclick="event.stopPropagation(); deleteSeoichuComment(${c.id})" aria-label="댓글 삭제"><img src="image/ic_trash_16_gray.svg" width="16" height="16" alt=""></button>`
+    : '';
+  return `<div class="cm-sc-comment" data-cid="${c.id}">
+    <div class="cm-sc-cmt-top">
+      <span class="cm-sc-cmt-avatar"><img src="${rvEsc(avatar)}" alt="" width="20" height="20"></span>
+      <div class="cm-sc-cmt-nickrow"><span class="cm-sc-cmt-nick">${rvEsc(c.nickname)}</span>${trash}<span class="cm-sc-cmt-time">${cmTimeAgo(c.createdAt)}</span></div>
+    </div>
+    <p class="cm-sc-cmt-text">${rvEsc(c.content)}</p>
+  </div>`;
+}
+
+// ===== 이웃찾기 댓글 입력(키보드 위 바텀 입력바) =====
+// 댓글 리스트는 각 글 아래 항상 전부 노출(펼침 아님). 입력바는 평소 숨김 → 글의 '💬 댓글 N'(또는 댓글영역)을
+// 탭하면 그 글(postId)을 대상으로 지정(하이라이트)하고 입력바가 등장+포커스. 탭 바깥(blur) 시 닫힘(결정 2026-11-05).
+// 제출 시 그 글 댓글만 서버에서 다시 받아 갱신.
+let _scCommentTarget = null;   // 현재 댓글 대상 글 id
+let _scHideTimer = null;       // blur→닫기 지연 타이머(다른 글 재탭·제출 시 취소)
+function showSeoichuCommentBar(show) {
+  const bar = document.getElementById('scCmtBar');
+  const sc = document.getElementById('cmScroll');
+  if (!bar) return;
+  // PC(pc-community-mode)는 뷰포트 고정 바를 쓰지 않음(모바일 Figma 전용) — 댓글은 PC에서도 읽기만.
+  const on = !!show && _cmSeg === 'seoichu' && !!currentUser && !document.body.classList.contains('pc-community-mode');
+  bar.hidden = !on;
+  if (sc) sc.classList.toggle('sc-has-bar', on);
+  if (!on) {
+    _scCommentTarget = null;
+    document.querySelectorAll('.cm-sc-post.sc-target').forEach(el => el.classList.remove('sc-target'));
+    const ta = document.getElementById('scCmtInput'); if (ta) { ta.value = ''; ta.style.height = 'auto'; }  // 닫을 때 미전송 입력 비움
+  }
+}
+// textarea 포커스/블러 — blur 시 150ms 뒤 닫되, 등록버튼 클릭·다른 글 재탭·포커스 복귀면 취소.
+function scBarFocus() { if (_scHideTimer) { clearTimeout(_scHideTimer); _scHideTimer = null; } }
+function scBarBlur() { if (_scHideTimer) clearTimeout(_scHideTimer); _scHideTimer = setTimeout(function () { showSeoichuCommentBar(false); }, 150); }
+function setSeoichuCommentTarget(postId) {
+  _scCommentTarget = postId;
+  document.querySelectorAll('.cm-sc-post.sc-target').forEach(el => el.classList.remove('sc-target'));
+  const card = document.querySelector('.cm-sc-post[data-post-id="' + postId + '"]');
+  if (card) card.classList.add('sc-target');
+}
+// 글의 댓글 영역/카운트 클릭 → 비로그인은 로그인 유도.
+// 모바일=바텀 docked 입력바 등장+포커스 / PC(pc-community-mode)=그 글 댓글블록 안 인라인 입력창(결정 2026-11-05 A안).
+function openSeoichuCommentInput(postId) {
+  if (!currentUser) { openLoginSheet(); return; }
+  if (document.body.classList.contains('pc-community-mode')) { openPcInlineComment(postId); return; }
+  if (_scHideTimer) { clearTimeout(_scHideTimer); _scHideTimer = null; }  // 다른 글 재탭 시 blur 닫기 취소
+  setSeoichuCommentTarget(postId);
+  showSeoichuCommentBar(true);
+  const ta = document.getElementById('scCmtInput');
+  if (ta) { try { ta.focus(); } catch (e) {} }
+}
+// PC 전용: 그 글 댓글블록(.cm-sc-comments) 맨 끝에 인라인 입력창을 띄움(한 번에 하나만). 댓글 없으면 블록이 입력창만으로 노출.
+function openPcInlineComment(postId) {
+  // 다른 글에 열린 인라인은 닫음(한 번에 하나)
+  document.querySelectorAll('.cm-sc-inline').forEach(el => {
+    const pc = el.closest('.cm-sc-post');
+    if (!pc || pc.getAttribute('data-post-id') !== String(postId)) el.remove();
+  });
+  document.querySelectorAll('.cm-sc-post.sc-target').forEach(el => el.classList.remove('sc-target'));
+  const postCard = document.querySelector('.cm-sc-post[data-post-id="' + postId + '"]');
+  if (!postCard) return;
+  postCard.classList.add('sc-target');
+  const box = postCard.querySelector('.cm-sc-comments');
+  if (!box) return;
+  let inline = box.querySelector('.cm-sc-inline');
+  if (!inline) {
+    inline = document.createElement('div');
+    inline.className = 'cm-sc-inline';
+    inline.innerHTML = '<textarea class="cm-sc-inline-input" rows="1" maxlength="300" placeholder="댓글을 입력해주세요." oninput="scCommentInput(this)" onkeydown="if(event.key===\'Enter\'&&!event.isComposing&&!event.shiftKey){event.preventDefault();submitPcInlineComment(' + postId + ', this);}"></textarea>'
+      + '<button class="cm-sc-inline-submit" onclick="submitPcInlineComment(' + postId + ', this)">등록</button>';
+    box.appendChild(inline);
+  }
+  const ta = inline.querySelector('.cm-sc-inline-input');
+  if (ta) { try { ta.focus(); } catch (e) {} }
+}
+// 입력바 textarea: 줄바꿈 제거(서버도 1줄 정규화) + 높이 자동 확장(한 줄→두 줄+).
+function scCommentInput(ta) {
+  if (!ta) return;
+  if (ta.value.indexOf('\n') >= 0) {
+    const pos = ta.selectionStart;
+    ta.value = ta.value.replace(/\s*\n\s*/g, ' ');
+    try { ta.setSelectionRange(pos, pos); } catch (e) {}
+  }
+  cmAutoGrow(ta);
+}
+// 댓글 등록 공통 POST(모바일 바텀바·PC 인라인 공용). {ok,error} 반환.
+async function _postSeoichuComment(postId, content) {
+  try {
+    const res = await fetch('/api/users?comments=add&postId=' + postId, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ content }) });
+    const j = await res.json().catch(() => ({}));
+    return { ok: res.ok, error: j.error };
+  } catch (e) { return { ok: false, error: '댓글 등록에 실패했어요.' }; }
+}
+// 모바일 바텀바 제출
+async function submitSeoichuComment() {
+  if (!currentUser) { openLoginSheet(); return; }
+  if (_scHideTimer) { clearTimeout(_scHideTimer); _scHideTimer = null; }  // 등록버튼 클릭 시 blur 닫기 취소
+  const postId = _scCommentTarget;
+  if (!postId) { showToast('댓글 달 글을 선택해주세요.'); return; }
+  const ta = document.getElementById('scCmtInput');
+  if (!ta) return;
+  const content = (ta.value || '').trim();
+  if (!content) { showToast('댓글을 입력해주세요.'); return; }
+  const btn = document.getElementById('scCmtSubmit');
+  if (btn) btn.disabled = true;
+  const r = await _postSeoichuComment(postId, content);
+  if (btn) btn.disabled = false;
+  if (!r.ok) { showToast(r.error || '댓글 등록에 실패했어요.'); return; }
+  ta.value = ''; cmAutoGrow(ta);
+  await reloadSeoichuPostComments(postId);
+  try { ta.focus(); } catch (e) {}
+}
+// PC 인라인 제출 — 그 글 인라인 입력창. 성공 시 목록·카운트 갱신 + 비움, 입력창은 열린 채 유지(연속 작성).
+async function submitPcInlineComment(postId, el) {
+  if (!currentUser) { openLoginSheet(); return; }
+  const inline = el && el.closest ? el.closest('.cm-sc-inline') : null;
+  const ta = inline ? inline.querySelector('.cm-sc-inline-input') : null;
+  if (!ta) return;
+  const content = (ta.value || '').trim();
+  if (!content) { showToast('댓글을 입력해주세요.'); return; }
+  const btn = inline.querySelector('.cm-sc-inline-submit');
+  if (btn) btn.disabled = true;
+  const r = await _postSeoichuComment(postId, content);
+  if (!r.ok) { if (btn) btn.disabled = false; showToast(r.error || '댓글 등록에 실패했어요.'); return; }
+  await reloadSeoichuPostComments(postId);  // 인라인 입력창은 reload가 보존
+  const keepTa = document.querySelector('.cm-sc-post[data-post-id="' + postId + '"] .cm-sc-inline-input');
+  if (keepTa) { keepTa.value = ''; keepTa.style.height = 'auto'; try { keepTa.focus(); } catch (e) {} }
+  const keepBtn = document.querySelector('.cm-sc-post[data-post-id="' + postId + '"] .cm-sc-inline-submit');
+  if (keepBtn) keepBtn.disabled = false;
+}
+function deleteSeoichuComment(cid) {
+  showAlert('댓글을 삭제할까요?', '삭제하면 되돌릴 수 없어요.', {
+    twoButton: true, cancelText: '취소', confirmText: '삭제',
+    onConfirm: async () => {
+      const card = document.querySelector('.cm-sc-comment[data-cid="' + cid + '"]');
+      const postCard = card ? card.closest('.cm-sc-post') : null;
+      const postId = postCard ? Number(postCard.getAttribute('data-post-id')) : null;
+      try {
+        const res = await fetch('/api/users?comments=1&id=' + cid, { method: 'DELETE', credentials: 'same-origin' });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) { showToast(j.error || '삭제에 실패했어요.'); return; }
+        if (postId) await reloadSeoichuPostComments(postId);
+      } catch (e) { showToast('삭제 중 오류가 발생했어요.'); }
+    }
+  });
+}
+// 한 글의 댓글만 서버에서 다시 받아(공개 GET) 그 카드의 댓글목록 + 카운트를 갱신.
+async function reloadSeoichuPostComments(postId) {
+  const postCard = document.querySelector('.cm-sc-post[data-post-id="' + postId + '"]');
+  if (!postCard) return;
+  let list = [];
+  try {
+    list = await fetch('/api/users?comments=1&postId=' + postId, { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : []);
+  } catch (e) { list = []; }
+  const arr = Array.isArray(list) ? list : [];
+  const box = postCard.querySelector('.cm-sc-comments');
+  if (box) {
+    const inline = box.querySelector('.cm-sc-inline');   // PC 인라인 입력창은 재삽입해 보존(열린 채 유지)
+    if (inline) inline.remove();
+    box.innerHTML = seoichuCommentListHtml(arr);
+    if (inline) box.appendChild(inline);
+  }
+  const nEl = postCard.querySelector('.cm-sc-cmt-n');
+  if (nEl) nEl.textContent = '댓글 ' + arr.length;
 }
 // 이웃찾기 내 글 삭제 — 후기 삭제와 동일한 확인 시트(showAlert 2버튼) 후 DELETE, 목록 새로고침(캐시 우회)
 function deleteSeoichu(id) {
@@ -7126,6 +7315,8 @@ function initNativeKeyboard() {
   try {
     KB.addListener('keyboardWillShow', function (info) {
       kbH = (info && info.keyboardHeight) || 0;
+      // 키보드 위 고정 입력바(이웃찾기 댓글바 등)가 키보드에 가리지 않게 인셋을 노출
+      try { document.documentElement.style.setProperty('--kb-inset', kbH + 'px'); } catch (e) {}
       const el = document.activeElement;
       if (el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) setTimeout(function () { scrollInputAboveKeyboard(el, kbH); }, 50);
     });
@@ -7135,7 +7326,7 @@ function initNativeKeyboard() {
     const el = e.target;
     if (kbH > 0 && el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) setTimeout(function () { scrollInputAboveKeyboard(el, kbH); }, 50);
   });
-  try { KB.addListener('keyboardWillHide', function () { kbH = 0; }); } catch (e) {}
+  try { KB.addListener('keyboardWillHide', function () { kbH = 0; try { document.documentElement.style.setProperty('--kb-inset', '0px'); } catch (e) {} }); } catch (e) {}
 }
 
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });

@@ -1195,6 +1195,11 @@
     <button class="cm-write-fab" id="cmWriteFab" onclick="openReviewRegister(function(){ renderCommunity(true); })" aria-label="후기 작성" hidden>
       <svg width="22" height="22" viewBox="16 12 24 24" fill="none"><path d="M20.5089 32.5206L20.502 32.5137C19.3677 32.4459 18.463 31.5412 18.3952 30.4069L18.389 30.4006L18.3883 30.2839L18.3835 29.5527C18.3835 29.5482 18.3835 29.5433 18.3835 29.5389L18.3517 24.0754L26.8335 32.5572L20.5089 32.5206ZM37.0742 18.0739C38.2457 19.2455 38.2456 21.145 37.0742 22.3166L27.8818 31.509L19.3965 23.0237L28.5889 13.8313C29.7605 12.6598 31.66 12.6598 32.8315 13.8313L37.0742 18.0739Z" fill="#376BCB"/></svg>
     </button>
+    <!-- 이웃찾기 댓글 입력바(키보드 위 고정). seoichu+로그인 시만 노출(app.js showSeoichuCommentBar) -->
+    <div class="sc-cmt-bar" id="scCmtBar" hidden>
+      <textarea id="scCmtInput" class="sc-cmt-input" rows="1" maxlength="300" placeholder="댓글을 입력해주세요." oninput="scCommentInput(this)" onfocus="scBarFocus()" onblur="scBarBlur()" onkeydown="if(event.key==='Enter'&&!event.isComposing&&!event.shiftKey){event.preventDefault();submitSeoichuComment();}"></textarea>
+      <button class="sc-cmt-submit" id="scCmtSubmit" onclick="submitSeoichuComment()">등록</button>
+    </div>
   </div>
   <!-- MY 탭 (Figma 1728-44131). 로그인 후 화면. 로그인 전 화면은 디자인 확정 후 교체 예정(현재 임시 CTA). -->
   <div class="tab-view mypage" id="tabView-my" hidden>
