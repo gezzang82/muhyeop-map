@@ -5229,6 +5229,10 @@ async function refreshAuthUI() {
   // 로그인 상태에 따라 갱신되는 탭들 먼저 처리 — 아래 PC/사이드메뉴/마커 로직 중 하나가 실패해도 항상 반영되도록 앞에 둠
   renderMyPage();       // MY 탭
   renderMyPlaces();     // 내 장소 탭(로그아웃 시 로그인 CTA로 전환)
+  // 커뮤니티 탭이 열려 있으면 로그인 상태 반영해 재렌더 — 첫 진입 시 auth 확정 전 렌더되어
+  // '로그인하고 SNS 등록' 프롬프트가 로그인 상태인데도 남던 문제(기본 세그먼트 seoichu 포함).
+  const _cmv = document.getElementById('tabView-community');
+  if (_cmv && !_cmv.hidden) renderCommunity(true);
   // PC 하단 MY 영역 (로그인 전: 간편로그인 안내 / 로그인 후: 아바타+닉네임+로그아웃)
   const pcMyGuest = document.getElementById('pcNavMyGuest');
   const pcMyUser = document.getElementById('pcNavMyUser');
