@@ -4241,14 +4241,15 @@ function mypageDaysSince(createdAt) {
   const nowKstDay = Math.floor((Date.now() + 9 * 3600 * 1000) / 86400000);
   return (nowKstDay - createdKstDay) + 1;
 }
-// 알림설정 (MY → 알림설정). 모바일 시트. 토글은 Phase2에서 푸시(push_prefs/브로드캐스트 수신)에 배선 예정 — 지금은 UI + OS 권한 배너만 동작.
+// 알림설정 (MY → 알림설정). 모바일 시트. 토글 3종(내 장소 신규협찬/커뮤니티/이벤트·공지)은 서버 발송 게이트에
+//  배선됨(onAlarmToggle → users.push_digest_enabled/push_comment_enabled/push_event_enabled). OS 권한 배너도 노출.
 function openMyAlarmSetting() {
   if (isPcMyInfo()) pcMyCloseSubs('alarmOverlay');  // PC MY: 오른쪽 상세에 알림설정만
   syncMobileModalHeader('#alarmOverlay');
   bindMobileScrollHeader('alarmBody', 'alarmScrollHeader', 'alarmStickyHeader');
   const sticky = document.getElementById('alarmStickyHeader'); if (sticky) sticky.classList.remove('show');
   const body = document.getElementById('alarmBody'); if (body) body.scrollTop = 0;
-  ['alarmAll', 'alarmNewCampaign', 'alarmEvent'].forEach(id => { const cb = document.getElementById(id); if (cb) cb.checked = getAlarmPref(id); });
+  ['alarmAll', 'alarmNewCampaign', 'alarmCommunity', 'alarmEvent'].forEach(id => { const cb = document.getElementById(id); if (cb) cb.checked = getAlarmPref(id); });
   refreshAlarmPermBanner();
   applyAlarmGate();
   document.getElementById('alarmOverlay').classList.add('open');
@@ -4276,33 +4277,38 @@ async function openAlarmPermSettings() {
     else { showToast('휴대폰 설정 > 무협맵 > 알림에서 켜주세요.'); }
   } catch (e) {}
 }
-// '전체 알림 받기' OFF면 하위 토글(내 장소 신규협찬·이벤트·공지)을 dim+비활성(게이트).
-// 지금은 클라 UI만 — 실제 발송 억제(서버 push_prefs/수신 플래그)는 Phase2.
+// '전체 알림 받기' OFF면 하위 토글(내 장소 신규협찬·커뮤니티·이벤트·공지)을 dim+비활성(게이트).
 function applyAlarmGate() {
   const all = document.getElementById('alarmAll'); if (!all) return;
   const on = all.checked;
-  ['alarmNewCampaign', 'alarmEvent'].forEach(id => {
+  ['alarmNewCampaign', 'alarmCommunity', 'alarmEvent'].forEach(id => {
     const cb = document.getElementById(id); if (!cb) return;
     cb.disabled = !on;
     const row = cb.closest('.alarm-row');
     if (row) row.classList.toggle('alarm-row-disabled', !on);
   });
 }
-// 알림설정 토글 상태를 localStorage에 저장 — master 상태를 내 장소 벨 게이트가 읽는다. 실제 발송 배선은 Phase2.
+// 알림설정 토글 상태를 localStorage에 저장 — master 상태를 내 장소 벨 게이트가 읽고, 서버에도 반영(onAlarmToggle).
 function getAlarmPref(key) { try { return localStorage.getItem('mh_' + key) !== '0'; } catch (e) { return true; } } // 기본 ON
 function setAlarmPref(key, on) { try { localStorage.setItem('mh_' + key, on ? '1' : '0'); } catch (e) {} }
 // 내 장소 '신규 협찬' 알림이 실효 상태인지 = 전체 알림 ON && 내 장소 신규협찬 ON
 function isMyPlaceAlarmActive() { return getAlarmPref('alarmAll') && getAlarmPref('alarmNewCampaign'); }
-// 토글 변경: 상태 저장 + 하위 게이트 재적용 + 내 장소 벨 즉시 반영. (발송 억제=Phase2 서버)
+// 토글 변경: 상태 저장 + 하위 게이트 재적용 + 내 장소 벨 즉시 반영 + 서버 발송 게이트 반영.
 function onAlarmToggle() {
-  ['alarmAll', 'alarmNewCampaign', 'alarmEvent'].forEach(id => { const cb = document.getElementById(id); if (cb) setAlarmPref(id, cb.checked); });
+  ['alarmAll', 'alarmNewCampaign', 'alarmCommunity', 'alarmEvent'].forEach(id => { const cb = document.getElementById(id); if (cb) setAlarmPref(id, cb.checked); });
   applyAlarmGate();
   if (typeof renderMlItems === 'function') renderMlItems();
-  // 마스터 토글 서버 반영(users.push_digest_enabled): 전체 알림 && 내 장소 신규협찬이 모두 켜져야 하루요약 발송.
-  //  로그인 유저만(비로그인은 어차피 내 장소/토큰 없음). 실패해도 무시(로컬 상태는 유지).
+  // 서버 발송 게이트 반영(로그인 유저만, 실패 무시). 각 효력 = 전체 알림 ON && 해당 하위 토글 ON.
+  //  digest=하루요약(내 장소 신규협찬, users.push_digest_enabled) / comment=수다방 댓글(push_comment_enabled) /
+  //  event=이벤트·공지 브로드캐스트(push_event_enabled). 전체 알림 OFF면 셋 다 0으로 내려가 발송 차단.
   if (currentUser) {
-    const digestOn = isMyPlaceAlarmActive();
-    fetch('/api/users?push=digestpref', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: digestOn ? 1 : 0 }) }).catch(() => {});
+    const all = getAlarmPref('alarmAll');
+    const body = {
+      digest: (all && getAlarmPref('alarmNewCampaign')) ? 1 : 0,
+      comment: (all && getAlarmPref('alarmCommunity')) ? 1 : 0,
+      event: (all && getAlarmPref('alarmEvent')) ? 1 : 0,
+    };
+    fetch('/api/users?push=notifpref', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {});
   }
 }
 

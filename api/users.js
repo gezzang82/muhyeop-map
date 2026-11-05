@@ -90,10 +90,15 @@ async function handleSeoichuCommentAdd(req, res, db) {
   const authorId = Number(post.user_id);
   if (authorId && authorId !== session.userId) {
     try {
-      const toks = (await db.execute({ sql: "SELECT token, platform FROM push_tokens WHERE enabled=1 AND user_id = ?", args: [authorId] })).rows.filter(r => r.token);
-      if (toks.length) {
-        const { sendToDevices } = require('./_push');
-        await sendToDevices(toks, { title: '💬 새 댓글', body: `${session.nickname || '누군가'}님이 회원님 글에 댓글을 남겼어요`, data: { kind: 'comment', postId: String(postId) } });
+      // 작성자가 알림설정에서 '커뮤니티'를 꺼놨으면 발송 생략(push_comment_enabled=0). 컬럼 없으면 기본 ON.
+      let commentOn = 1;
+      try { commentOn = Number((await db.execute({ sql: "SELECT COALESCE(push_comment_enabled,1) AS e FROM users WHERE id = ?", args: [authorId] })).rows[0]?.e ?? 1); } catch (e) { commentOn = 1; }
+      if (commentOn) {
+        const toks = (await db.execute({ sql: "SELECT token, platform FROM push_tokens WHERE enabled=1 AND user_id = ?", args: [authorId] })).rows.filter(r => r.token);
+        if (toks.length) {
+          const { sendToDevices } = require('./_push');
+          await sendToDevices(toks, { title: '💬 새 댓글', body: `${session.nickname || '누군가'}님이 회원님 글에 댓글을 남겼어요`, data: { kind: 'comment', postId: String(postId) } });
+        }
       }
     } catch (e) {}
   }
@@ -162,12 +167,27 @@ async function handlePushPost(req, res, db, kind) {
     return res.status(200).json({ ok: true });
   }
   if (kind === 'digestpref') {
-    // 하루요약 마스터 토글(users.push_digest_enabled). 로그인 필수.
+    // 하루요약 마스터 토글(users.push_digest_enabled). 로그인 필수. (레거시 — 구버전 클라 호환; 신규는 notifpref)
     if (!userId) return res.status(401).json({ error: '로그인이 필요해요.' });
     try { await db.execute("ALTER TABLE users ADD COLUMN push_digest_enabled INTEGER DEFAULT 1"); } catch (e) {}
     const on = (body.enabled === false || body.enabled === 0) ? 0 : 1;
     await db.execute({ sql: "UPDATE users SET push_digest_enabled=? WHERE id=?", args: [on, userId] });
     return res.status(200).json({ ok: true, enabled: on });
+  }
+  if (kind === 'notifpref') {
+    // 알림설정 3토글 서버 반영(로그인 필수): digest=하루요약 / comment=수다방 댓글 / event=이벤트·공지 브로드캐스트.
+    //  각 값은 효력(전체 알림 && 해당 하위토글)이라 클라가 0/1로 내려줌. 보낸 키만 갱신.
+    if (!userId) return res.status(401).json({ error: '로그인이 필요해요.' });
+    try { await db.execute("ALTER TABLE users ADD COLUMN push_digest_enabled INTEGER DEFAULT 1"); } catch (e) {}
+    try { await db.execute("ALTER TABLE users ADD COLUMN push_comment_enabled INTEGER DEFAULT 1"); } catch (e) {}
+    try { await db.execute("ALTER TABLE users ADD COLUMN push_event_enabled INTEGER DEFAULT 1"); } catch (e) {}
+    const b01 = (v) => (v === false || v === 0 || v === '0') ? 0 : 1;
+    const sets = [], args = [];
+    if ('digest' in body) { sets.push('push_digest_enabled=?'); args.push(b01(body.digest)); }
+    if ('comment' in body) { sets.push('push_comment_enabled=?'); args.push(b01(body.comment)); }
+    if ('event' in body) { sets.push('push_event_enabled=?'); args.push(b01(body.event)); }
+    if (sets.length) { args.push(userId); await db.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id=?`, args }); }
+    return res.status(200).json({ ok: true });
   }
   if (kind === 'broadcast') {
     // 이벤트/공지 전체 발송(관리자 전용)
@@ -180,7 +200,11 @@ async function handlePushPost(req, res, db, kind) {
     const data = { kind: 'event' }; // 탭 집계 구분용
     if (body.placeId != null && String(body.placeId).trim() !== '') data.placeId = String(body.placeId).trim();
     if (body.url && String(body.url).trim()) data.url = String(body.url).trim();
-    const toks = (await db.execute("SELECT token, platform FROM push_tokens WHERE enabled=1")).rows.filter(r => r.token);
+    // 이벤트·공지 알림 끈 로그인 유저 제외(push_event_enabled=0). 비로그인 토큰(user_id NULL)은 거를 수 없어 그대로 발송(한계).
+    try { await db.execute("ALTER TABLE users ADD COLUMN push_event_enabled INTEGER DEFAULT 1"); } catch (e) {}
+    const toks = (await db.execute(
+      "SELECT pt.token AS token, pt.platform AS platform FROM push_tokens pt LEFT JOIN users u ON u.id = pt.user_id WHERE pt.enabled=1 AND (pt.user_id IS NULL OR COALESCE(u.push_event_enabled,1)=1)"
+    )).rows.filter(r => r.token);
     if (!toks.length) return res.status(200).json({ sent: 0, failed: 0, devices: 0 });
     const r = await sendToDevices(toks, { title, body: bd, data }); // 안드=FCM / iOS=APNs 분기
     if (r.invalid && r.invalid.length) { // 무효 토큰 비활성화
