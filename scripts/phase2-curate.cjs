@@ -15,6 +15,7 @@ fs.readFileSync(path.join(ROOT, '.env.local'), 'utf8').split('\n').forEach(l => 
 const { createClient } = require(path.join(ROOT, 'node_modules/@libsql/client'));
 const { insertPlace, insertCampaign, markRegistered, naverCanonicalName } = require(path.join(ROOT, 'api/_autopilot'));
 const { geocodeServer } = require(path.join(ROOT, 'api/_geocode'));
+const { cleanStoreName } = require(path.join(ROOT, 'api/_scrape')); // 사전 게이트도 insertPlace와 동일하게 정리된 이름으로 조회(SEO오염 false-skip 방지)
 
 const GO = process.argv.includes('--go');
 const limArg = process.argv.indexOf('--limit');
@@ -66,11 +67,12 @@ async function nearbyHit(name, lat, lng) {
     try {
       const geo = await geocodeServer({ name: r.name, address: r.address });
       if (!geo || !isFinite(geo.lat) || !isFinite(geo.lng)) { b.reparse++; continue; } // 좌표 실패 → 보존(reparse 대상)
-      const hit = await nearbyHit(r.name, geo.lat, geo.lng);
+      const cname = cleanStoreName(r.name) || r.name; // insertPlace 내부와 동일하게 정리된 이름으로 게이트(SEO오염 방지)
+      const hit = await nearbyHit(cname, geo.lat, geo.lng);
       let proceed = false, reuse = false;
       if (hit) { proceed = true; reuse = true; }
       else {
-        const canon = await naverCanonicalName(r.name, geo.lat, geo.lng); // 네이버 정식명 확인(비매장 필터)
+        const canon = await naverCanonicalName(cname, geo.lat, geo.lng); // 네이버 정식명 확인(비매장 필터)
         if (canon) proceed = true;
       }
       if (!proceed) {
