@@ -720,7 +720,9 @@ function initMap() {
   const saved = getSavedMapCenter(); // 재방문이면 마지막 내 위치, 첫 방문이면 null(→서울)
   map = new naver.maps.Map('map', {
     center: new naver.maps.LatLng(saved ? saved.lat : 37.5563, saved ? saved.lng : 126.9980),
-    zoom: saved ? 15 : 11,
+    // 첫 방문 기본 줌: 광역(11)은 뷰포트가 너무 넓어 캠페인 타일이 ~100개 떠 초기 버퍼링이 심함 →
+    //  구(區) 단위(13)로 타일 ~8개로 급감(2026-11-05, 초기 로딩 경량화). 재방문은 마지막 위치 zoom 15.
+    zoom: saved ? 15 : 13,
     mapTypeControl: false,
     scaleControl: false,
     logoControl: true,
@@ -846,6 +848,12 @@ function initMap() {
   });
   try { naver.maps.Event.addListener(map, 'dragstart', () => { _suppressInitialLocation = true; }); } catch (e) {}
   // 첫 화면을 현재 위치 기준으로(전국 데이터 확보로 재활성화). 거부/실패/해외면 서울 기본 유지.
+  // 첫 방문(저장 위치 없음)엔 GPS가 곧 내 위치로 옮기므로, 그 전까진 캠페인 뷰 로딩을 보류해 중간 서울뷰
+  //  타일 로드를 아낀다(초기 버퍼링 완화). GPS 지연/거부 대비 1.8s 폴백: 아직 보류 중이면 풀고 현재뷰 로드.
+  if (!saved) {
+    _awaitingInitialLocation = true;
+    setTimeout(() => { if (_awaitingInitialLocation) { _awaitingInitialLocation = false; loadCampaignsForView(); } }, 1800);
+  }
   tryInitialLocation();
   showBannerPopup();
 }
@@ -955,18 +963,22 @@ function resetMapSearch() {
 // 거부/실패해도 조용히 서울 유지. 전국 데이터가 쌓여 서울 고정이던 이유는 해소됨.
 // 사용자가 이미 검색/지도조작을 시작했으면(_suppressInitialLocation) 늦게 온 위치로 재중심하지 않음(검색 중 튐 방지).
 let _suppressInitialLocation = false;
+// 첫 방문 콜드스타트: GPS가 곧 내 위치로 옮기므로, 확정 전까진 캠페인 뷰 로딩을 보류(중간 서울뷰 타일 낭비 방지).
+//  tryInitialLocation 성공/실패/타임아웃에서 해제. 재방문(저장 위치)·프리페치엔 영향 없음.
+let _awaitingInitialLocation = false;
 function tryInitialLocation() {
   getGeoPosition().then(({ lat, lng }) => {
-    if (_suppressInitialLocation) return; // 사용자가 그새 검색/이동 시작 → 초기 위치이동 취소
+    if (_suppressInitialLocation) { _awaitingInitialLocation = false; loadCampaignsForView(); return; } // 사용자가 그새 조작 → 현재뷰 로드
     const inKorea = lat >= 33 && lat <= 39 && lng >= 124 && lng <= 132;
-    if (!inKorea) return; // 해외 등 국내 밖이면 서울 기본 유지
+    if (!inKorea) { _awaitingInitialLocation = false; loadCampaignsForView(); return; } // 해외 → 서울 기본뷰 로드
+    _awaitingInitialLocation = false; // 내 위치로 이동 → 이동 후 idle에서 그 위치 타일을 로드(중간 서울뷰 스킵)
     saveMapCenter(lat, lng); // 다음 방문 때 이 좌표로 바로 시작(서울 플래시 제거)
     map.setCenter(new naver.maps.LatLng(lat, lng));
     map.setZoom(15);
     showMyLocationMarker(lat, lng);
     renderMarkers();
     renderSidebar();
-  }).catch(() => {});
+  }).catch(() => { _awaitingInitialLocation = false; loadCampaignsForView(); }); // GPS 실패 → 현재뷰 로드
 }
 
 // ===== 공지/이벤트 배너 팝업 (여러 개면 캐러셀) =====
@@ -1165,6 +1177,7 @@ async function _fetchCampaignTiles(vb) {
   } catch (e) {} finally { _campInFlight.delete(bboxKey); }
 }
 async function loadCampaignsForView() {
+  if (_awaitingInitialLocation) return; // 초기 GPS 위치 확정 전 보류(중간 서울뷰 타일 로드 방지)
   if (!map || typeof map.getZoom !== 'function' || map.getZoom() < CAMPAIGN_MIN_ZOOM) return;
   await _fetchCampaignTiles(viewBoundsWithMargin(0.4));
 }
@@ -1173,7 +1186,7 @@ async function loadCampaignsForView() {
 function _initialViewBounds() {
   const saved = getSavedMapCenter();
   const lat = saved ? saved.lat : 37.5563, lng = saved ? saved.lng : 126.9980;
-  const zoom = saved ? 15 : 11;
+  const zoom = saved ? 15 : 13; // initMap 첫 방문 기본 줌과 일치(13) — 프리페치 타일 수 급감
   if (zoom < CAMPAIGN_MIN_ZOOM) return null;
   const degPerPx = 360 / (256 * Math.pow(2, zoom));
   const el = document.getElementById('map');
