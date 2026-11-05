@@ -289,4 +289,6 @@ async function runAutopilot({ db, dry = false, deadlineTs = 0, places: _places =
   return { processed, registered, review, skipped, remaining, dry, timedOut, note, decisions };
 }
 
-module.exports = { runAutopilot };
+// 유지보수 스크립트(검수큐 Phase2 판별 등)에서 검증된 등록/판별 로직을 그대로 재사용하기 위한 추가 export.
+//  (campaigns.js는 { runAutopilot }만 사용 — 추가 키는 순수 가산, 기존 동작 영향 없음)
+module.exports = { runAutopilot, insertPlace, insertCampaign, markRegistered, markSkipped, markHuman, naverCanonicalName };
