@@ -2439,7 +2439,9 @@ async function searchRegion() {
       partial = partial.sort((a, b) => {
         const sa = normalize(a.name).startsWith(nq) ? 0 : 1, sb = normalize(b.name).startsWith(nq) ? 0 : 1;
         if (sa !== sb) return sa - sb;
-        const aa = hasActiveCampaign(a.id) ? 0 : 1, ab = hasActiveCampaign(b.id) ? 0 : 1;
+        // 활성 우선: 캠페인 타일 미로드 매장도 서버 activeCount로 판정(인메모리 OR 서버).
+        const aa = (hasActiveCampaign(a.id) || (a.activeCount || 0) > 0) ? 0 : 1;
+        const ab = (hasActiveCampaign(b.id) || (b.activeCount || 0) > 0) ? 0 : 1;
         if (aa !== ab) return aa - ab;
         return a.name.localeCompare(b.name);
       }).slice(0, 40);
@@ -2499,7 +2501,13 @@ async function mergeServerPlaces(query) {
   try { rows = await fetch('/api/places?q=' + encodeURIComponent(query)).then(r => (r.ok ? r.json() : [])); } catch (e) {}
   rows = Array.isArray(rows) ? rows : [];
   let added = false;
-  for (const r of rows) if (r && r.id != null && !places.some(p => p.id === r.id)) { places.push(r); added = true; }
+  for (const r of rows) {
+    if (!r || r.id == null) continue;
+    const existing = places.find(p => p.id === r.id);
+    // 서버 계산 활성수(activeCount)는 캠페인 타일 미로드 매장도 정확 → 기존 매장에도 갱신(picker 뱃지/정렬용).
+    if (existing) { if (r.activeCount != null) existing.activeCount = r.activeCount; }
+    else { places.push(r); added = true; }
+  }
   if (added) { invalidateActiveCache(); if (typeof map !== 'undefined' && map) renderMarkers(); }
   return rows;
 }
@@ -2690,7 +2698,8 @@ function showPlacePicker(matches, query) {
   if (!list || !titleEl) return;
   titleEl.textContent = `'${query}' ${matches.length}곳`;
   list.innerHTML = matches.map(p => {
-    const active = getActiveCampaigns(p.id).length;
+    // 캠페인 타일 미로드(전국 흩어진 검색결과)면 인메모리는 0이라, 서버가 준 활성수(activeCount)로 폴백.
+    const active = getActiveCampaigns(p.id).length || (p.activeCount || 0);
     const badge = active > 0 ? `<span class="place-picker-badge">협찬 ${active}</span>` : '<span class="place-picker-badge ended">모집 없음</span>';
     return `<button class="place-picker-item" onclick="pickSearchedPlace(${p.id})">
         <span class="place-picker-item-top"><span class="place-picker-name">${p.name}</span>${badge}</span>
@@ -2709,7 +2718,8 @@ function pickSearchedPlace(id) {
   const p = places.find(x => x.id === id);
   if (!p) return;
   clearSearchPin();
-  const ended = getActiveCampaigns(p.id).length === 0;
+  // 활성 판정에 서버 activeCount 폴백(캠페인 미로드 활성매장이 '마감' 줌으로 열리던 것 방지). 상세 오픈 후 ensurePlaceCampaigns가 채움.
+  const ended = (getActiveCampaigns(p.id).length || (p.activeCount || 0)) === 0;
   focusPlace(p.id, ended ? GRAY_PIN_MIN_ZOOM : 16);
 }
 

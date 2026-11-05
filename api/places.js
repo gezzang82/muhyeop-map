@@ -875,7 +875,26 @@ module.exports = async function handler(req, res) {
         sql: "SELECT * FROM places WHERE COALESCE(hidden,0)=0 AND REPLACE(name,' ','') LIKE ? ORDER BY (REPLACE(name,' ','') LIKE ?) DESC, id DESC LIMIT 40",
         args: ['%' + term + '%', term + '%'],
       })).rows;
-      return res.status(200).json(rows.map(r => { const p = toPlace(r); delete p.founderEmail; return p; }));
+      // 검색결과 매장별 '활성 캠페인 수'를 함께 계산해 내려줌 → 클라 picker 뱃지/정렬이 캠페인 타일
+      //  미로드(전국 흩어진 매장: 방탈출·보드게임 등)에도 "모집 N"을 정확히 표시(기존엔 전부 '모집 없음'으로 떴음).
+      //  활성 = 숨김 아님 AND (마감일>=오늘KST OR (상시=빈 마감일 AND 등록 45일 이내)).
+      const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+      const activeMap = {};
+      const ids = rows.map(r => r.id);
+      if (ids.length) {
+        try {
+          const ph = ids.map(() => '?').join(',');
+          const ac = await db.execute({
+            sql: `SELECT place_id, COUNT(*) AS n FROM campaigns
+                  WHERE place_id IN (${ph}) AND COALESCE(hidden,0)=0
+                    AND (((deadline='' OR deadline IS NULL) AND created_at >= datetime('now','-45 days')) OR (deadline >= ?))
+                  GROUP BY place_id`,
+            args: [...ids, today],
+          });
+          for (const r of ac.rows) activeMap[r.place_id] = Number(r.n);
+        } catch (e) {}
+      }
+      return res.status(200).json(rows.map(r => { const p = toPlace(r); delete p.founderEmail; p.activeCount = activeMap[r.id] || 0; return p; }));
     }
     // 공개 지도 조회(레거시/폴백): 숨김 매장 제외 + 이메일(PII) 제외하고 전량 반환. (어드민은 여전히 이걸 사용)
     // 엣지 캐싱: 매장은 거의 안 바뀜 → 60분 CDN 캐시 + 120분 SWR (Fast Origin Transfer 절감, 2026-09-17).
