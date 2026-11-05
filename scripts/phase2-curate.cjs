@@ -19,7 +19,7 @@ const { cleanStoreName } = require(path.join(ROOT, 'api/_scrape')); // 사전 �
 
 const GO = process.argv.includes('--go');
 const limArg = process.argv.indexOf('--limit');
-const LIMIT = limArg >= 0 ? Number(process.argv[limArg + 1]) : (GO ? 40 : 0);
+const LIMIT = limArg >= 0 ? Number(process.argv[limArg + 1]) : 0; // 0 = 전부(--limit 없으면 남은 후보 전량)
 const url = process.env.TURSO_PROD_URL, authToken = process.env.TURSO_PROD_AUTH_TOKEN;
 if (!url || /dev\.db|file:/.test(url)) { console.error('⚠️ 운영 DB가 아님:', url); process.exit(1); }
 const db = createClient({ url, authToken });
@@ -45,8 +45,9 @@ async function nearbyHit(name, lat, lng) {
 
 (async () => {
   // 대상: pending + 미래마감(or 상시) — 채널 유무로 1차 분류
+  // 이미 한 번 판별된 '네이버미검출'·'reparse요망' 태그는 후보에서 제외(재처리 방지 → 앞쪽 스킵 누적으로 배치가 공회전하던 문제 해소).
   const rows = (await db.execute(
-    "SELECT * FROM scraped_items WHERE status='pending' AND (deadline='' OR deadline IS NULL OR deadline >= ?) ORDER BY id ASC",
+    "SELECT * FROM scraped_items WHERE status='pending' AND (deadline='' OR deadline IS NULL OR deadline >= ?) AND COALESCE(auto_note,'') NOT LIKE '%네이버미검출%' AND COALESCE(auto_note,'') NOT LIKE '%reparse요망%' ORDER BY id ASC",
     [today]
   )).rows;
   const withCh = rows.filter(r => csv(r.channel).length);
@@ -66,7 +67,10 @@ async function nearbyHit(name, lat, lng) {
   for (const r of target) {
     try {
       const geo = await geocodeServer({ name: r.name, address: r.address });
-      if (!geo || !isFinite(geo.lat) || !isFinite(geo.lng)) { b.reparse++; continue; } // 좌표 실패 → 보존(reparse 대상)
+      if (!geo || !isFinite(geo.lat) || !isFinite(geo.lng)) { // 좌표 실패 → 보존 + 태그(재처리 제외, 어드민 수동/ reparse 대상)
+        await db.execute({ sql: "UPDATE scraped_items SET auto_note='좌표실패(reparse요망)', auto_seen=1 WHERE id=?", args: [r.id] });
+        b.reparse++; continue;
+      }
       const cname = cleanStoreName(r.name) || r.name; // insertPlace 내부와 동일하게 정리된 이름으로 게이트(SEO오염 방지)
       const hit = await nearbyHit(cname, geo.lat, geo.lng);
       let proceed = false, reuse = false;
@@ -75,10 +79,11 @@ async function nearbyHit(name, lat, lng) {
         const canon = await naverCanonicalName(cname, geo.lat, geo.lng); // 네이버 정식명 확인(비매장 필터)
         if (canon) proceed = true;
       }
-      if (!proceed) {
+      if (!proceed) { // 네이버 미검출 = 비매장 의심/이름오염 → 보존 + 태그(재처리 제외, 어드민 수동확인 대상)
+        await db.execute({ sql: "UPDATE scraped_items SET auto_note='네이버미검출(수동확인요망)', auto_seen=1 WHERE id=?", args: [r.id] });
         b.skipNaver++;
         if (skipSamples.length < 15) skipSamples.push(`${r.name} | ${(r.address||'').slice(0,30)}`);
-        continue; // 네이버 미검출 = 비매장 의심 → 보존(스킵, 등록 안 함)
+        continue;
       }
       // 등록(검증된 경로: insertPlace가 정식명 정규화+좌표 dedup 재수행)
       const placeId = await insertPlace(db, { name: r.name, address: r.address, lat: geo.lat, lng: geo.lng, category: r.category || '기타' });
