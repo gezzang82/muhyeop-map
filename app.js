@@ -3370,6 +3370,7 @@ let _favorites = new Set();
 let _favItems = [];   // 즐겨찾기 목록 마지막 스냅샷(places/campaigns 병합 소스)
 let _favMode = false; // PC 즐겨찾기 모드(지도·사이드바를 내 즐겨찾기로 스코프) 여부
 let _favLoading = false;
+let _preFavView = null; // 즐겨찾기 진입 직전 지도 뷰(center/zoom) — 나갈 때 복원(전국 줌아웃 유지+버벅임 방지)
 let _favBusy = new Set(); // 토글 처리 중인 placeId(연타/경합 방지 잠금)
 
 function _favEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -3527,6 +3528,8 @@ function setSidebarTitle(favMode) {
   if (el) el.textContent = favMode ? '즐겨찾기' : '모집 중인 협찬';
 }
 async function enterFavMode() {
+  // 진입 직전(아직 fav 아님) 지도 뷰 저장 → 나갈 때 복원(fitMapToFavorites 줌아웃이 홈까지 유지되던 것 방지)
+  if (!_favMode && map) { try { const c = map.getCenter(); _preFavView = { lat: c.lat(), lng: c.lng(), zoom: map.getZoom() }; } catch (e) { _preFavView = null; } }
   _favMode = true;
   document.body.classList.add('fav-mode');   // 즐겨찾기 모드: 라이브 캐릭터·PC 앱다운로드 숨김(CSS)
   setSidebarTitle(true);
@@ -3562,6 +3565,18 @@ function fitMapToFavorites() {
   if (!pts.length) return;
   try {
     if (pts.length === 1) { map.setCenter(new naver.maps.LatLng(pts[0].lat, pts[0].lng)); map.setZoom(14); return; }
+    // 즐겨찾기가 전국에 흩어져 있으면(span 큼) 전체 fit은 zoom<11로 빠져 ① 협찬 미로드 ② 2만 매장
+    //  클러스터링으로 버벅임 → 현재 보던 위치에서 가장 가까운 즐겨찾기 중심 + zoom 13(멀리 건 리스트에서 탭).
+    let minLat = pts[0].lat, maxLat = pts[0].lat, minLng = pts[0].lng, maxLng = pts[0].lng;
+    for (const p of pts) { minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat); minLng = Math.min(minLng, p.lng); maxLng = Math.max(maxLng, p.lng); }
+    if ((maxLat - minLat) > 0.35 || (maxLng - minLng) > 0.35) {
+      let rlat = pts[0].lat, rlng = pts[0].lng;
+      try { const c = map.getCenter(); rlat = c.lat(); rlng = c.lng(); } catch (e) {}
+      let best = pts[0], bestD = Infinity;
+      for (const p of pts) { const d = (p.lat - rlat) ** 2 + (p.lng - rlng) ** 2; if (d < bestD) { bestD = d; best = p; } }
+      map.setCenter(new naver.maps.LatLng(best.lat, best.lng)); map.setZoom(13);
+      return;
+    }
     let b = new naver.maps.LatLngBounds(
       new naver.maps.LatLng(pts[0].lat, pts[0].lng),
       new naver.maps.LatLng(pts[0].lat, pts[0].lng)
@@ -3579,6 +3594,9 @@ function exitFavMode() {
   _favMode = false;
   document.body.classList.remove('fav-mode');
   setSidebarTitle(false);
+  // 진입 직전 뷰로 복원 → 홈이 전국 줌아웃 상태로 뜨며 2만 매장 클러스터링으로 버벅이던 것 방지.
+  if (_preFavView && map) { try { map.setCenter(new naver.maps.LatLng(_preFavView.lat, _preFavView.lng)); map.setZoom(_preFavView.zoom); } catch (e) {} }
+  _preFavView = null;
   renderMarkers(); renderSidebar();
 }
 
