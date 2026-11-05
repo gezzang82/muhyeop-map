@@ -3301,11 +3301,15 @@ async function initCommunityDot() {
   updateCommunityDot();
 }
 
-function switchTab(tab) {
+function switchTab(tab, opts) {
   if (GNB_TABS.indexOf(tab) < 0) tab = 'home';
-  hapticTap();
-  // GNB 탭 클릭수 집계(fire-and-forget) — 어느 메뉴를 많이 쓰나(어드민 대시보드). 운영자 IP는 서버에서 제외.
-  try { fetch('/api/places?visit=gnb&tab=' + encodeURIComponent(tab), { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}
+  // opts.silent=프로그램 전환(예: 댓글 푸시 탭) → 햅틱·GNB 클릭 집계 제외(실제 GNB 탭만 집계·뻥튀기 방지).
+  const silent = !!(opts && opts.silent);
+  if (!silent) {
+    hapticTap();
+    // GNB 탭 클릭수 집계(fire-and-forget) — 어느 메뉴를 많이 쓰나(어드민 대시보드). 운영자 IP는 서버에서 제외.
+    try { fetch('/api/places?visit=gnb&tab=' + encodeURIComponent(tab), { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}
+  }
   resetMapSearch();  // 하단 GNB 누르면 검색 핀·FAB 제거 + 검색어 리셋
   document.querySelectorAll('.gnb-tab').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-tab') === tab);
@@ -7409,6 +7413,11 @@ let _pushNavReady = false;    // 지도+데이터 준비 완료 여부
 // 푸시 탭 1건을 실제로 처리: placeId 있으면 매장 상세, 없으면 관심지역으로 이동 + 안내.
 function applyPushNav(nav) {
   if (!nav) return;
+  // 수다방 댓글 푸시 → 커뮤니티로 전환하고 그 글로 이동(지도/위치 이동 아님, 아래 매장 로직 스킵).
+  if (nav.kind === 'comment' && nav.postId != null && nav.postId !== '') {
+    openCommunityPost(nav.postId);
+    return;
+  }
   // 푸시로 특정 매장/위치로 이동할 땐, 콜드스타트의 '현재 위치로 이동'(tryInitialLocation)이
   //  늦게 resolve돼 지도를 내 위치로 되돌리는 걸 막는다(시트=여의도인데 지도=내위치 미스매치 방지).
   _suppressInitialLocation = true;
@@ -7435,6 +7444,27 @@ function drainPendingPushNav() {
   _pushNavReady = true;
   if (_pendingPushNav) { const n = _pendingPushNav; _pendingPushNav = null; applyPushNav(n); }
 }
+// 댓글 푸시 탭 → 커뮤니티 탭 전환 + 수다방 세그먼트 강제 + 그 글로 스크롤·하이라이트(가능하면).
+function openCommunityPost(postId) {
+  try {
+    switchTab('community', { silent: true });   // 프로그램 전환이라 GNB 클릭 집계는 제외(뻥튀기 방지)
+    if (_cmSeg !== 'seoichu') setCommunitySeg('seoichu');  // 후기 보고 있었으면 수다방으로
+    _scrollToSeoichuPost(String(postId), 0);
+  } catch (e) {}
+}
+// 첫 페이지 로드가 비동기(무한스크롤)라 글 DOM이 아직 없을 수 있어 몇 번 폴링하며 기다렸다 스크롤+하이라이트.
+// 첫 페이지에 없으면(오래된 글) ~3s 후 포기 → 수다방 상단에 머묾(폴백).
+function _scrollToSeoichuPost(pid, tries) {
+  const el = document.querySelector('.cm-sc-post[data-post-id="' + pid + '"]');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('sc-flash');
+    setTimeout(() => el.classList.remove('sc-flash'), 1800);
+    return;
+  }
+  if (tries >= 10) return;
+  setTimeout(() => _scrollToSeoichuPost(pid, tries + 1), 300);
+}
 // 탭 리스너는 가능한 한 일찍 등록(앱이 죽은 상태에서 푸시 탭으로 켜질 때의 런치 액션도 잡기 위해).
 // 지도가 아직 준비 전이면 의도만 큐에 담아두고 drainPendingPushNav에서 처리한다.
 function attachPushActionListener() {
@@ -7444,8 +7474,8 @@ function attachPushActionListener() {
   // 트레이 알림 탭(백그라운드/종료 상태에서 켜짐)
   P.addListener('pushNotificationActionPerformed', function (a) {
     const d = (a && a.notification && a.notification.data) || {};
-    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng, url: d.url };
-    // 알림 '탭'(앱 접근) 집계 — 로그인 유저면 세션 user_id 귀속. kind=digest|event (payload)
+    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng, url: d.url, kind: d.kind, postId: d.postId };
+    // 알림 '탭'(앱 접근) 집계 — 로그인 유저면 세션 user_id 귀속. kind=digest|event|comment (payload)
     try {
       fetch('/api/users?push=open', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ placeId: d.placeId != null ? Number(d.placeId) : null, kind: d.kind || '', deviceId: getPushDeviceId() }) }).catch(() => {});
@@ -7456,7 +7486,7 @@ function attachPushActionListener() {
   // 앱을 켜놓은 상태(포그라운드) 도착 → OS 트레이에 안 남아 탭할 게 없으므로 바로 이동
   P.addListener('pushNotificationReceived', function (n) {
     const d = (n && n.data) || {};
-    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng, url: d.url };
+    const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng, url: d.url, kind: d.kind, postId: d.postId };
     if (_pushNavReady && typeof map !== 'undefined' && map) applyPushNav(nav);
     else _pendingPushNav = nav;
   });

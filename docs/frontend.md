@@ -60,7 +60,7 @@
 - **캐릭터 UI/클릭 통일(2026-09-19)**: 예전엔 캐릭터 아래 '제보하기' 버튼(`.live-cta-btn`)이 붙고 클릭 시 `openModal`(제보)이었으나 → **버튼 제거**, 모바일도 PC 이미지 사용(`getChFrames`가 항상 PC 프레임 `img_ch_01~05` 반환) 64x64 회색원+그림자, **캐릭터 클릭 동작을 말풍선과 동일하게 `clickLiveBubble()`(=후기)** 로 변경. 제보 진입은 PC 상단탭/모바일 사이드메뉴에 유지. **왜**: 제보 중요도가 낮아지고 후기(공생)로 무게 이동 → 클릭 동작 통일. 관련 결정 [[06-decision-log]].
 
 ## 앱 푸시 탭 처리 (`initPush`/`attachPushActionListener`/`applyPushNav`, 네이티브 전용, 2026-09-22)
-- 네이티브 앱(Capacitor)만. 하루요약 푸시에 `data.placeId`(+폴백 `lat/lng`)가 실려오고, 탭 시 **`applyPushNav`** 가 `placeId`면 `focusPlace`(매장 바텀시트 상세), 없으면 관심좌표로 이동+토스트.
+- 네이티브 앱(Capacitor)만. 하루요약 푸시에 `data.placeId`(+폴백 `lat/lng`)가 실려오고, 탭 시 **`applyPushNav`** 가 `placeId`면 `focusPlace`(매장 바텀시트 상세), 없으면 관심좌표로 이동+토스트. **`kind:'comment'`+`postId`면**(수다방 댓글 푸시, 2026-11-05) 지도 로직 대신 `openCommunityPost(postId)`(커뮤니티 수다방 그 글로 이동, 위 수다방 댓글 섹션).
 - **콜드스타트 레이스 해소**: 앱이 종료된 상태에서 푸시 탭으로 켜지면 `map`이 준비되기 전 탭 이벤트가 와 `map.setCenter`가 조용히 실패(무반응)하던 문제 → 리스너를 데이터 로드 전 **일찍 등록**(`attachPushActionListener`, load 핸들러 `initMap` 직후), 지도 준비 전 탭은 `_pendingPushNav`에 큐잉 → `renderAll` 뒤 **`drainPendingPushNav`** 로 처리.
 - **포그라운드 자동이동**: 앱을 켜둔 채 푸시가 오면 안드로이드는 트레이에 안 남기고 배너만 잠깐 떠 탭할 게 없음 → `pushNotificationReceived`로 포그라운드 도착을 잡아 `applyPushNav`를 바로 실행(탭 없이 이동).
 - `app.js`는 서버(server.url)에서 로드돼 **배포만으로 앱에 반영**(플러그인은 이미 APK). 서버 발송 로직·문구는 [[api-db]]·[[16-push-notifications]].
@@ -90,7 +90,7 @@
 - **댓글 표시**: 글 카드(`seoichuPostHtml`) 아래 **항상 전부 노출**(연회색 `.cm-sc-comments`), 메타행 우측 `💬 댓글 N`(`cmCommentIcon`=Figma 실물 `image/ic_comm_14.svg`). 목록 GET이 `comments[]` 임베드라 추가 요청 없음. 본인 댓글 🗑(`deleteSeoichuComment`).
 - **입력 — 모바일**: `💬 댓글` 탭 → `openSeoichuCommentInput` → 키보드 위 고정 바텀바(`#scCmtBar`, auto-grow `cmAutoGrow`), 등록(`submitSeoichuComment`) 시 **바 닫힘+키보드 내림+대상 해제**, blur로도 닫힘. `initNativeKeyboard`가 `--kb-inset`로 키보드 위에 띄움.
 - **입력 — PC**(`pc-community-mode`): 바텀바 대신 **글 댓글영역 아래 인라인 입력창**(`openPcInlineComment`, 한 번에 하나), 등록(`submitPcInlineComment`) 시 **인라인 닫힘**(PC/모바일 동작 통일). 공용 POST `_postSeoichuComment`, 갱신 `reloadSeoichuPostComments`(그 카드 댓글·카운트만 교체).
-- **작성자 푸시**: 서버가 댓글 작성 시 작성자에 FCM/APNs 발송([[api-db]]). 탭 네비(`applyPushNav` `kind:'comment'`)는 미구현(탭하면 앱만 열림, 추후).
+- **작성자 푸시 + 탭 네비(2026-11-05)**: 서버가 댓글 작성 시 작성자에 FCM/APNs 발송(`data:{kind:'comment', postId}`, [[api-db]]). 탭 시 `applyPushNav`가 `kind==='comment'`면 `openCommunityPost(postId)` → `switchTab('community',{silent:true})`(프로그램 전환이라 GNB 클릭 집계 제외)+수다방 세그먼트 강제(`setCommunitySeg('seoichu')`)+그 글(`.cm-sc-post[data-post-id]`)로 스크롤+`.sc-flash` 1회 하이라이트. 무한스크롤 첫 페이지 로드가 비동기라 `_scrollToSeoichuPost`가 글 DOM을 ~3s 폴링(없으면=오래된 글이라 첫 페이지 밖, 수다방 상단 머묾 폴백). 콜드스타트 탭은 `_pendingPushNav`→`drainPendingPushNav`로 큐잉 처리(지도 로직은 스킵). **현재 안드만 수신**(iOS APNs 미연동 — 키 넣으면 동일 동작).
 - **auth 깜빡임 수정**: `refreshAuthUI`가 커뮤니티 탭 열려있으면 재렌더(첫 진입 로그인 확정 전 로그아웃 CTA가 뜨던 것). `seoichuComposeHtml`은 `_authChecked` 전엔 compose를 **미렌더**(빈박스·깜빡임 없음), 확정 후 등장. (근본은 `/api/auth/me` 응답 지연.)
 
 ## 가입 유입경로(클라, 2026-09-23)

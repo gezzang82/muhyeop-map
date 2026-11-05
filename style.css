@@ -4244,6 +4244,12 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
 .cm-sc-cmt-text { margin: 0; font-size: 14px; line-height: 20px; color: #222; white-space: pre-wrap; word-break: break-word; }
 /* 댓글 대상으로 선택된 글 하이라이트(네이비 테두리) */
 .cm-sc-post.sc-target { box-shadow: 0 0 0 1.5px #39395c, 0 0 2px rgba(0,0,0,0.08); }
+/* 댓글 푸시 탭으로 도착한 글 — 잠깐 네이비 틴트로 플래시(어디에 댓글이 달렸는지 시선 유도, 1회성) */
+.cm-sc-post.sc-flash { animation: scFlash 1.8s ease-out; }
+@keyframes scFlash {
+  0% { box-shadow: 0 0 0 2px #39395c, 0 0 2px rgba(0,0,0,0.08); background: #eef0f7; }
+  100% { box-shadow: 0 0 2px rgba(0,0,0,0.08); background: #fff; }
+}
 
 /* 댓글 입력바: 키보드 위(네이티브 --kb-inset) / 평소 GNB 위에 고정. 세그먼트=이웃찾기 + 로그인 시만 노출. */
 .sc-cmt-bar { display: flex; align-items: center; gap: 8px; position: fixed; left: 0; right: 0;
