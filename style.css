@@ -4256,6 +4256,9 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   bottom: max(calc(var(--gnb-h, 60px) + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))), var(--kb-inset, 0px));
   padding: 10px 16px; background: #fff; border-top: 1px solid #ebebeb; z-index: 290; }
 .sc-cmt-bar[hidden] { display: none; }
+/* 키보드 올라왔을 때: 바와 키보드 사이, 키보드 둥근 모서리 아래 삼각 틈으로 뒤가 비치던 것 →
+   바 배경을 그 영역까지 내려 메움(키보드가 덮는 중앙은 안 보이고, 모서리 컷아웃만 흰색으로 채워짐). */
+html.kb-open .sc-cmt-bar::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: 20px; background: #fff; }
 .sc-cmt-input { flex: 1; min-width: 0; resize: none; overflow-y: auto; min-height: 24px; max-height: 96px;
   border: 0; outline: none; background: transparent; font-family: inherit; font-size: 15px; line-height: 21px; color: #222; padding: 2px 0; }
 .sc-cmt-input::placeholder { color: #bbb; }

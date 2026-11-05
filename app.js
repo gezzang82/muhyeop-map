@@ -7382,7 +7382,7 @@ function initNativeKeyboard() {
     KB.addListener('keyboardWillShow', function (info) {
       kbH = (info && info.keyboardHeight) || 0;
       // 키보드 위 고정 입력바(이웃찾기 댓글바 등)가 키보드에 가리지 않게 인셋을 노출
-      try { document.documentElement.style.setProperty('--kb-inset', kbH + 'px'); } catch (e) {}
+      try { document.documentElement.style.setProperty('--kb-inset', kbH + 'px'); document.documentElement.classList.add('kb-open'); } catch (e) {}
       const el = document.activeElement;
       if (el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) setTimeout(function () { scrollInputAboveKeyboard(el, kbH); }, 50);
     });
@@ -7392,7 +7392,7 @@ function initNativeKeyboard() {
     const el = e.target;
     if (kbH > 0 && el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) setTimeout(function () { scrollInputAboveKeyboard(el, kbH); }, 50);
   });
-  try { KB.addListener('keyboardWillHide', function () { kbH = 0; try { document.documentElement.style.setProperty('--kb-inset', '0px'); } catch (e) {} }); } catch (e) {}
+  try { KB.addListener('keyboardWillHide', function () { kbH = 0; try { document.documentElement.style.setProperty('--kb-inset', '0px'); document.documentElement.classList.remove('kb-open'); } catch (e) {} }); } catch (e) {}
 }
 
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
