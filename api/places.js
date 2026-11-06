@@ -514,6 +514,43 @@ module.exports = async function handler(req, res) {
       const result = await importList({ db, blogId: u.url_id, existingUrls: existing });
       return res.status(200).json(result);
     }
+    // 선택분 일괄 등록 — items:[{link, placeId}]. 본인 블로그 글만, 중복/레이트리밋/founder 승격은 기존 후기 플로우와 동일.
+    if (req.query.blogimport === 'commit' && req.method === 'POST') {
+      if (!await enforceRateLimit(req, res, { name: 'review', limit: 15, windowSec: 60 })) return;
+      const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
+      if (!items.length) return res.status(400).json({ error: '등록할 항목이 없어요.' });
+      const u = (await db.execute({ sql: "SELECT url_platform, url_id FROM users WHERE id=?", args: [session.userId] })).rows[0];
+      if (!u || u.url_platform !== '블로그' || !u.url_id) return res.status(400).json({ error: '프로필에 네이버 블로그를 먼저 등록해주세요.' });
+      const myBlog = String(u.url_id).toLowerCase();
+      const { validateAndExtract, ensureReviewTables } = require('./_reviews');
+      await ensureReviewTables(db);
+      let registered = 0, skipped = 0, failed = 0;
+      for (const it of items.slice(0, 40)) {
+        const url = String((it && (it.link || it.url)) || '').trim();
+        const pid = Number(it && it.placeId);
+        if (!url || !pid) { failed++; continue; }
+        const pr = (await db.execute({ sql: "SELECT name FROM places WHERE id=? AND COALESCE(hidden,0)=0", args: [pid] })).rows[0];
+        if (!pr) { failed++; continue; }
+        try {
+          const result = await validateAndExtract(url, pr.name);
+          if (!result.ok) { failed++; continue; }
+          const d = result.data;
+          if (String(d.blogId || '').toLowerCase() !== myBlog) { failed++; continue; }  // 본인 블로그 글만(남의 글 등록 방지)
+          const dup = await db.execute({ sql: 'SELECT id FROM reviews WHERE place_id=? AND log_no=? AND COALESCE(hidden,0)=0', args: [pid, d.logNo] });
+          if (dup.rows.length) { skipped++; continue; }
+          await db.execute({
+            sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id, post_date) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+            args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId, d.postDate || ''],
+          });
+          try {  // 첫 후기 작성자 founder 승격(기존 후기 등록과 동일)
+            const fUrl = d.blogId ? ('https://blog.naver.com/' + d.blogId) : '';
+            await db.execute({ sql: "UPDATE places SET founder_user_id=?, founder_nickname=?, founder_url=?, founder_kind='review' WHERE id=? AND (founder_kind IS NULL OR founder_kind <> 'review')", args: [session.userId, session.nickname || '', fUrl, pid] });
+          } catch (e) {}
+          registered++;
+        } catch (e) { failed++; }
+      }
+      return res.status(200).json({ registered, skipped, failed });
+    }
     return res.status(400).json({ error: 'unknown blogimport action' });
   }
 
