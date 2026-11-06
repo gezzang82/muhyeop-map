@@ -1003,6 +1003,11 @@ function startBannerAuto() {
 }
 
 // force=true: 메뉴 '이벤트·공지'에서 수동 호출 — 중복/'오늘 그만 보기' 가드를 무시하고 재노출
+// 내부 링크 '커뮤니티 후기 피드'로 이동 — 이벤트 팝업 배너 클릭 / 이벤트 푸시 탭 공용(link_url·url = 'app:community-reviews').
+function gotoCommunityReviews() {
+  try { if (typeof switchTab === 'function') switchTab('community', { silent: true }); } catch (e) {}  // 프로그램 전환이라 GNB 집계 제외
+  try { if (typeof setCommunitySeg === 'function') setCommunitySeg('feed'); } catch (e) {}              // 후기 피드 세그먼트
+}
 function showBannerPopup(force) {
   if (!force && _bannerShown) return; // 이미 띄웠으면(조기 노출 등) 중복 렌더/슬라이드 리셋 방지
   const active = getActiveBanners();
@@ -1031,6 +1036,7 @@ function showBannerPopup(force) {
       if (_bannerDragged) return;
       try { fetch('/api/banners?track=click&id=' + b.id, { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {} // 팝업 클릭 집계(운영자 IP 서버제외)
       if (b.noticeId) { closeBannerPopup(); openNoticeDetail(b.noticeId); }
+      else if (b.linkUrl === 'app:community-reviews') { closeBannerPopup(); gotoCommunityReviews(); }  // 내부 링크: 커뮤니티 후기 피드
       else if (b.linkUrl) openExternal(b.linkUrl);
     };
   });
@@ -7492,6 +7498,8 @@ function applyPushNav(nav) {
     openCommunityPost(nav.postId);
     return;
   }
+  // 후기 독려 이벤트 푸시 → 커뮤니티 후기 피드로(배너 내부링크와 동일 스킴).
+  if (nav.url === 'app:community-reviews') { gotoCommunityReviews(); return; }
   // 푸시로 특정 매장/위치로 이동할 땐, 콜드스타트의 '현재 위치로 이동'(tryInitialLocation)이
   //  늦게 resolve돼 지도를 내 위치로 되돌리는 걸 막는다(시트=여의도인데 지도=내위치 미스매치 방지).
   _suppressInitialLocation = true;
