@@ -39,6 +39,7 @@
 ## 이벤트 팝업(배너) 순서 (2026-09-24)
 - 이벤트 팝업 탭 목록은 **노출 순서(`sort_order` 오름차순)** 로 정렬 표시(`renderBannerList`). 행 관리에 **▲▼ 이동 버튼**(`moveBanner`): 인접 배너와 위치를 바꾸고 전체 순서를 0..N-1로 정규화 → 바뀐 배너만 `PATCH /api/banners?id=`(`{sortOrder}`), 즉시 낙관적 반영. 맨 위/아래는 비활성. 새 배너는 자동으로 맨 뒤.
 - 공개 앱은 **활성 배너 전체**를 이 순서대로 메인 캐러셀(우상단 점)로 노출([[frontend]] 이벤트 팝업, [[api-db]] `sort_order`).
+- **탭 진입 시 서버 재조회(`refreshBannersFromServer`, 2026-11-06)**: 배너 탭(`switchTab('banners')`)을 열 때마다 **`/api/banners?admin=1`(숨김 포함·미캐시)로 직접 받아** 전역 `banners` 갱신 후 `renderBannerList`. 예전엔 app.js `loadInitialData`가 채운 전역 `banners`에만 의존했는데, **부팅 시 공개 `/api/banners`(숨김 제외) 조기 fetch가 그 전역을 덮어써** 어드민 목록에서 **과거 숨김/종료 배너가 사라지던** 버그가 있었음(app.js쪽은 어드민 경로 가드로, admin.js쪽은 탭 진입 재조회로 이중 방어). ⚠️ **숨김 배너가 보이려면 `mh_admin` 쿠키가 유효**해야 함(만료 시 서버가 hidden=0만 반환 → 재로그인 필요).
 
 ## Excel 업로드
 - 장소/캠페인 일괄 등록 시 사용. 마감일 컬럼은 `YYYY-MM-DD` 형식이며 **비워두면 마감일 없이 등록**됨 (가이드 문구에 명시되어 있음)

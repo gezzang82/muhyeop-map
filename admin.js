@@ -56,7 +56,7 @@ function showTab(tab) {
     populatePlaceSelect();
   }
   if (tab === 'view') { renderPlaceList(); renderCampaignList(); }
-  if (tab === 'banners') renderBannerList();
+  if (tab === 'banners') refreshBannersFromServer();
   if (tab === 'notices') renderNoticeList();
   if (tab === 'reports') renderReportList();
   if (tab === 'reviews') renderReviewList();
@@ -1211,6 +1211,20 @@ async function populateBannerNoticeSelect() {
     sel.innerHTML = '<option value="">연결 안 함</option>' + list.map(n => `<option value="${n.id}">[${n.type === 'event' ? '이벤트' : '공지'}] ${nEsc(n.title)}</option>`).join('');
     sel.value = cur;
   } catch (e) {}
+}
+
+// 배너 탭 열 때마다 서버에서 '전체(숨김 포함)' 목록을 직접 받아 렌더.
+//  전역 banners는 app.js loadInitialData(느림)에 의존 + 과거 공개 배너 fetch에 덮어쓰이는 레이스가 있어,
+//  숨김/종료 배너가 목록에서 누락되던 문제 → 탭 진입 시 ?admin=1(숨김 포함·미캐시, mh_admin 쿠키 필요)로 재조회.
+async function refreshBannersFromServer() {
+  try {
+    const res = await fetch('/api/banners?admin=1');
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (Array.isArray(data)) banners = data;
+    }
+  } catch (e) {}
+  renderBannerList();
 }
 
 function renderBannerList() {
