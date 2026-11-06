@@ -1008,7 +1008,12 @@ function startBannerAuto() {
 // force=true: 메뉴 '이벤트·공지'에서 수동 호출 — 중복/'오늘 그만 보기' 가드를 무시하고 재노출
 // 내부 링크 '커뮤니티 후기 피드'로 이동 — 이벤트 팝업 배너 클릭 / 이벤트 푸시 탭 공용(link_url·url = 'app:community-reviews').
 function gotoCommunityReviews() {
-  try { if (typeof switchTab === 'function') switchTab('community', { silent: true }); } catch (e) {}  // 프로그램 전환이라 GNB 집계 제외
+  // PC와 모바일은 커뮤니티 진입 경로가 다름: PC=좌측 레일(switchPcTab), 모바일=하단 GNB(switchTab).
+  //  예전엔 모바일 switchTab만 불러 PC 팝업 '후기 보러가기'가 무반응이었음(2026-11-07 수정).
+  try {
+    if (!isMobileView() && typeof switchPcTab === 'function') switchPcTab('community');
+    else if (typeof switchTab === 'function') switchTab('community', { silent: true });  // 프로그램 전환이라 GNB 집계 제외
+  } catch (e) {}
   try { if (typeof setCommunitySeg === 'function') setCommunitySeg('feed'); } catch (e) {}              // 후기 피드 세그먼트
 }
 function showBannerPopup(force) {
