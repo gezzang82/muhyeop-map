@@ -2920,6 +2920,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   z-index: 9999; transition: transform 0.3s ease; pointer-events: none;
 }
 .toast.show { transform: translateY(0); }
+/* 포그라운드 이벤트 푸시용 탭 가능 토스트(기본 토스트는 pointer-events:none이라 탭하려면 활성화) */
+.toast.toast-tappable { pointer-events: auto; cursor: pointer; }
 /* PC: 토스트를 텍스트 폭에 맞춰 가운데 정렬 + 좌우 패딩 24px (전체 폭으로 늘어나던 문제) */
 @media (hover: hover) and (pointer: fine) {
   .toast {

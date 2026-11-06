@@ -6719,10 +6719,23 @@ let _toastTimer = null;
 function showToast(msg) {
   let toast = document.querySelector('.toast');
   if (!toast) { toast = document.createElement('div'); toast.className = 'toast'; document.body.appendChild(toast); }
+  toast.classList.remove('toast-tappable'); toast.onclick = null;  // 탭 토스트 잔여상태 정리(공용 엘리먼트)
   toast.innerHTML = msg;
   toast.classList.add('show');
   if (_toastTimer) clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => { toast.classList.remove('show'); _toastTimer = null; }, 3000);
+}
+// 포그라운드로 도착한 이벤트 푸시 → 조용히 점프하지 않고 '탭 가능한 인앱 토스트'로(기존 .toast 재사용). 탭하면 nav 이동.
+function showPushToast(title, body, nav) {
+  let toast = document.querySelector('.toast');
+  if (!toast) { toast = document.createElement('div'); toast.className = 'toast'; document.body.appendChild(toast); }
+  const head = title ? `<b>${rvEsc(title)}</b><br>` : '';
+  toast.innerHTML = `${head}${rvEsc(body || '')} <span style="opacity:.75">· 탭하여 보기</span>`;
+  toast.classList.add('show', 'toast-tappable');
+  const close = () => { toast.classList.remove('show', 'toast-tappable'); toast.onclick = null; };
+  toast.onclick = () => { close(); try { applyPushNav(nav); } catch (e) {} };
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { close(); _toastTimer = null; }, 6000);  // 이벤트 토스트는 조금 더 오래(6s)
 }
 
 // ===== 실시간 제보 알림 =====
@@ -7569,6 +7582,9 @@ function attachPushActionListener() {
   P.addListener('pushNotificationReceived', function (n) {
     const d = (n && n.data) || {};
     const nav = { placeId: d.placeId, lat: d.lat, lng: d.lng, url: d.url, kind: d.kind, postId: d.postId };
+    // 이벤트 브로드캐스트는 포그라운드에서 조용히 점프하면 뜬금없음(특정 매장 이동과 달라서) → 탭 가능한 토스트로.
+    if (d.kind === 'event') { showPushToast(n && n.title, n && n.body, nav); return; }
+    // 그 외(하루요약 placeId·댓글 등)는 기존대로 포그라운드 즉시 이동
     if (_pushNavReady && typeof map !== 'undefined' && map) applyPushNav(nav);
     else _pendingPushNav = nav;
   });
