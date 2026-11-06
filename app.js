@@ -2476,9 +2476,12 @@ async function searchRegion() {
 async function tryLandmarkByNaver(query) {
   try {
     const items = await fetch('/api/search-place?query=' + encodeURIComponent(query)).then(r => (r.ok ? r.json() : []));
-    const top = Array.isArray(items) ? items[0] : null;
-    const LANDMARK_CAT = /지하철|전철|기차|철도|경전철|버스\s*터미널|공항|고속\s*버스|시외\s*버스|여행,?\s*명소|관광,?\s*명소|대학교/;
-    if (top && LANDMARK_CAT.test(top.category || '')) {
+    const list = Array.isArray(items) ? items : [];
+    const LANDMARK_CAT = /지하철|전철|기차|철도|경전철|버스\s*터미널|공항|고속\s*버스|시외\s*버스|여행,?\s*명소|관광,?\s*명소|국립공원|도립공원|군립공원|대학교/;
+    // top1만 보면 '설악산' 검색 시 #1이 설악케이블카(레저)라 놓침 → 상위 5개 중 '명소' 카테고리 첫 결과 채택
+    //  (#2 설악산국립공원·#3 설악산소공원 = 여행,명소). 동명 상호(음식점 등)가 1위를 차지해도 진짜 명소를 집음.
+    const top = list.slice(0, 5).find(it => LANDMARK_CAT.test(it && it.category || ''));
+    if (top) {
       const addr = top.roadAddress || top.address;
       if (addr) {
         clearSearchPin();
@@ -2739,13 +2742,18 @@ async function searchRegionViaLocalSearch(query) {
       showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
       return;
     }
-    // '울릉도'·'남이섬'처럼 질의가 섬/명소이고 top 결과명이 질의와 정확히 일치하면 → POI 피커(관음도·모노레일…) 대신
-    //  그 '지역'으로 이동해 우리 캠페인을 보여줌. (섬 이름은 주소 지오코딩이 안 돼 여기까지 오는데, 명소 목록만 떠 체험단이 안 보이던 버그)
+    // '울릉도'·'남이섬'(명소단독) + '창녕 관룡사'·'경주 불국사'(지역+명소)처럼 질의가 섬/명소/사찰이면 →
+    //  POI 피커(관음도·주차장·대웅전…) 대신 그 '지역'으로 이동해 우리 캠페인을 보여줌.
+    //  (명소명은 주소 지오코딩이 안 돼 여기까지 옴. 지역 접두사가 붙어도 되게 'query가 결과명으로 끝나면' 매칭)
     const norm = s => String(s || '').replace(/\s/g, '').toLowerCase();
-    const DEST_CAT = /여행,?\s*명소|관광|섬|해수욕장|해변|국가어항|공원|관광단지/;
-    if (items[0] && norm(items[0].name) === norm(query) && DEST_CAT.test(items[0].category || '')) {
-      focusRegionResult(items[0]); return;
-    }
+    const DEST_CAT = /여행,?\s*명소|관광|섬|해수욕장|해변|국가어항|공원|관광단지|사찰|사원|궁궐|절,사찰/;
+    const qn0 = norm(query);
+    // top1만 보지 않고 상위 5개 중 '명소 카테고리 + 질의가 그 이름으로 끝나는' 첫 결과 채택
+    //  (동명 상호가 1위여도 진짜 명소를 집음). 지역 접두사('창녕 관룡사')가 붙어도 endsWith로 매칭.
+    const dest = items.slice(0, 5).find(it => {
+      const rn = norm(it && it.name); return rn.length >= 2 && (qn0 === rn || qn0.endsWith(rn)) && DEST_CAT.test(it.category || '');
+    });
+    if (dest) { focusRegionResult(dest); return; }
     // 지점 여러 개(예: '스타벅스') → items[0] 임의 선택 대신 선택 목록으로. 선택 시 지오코딩→핀+후기등록 FAB.
     if (items.length > 1) { showNaverPicker(items, query); return; }
     focusNaverResult(items[0]);
