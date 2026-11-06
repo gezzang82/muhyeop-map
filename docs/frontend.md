@@ -124,6 +124,7 @@
 - **점 인디케이터는 우상단**(`#bannerDots`, 반투명 pill 안 흰 점, 현재 슬라이드 `.active`). 배너 **1개면 점 숨김**. **스와이프**(터치·마우스 드래그, `attachBannerSwipe`) + **점 클릭**으로 이동(`setBannerSlide`가 `translateX(-i*100%)`). 드래그 판정 시 이미지 링크 클릭 억제(`_bannerDragged`).
 - "오늘 그만 보기"는 세트 전체 1회(`localStorage.bannerDismissedDate`, 기존 유지). 어드민 순서 설정은 [[admin]].
 - **조기 노출(2026-09-24)**: 예전엔 `showBannerPopup`이 `await loadInitialData()`(매장 ~5MB 파싱+캠페인 타일 프리페치) **완료 뒤**에야 불려 팝업이 늦게 떴음 → **부팅 핸들러가 `initMap` 직후 작은 `/api/banners`만 독립적으로 먼저 fetch해 즉시 노출**(loadInitialData도 배너를 다시 채우지만 `_bannerShown` 가드로 중복 노출 안 함). 배너 GET은 payload가 큼(이미지 data URI, 2건 ~364KB)이라 공개 GET에 짧은 엣지캐시(60s)로 CDN 히트([[api-db]]).
+  - **⚠️ 어드민 페이지 제외(2026-11-06)**: 이 조기노출 fetch는 **공개 `/api/banners`(숨김 제외)** 라, 어드민 페이지에서 그냥 돌면 `loadInitialData`가 `?admin=1`로 받은 **전체(숨김 포함) 전역 `banners`를 덮어써** 어드민 배너 목록(`renderBannerList`)에서 **과거 숨김/종료 배너가 사라지는** 버그가 있었음(레이스). → `if (!/^\/admin/.test(location.pathname))`로 가드(어드민은 이벤트 팝업을 띄우지도 않음). app.js의 `isAdminPage`는 `loadInitialData` 스코프 로컬이라 부팅 핸들러에선 경로를 다시 체크.
 
 ## 제보왕(리더보드) 배너 — 현재 숨김
 - `app.js`의 `LEADERBOARD_ENABLED = false` 플래그로 PC/모바일 제보왕 배너 비노출(`renderLeaderboard`가 조기 반환, 60초 폴링도 안 돎). 베타 이벤트 시작 시 `true`로. API(`/api/users?leaderboard=1`)는 살아있음.

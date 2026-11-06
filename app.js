@@ -7662,9 +7662,14 @@ window.addEventListener('load', async function() {
   // 이벤트 팝업은 무거운 매장/캠페인 로드(loadInitialData ~5MB 파싱+타일 프리페치)를 기다리지 않고
   // 작은 /api/banners만 먼저 받아 즉시 노출(체감 지연 제거). loadInitialData도 배너를 다시 채우지만
   // _bannerShown 가드로 중복 노출 안 함.
-  fetch('/api/banners').then(r => r.ok ? r.json() : []).then(b => {
-    if (Array.isArray(b) && b.length) { banners = b; showBannerPopup(); }
-  }).catch(() => {});
+  // ⚠️ 어드민 페이지에선 실행 금지 — 공개 /api/banners는 '숨김 제외' 목록이라, loadInitialData가
+  //   ?admin=1로 받은 '전체(숨김 포함)' banners를 이 fetch가 덮어쓰면 어드민 배너 목록에서 과거
+  //   숨김/종료 배너가 사라진다(어드민은 이벤트 팝업을 띄우지도 않음).
+  if (!/^\/admin/.test(location.pathname)) {
+    fetch('/api/banners').then(r => r.ok ? r.json() : []).then(b => {
+      if (Array.isArray(b) && b.length) { banners = b; showBannerPopup(); }
+    }).catch(() => {});
+  }
   attachPushActionListener(); // 콜드스타트 런치 탭을 놓치지 않게 최대한 일찍 등록(데이터 로드 전)
   setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
   // 데이터가 늦어도 지도는 보이게 하는 안전 타임아웃(스피너 무한대 방지)
