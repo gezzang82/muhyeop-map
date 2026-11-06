@@ -496,6 +496,27 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ latestAt: latest });
   }
 
+  // ===== 블로그 글 → 후기 자동매칭 (?blogimport=list) — 엔진은 _blogimport.js. docs/product/20 =====
+  if (req.query.blogimport !== undefined) {
+    const session = readSession(req);
+    if (!session || !session.userId) return res.status(401).json({ error: '로그인이 필요해요.' });
+    if (req.query.blogimport === 'list' && req.method === 'GET') {
+      // 유저의 네이버 블로그 id 확인(프로필 SNS: url_platform='블로그')
+      const u = (await db.execute({ sql: "SELECT url_platform, url_id FROM users WHERE id=?", args: [session.userId] })).rows[0];
+      if (!u || u.url_platform !== '블로그' || !u.url_id) return res.status(400).json({ error: '프로필에 네이버 블로그를 먼저 등록해주세요.', needBlog: true });
+      // 이미 등록된 후기 url(중복 제외)
+      let existing = new Set();
+      try {
+        const er = (await db.execute({ sql: "SELECT url FROM reviews WHERE user_id=?", args: [session.userId] })).rows;
+        existing = new Set(er.map(r => String(r.url || '').split('?')[0]));
+      } catch (e) {}
+      const { importList } = require('./_blogimport');
+      const result = await importList({ db, blogId: u.url_id, existingUrls: existing });
+      return res.status(200).json(result);
+    }
+    return res.status(400).json({ error: 'unknown blogimport action' });
+  }
+
   // ===== 후기(리뷰) 라우팅 — 함수 12개 제한 때문에 places.js에 합침 (?reviews=...) =====
   if (req.query.reviews !== undefined) {
     const { validateAndExtract, ensureReviewTables, toReview } = require('./_reviews');
