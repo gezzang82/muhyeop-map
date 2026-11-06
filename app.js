@@ -2733,12 +2733,39 @@ async function searchRegionViaLocalSearch(query) {
       showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
       return;
     }
+    // '울릉도'·'남이섬'처럼 질의가 섬/명소이고 top 결과명이 질의와 정확히 일치하면 → POI 피커(관음도·모노레일…) 대신
+    //  그 '지역'으로 이동해 우리 캠페인을 보여줌. (섬 이름은 주소 지오코딩이 안 돼 여기까지 오는데, 명소 목록만 떠 체험단이 안 보이던 버그)
+    const norm = s => String(s || '').replace(/\s/g, '').toLowerCase();
+    const DEST_CAT = /여행,?\s*명소|관광|섬|해수욕장|해변|국가어항|공원|관광단지/;
+    if (items[0] && norm(items[0].name) === norm(query) && DEST_CAT.test(items[0].category || '')) {
+      focusRegionResult(items[0]); return;
+    }
     // 지점 여러 개(예: '스타벅스') → items[0] 임의 선택 대신 선택 목록으로. 선택 시 지오코딩→핀+후기등록 FAB.
     if (items.length > 1) { showNaverPicker(items, query); return; }
     focusNaverResult(items[0]);
   } catch (e) {
     showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
   }
+}
+// 섬/명소 명소를 '지역'처럼: 그 위치로 이동(지역 줌) → 주변 캠페인 핀이 보이게(특정 매장 핀/후기FAB 없음).
+//  울릉도·남이섬 등 주소 지오코딩이 안 되는 섬/명소를 검색하면 그 지역 체험단을 지도에서 바로 보게 함.
+function focusRegionResult(it) {
+  const goTo = (lat, lng) => {
+    clearSearchPin();
+    map.setCenter(new naver.maps.LatLng(lat, lng));
+    map.setZoom(12);  // 섬/명소 전역이 보이는 줌(명소 중심점과 매장이 떨어져 있어도 커버, ≥CAMPAIGN_MIN_ZOOM이라 캠페인 로드됨)
+    if (typeof loadCampaignsForView === 'function') loadCampaignsForView();
+  };
+  // 네이버 지역검색 좌표(WGS84×1e7) 직접 사용 — 섬 주소는 지오코딩이 안 돼 좌표를 우선(한국범위 검증).
+  const lng = Number(it.mapx) / 1e7, lat = Number(it.mapy) / 1e7;
+  if (isFinite(lat) && isFinite(lng) && lat > 33 && lat < 39.5 && lng > 124 && lng < 132) { goTo(lat, lng); return; }
+  // 좌표 없음/이상 → 주소 지오코딩 폴백
+  const addr = it.roadAddress || it.address || it.name;
+  naver.maps.Service.geocode({ query: addr }, function (status, response) {
+    const item = response?.v2?.addresses?.[0];
+    if (status === naver.maps.Service.Status.OK && item) goTo(parseFloat(item.y), parseFloat(item.x));
+    else showToast('위치를 확인하지 못했어요.');
+  });
 }
 // 네이버 검색 결과 1건 → 주소 지오코딩 후 핀+말풍선(매장명)+하단 후기등록 FAB(없는 매장 등록 진입).
 function focusNaverResult(it) {

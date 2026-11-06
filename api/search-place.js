@@ -34,7 +34,10 @@ module.exports = async function handler(req, res) {
       name: stripTags(item.title),
       category: item.category || '',
       address: item.address || '',
-      roadAddress: item.roadAddress || ''
+      roadAddress: item.roadAddress || '',
+      // 좌표(WGS84×1e7) — 섬/명소처럼 주소 지오코딩이 안 되는 곳도 지도 이동할 수 있게 함께 내려줌.
+      mapx: item.mapx || '',
+      mapy: item.mapy || ''
     }))
     .filter(item => !EXCLUDED_CATEGORY_KEYWORDS.some(k => item.category.includes(k)));
 
