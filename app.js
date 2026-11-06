@@ -71,11 +71,14 @@ function loadInitialData() {
         window.addEventListener('pagehide', _sendDwell);
       }
       if (isAdminPage) {
-        // 어드민: 통계용으로 매장·캠페인 전체 필요(뷰포트 로딩 미적용).
+        // 어드민: 통계용으로 매장 전체 필요(뷰포트 로딩 미적용).
+        // ⚠️ 캠페인은 '활성(?active=1)'만 로드 — 전량(무파라미터)은 28만+행이라 서버가 메모리 초과(OOM)로
+        //   500 났음(2026-11-06). 대시보드 통계는 ?stats=1(서버집계), 조회탭은 페이지네이션(?admin=1&page=)이라
+        //   전역 campaigns는 리포트/수정의 .find(id)에만 쓰여 활성분으로 충분(만료건 edit은 드물어 graceful).
         // 배너는 ?admin=1(별도 캐시키·미캐시)로 조회 — 공개 GET은 CDN 캐시라 쿠키 무관하게 캐시된 공개응답을
         // 주므로 어드민 목록에서 숨김 배너 누락/편집 직후 stale이 생김([[api-db]] banners 캐시 주의).
         const [placesRes, campaignsRes, bannersRes] = await Promise.all([
-          fetch('/api/places'), fetch('/api/campaigns'), fetch('/api/banners?admin=1')
+          fetch('/api/places'), fetch('/api/campaigns?active=1'), fetch('/api/banners?admin=1')
         ]);
         if (!placesRes.ok || !campaignsRes.ok) {
           throw new Error(`데이터 로드 실패: places ${placesRes.status}, campaigns ${campaignsRes.status}`);
