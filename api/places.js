@@ -539,8 +539,8 @@ module.exports = async function handler(req, res) {
           const dup = await db.execute({ sql: 'SELECT id FROM reviews WHERE place_id=? AND log_no=? AND COALESCE(hidden,0)=0', args: [pid, d.logNo] });
           if (dup.rows.length) { skipped++; continue; }
           await db.execute({
-            sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id, post_date) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-            args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId, d.postDate || ''],
+            sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id, post_date, source) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+            args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId, d.postDate || '', 'blogimport'],
           });
           try {  // 첫 후기 작성자 founder 승격(기존 후기 등록과 동일)
             const fUrl = d.blogId ? ('https://blog.naver.com/' + d.blogId) : '';
@@ -813,8 +813,8 @@ module.exports = async function handler(req, res) {
       const dup = await db.execute({ sql: 'SELECT id FROM reviews WHERE place_id = ? AND log_no = ? AND COALESCE(hidden,0)=0', args: [pid, d.logNo] });
       if (dup.rows.length) return res.status(409).json({ error: '이미 등록된 후기예요.' });
       const ins = await db.execute({
-        sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id, post_date) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-        args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId, d.postDate || '']
+        sql: `INSERT INTO reviews (place_id, url, blog_id, log_no, title, thumbnail, excerpt, author, user_id, post_date, source) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+        args: [pid, d.url, d.blogId, d.logNo, d.title, d.thumbnail, d.excerpt, session.nickname || d.author, session.userId, d.postDate || '', 'manual']
       });
       // '첫 후기' 작성자를 founder로 승격(founder_kind='review'). 최초제보자 개념 은퇴(2026-10-16)로
       //  founder 필드 = '첫 후기 작성자'로 일원화 → founder_kind가 아직 'review'가 아니면(크롤러/어드민/운영자/구 제보자)

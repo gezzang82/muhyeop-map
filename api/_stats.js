@@ -30,10 +30,17 @@ async function computeCampaignStats(db) {
     const rv = (await db.execute(`SELECT COUNT(*) AS total, SUM(CASE WHEN date(created_at,'+9 hours')='${today}' THEN 1 ELSE 0 END) AS today FROM reviews WHERE COALESCE(hidden,0)=0`)).rows[0] || {};
     reviewCount = Number(rv.total || 0); reviewTodayCount = Number(rv.today || 0);
   } catch (e) {}
+  // '블로그 글 불러오기'로 등록된 후기(source='blogimport') 비중 — 레거시(NULL)·수동('manual')은 제외
+  let reviewBlogimportCount = 0, reviewBlogimportTodayCount = 0;
+  try {
+    const rb = (await db.execute(`SELECT COUNT(*) AS total, SUM(CASE WHEN date(created_at,'+9 hours')='${today}' THEN 1 ELSE 0 END) AS today FROM reviews WHERE source='blogimport' AND COALESCE(hidden,0)=0`)).rows[0] || {};
+    reviewBlogimportCount = Number(rb.total || 0); reviewBlogimportTodayCount = Number(rb.today || 0);
+  } catch (e) {}
   return {
     placeCount, total: Number(agg.total || 0), active: Number(agg.active || 0),
     userReported: Number(agg.userReported || 0), userReportedToday: Number(agg.userToday || 0),
     reviewCount, reviewTodayCount,
+    reviewBlogimportCount, reviewBlogimportTodayCount,
     platforms: plat, channels, dday,
   };
 }

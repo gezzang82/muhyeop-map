@@ -109,6 +109,7 @@ async function ensureReviewTables(db) {
   )`);
   try { await db.execute("ALTER TABLE reviews ADD COLUMN post_date TEXT DEFAULT ''"); } catch (e) { /* 이미 있으면 무시 */ }
   try { await db.execute("ALTER TABLE reviews ADD COLUMN click_count INTEGER DEFAULT 0"); } catch (e) { /* 이미 있으면 무시 */ }
+  try { await db.execute("ALTER TABLE reviews ADD COLUMN source TEXT"); } catch (e) { /* 이미 있으면 무시 — 'blogimport'|'manual', NULL=레거시 */ }
   await db.execute(`CREATE TABLE IF NOT EXISTS review_likes (
     review_id INTEGER NOT NULL,
     voter_key TEXT NOT NULL,

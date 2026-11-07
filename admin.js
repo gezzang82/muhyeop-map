@@ -824,6 +824,13 @@ function renderDashboard() {
     setN('statActive', st.active);
     setN('statReviewTotal', st.reviewCount);
     setN('statReviewToday', st.reviewTodayCount);
+    // 📥 블로그 불러오기로 등록된 후기 비중
+    setN('statReviewBlogimport', st.reviewBlogimportCount);
+    setN('statReviewBlogimportToday', st.reviewBlogimportTodayCount);
+    const biTotal = Number(st.reviewCount) || 0;
+    const biPct = biTotal ? Math.round((Number(st.reviewBlogimportCount) || 0) / biTotal * 100) : 0;
+    const biPctEl = document.getElementById('statReviewBlogimportPct');
+    if (biPctEl) biPctEl.textContent = biPct + '%';
     const activeN = Math.max(1, Number(st.active) || 0); // 막대 분모(원본과 동일: 활성수 기준)
 
     // 마감 임박 (D-DAY ~ D-7): 서버가 남은일수별 집계 제공(상시=마감없음 제외)
