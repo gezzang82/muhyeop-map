@@ -4302,15 +4302,15 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 
 /* ===== 블로그 글 불러오기(후기 자동매칭) ===== */
 /* 후기 피드 상단 진입 카드 (Figma 2003:59955 / 1999:9294 정밀 반영) */
-/* 카드: 테두리를 따라 돌면서 흐르는 붉은 그라데이션 라인(회전 conic → 모서리까지 균일). ::before=회전 그라데이션 / ::after=안쪽 마스크로 1.5px 링만 남김 */
+/* 카드: 균일한 붉은 테두리 라인 + 부드러운 호흡(pulse). conic 회전은 박스 비율(PC 7:1)에 따라 변마다 밝기가 달라져(사이드 흐려) PC↔모바일 불일치라 폐기 → 비율 무관하게 네 변 동일. ::before=빨강 링(opacity 호흡) / ::after=안쪽 마스크로 1.5px 링만 */
 .bi-entry { position: relative; isolation: isolate; margin: 0 0 16px; border-radius: 14px; padding: 18px;
   background: #fff6f6;
   box-shadow: 0 4px 16px 0 rgba(232,43,46,0.13); display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
-.bi-entry::before { content: ''; position: absolute; inset: -60%; z-index: -2;
-  background: conic-gradient(from 0deg, #f3c7c8, #e82a2d, #f3c7c8, #e82a2d, #f3c7c8);
-  animation: biEntrySpin 5s linear infinite; }
+.bi-entry::before { content: ''; position: absolute; inset: 0; z-index: -2;
+  background: #e82a2d;
+  animation: biEntryPulse 2.6s ease-in-out infinite; }
 .bi-entry::after { content: ''; position: absolute; inset: 1.5px; z-index: -1; border-radius: 12.5px; background: #fff6f6; }
-@keyframes biEntrySpin { to { transform: rotate(360deg); } }
+@keyframes biEntryPulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
 /* 처음 노출 시 접힌 상태에서 펼쳐지며 등장 (backwards: 시작 전 접힘 상태 적용→초기 플래시 방지, 끝나면 자연 스타일 복귀) */
 @keyframes biEntryReveal {
   from { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; border-top-width: 0; border-bottom-width: 0; transform: translateY(-6px); }
