@@ -3996,18 +3996,21 @@ function biRenderResult(errored) {
   bindMobileScrollHeader('biResultScroll', 'biScrollHeader', 'biStickyHeader');
   const scroll = document.getElementById('biResultContent');
   const cta = document.getElementById('biCtaWrap');
+  const commitBtn = document.getElementById('biCommitBtn');
+  const closeBtn = document.getElementById('biCloseBtn');
   if (!scroll) return;
   if (!_biItems.length) {  // 빈 상태(글 0 / 전부 기등록 / 에러)
-    if (cta) cta.style.display = 'none';
-    if (scrollBody) scrollBody.classList.add('bi-no-footer');  // 하단버튼 없음 → 푸터 여백(120px) 제거해 모달이 내용만큼 hug
+    if (cta) cta.style.display = '';            // 하단 고정 푸터 유지
+    if (commitBtn) commitBtn.hidden = true;     // 빨강 '등록하기' 숨김
+    if (closeBtn) closeBtn.hidden = false;      // 라인(검정 텍스트) '닫기'를 하단 고정으로
     scroll.innerHTML = `<div class="bi-empty">
       <p class="bi-empty-title">불러올 체험단 후기를 못 찾았어요</p>
       <p class="bi-empty-desc">${errored ? '잠시 후 다시 시도해주세요.' : '최근 글에서 새로 등록할 체험단 후기를 찾지 못했어요.'}</p>
-      <button class="bi-entry-btn bi-entry-btn-outline bi-empty-btn" onclick="closeBlogImport()">닫기</button>
     </div>`;
     return;
   }
-  if (scrollBody) scrollBody.classList.remove('bi-no-footer');
+  if (commitBtn) commitBtn.hidden = false;
+  if (closeBtn) closeBtn.hidden = true;
   if (cta) cta.style.display = '';
   const autoN = _biItems.filter(i => i.confidence === 'auto').length;
   const confirmN = _biItems.filter(i => i.confidence === 'confirm').length;

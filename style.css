@@ -4324,8 +4324,6 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 .blogimport-modal { width: 420px; height: auto; max-height: 88vh; padding: 0; position: relative; }
 /* 각 스텝은 모달 높이를 따라가되(결과=스크롤), 로딩/완료는 내용 hug + 하단버튼 공간 확보 */
 .blogimport-modal .bi-step-result { max-height: 88vh; }
-/* 빈 결과(하단버튼 없음)는 푸터 여백 불필요 → 모달이 내용만큼만 */
-.blogimport-modal #biResultScroll.bi-no-footer { padding-bottom: 20px; }
 .bi-step { display: flex; flex-direction: column; height: 100%; }
 .bi-step[hidden] { display: none; }
 .bi-confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
@@ -4458,5 +4456,6 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 /* 모바일: 플로우 모달은 전체화면(기존 .modal @media가 처리). 완료 하단버튼 안전영역. */
 @media (max-width: 640px) {
   .blogimport-modal { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .blogimport-modal .bi-step-result { max-height: none; }  /* 모바일은 풀스크린 — 결과 스텝 88vh 캡 해제(하단버튼이 화면 맨 아래 고정되게) */
   .bi-store-sheet { max-width: 100%; }
 }
