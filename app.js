@@ -3893,7 +3893,7 @@ function blogImportCardHtml() {
       <div class="bi-entry-titlerow">
         <img class="bi-entry-blogicon" src="image/ic_naver_blog_20.png" width="16" height="16" alt="">
         <span class="bi-entry-title">블로그 글 불러오기</span>
-        <img class="bi-entry-beta" src="image/badge_beta.svg" width="38" height="18" alt="Beta">
+        <span class="bi-entry-beta">Beta</span>
       </div>
       <p class="bi-entry-desc">${desc}</p>
       ${note ? `<p class="bi-entry-note">${note}</p>` : ''}
