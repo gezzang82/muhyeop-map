@@ -3999,6 +3999,7 @@ function biRenderResult(errored) {
   if (!scroll) return;
   if (!_biItems.length) {  // 빈 상태(글 0 / 전부 기등록 / 에러)
     if (cta) cta.style.display = 'none';
+    if (scrollBody) scrollBody.classList.add('bi-no-footer');  // 하단버튼 없음 → 푸터 여백(120px) 제거해 모달이 내용만큼 hug
     scroll.innerHTML = `<div class="bi-empty">
       <p class="bi-empty-title">불러올 체험단 후기를 못 찾았어요</p>
       <p class="bi-empty-desc">${errored ? '잠시 후 다시 시도해주세요.' : '최근 글에서 새로 등록할 체험단 후기를 찾지 못했어요.'}</p>
@@ -4006,6 +4007,7 @@ function biRenderResult(errored) {
     </div>`;
     return;
   }
+  if (scrollBody) scrollBody.classList.remove('bi-no-footer');
   if (cta) cta.style.display = '';
   const autoN = _biItems.filter(i => i.confidence === 'auto').length;
   const confirmN = _biItems.filter(i => i.confidence === 'confirm').length;
