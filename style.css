@@ -4287,6 +4287,13 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 /* ===== 블로그 글 불러오기(후기 자동매칭) ===== */
 /* 후기 피드 상단 진입 카드 (Figma 2003:59955 / 1999:9294 정밀 반영) */
 .bi-entry { margin: 0 0 16px; background: #fff6f6; border: 1px solid #f6d2d2; border-radius: 14px; padding: 18px; box-shadow: 0 4px 16px 0 rgba(232,43,46,0.13); display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+/* 처음 노출 시 접힌 상태에서 펼쳐지며 등장 (backwards: 시작 전 접힘 상태 적용→초기 플래시 방지, 끝나면 자연 스타일 복귀) */
+@keyframes biEntryReveal {
+  from { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; border-top-width: 0; border-bottom-width: 0; transform: translateY(-6px); }
+  to   { max-height: 280px; opacity: 1; padding-top: 18px; padding-bottom: 18px; margin-bottom: 16px; transform: translateY(0); }
+}
+.bi-entry-reveal { animation: biEntryReveal .5s cubic-bezier(.2, 0, 0, 1) backwards; }
+@media (prefers-reduced-motion: reduce) { .bi-entry-reveal { animation: none; } }
 .bi-entry-head { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; width: 100%; min-width: 0; }
 .bi-entry-titlerow { display: flex; align-items: center; gap: 6px; max-width: 100%; }
 .bi-entry-blogicon { flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px; display: block; }

@@ -3753,6 +3753,7 @@ function createInfiniteScroll(rootEl, sentinelEl, loadPage) {
 }
 
 function openCommunity() {
+  _biEntryRevealed = false;  // 커뮤니티 진입 시마다 진입카드 펼침 애니 재생
   bindCmTopBtn();
   updateCommunitySegUI();
   renderCommunity();
@@ -3869,6 +3870,7 @@ let _biStoreRows = [];    // 매장검색 결과(인덱스로 선택)
 let _biStoreTimer = null;
 let _biLoadTimer = null, _biLoadN = 0, _biLoadStart = 0;
 let _biParts = [], _biConfettiRaf = null;
+let _biEntryRevealed = false;  // 진입카드 '펼쳐지며 등장' 애니 1회성(커뮤니티 열 때마다 리셋, me 재렌더 시 중복재생 방지)
 
 // 후기 피드 상단 진입 카드 — currentUser.urlPlatform로 A/B/C 분기. 로그아웃/미확정이면 미노출.
 // Figma 2003:59955(진입카드_변형_mockups)/1999:9294 정밀 반영: 모든 변형 공통 구조(네이버블로그 b 아이콘 인라인
@@ -3884,6 +3886,8 @@ function blogImportCardHtml() {
     if (!c || !c.in) return '';                                    // 캐시 없음/로그아웃 캐시 → 미노출
     plat = c.plat || '';
   } else { return ''; }                                            // me 확정됐는데 비로그인 → 미노출
+  const reveal = _biEntryRevealed ? '' : ' bi-entry-reveal';  // 처음 노출 시 1회만 펼침 애니(중복재생 방지)
+  _biEntryRevealed = true;
   const head = (desc, note) => `<div class="bi-entry-head">
       <div class="bi-entry-titlerow">
         <img class="bi-entry-blogicon" src="image/ic_naver_blog_20.png" width="16" height="16" alt="">
@@ -3894,19 +3898,19 @@ function blogImportCardHtml() {
       ${note ? `<p class="bi-entry-note">${note}</p>` : ''}
     </div>`;
   if (plat === '블로그') {  // A: 네이버 블로그 등록자
-    return `<div class="bi-entry">
+    return `<div class="bi-entry${reveal}">
       ${head('네이버 블로그에 쓴 최근 체험단 후기를 자동으로 매칭해 한 번에 등록해요', '* 한 번에 최근 50개의 글을 불러올 수 있어요. (중복 불가)')}
       <button class="bi-entry-btn bi-entry-btn-primary" onclick="openBlogImport()">내 블로그 글 불러오기</button>
     </div>`;
   }
   if (plat === '인스타그램') {  // C: 인스타만 등록(보조링크 없는 최신본)
-    return `<div class="bi-entry">
+    return `<div class="bi-entry${reveal}">
       ${head('자동 불러오기는 지금 네이버 블로그만 지원해요. 블로그도 쓰신다면 등록해보세요')}
       <button class="bi-entry-btn bi-entry-btn-primary" onclick="openProfileSheet()">네이버 블로그 등록하기</button>
     </div>`;
   }
   // B: SNS 미등록(안내형, 아웃라인 버튼)
-  return `<div class="bi-entry">
+  return `<div class="bi-entry${reveal}">
     ${head('네이버 블로그를 등록하면 그동안 쓴 체험단 후기를 자동으로 불러와 등록할 수 있어요')}
     <button class="bi-entry-btn bi-entry-btn-outline" onclick="openProfileSheet()">네이버 블로그 등록하기</button>
   </div>`;
