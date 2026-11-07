@@ -3976,12 +3976,15 @@ function biHandleError(err) {
 }
 function biRenderResult(errored) {
   biShowStep('result');
-  const scroll = document.getElementById('biResultScroll');
+  // 헤더: 기존 서브화면 패턴(스크롤 시 컴팩트 sticky 고정, 세이프에어리어 내장) — 내 후기 화면과 동일
+  const scrollBody = document.getElementById('biResultScroll');
+  if (scrollBody) scrollBody.scrollTop = 0;
+  const stickyH = document.getElementById('biStickyHeader'); if (stickyH) stickyH.classList.remove('show');
+  bindMobileScrollHeader('biResultScroll', 'biScrollHeader', 'biStickyHeader');
+  const scroll = document.getElementById('biResultContent');
   const cta = document.getElementById('biCtaWrap');
-  const selectAll = document.getElementById('biSelectAll');
   if (!scroll) return;
   if (!_biItems.length) {  // 빈 상태(글 0 / 전부 기등록 / 에러)
-    if (selectAll) selectAll.style.visibility = 'hidden';
     if (cta) cta.style.display = 'none';
     scroll.innerHTML = `<div class="bi-empty">
       <p class="bi-empty-title">불러올 체험단 후기를 못 찾았어요</p>
@@ -3990,12 +3993,10 @@ function biRenderResult(errored) {
     </div>`;
     return;
   }
-  if (selectAll) selectAll.style.visibility = '';
   if (cta) cta.style.display = '';
   const autoN = _biItems.filter(i => i.confidence === 'auto').length;
   const confirmN = _biItems.filter(i => i.confidence === 'confirm').length;
-  const summary = `<h2 class="bi-result-h">내 블로그 결과</h2>
-  <div class="bi-summary">
+  const summary = `<div class="bi-summary">
     <div class="bi-summary-row">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#3a8dff"/><path d="M7.8 12.4l2.6 2.6 5.2-5.6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <p class="bi-summary-title">블로그 글 ${_biItems.length}개를 불러왔어요</p>

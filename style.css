@@ -4314,7 +4314,7 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 .bi-loading-count { margin: 0; font-size: 13px; font-weight: 500; color: #555; background: #f7f8fa; border-radius: 20px; padding: 9px 16px; font-variant-numeric: tabular-nums; }
 
 /* 결과 리스트 */
-.bi-step-result { height: 100%; }
+.bi-step-result { height: 100%; position: relative; }
 .bi-result-head { flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center; box-sizing: border-box; height: calc(56px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); padding: max(env(safe-area-inset-top, 0px), var(--and-sat, 0px)) 16px 0; border-bottom: 1px solid #f0f0f0; }
 .bi-back { position: absolute; left: 10px; width: 40px; height: 40px; border: 0; background: transparent; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .bi-result-title { font-size: 17px; font-weight: 800; color: #1a1a1e; letter-spacing: -0.02em; }
