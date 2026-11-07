@@ -4315,7 +4315,7 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 
 /* 로딩 */
 .bi-step-loading { position: relative; justify-content: center; align-items: center; padding: 24px; }
-.bi-close { position: absolute; top: 14px; right: 14px; width: 40px; height: 40px; border: 0; background: transparent; color: #666; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.bi-close { position: absolute; top: calc(14px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); right: 14px; width: 40px; height: 40px; border: 0; background: transparent; color: #666; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2; }
 .bi-loading-center { display: flex; flex-direction: column; align-items: center; text-align: center; margin-top: -24px; }
 .bi-loading-char { width: 240px; height: 240px; object-fit: contain; }
 .bi-loading-text { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 4px; }
