@@ -430,6 +430,71 @@
     </div>
   </div>
 
+  <!-- 블로그 글 불러오기(후기 자동매칭) — 로딩/결과/완료 full-screen 플로우 -->
+  <div class="modal-overlay blogimport-overlay" id="blogImportOverlay">
+    <div class="modal blogimport-modal" onclick="event.stopPropagation()">
+      <!-- step: 로딩 -->
+      <div class="bi-step bi-step-loading" id="biLoading">
+        <button class="bi-close" onclick="closeBlogImport()" aria-label="닫기"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <div class="bi-loading-center">
+          <img class="bi-loading-char" src="image/blog-review-loading.gif" alt="" width="240" height="240">
+          <div class="bi-loading-text">
+            <h2 class="bi-loading-title">블로그 글을 불러오고 있어요</h2>
+            <p class="bi-loading-desc">네이버 블로그를 읽고 체험단 글을 찾아<br>매장을 매칭하는 중이에요</p>
+            <span class="bi-loading-count" id="biLoadCount">글을 확인하는 중…</span>
+          </div>
+        </div>
+      </div>
+      <!-- step: 결과 리스트 -->
+      <div class="bi-step bi-step-result" id="biResult" hidden>
+        <div class="bi-result-head">
+          <button class="bi-back" onclick="closeBlogImport()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <span class="bi-result-title">블로그 글 불러오기</span>
+          <button class="bi-selectall" id="biSelectAll" onclick="biToggleAll()">전체 선택</button>
+        </div>
+        <div class="bi-result-scroll" id="biResultScroll"></div>
+        <div class="bi-result-cta-wrap" id="biCtaWrap">
+          <button class="bi-cta-btn" id="biCommitBtn" onclick="biCommit()" disabled>선택한 0개 후기 등록하기</button>
+        </div>
+      </div>
+      <!-- step: 완료 -->
+      <div class="bi-step bi-step-complete" id="biComplete" hidden>
+        <div class="bi-complete-stage">
+          <div class="bi-check-wrap">
+            <div class="bi-check-ring"></div>
+            <svg class="bi-check-svg" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path d="M30 51 L44 65 L71 37"/></svg>
+          </div>
+          <div class="bi-complete-txt">
+            <h2 class="bi-complete-title bi-rise bi-d1" id="biCompleteTitle">후기 0개가 등록됐어요!</h2>
+            <p class="bi-complete-sub bi-rise bi-d2">내 후기와 리뷰어 프로필에 반영됐어요.<br>블로그에 쌓인 후기가 내 포트폴리오가 돼요.</p>
+            <span class="bi-complete-pill bi-rise bi-d3" id="biCompletePill">등록 0 · 건너뜀 0</span>
+          </div>
+        </div>
+        <div class="bi-complete-actions">
+          <button class="bi-complete-ghost" onclick="biGoHome()">홈으로</button>
+          <button class="bi-complete-primary" onclick="biGoMyReviews()">내 후기 보러가기</button>
+        </div>
+      </div>
+      <canvas class="bi-confetti" id="biConfetti"></canvas>
+    </div>
+  </div>
+
+  <!-- 블로그 불러오기 — 매장 직접 선택 바텀시트 -->
+  <div class="bi-store-overlay" id="biStoreOverlay" onclick="closeBiStore()">
+    <div class="bi-store-sheet" onclick="event.stopPropagation()">
+      <div class="bi-store-handle-wrap" onclick="closeBiStore()"><div class="bi-store-handle"></div></div>
+      <div class="bi-store-title">매장 선택</div>
+      <div class="bi-store-search-wrap">
+        <svg class="bi-store-search-ic" width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="text" class="bi-store-search" id="biStoreSearch" placeholder="매장명으로 검색" oninput="biStoreSearchDebounced()" onkeydown="if(event.key==='Enter'){event.preventDefault();biStoreSearch();}">
+      </div>
+      <div class="bi-store-results" id="biStoreResults"></div>
+      <div class="bi-store-cta-wrap">
+        <button class="bi-cta-btn" id="biStoreConfirm" onclick="biConfirmStore()" disabled>이 매장으로 선택</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 개인정보처리방침 / 이용약관 팝업 -->
   <div class="modal-overlay" id="policyOverlay" onclick="closePolicy()">
     <div class="modal policy-modal" onclick="event.stopPropagation()">

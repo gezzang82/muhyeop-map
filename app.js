@@ -3827,7 +3827,7 @@ async function renderCommunity(fresh) {
     body.innerHTML = cmFeedInfoHtml(mine) + cmEmptyHtml('로그인이 필요해요', '내가 등록한 후기를 모아볼 수 있어요.', true);
     return;
   }
-  body.innerHTML = cmFeedInfoHtml(mine) + (mine ? '' : cmRegionTabsHtml()) + cmFeedTopHtml(0)
+  body.innerHTML = cmFeedInfoHtml(mine) + (mine ? '' : blogImportCardHtml()) + (mine ? '' : cmRegionTabsHtml()) + cmFeedTopHtml(0)
     + '<div class="rv-cards" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
   const listEl = document.getElementById('cmList');
   const sentinel = document.getElementById('cmSentinel');
@@ -3859,6 +3859,364 @@ function cmEmptyHtml(title, desc, login) {
     ${login ? '<button class="cm-empty-btn" onclick="openLoginSheet()">로그인</button>' : ''}
   </div>`;
 }
+// ===== 블로그 글 불러오기(후기 자동매칭) =====
+// 후기 피드 상단 진입 카드 → 로딩 → 결과 리스트 → (필요시)매장선택 시트 → 완료(체크+컨페티).
+// 백엔드: GET ?blogimport=list / POST ?blogimport=commit (api/places.js).
+let _biItems = [];        // 결과 아이템(매장없음 제외). {title,link,date,store,region,match,confidence,_placeId,_store,_checked}
+let _biStoreIdx = -1;     // 매장선택 시트 대상 아이템 index
+let _biStorePick = null;  // 시트에서 고른 매장 {placeId,name,address}
+let _biStoreRows = [];    // 매장검색 결과(인덱스로 선택)
+let _biStoreTimer = null;
+let _biLoadTimer = null, _biLoadN = 0, _biLoadStart = 0;
+let _biParts = [], _biConfettiRaf = null;
+
+// 후기 피드 상단 진입 카드 — currentUser.urlPlatform로 A/B/C 분기. 로그아웃/미확정이면 미노출.
+// Figma 2003:59955(진입카드_변형_mockups)/1999:9294 정밀 반영: 모든 변형 공통 구조(네이버블로그 b 아이콘 인라인
+// + 타이틀 '블로그 글 불러오기' + Beta 배지). A만 파인프린트, 버튼색/문구만 변형별로 다름.
+function blogImportCardHtml() {
+  if (!currentUser || !_authChecked) return '';
+  const plat = currentUser.urlPlatform;
+  const head = (desc, note) => `<div class="bi-entry-head">
+      <div class="bi-entry-titlerow">
+        <img class="bi-entry-blogicon" src="image/ic_naver_blog_20.png" width="16" height="16" alt="">
+        <span class="bi-entry-title">블로그 글 불러오기</span>
+        <img class="bi-entry-beta" src="image/badge_beta.svg" width="38" height="18" alt="Beta">
+      </div>
+      <p class="bi-entry-desc">${desc}</p>
+      ${note ? `<p class="bi-entry-note">${note}</p>` : ''}
+    </div>`;
+  if (plat === '블로그') {  // A: 네이버 블로그 등록자
+    return `<div class="bi-entry">
+      ${head('네이버 블로그에 쓴 최근 체험단 후기를 자동으로 매칭해 한 번에 등록해요', '* 한 번에 최근 50개의 글을 불러올 수 있어요. (중복 불가)')}
+      <button class="bi-entry-btn bi-entry-btn-primary" onclick="openBlogImport()">내 블로그 글 불러오기</button>
+    </div>`;
+  }
+  if (plat === '인스타그램') {  // C: 인스타만 등록(보조링크 없는 최신본)
+    return `<div class="bi-entry">
+      ${head('자동 불러오기는 지금 네이버 블로그만 지원해요. 블로그도 쓰신다면 등록해보세요')}
+      <button class="bi-entry-btn bi-entry-btn-primary" onclick="openProfileSheet()">네이버 블로그 등록하기</button>
+    </div>`;
+  }
+  // B: SNS 미등록(안내형, 아웃라인 버튼)
+  return `<div class="bi-entry">
+    ${head('네이버 블로그를 등록하면 그동안 쓴 체험단 후기를 자동으로 불러와 등록할 수 있어요')}
+    <button class="bi-entry-btn bi-entry-btn-outline" onclick="openProfileSheet()">네이버 블로그 등록하기</button>
+  </div>`;
+}
+
+function biShowStep(step) {
+  ['Loading', 'Result', 'Complete'].forEach(s => {
+    const el = document.getElementById('bi' + s);
+    if (el) el.hidden = (s.toLowerCase() !== step);
+  });
+}
+function openBlogImport() {
+  if (!currentUser) { openLoginSheet(); return; }
+  const ov = document.getElementById('blogImportOverlay');
+  if (!ov) return;
+  biShowStep('loading');
+  const lc = document.getElementById('biLoadCount'); if (lc) lc.textContent = '글을 확인하는 중…';
+  ov.classList.add('open');
+  biStartLoad();
+}
+function closeBlogImport() {
+  if (_biLoadTimer) { clearInterval(_biLoadTimer); _biLoadTimer = null; }
+  biStopConfetti();
+  const ov = document.getElementById('blogImportOverlay');
+  if (ov) ov.classList.remove('open');
+}
+function biStartLoad() {
+  const label = document.getElementById('biLoadCount');
+  _biLoadN = 0; _biLoadStart = Date.now();
+  if (_biLoadTimer) clearInterval(_biLoadTimer);
+  _biLoadTimer = setInterval(() => {               // 체감용 증가 카운터(응답 오면 실제 postCount로 교체)
+    _biLoadN += 1 + Math.floor(Math.random() * 3);
+    if (label) label.textContent = `글 ${_biLoadN}개 확인 중…`;
+  }, 160);
+  fetch('/api/places?blogimport=list')
+    .then(async r => {
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw Object.assign(new Error('fail'), { body: j, status: r.status });
+      return j;
+    })
+    .then(data => biFinishLoad(data))
+    .catch(err => biHandleError(err));
+}
+function biFinishLoad(data) {
+  const label = document.getElementById('biLoadCount');
+  const postCount = Number((data && data.postCount) || 0);
+  if (label && postCount) label.textContent = `글 ${postCount}개 확인 중…`;
+  const all = (data && Array.isArray(data.items)) ? data.items : [];
+  // 매장없음(confidence==='none')은 목록에서 제외(2026-11-07 결정)
+  _biItems = all.filter(it => it && it.confidence !== 'none').map(it => ({
+    title: it.title || '', link: it.link || '', date: it.date || '',
+    store: it.store || '', region: it.region || '',
+    match: it.match || null, confidence: it.confidence,
+    _placeId: it.match ? it.match.placeId : null,
+    _store: it.match ? { name: it.match.name, address: it.match.address } : null,
+    _checked: it.confidence === 'auto'
+  }));
+  const wait = Math.max(0, 1500 - (Date.now() - _biLoadStart));  // 로딩이 너무 깜빡 지나가지 않게 최소 노출
+  setTimeout(() => {
+    if (_biLoadTimer) { clearInterval(_biLoadTimer); _biLoadTimer = null; }
+    biRenderResult(false);
+  }, wait);
+}
+function biHandleError(err) {
+  if (_biLoadTimer) { clearInterval(_biLoadTimer); _biLoadTimer = null; }
+  const body = err && err.body;
+  if (body && body.needBlog) {  // 비(非) 네이버블로그 유저
+    closeBlogImport();
+    showToast('네이버 블로그를 먼저 등록해주세요.');
+    openProfileSheet();
+    return;
+  }
+  _biItems = [];
+  biRenderResult(true);
+}
+function biRenderResult(errored) {
+  biShowStep('result');
+  const scroll = document.getElementById('biResultScroll');
+  const cta = document.getElementById('biCtaWrap');
+  const selectAll = document.getElementById('biSelectAll');
+  if (!scroll) return;
+  if (!_biItems.length) {  // 빈 상태(글 0 / 전부 기등록 / 에러)
+    if (selectAll) selectAll.style.visibility = 'hidden';
+    if (cta) cta.style.display = 'none';
+    scroll.innerHTML = `<div class="bi-empty">
+      <p class="bi-empty-title">불러올 체험단 후기를 못 찾았어요</p>
+      <p class="bi-empty-desc">${errored ? '잠시 후 다시 시도해주세요.' : '최근 글에서 새로 등록할 체험단 후기를 찾지 못했어요.'}</p>
+      <button class="bi-entry-btn bi-entry-btn-outline bi-empty-btn" onclick="closeBlogImport()">닫기</button>
+    </div>`;
+    return;
+  }
+  if (selectAll) selectAll.style.visibility = '';
+  if (cta) cta.style.display = '';
+  const autoN = _biItems.filter(i => i.confidence === 'auto').length;
+  const confirmN = _biItems.filter(i => i.confidence === 'confirm').length;
+  const summary = `<div class="bi-summary">
+    <p class="bi-summary-title">블로그 글 ${_biItems.length}개를 불러왔어요</p>
+    <div class="bi-chips">
+      <span class="bi-chip bi-chip-auto"><i></i>자동매칭 ${autoN}</span>
+      <span class="bi-chip bi-chip-confirm"><i></i>확인 필요 ${confirmN}</span>
+    </div>
+  </div>`;
+  scroll.innerHTML = summary + '<div class="bi-list">' + _biItems.map((it, i) => biRowHtml(it, i)).join('') + '</div>';
+  biUpdateCta();
+  biSyncSelectAll();
+}
+function biRowHtml(it, i) {
+  const st = it._store;
+  const badge = it.confidence === 'auto'
+    ? '<span class="bi-row-badge bi-badge-auto">자동매칭</span>'
+    : '<span class="bi-row-badge bi-badge-confirm">확인 필요</span>';
+  const resolved = !!(it._placeId && st);   // 매칭/확정됨 → 녹색 박스
+  const needChange = (it.confidence === 'confirm' && !resolved);
+  let storeBox = '';
+  if (needChange) {  // 확인 필요(미확정): amber 박스 + 변경 버튼
+    storeBox = `<div class="bi-store-box bi-store-box-warn">
+      <div class="bi-store-box-head">
+        <svg class="bi-store-pin" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" fill="#f5a524"/><circle cx="12" cy="9.6" r="2.6" fill="#fff"/></svg>
+        <div class="bi-store-box-txt"><p class="bi-store-box-name">${rvEsc(st ? st.name : (it.store || '매장 미매칭'))}</p><p class="bi-store-box-addr">${rvEsc(st ? st.address : '')}</p></div>
+        <button class="bi-change-btn" onclick="biOpenStore(${i})">변경</button>
+      </div>
+      <p class="bi-store-box-hint">지역이 달라 매장 확인이 필요해요</p>
+    </div>`;
+  } else if (resolved) {  // 자동매칭 / 확정됨: 녹색 박스
+    storeBox = `<div class="bi-store-box bi-store-box-ok">
+      <svg class="bi-store-pin" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" fill="#22b24a"/><circle cx="12" cy="9.6" r="2.6" fill="#fff"/></svg>
+      <div class="bi-store-box-txt"><p class="bi-store-box-name">${rvEsc(st.name)}</p><p class="bi-store-box-addr">${rvEsc(st.address || '')}</p></div>
+      ${it.confidence === 'confirm' ? `<button class="bi-change-btn" onclick="biOpenStore(${i})">변경</button>` : ''}
+    </div>`;
+  }
+  return `<div class="bi-row${it._checked ? ' on' : ''}" data-i="${i}">
+    <label class="bi-check"><input type="checkbox"${it._checked ? ' checked' : ''} onchange="biToggleItem(${i}, this.checked)"><span class="bi-check-box"></span></label>
+    <div class="bi-row-main">
+      <div class="bi-row-top"><p class="bi-row-title">${rvEsc(it.title)}</p>${badge}</div>
+      <p class="bi-row-date">${rvEsc(it.date)}</p>
+      ${storeBox}
+    </div>
+  </div>`;
+}
+function biToggleItem(i, checked) {
+  if (!_biItems[i]) return;
+  _biItems[i]._checked = !!checked;
+  const row = document.querySelector('.bi-row[data-i="' + i + '"]');
+  if (row) row.classList.toggle('on', !!checked);
+  biUpdateCta(); biSyncSelectAll();
+}
+function biToggleAll() {
+  const allOn = _biItems.length && _biItems.every(i => i._checked);
+  const next = !allOn;
+  _biItems.forEach(i => { i._checked = next; });
+  biRenderResult(false);
+}
+function biCheckedCommittable() { return _biItems.filter(i => i._checked && i._placeId); }
+function biUpdateCta() {
+  const n = biCheckedCommittable().length;
+  const btn = document.getElementById('biCommitBtn');
+  if (btn) { btn.textContent = `선택한 ${n}개 후기 등록하기`; btn.disabled = n === 0; }
+}
+function biSyncSelectAll() {
+  const btn = document.getElementById('biSelectAll');
+  if (!btn) return;
+  const allOn = _biItems.length && _biItems.every(i => i._checked);
+  btn.textContent = allOn ? '전체 해제' : '전체 선택';
+  btn.classList.toggle('on', !!allOn);
+}
+// 매장 직접 선택 바텀시트
+function biOpenStore(i) {
+  _biStoreIdx = i; _biStorePick = null; _biStoreRows = [];
+  const ov = document.getElementById('biStoreOverlay');
+  const input = document.getElementById('biStoreSearch');
+  const results = document.getElementById('biStoreResults');
+  const confirm = document.getElementById('biStoreConfirm');
+  const it = _biItems[i];
+  if (input) input.value = (it && (it.store || (it._store && it._store.name) || '')) || '';
+  if (results) results.innerHTML = '';
+  if (confirm) confirm.disabled = true;
+  if (ov) ov.classList.add('open');
+  if (input && input.value.trim()) biStoreSearch();  // 블로그 매장명으로 초기 검색
+}
+function closeBiStore() {
+  const ov = document.getElementById('biStoreOverlay');
+  if (ov) ov.classList.remove('open');
+}
+function biStoreSearchDebounced() {
+  if (_biStoreTimer) clearTimeout(_biStoreTimer);
+  _biStoreTimer = setTimeout(biStoreSearch, 350);
+}
+async function biStoreSearch() {
+  const input = document.getElementById('biStoreSearch');
+  const box = document.getElementById('biStoreResults');
+  if (!input || !box) return;
+  const q = input.value.trim();
+  if (!q) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="search-hint">검색 중…</div>';
+  let rows = [];
+  try { rows = await fetch('/api/places?q=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []); } catch (e) {}
+  _biStoreRows = Array.isArray(rows) ? rows.slice(0, 20) : [];
+  if (!_biStoreRows.length) { box.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
+  box.innerHTML = _biStoreRows.map((p, idx) => `<button class="bi-store-item" data-idx="${idx}" onclick="biPickStore(${idx})">
+      <div class="bi-store-item-txt"><p class="bi-store-item-name">${rvEsc(p.name)}</p><p class="bi-store-item-addr">${rvEsc(p.address || '')}</p></div>
+      <svg class="bi-store-item-check" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 12.5L10 17.5L19 7" stroke="#006cff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>`).join('');
+}
+function biPickStore(idx) {
+  const p = _biStoreRows[idx];
+  if (!p) return;
+  _biStorePick = { placeId: p.id, name: p.name, address: p.address || '' };
+  document.querySelectorAll('#biStoreResults .bi-store-item').forEach(el => el.classList.toggle('on', Number(el.getAttribute('data-idx')) === idx));
+  const c = document.getElementById('biStoreConfirm'); if (c) c.disabled = false;
+}
+function biConfirmStore() {
+  if (!_biStorePick || _biStoreIdx < 0) return;
+  const it = _biItems[_biStoreIdx];
+  if (it) {
+    it._placeId = _biStorePick.placeId;
+    it._store = { name: _biStorePick.name, address: _biStorePick.address };
+    it._checked = true;
+  }
+  closeBiStore();
+  biRenderResult(false);
+}
+async function biCommit() {
+  const items = biCheckedCommittable();
+  if (!items.length) return;
+  const btn = document.getElementById('biCommitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '등록 중…'; }
+  let res = null;
+  try {
+    res = await fetch('/api/places?blogimport=commit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items.map(it => ({ link: it.link, placeId: it._placeId })) })
+    }).then(r => r.json().catch(() => ({})));
+  } catch (e) { res = null; }
+  if (!res) { showToast('등록에 실패했어요. 잠시 후 다시 시도해주세요.'); if (btn) { btn.disabled = false; biUpdateCta(); } return; }
+  biShowComplete(res);
+}
+function biShowComplete(res) {
+  const registered = Number((res && res.registered) || 0);
+  const skipped = Number((res && res.skipped) || 0);
+  const failed = Number((res && res.failed) || 0);
+  const title = document.getElementById('biCompleteTitle');
+  const pill = document.getElementById('biCompletePill');
+  if (title) title.textContent = `후기 ${registered}개가 등록됐어요!`;
+  if (pill) pill.textContent = `등록 ${registered} · 건너뜀 ${skipped + failed}`;
+  biShowStep('complete');
+  biPlaySuccess();
+}
+// 체크 드로우인 + 컨페티 버스트 (success-animation.html 프로토타입 이식)
+function biPlaySuccess() {
+  const stage = document.getElementById('biComplete');
+  if (!stage) return;
+  stage.classList.remove('bi-play'); void stage.offsetWidth; stage.classList.add('bi-play');
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if (reduce) return;
+  setTimeout(() => {
+    const wrap = document.querySelector('#biComplete .bi-check-wrap');
+    if (!wrap) return;
+    const r = wrap.getBoundingClientRect();
+    biConfettiBurst(r.left + r.width / 2, r.top + r.height / 2);
+  }, 420);
+}
+function biConfettiBurst(cx, cy) {
+  const canvas = document.getElementById('biConfetti');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const COLORS = ['#22b24a', '#e82a2d', '#ffc63a', '#3a8dff', '#ff77c2', '#7c5cff', '#19c3b2', '#ff9f43'];
+  const rect = canvas.getBoundingClientRect();
+  const ox = cx - rect.left, oy = cy - rect.top;
+  for (let i = 0; i < 150; i++) {
+    const ang = Math.random() * Math.PI * 2, spd = 5 + Math.random() * 13, up = 3 + Math.random() * 5;
+    _biParts.push({
+      x: ox, y: oy, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - up,
+      g: 0.26 + Math.random() * 0.12, w: 6 + Math.random() * 7, h: 9 + Math.random() * 9,
+      rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.5,
+      color: COLORS[(Math.random() * COLORS.length) | 0], streamer: Math.random() < 0.28,
+      life: 0, max: 70 + (Math.random() * 40 | 0)
+    });
+  }
+  if (!_biConfettiRaf) _biConfettiRaf = requestAnimationFrame(() => biConfettiTick(ctx, W, H));
+}
+function biConfettiTick(ctx, W, H) {
+  ctx.clearRect(0, 0, W, H);
+  for (let i = _biParts.length - 1; i >= 0; i--) {
+    const p = _biParts[i];
+    p.life++; p.vx *= 0.99; p.vy += p.g; p.vy *= 0.995; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+    const t = p.life / p.max, alpha = t < 0.7 ? 1 : Math.max(0, 1 - (t - 0.7) / 0.3);
+    if (p.life >= p.max || p.y > H + 40) { _biParts.splice(i, 1); continue; }
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = alpha; ctx.fillStyle = p.color;
+    const flip = Math.cos(p.life * 0.18);
+    if (p.streamer) ctx.fillRect(-1.5, -p.h * flip, 3, p.h * 2 * Math.abs(flip) + 2);
+    else ctx.fillRect(-p.w / 2, -(p.h / 2) * flip, p.w, p.h * Math.abs(flip) + 1);
+    ctx.restore();
+  }
+  if (_biParts.length) _biConfettiRaf = requestAnimationFrame(() => biConfettiTick(ctx, W, H));
+  else { _biConfettiRaf = null; ctx.clearRect(0, 0, W, H); }
+}
+function biStopConfetti() {
+  if (_biConfettiRaf) { cancelAnimationFrame(_biConfettiRaf); _biConfettiRaf = null; }
+  _biParts = [];
+  const canvas = document.getElementById('biConfetti');
+  if (canvas) { const ctx = canvas.getContext('2d'); if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); }
+}
+function biGoHome() {
+  closeBlogImport();
+  try {
+    if (isMobileView() && typeof switchTab === 'function') switchTab('home', { silent: true });
+    else if (typeof switchPcTab === 'function') switchPcTab('home');
+  } catch (e) {}
+}
+function biGoMyReviews() {
+  closeBlogImport();
+  gotoCommunityReviews();
+  try { renderCommunity(true); } catch (e) {}
+}
+
 // SNS(블로그/인스타) 아이콘·링크 헬퍼
 function snsIconSrc(platform) { return platform === '인스타그램' ? 'image/ic_instagram_20.png' : 'image/ic_naver_blog_20.png'; }
 function snsLinkText(platform, id) { return (URL_PLATFORM_DOMAINS[platform] || 'blog.naver.com/') + id; }
