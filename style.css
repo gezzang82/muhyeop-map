@@ -2352,6 +2352,7 @@ body.fav-mode #pcAppDownload { display: none !important; }
   transition: background 0.2s;
 }
 .btn-next:hover, .btn-submit:hover { background: #c82020; }
+.btn-next:disabled, .btn-submit:disabled { background: #f0b6b7; cursor: default; }
 /* 버튼 로딩 상태: 텍스트 숨기고 안에 흰색 로티 로더 */
 .btn-submit.btn-loading, .btn-next.btn-loading {
   position: relative; color: transparent; pointer-events: none;
@@ -4377,11 +4378,11 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 
 /* 완료(체크 + 컨페티) — success-animation.html 이식 */
 .bi-step-complete { position: relative; justify-content: center; align-items: center; padding: 24px; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-.bi-complete-stage { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 22px; width: 100%; }
-.bi-check-wrap { position: relative; width: 112px; height: 112px; display: grid; place-items: center; }
-.bi-check-ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(34,178,74,.35) 0%, transparent 70%); opacity: 0; }
-.bi-check-svg { width: 112px; height: 112px; display: block; transform: scale(0); transform-origin: center; }
-.bi-check-svg circle { fill: #22b24a; }
+.bi-complete-stage { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 24px; width: 100%; }
+.bi-check-wrap { position: relative; width: 80px; height: 80px; display: grid; place-items: center; }
+.bi-check-ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(18,161,80,.35) 0%, transparent 70%); opacity: 0; }
+.bi-check-svg { width: 80px; height: 80px; display: block; transform: scale(0); transform-origin: center; }
+.bi-check-svg circle { fill: #12a150; }
 .bi-check-svg path { stroke: #fff; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; fill: none; stroke-dasharray: 80; stroke-dashoffset: 80; }
 .bi-play .bi-check-svg { animation: biPop .62s cubic-bezier(.22,1.2,.36,1) forwards; }
 .bi-play .bi-check-ring { animation: biRing .8s ease-out .18s forwards; }
@@ -4389,17 +4390,17 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 @keyframes biPop { 0%{transform:scale(0)} 55%{transform:scale(1.12)} 100%{transform:scale(1)} }
 @keyframes biRing { 0%{opacity:.9; transform:scale(.6)} 100%{opacity:0; transform:scale(1.5)} }
 @keyframes biDraw { to { stroke-dashoffset: 0; } }
-.bi-complete-txt { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.bi-complete-title { margin: 0; font-size: 22px; font-weight: 800; color: #1a1a1e; letter-spacing: -0.02em; }
-.bi-complete-sub { margin: 0; font-size: 14.5px; line-height: 1.55; color: #8b8b93; max-width: 300px; }
-.bi-complete-pill { margin-top: 6px; font-size: 13px; font-weight: 600; color: #6b6b73; background: #f3f3f5; padding: 8px 16px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.bi-complete-txt { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.bi-complete-title { margin: 0; font-size: 20px; font-weight: 500; color: #000; letter-spacing: -0.4px; }
+.bi-complete-sub { margin: 0; font-size: 16px; line-height: 1.4; color: #777; max-width: 320px; }
+.bi-complete-pill { margin-top: 16px; font-size: 13px; font-weight: 500; color: #555; background: #f7f8fa; padding: 10px 16px; border-radius: 20px; font-variant-numeric: tabular-nums; }
 .bi-rise { opacity: 0; transform: translateY(10px); }
 .bi-play .bi-rise { animation: biRiseUp .5s ease-out forwards; }
 .bi-play .bi-d1 { animation-delay: .5s; } .bi-play .bi-d2 { animation-delay: .62s; } .bi-play .bi-d3 { animation-delay: .74s; }
 @keyframes biRiseUp { to { opacity: 1; transform: none; } }
-.bi-complete-actions { display: flex; gap: 10px; width: 100%; z-index: 50; }
-.bi-complete-ghost { flex: 0 0 36%; height: 56px; border-radius: 14px; background: transparent; border: 1.5px solid #d9d9de; color: #1a1a1e; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
-.bi-complete-primary { flex: 1; height: 56px; border-radius: 14px; background: #e82a2d; color: #fff; font-size: 16px; font-weight: 700; border: 0; cursor: pointer; font-family: inherit; box-shadow: 0 8px 20px -8px rgba(232,42,45,.7); }
+.bi-complete-actions { display: flex; gap: 8px; width: 100%; z-index: 50; }
+.bi-complete-ghost { flex: 0 0 40%; height: 56px; border-radius: 8px; background: #fff; border: 1px solid rgba(170,170,170,0.87); color: #000; font-size: 18px; font-weight: 400; cursor: pointer; font-family: inherit; }
+.bi-complete-primary { flex: 1; height: 56px; border-radius: 8px; background: #e82a2d; color: #fff; font-size: 18px; font-weight: 700; border: 0; cursor: pointer; font-family: inherit; }
 .bi-complete-ghost:active, .bi-complete-primary:active { transform: scale(.97); }
 @media (prefers-reduced-motion: reduce) {
   .bi-play .bi-check-svg, .bi-play .bi-check-svg path, .bi-play .bi-rise, .bi-play .bi-check-ring { animation: none !important; }
