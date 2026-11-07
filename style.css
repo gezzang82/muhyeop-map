@@ -2231,12 +2231,14 @@ body.fav-mode #pcAppDownload { display: none !important; }
 .report-modal .modal-scroll-header,
 .policy-modal .modal-scroll-header,
 .about-modal .modal-scroll-header,
-.myrev-modal .modal-scroll-header { gap: 12px; }
+.myrev-modal .modal-scroll-header,
+.blogimport-modal .modal-scroll-header { gap: 12px; }
 .profile-modal .modal-scroll-header h2,
 .report-modal .modal-scroll-header h2,
 .policy-modal .modal-scroll-header h2,
 .about-modal .modal-scroll-header h2,
-.myrev-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
+.myrev-modal .modal-scroll-header h2,
+.blogimport-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
 /* 내 후기: 커뮤니티와 동일 배경(카드 사이 여백이 회색으로). sticky 헤더는 커뮤니티처럼 흰색 유지 */
 .myrev-modal { background: #f7f9fa; }
 /* 정책: 푸터(닫기) 제거 → 본문 하단 여백 축소 */
@@ -4319,45 +4321,50 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 .bi-back { position: absolute; left: 10px; width: 40px; height: 40px; border: 0; background: transparent; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .bi-result-title { font-size: 17px; font-weight: 800; color: #1a1a1e; letter-spacing: -0.02em; }
 .bi-selectall { position: absolute; right: 16px; border: 0; background: transparent; color: #e82a2d; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; padding: 4px; }
-.bi-result-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px; }
-.bi-result-h { margin: 2px 0 14px; font-size: 22px; font-weight: 800; color: #1a1a1e; letter-spacing: -0.03em; }
-.bi-summary { margin-bottom: 18px; background: #eef3fb; border-radius: 14px; padding: 16px; }
-.bi-summary-row { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
-.bi-summary-row svg { flex-shrink: 0; }
-.bi-summary-title { margin: 0; font-size: 15px; font-weight: 700; color: #1a1a1e; letter-spacing: -0.02em; }
-.bi-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.bi-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 6px 12px; background: #fff; }
-.bi-chip i { width: 7px; height: 7px; border-radius: 50%; }
-.bi-chip-auto { color: #1d9b47; border: 1px solid #bfe6cc; }
-.bi-chip-auto i { background: #22b24a; }
-.bi-chip-confirm { color: #c9821a; border: 1px solid #f3dcae; }
-.bi-chip-confirm i { background: #f5a524; }
+/* 결과 콘텐츠: 요약 카드 + 리스트 (Figma 2001:9420 정밀 반영) */
+#biResultContent { display: flex; flex-direction: column; gap: 24px; }
+/* 요약 카드 (2001:59262) — 연파랑 bg, 파란 체크, 숫자 bold, 아웃라인 칩 */
+.bi-summary { background: rgba(0,108,255,0.08); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+.bi-summary-row { display: flex; align-items: center; gap: 2px; }
+.bi-summary-ic { flex-shrink: 0; width: 24px; height: 24px; display: block; }
+.bi-summary-title { margin: 0; font-size: 16px; font-weight: 400; color: #000; }
+.bi-summary-title b { font-weight: 600; }
+.bi-chips { display: flex; gap: 4px; padding-left: 26px; flex-wrap: wrap; }
+.bi-chip { box-sizing: border-box; display: inline-flex; align-items: center; height: 24px; padding: 4px 6px; border-radius: 4px; background: #fff; white-space: nowrap; }
+.bi-chip-auto { color: #12a150; border: 1px solid #12a150; font-size: 12.5px; font-weight: 500; }
+.bi-chip-confirm { color: #ff9e27; border: 1px solid #ff9e27; font-size: 12px; font-weight: 600; }
 
+/* 리스트 — 행 사이 1px #eee 구분선, 행 py16 (2001:59280~) */
 .bi-list { display: flex; flex-direction: column; }
-.bi-row { display: flex; gap: 12px; padding: 16px 0; border-top: 1px solid #f2f2f2; }
+.bi-row { display: flex; gap: 12px; align-items: flex-start; padding: 16px 0; border-top: 1px solid #eee; }
 .bi-row:first-child { border-top: 0; }
+/* 체크박스(24) — 미체크 흰바탕 #c9c9c9 테두리, 체크 시 빨강+흰 체크 (2001:59283/59302) */
 .bi-check { flex-shrink: 0; position: relative; width: 24px; height: 24px; cursor: pointer; }
 .bi-check input { position: absolute; opacity: 0; width: 24px; height: 24px; margin: 0; cursor: pointer; }
-.bi-check-box { display: block; width: 24px; height: 24px; border-radius: 7px; border: 2px solid #d6d6db; background: #fff; transition: background .12s, border-color .12s; }
-.bi-check input:checked + .bi-check-box { background: #e82a2d; border-color: #e82a2d; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M5 12.5L10 17.5L19 7' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; }
-.bi-row-main { flex: 1; min-width: 0; }
-.bi-row-top { display: flex; align-items: flex-start; gap: 8px; }
-.bi-row-title { margin: 0; flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: #1a1a1e; line-height: 1.4; letter-spacing: -0.01em; }
-.bi-row-badge { flex-shrink: 0; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 3px 8px; margin-top: 1px; }
-.bi-badge-auto { background: #eafaef; color: #1d9b47; }
-.bi-badge-confirm { background: #fff5e3; color: #c9821a; }
-.bi-row-date { margin: 6px 0 0; font-size: 12.5px; color: #aaa; }
-.bi-store-box { margin-top: 10px; border-radius: 10px; padding: 12px; }
-.bi-store-box-ok { display: flex; align-items: center; gap: 10px; background: #f6f8f6; }
-.bi-store-box-warn { background: #fffaf0; border: 1px solid #ffe6b8; }
-.bi-store-box-head { display: flex; align-items: center; gap: 10px; }
-.bi-store-pin { flex-shrink: 0; }
-.bi-store-box-txt { flex: 1; min-width: 0; }
-.bi-store-box-name { margin: 0; font-size: 14px; font-weight: 700; color: #1a1a1e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bi-store-box-addr { margin: 3px 0 0; font-size: 12.5px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bi-change-btn { flex-shrink: 0; border: 1px solid #ddd; background: #fff; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 700; color: #555; cursor: pointer; font-family: inherit; }
-.bi-store-box-hint { margin: 8px 0 0; font-size: 12.5px; color: #e07b00; display: flex; align-items: center; gap: 4px; }
-.bi-store-box-hint::before { content: "•"; }
+.bi-check-box { box-sizing: border-box; display: block; width: 24px; height: 24px; border-radius: 6px; border: 1.5px solid #c9c9c9; background: #fff; transition: background .12s, border-color .12s; }
+.bi-check input:checked + .bi-check-box { background: #e82a2d; border-color: #e82a2d; background-image: url("image/ic_check_white.svg"); background-repeat: no-repeat; background-position: center; background-size: 20px 20px; }
+.bi-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.bi-row-titleblock { display: flex; flex-direction: column; gap: 2px; }
+.bi-row-top { display: flex; align-items: center; gap: 8px; }
+.bi-row-title { margin: 0; flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: #111; line-height: 20px; }
+/* 행 배지 (2001:59289/59306) — 아웃라인 */
+.bi-row-badge { box-sizing: border-box; flex-shrink: 0; height: 22px; display: inline-flex; align-items: center; padding: 4px 6px; border-radius: 4px; background: #fff; white-space: nowrap; }
+.bi-badge-auto { color: #12a150; border: 1px solid #12a150; font-size: 12.5px; font-weight: 500; }
+.bi-badge-confirm { color: #ff9e27; border: 1px solid #ff9e27; font-size: 12px; font-weight: 600; }
+.bi-row-date { margin: 0; font-size: 12px; color: #999; }
+/* 매장 박스 (2001:59292 매칭 / 59309 확인필요) */
+.bi-store-box { border-radius: 8px; padding: 10px; }
+.bi-store-box-ok { display: flex; align-items: center; gap: 8px; background: #f7f8fa; }
+.bi-store-box-warn { display: flex; flex-direction: column; gap: 8px; background: #fff9f0; border: 1px solid #f0d9a8; }
+.bi-store-head { display: flex; align-items: center; gap: 8px; }
+.bi-store-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bi-store-nmrow { display: flex; align-items: center; gap: 4px; }
+.bi-store-pin { flex-shrink: 0; width: 20px; height: 20px; display: block; }
+.bi-store-name { font-size: 13.5px; font-weight: 600; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bi-store-addr { margin: 0; padding-left: 24px; font-size: 12px; color: #777; word-break: break-word; }
+.bi-change-btn { flex-shrink: 0; box-sizing: border-box; border: 1px solid #d8d8d8; background: #fff; border-radius: 8px; padding: 7px 12px; font-size: 12.5px; font-weight: 500; color: #555; cursor: pointer; font-family: inherit; }
+.bi-store-hint { margin: 0; padding-left: 24px; display: flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 500; color: #d98a00; }
+.bi-store-hint::before { content: ""; flex-shrink: 0; width: 3px; height: 3px; border-radius: 50%; background: #d98a00; }
 
 .bi-result-cta-wrap { flex-shrink: 0; padding: 12px 16px; border-top: 1px solid #f0f0f0; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 .bi-cta-btn { width: 100%; height: 54px; border-radius: 12px; background: #e82a2d; color: #fff; font-size: 16px; font-weight: 800; border: 0; cursor: pointer; font-family: inherit; }

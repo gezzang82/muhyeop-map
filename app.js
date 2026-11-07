@@ -3998,12 +3998,12 @@ function biRenderResult(errored) {
   const confirmN = _biItems.filter(i => i.confidence === 'confirm').length;
   const summary = `<div class="bi-summary">
     <div class="bi-summary-row">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#3a8dff"/><path d="M7.8 12.4l2.6 2.6 5.2-5.6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <p class="bi-summary-title">블로그 글 ${_biItems.length}개를 불러왔어요</p>
+      <img class="bi-summary-ic" src="image/ic_check_blue.svg" width="24" height="24" alt="">
+      <p class="bi-summary-title">블로그 글 <b>${_biItems.length}개</b>를 불러왔어요</p>
     </div>
     <div class="bi-chips">
-      <span class="bi-chip bi-chip-auto"><i></i>자동매칭 ${autoN}</span>
-      <span class="bi-chip bi-chip-confirm"><i></i>확인 필요 ${confirmN}</span>
+      <span class="bi-chip bi-chip-auto">자동매칭 ${autoN}</span>
+      <span class="bi-chip bi-chip-confirm">확인 필요 ${confirmN}</span>
     </div>
   </div>`;
   scroll.innerHTML = summary + '<div class="bi-list">' + _biItems.map((it, i) => biRowHtml(it, i)).join('') + '</div>';
@@ -4020,32 +4020,38 @@ function biFmtDate(d) {
 function biRowHtml(it, i) {
   const st = it._store;
   const badge = it.confidence === 'auto'
-    ? '<span class="bi-row-badge bi-badge-auto">자동매칭</span>'
+    ? '<span class="bi-row-badge bi-badge-auto">자동 매칭</span>'
     : '<span class="bi-row-badge bi-badge-confirm">확인 필요</span>';
-  const resolved = !!(it._placeId && st);   // 매칭/확정됨 → 녹색 박스
-  const needChange = (it.confidence === 'confirm' && !resolved);
+  // confirm(지역 불일치)은 제안 매장이 있어도 사용자가 직접 확인(_userPicked)하기 전엔 amber 경고 박스.
+  const needChange = (it.confidence === 'confirm' && !it._userPicked);
+  const resolved = !!(it._placeId && st) && !needChange;   // auto 또는 사용자가 고른 confirm → 매칭(빨강) 박스
+  // 매장 정보 컬럼(핀 + 이름 / 들여쓴 주소) — Figma 2003:60036/60037
+  const storeCol = (pinSrc, name, addr) => `<div class="bi-store-col">
+        <div class="bi-store-nmrow"><img class="bi-store-pin" src="${pinSrc}" width="20" height="20" alt=""><span class="bi-store-name">${rvEsc(name)}</span></div>
+        <p class="bi-store-addr">${rvEsc(addr || '')}</p>
+      </div>`;
   let storeBox = '';
-  if (needChange) {  // 확인 필요(미확정): amber 박스 + 변경 버튼
+  if (needChange) {  // 확인 필요(미확정): amber 박스 + 변경 버튼 + 안내 (Figma 2001:59309)
     storeBox = `<div class="bi-store-box bi-store-box-warn">
-      <div class="bi-store-box-head">
-        <svg class="bi-store-pin" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" fill="#f5a524"/><circle cx="12" cy="9.6" r="2.6" fill="#fff"/></svg>
-        <div class="bi-store-box-txt"><p class="bi-store-box-name">${rvEsc(st ? st.name : (it.store || '매장 미매칭'))}</p><p class="bi-store-box-addr">${rvEsc(st ? st.address : '')}</p></div>
+      <div class="bi-store-head">
+        ${storeCol('image/ic_pin_amber.svg', st ? st.name : (it.store || '매장 미매칭'), st ? st.address : '')}
         <button class="bi-change-btn" onclick="biOpenStore(${i})">변경</button>
       </div>
-      <p class="bi-store-box-hint">지역이 달라 매장 확인이 필요해요</p>
+      <p class="bi-store-hint">지역이 달라 매장 확인이 필요해요</p>
     </div>`;
-  } else if (resolved) {  // 자동매칭 / 확정됨: 녹색 박스
+  } else if (resolved) {  // 자동매칭 / 확정됨: 매칭 박스(빨강 핀, Figma 2001:59292)
     storeBox = `<div class="bi-store-box bi-store-box-ok">
-      <svg class="bi-store-pin" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" fill="#22b24a"/><circle cx="12" cy="9.6" r="2.6" fill="#fff"/></svg>
-      <div class="bi-store-box-txt"><p class="bi-store-box-name">${rvEsc(st.name)}</p><p class="bi-store-box-addr">${rvEsc(st.address || '')}</p></div>
+      ${storeCol('image/ic_pin_matched.svg', st.name, st.address)}
       ${it.confidence === 'confirm' ? `<button class="bi-change-btn" onclick="biOpenStore(${i})">변경</button>` : ''}
     </div>`;
   }
   return `<div class="bi-row${it._checked ? ' on' : ''}" data-i="${i}">
     <label class="bi-check"><input type="checkbox"${it._checked ? ' checked' : ''} onchange="biToggleItem(${i}, this.checked)"><span class="bi-check-box"></span></label>
     <div class="bi-row-main">
-      <div class="bi-row-top"><p class="bi-row-title">${rvEsc(it.title)}</p>${badge}</div>
-      <p class="bi-row-date">${rvEsc(biFmtDate(it.date))}</p>
+      <div class="bi-row-titleblock">
+        <div class="bi-row-top"><p class="bi-row-title">${rvEsc(it.title)}</p>${badge}</div>
+        <p class="bi-row-date">${rvEsc(biFmtDate(it.date))}</p>
+      </div>
       ${storeBox}
     </div>
   </div>`;
@@ -4127,6 +4133,7 @@ function biConfirmStore() {
   if (it) {
     it._placeId = _biStorePick.placeId;
     it._store = { name: _biStorePick.name, address: _biStorePick.address };
+    it._userPicked = true;   // 사용자가 직접 확인/선택 → 매칭(빨강) 박스로 전환
     it._checked = true;
   }
   closeBiStore();
