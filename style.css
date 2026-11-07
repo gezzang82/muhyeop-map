@@ -3497,8 +3497,12 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 /* 모바일: 스크롤 시 컴팩트 헤더(56px) 아래에 지역탭 고정(Figma 2050-60057) */
 @media (max-width: 640px) { .cm-region-tabs { top: 56px; } }
 .native-app .cm-region-tabs { top: calc(56px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); }
+/* PC: 커뮤니티 헤더(.cm-scroll-header, 높이 70px)가 top:0에 고정됨 → 지역탭을 그 아래로 붙여 제목을 가리지 않게 */
+body.pc-community-mode .cm-region-tabs { top: 70px; }
 /* 붙었을 때(stuck): 흰 배경 + 탭 아래 그림자(헤더 그림자는 z-index로 탭이 덮음 → 이중 방지) */
 .cm-region-tabs.cm-region-stuck { background: #fff; box-shadow: 0 4px 2px rgba(0, 0, 0, 0.04); z-index: 51; }
+/* PC: 상단 헤더(#f7f9fa)와 지역탭을 하나의 띠로 — stuck 시 흰색 대신 바탕색 유지(헤더↔탭 bg 불일치 제거), 분리는 아래 그림자로만 */
+body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 /* 지역탭이 붙으면 커뮤니티 컴팩트 헤더 그림자는 제거(탭 아래 그림자만 보이게) */
 #cmStickyHeader.cm-sticky-noshadow { box-shadow: none; }
 .cm-region-tabs::-webkit-scrollbar { display: none; }
@@ -3616,6 +3620,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   #policyOverlay .modal-header h2 { font-size: 20px; }
   #policyOverlay .modal-footer .btn-next { height: 48px; font-size: 16px; }
   .policy-modal .modal-scroll-header { display: none; }
+  /* 블로그 결과 PC 팝업: 타이틀을 후기 등록 팝업과 동일하게 20px (모바일 풀페이지는 26px 유지) */
+  .blogimport-modal .modal-scroll-header h2 { font-size: 20px; }
 }
 
 /* 모집 중인 협찬 리스트 상단 안내 문구 */
