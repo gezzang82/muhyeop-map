@@ -4299,11 +4299,13 @@ function cmStickyWatch() {
   if (!scroller) return;
   if (scroller._cmStickyH) { scroller.removeEventListener('scroll', scroller._cmStickyH); scroller._cmStickyH = null; }
   const h = () => {
+    const sh = document.getElementById('cmStickyHeader');
     const t = document.querySelector('.cm-region-tabs');
-    if (!t) return;
+    if (!t) { if (sh) sh.classList.remove('cm-sticky-noshadow'); return; }
     const offset = parseFloat(getComputedStyle(t).top) || 0;   // sticky top(모바일 56+safe / PC 0)
     const stuck = t.getBoundingClientRect().top <= scroller.getBoundingClientRect().top + offset + 1;
     t.classList.toggle('cm-region-stuck', stuck);
+    if (sh) sh.classList.toggle('cm-sticky-noshadow', stuck);  // 탭 붙으면 헤더 그림자 제거(탭 그림자만)
   };
   scroller._cmStickyH = h;
   scroller.addEventListener('scroll', h, { passive: true });

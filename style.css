@@ -3499,6 +3499,8 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
 .native-app .cm-region-tabs { top: calc(56px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); }
 /* 붙었을 때(stuck): 흰 배경 + 탭 아래 그림자(헤더 그림자는 z-index로 탭이 덮음 → 이중 방지) */
 .cm-region-tabs.cm-region-stuck { background: #fff; box-shadow: 0 4px 2px rgba(0, 0, 0, 0.04); z-index: 51; }
+/* 지역탭이 붙으면 커뮤니티 컴팩트 헤더 그림자는 제거(탭 아래 그림자만 보이게) */
+#cmStickyHeader.cm-sticky-noshadow { box-shadow: none; }
 .cm-region-tabs::-webkit-scrollbar { display: none; }
 .cm-region-tab { flex: 0 0 auto; position: relative; background: none; border: 0; padding: 0 0 6px; font-size: 16px; color: #777; white-space: nowrap; cursor: pointer; }
 .cm-region-tab.on { color: #111; font-weight: 700; }
