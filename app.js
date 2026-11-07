@@ -947,10 +947,14 @@ function initMapSearchReset() {
     el._mapResetBound = true;
     el.addEventListener('input', () => {
       if (_suppressSearchResetOnInput) return;
-      if (el.value.trim() === '' && (_nameFilter || _regionFilter || _searchCatFilter)) {
-        _nameFilter = ''; _regionFilter = ''; _searchCatFilter = '';
-        renderAll();
-      }
+      if (el.value.trim() !== '') return;
+      // 검색창을 비우면: 검색필터 + 검색핀 + 선택마커까지 해제('제자리로'). 매장명 정확일치는 필터 없이 선택마커만 남으므로 필터 유무와 무관하게 정리.
+      const had = _nameFilter || _regionFilter || _searchCatFilter || searchPinMarker || selectedMarkerId != null;
+      if (!had) return;
+      _nameFilter = ''; _regionFilter = ''; _searchCatFilter = '';
+      clearSearchPin();
+      clearSelectedMarker();  // 상세 카드가 열려있으면 renderAll이 다시 선택(1330~)하므로 '닫힌 채 남은 선택'만 해제됨
+      renderAll();
     });
   });
 }
