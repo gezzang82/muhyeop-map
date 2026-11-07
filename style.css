@@ -4315,19 +4315,22 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 
 /* 결과 리스트 */
 .bi-step-result { height: 100%; }
-.bi-result-head { flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center; height: 56px; padding: 0 16px; border-bottom: 1px solid #f0f0f0; }
+.bi-result-head { flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center; box-sizing: border-box; height: calc(56px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))); padding: max(env(safe-area-inset-top, 0px), var(--and-sat, 0px)) 16px 0; border-bottom: 1px solid #f0f0f0; }
 .bi-back { position: absolute; left: 10px; width: 40px; height: 40px; border: 0; background: transparent; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .bi-result-title { font-size: 17px; font-weight: 800; color: #1a1a1e; letter-spacing: -0.02em; }
 .bi-selectall { position: absolute; right: 16px; border: 0; background: transparent; color: #e82a2d; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; padding: 4px; }
 .bi-result-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px; }
-.bi-summary { margin-bottom: 14px; }
-.bi-summary-title { margin: 0 0 10px; font-size: 16px; font-weight: 800; color: #1a1a1e; letter-spacing: -0.02em; }
+.bi-result-h { margin: 2px 0 14px; font-size: 22px; font-weight: 800; color: #1a1a1e; letter-spacing: -0.03em; }
+.bi-summary { margin-bottom: 18px; background: #eef3fb; border-radius: 14px; padding: 16px; }
+.bi-summary-row { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
+.bi-summary-row svg { flex-shrink: 0; }
+.bi-summary-title { margin: 0; font-size: 15px; font-weight: 700; color: #1a1a1e; letter-spacing: -0.02em; }
 .bi-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.bi-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 6px 12px; }
+.bi-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 6px 12px; background: #fff; }
 .bi-chip i { width: 7px; height: 7px; border-radius: 50%; }
-.bi-chip-auto { background: #eafaef; color: #1d9b47; }
+.bi-chip-auto { color: #1d9b47; border: 1px solid #bfe6cc; }
 .bi-chip-auto i { background: #22b24a; }
-.bi-chip-confirm { background: #fff5e3; color: #c9821a; }
+.bi-chip-confirm { color: #c9821a; border: 1px solid #f3dcae; }
 .bi-chip-confirm i { background: #f5a524; }
 
 .bi-list { display: flex; flex-direction: column; }

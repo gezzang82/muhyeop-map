@@ -3994,8 +3994,12 @@ function biRenderResult(errored) {
   if (cta) cta.style.display = '';
   const autoN = _biItems.filter(i => i.confidence === 'auto').length;
   const confirmN = _biItems.filter(i => i.confidence === 'confirm').length;
-  const summary = `<div class="bi-summary">
-    <p class="bi-summary-title">블로그 글 ${_biItems.length}개를 불러왔어요</p>
+  const summary = `<h2 class="bi-result-h">내 블로그 결과</h2>
+  <div class="bi-summary">
+    <div class="bi-summary-row">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#3a8dff"/><path d="M7.8 12.4l2.6 2.6 5.2-5.6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <p class="bi-summary-title">블로그 글 ${_biItems.length}개를 불러왔어요</p>
+    </div>
     <div class="bi-chips">
       <span class="bi-chip bi-chip-auto"><i></i>자동매칭 ${autoN}</span>
       <span class="bi-chip bi-chip-confirm"><i></i>확인 필요 ${confirmN}</span>
@@ -4004,6 +4008,13 @@ function biRenderResult(errored) {
   scroll.innerHTML = summary + '<div class="bi-list">' + _biItems.map((it, i) => biRowHtml(it, i)).join('') + '</div>';
   biUpdateCta();
   biSyncSelectAll();
+}
+function biFmtDate(d) {
+  if (!d) return '';
+  const t = Date.parse(d);   // RSS pubDate("17 Aug 2026") 등 파싱 → YYYY.MM.DD
+  if (isNaN(t)) return String(d);
+  const dt = new Date(t), p = n => String(n).padStart(2, '0');
+  return dt.getFullYear() + '.' + p(dt.getMonth() + 1) + '.' + p(dt.getDate());
 }
 function biRowHtml(it, i) {
   const st = it._store;
@@ -4033,7 +4044,7 @@ function biRowHtml(it, i) {
     <label class="bi-check"><input type="checkbox"${it._checked ? ' checked' : ''} onchange="biToggleItem(${i}, this.checked)"><span class="bi-check-box"></span></label>
     <div class="bi-row-main">
       <div class="bi-row-top"><p class="bi-row-title">${rvEsc(it.title)}</p>${badge}</div>
-      <p class="bi-row-date">${rvEsc(it.date)}</p>
+      <p class="bi-row-date">${rvEsc(biFmtDate(it.date))}</p>
       ${storeBox}
     </div>
   </div>`;
