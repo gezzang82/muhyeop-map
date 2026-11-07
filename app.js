@@ -3873,9 +3873,17 @@ let _biParts = [], _biConfettiRaf = null;
 // 후기 피드 상단 진입 카드 — currentUser.urlPlatform로 A/B/C 분기. 로그아웃/미확정이면 미노출.
 // Figma 2003:59955(진입카드_변형_mockups)/1999:9294 정밀 반영: 모든 변형 공통 구조(네이버블로그 b 아이콘 인라인
 // + 타이틀 '블로그 글 불러오기' + Beta 배지). A만 파인프린트, 버튼색/문구만 변형별로 다름.
+// 로그인/SNS 힌트 캐시 — /api/auth/me 응답 전에도 진입카드를 즉시 그려 '늦게 뜨는' 현상 방지(낙관적 렌더)
+function biAuthCache() { try { return JSON.parse(localStorage.getItem('mh_bi_auth') || 'null'); } catch (e) { return null; } }
+function biSaveAuthCache() { try { localStorage.setItem('mh_bi_auth', JSON.stringify({ in: !!currentUser, plat: currentUser ? (currentUser.urlPlatform || '') : '' })); } catch (e) {} }
 function blogImportCardHtml() {
-  if (!currentUser || !_authChecked) return '';
-  const plat = currentUser.urlPlatform;
+  let plat;
+  if (currentUser) { plat = currentUser.urlPlatform || ''; }       // 확정: 세션 유저
+  else if (!_authChecked) {                                        // me 응답 전: 캐시로 낙관적 렌더
+    const c = biAuthCache();
+    if (!c || !c.in) return '';                                    // 캐시 없음/로그아웃 캐시 → 미노출
+    plat = c.plat || '';
+  } else { return ''; }                                            // me 확정됐는데 비로그인 → 미노출
   const head = (desc, note) => `<div class="bi-entry-head">
       <div class="bi-entry-titlerow">
         <img class="bi-entry-blogicon" src="image/ic_naver_blog_20.png" width="16" height="16" alt="">
@@ -4253,8 +4261,8 @@ function cmInfoBannerHtml() {
 
 // 후기 안내 배너(캐릭터 없음). mine=내 후기 세그먼트
 function cmFeedInfoHtml(mine) {
-  const txt = mine ? '내가 등록한 블로그 체험 후기예요.' : '블로그 체험 후기를 공유하는 화면입니다.';
-  return `<div class="cm-info-banner cm-info-plain"><span class="cm-info-dot"></span><p class="cm-info-text">${txt}</p></div>`;
+  if (!mine) return '';  // 후기 피드 상단 안내바 숨김(2026-11-07) — '내 후기'에서만 안내 노출
+  return `<div class="cm-info-banner cm-info-plain"><span class="cm-info-dot"></span><p class="cm-info-text">내가 등록한 블로그 체험 후기예요.</p></div>`;
 }
 // 후기 총건수 + 정렬 — 지도 상세 후기 pane과 동일 컴포넌트(rv-list-head/rv-sort) 재사용.
 function cmFeedTopHtml(total) {
@@ -5725,6 +5733,7 @@ async function refreshAuthUI() {
     currentUser = null;
   }
   _authChecked = true;
+  biSaveAuthCache();  // 다음 방문 때 진입카드 즉시 렌더용 힌트 저장(로그인/SNS 플랫폼)
   _myStatsLoaded = false;  // 세션 갱신 → 기여통계 재로드 대상(다음 MY/회원정보 열 때 me?stats=1).
   // 즐겨찾기 상태 로드(로그인 유저) → 열려있는 상세 ★ 반영. PC 즐겨찾기 모드 중이면 목록도 갱신.
   await loadFavorites();
