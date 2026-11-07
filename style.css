@@ -4292,7 +4292,7 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
   from { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; border-top-width: 0; border-bottom-width: 0; transform: translateY(-6px); }
   to   { max-height: 280px; opacity: 1; padding-top: 18px; padding-bottom: 18px; margin-bottom: 16px; transform: translateY(0); }
 }
-.bi-entry-reveal { animation: biEntryReveal .5s cubic-bezier(.2, 0, 0, 1) backwards; }
+.bi-entry-reveal { animation: biEntryReveal .6s cubic-bezier(.2, 0, 0, 1) .5s backwards; }
 @media (prefers-reduced-motion: reduce) { .bi-entry-reveal { animation: none; } }
 .bi-entry-head { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; width: 100%; min-width: 0; }
 .bi-entry-titlerow { display: flex; align-items: center; gap: 6px; max-width: 100%; }
