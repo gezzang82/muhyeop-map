@@ -3832,6 +3832,7 @@ async function renderCommunity(fresh) {
     + '<div class="rv-cards" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
   const listEl = document.getElementById('cmList');
   const sentinel = document.getElementById('cmSentinel');
+  cmStickyWatch();  // 지역탭이 상단에 붙으면 bg #fff + 탭 아래 shadow 토글
   _cmInfinite = createInfiniteScroll(root, sentinel, async (offset) => {
     const b = offset === 0 ? bust : '';
     const rg = (!mine && _cmFeedRegion && _cmFeedRegion !== '전체') ? `&region=${encodeURIComponent(_cmFeedRegion)}` : '';
@@ -4292,6 +4293,22 @@ function setCmSort(s) {
   renderCommunity();
 }
 // 후기 지역 필터 탭(전체·서울·경기·…). 가로 스크롤, 활성=볼드+밑줄바.
+// 지역탭이 스크롤로 상단에 '붙었는지' 감지 → .cm-region-stuck 토글(붙으면 bg #fff + 탭 아래 shadow)
+function cmStickyWatch() {
+  const scroller = document.getElementById('cmScroll');
+  if (!scroller) return;
+  if (scroller._cmStickyH) { scroller.removeEventListener('scroll', scroller._cmStickyH); scroller._cmStickyH = null; }
+  const h = () => {
+    const t = document.querySelector('.cm-region-tabs');
+    if (!t) return;
+    const offset = parseFloat(getComputedStyle(t).top) || 0;   // sticky top(모바일 56+safe / PC 0)
+    const stuck = t.getBoundingClientRect().top <= scroller.getBoundingClientRect().top + offset + 1;
+    t.classList.toggle('cm-region-stuck', stuck);
+  };
+  scroller._cmStickyH = h;
+  scroller.addEventListener('scroll', h, { passive: true });
+  h();
+}
 function cmRegionTabsHtml() {
   return `<div class="cm-region-tabs">${CM_REGIONS.map(r =>
     `<button class="cm-region-tab${r === _cmFeedRegion ? ' on' : ''}" onclick="setCmRegion('${r}')">${r}</button>`).join('')}</div>`;
