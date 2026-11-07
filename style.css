@@ -3622,6 +3622,9 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
   .policy-modal .modal-scroll-header { display: none; }
   /* 블로그 결과 PC 팝업: 타이틀을 후기 등록 팝업과 동일하게 20px (모바일 풀페이지는 26px 유지) */
   .blogimport-modal .modal-scroll-header h2 { font-size: 20px; }
+  /* 하단 버튼/푸터를 후기 등록 팝업과 동일하게 (버튼 48px·16px, 푸터 패딩 20px → 하단 여백 20px) */
+  .blogimport-modal .modal-footer { padding: 20px; }
+  .blogimport-modal .btn-submit, .blogimport-modal .btn-cancel { height: 48px; font-size: 16px; }
 }
 
 /* 모집 중인 협찬 리스트 상단 안내 문구 */
@@ -4399,9 +4402,10 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 .bi-empty-btn { margin-top: 20px; width: auto; min-width: 140px; }
 
 /* 완료(체크 + 컨페티) — success-animation.html 이식 */
-.bi-step-complete { position: relative; justify-content: center; align-items: center; padding: 24px; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-/* 완료 스텝 하단버튼은 흐름 배치(모달이 내용 높이로 hug돼도 겹치지 않게; stage flex:1이 아래로 밀어줌) */
-.bi-step-complete .modal-footer { position: static; align-self: stretch; }
+.bi-step-complete { position: relative; justify-content: center; align-items: center; padding: 24px 24px 0; }
+/* 완료 스텝 하단버튼은 흐름 배치(모달이 내용 높이로 hug돼도 겹치지 않게; stage flex:1이 아래로 밀어줌).
+   margin으로 스텝 좌우 패딩을 상쇄해 결과/후기등록 푸터와 동일한 폭(inset 20)·하단 여백을 갖게 함(.modal-footer 자체 패딩 사용) */
+.bi-step-complete .modal-footer { position: static; align-self: stretch; margin-left: -24px; margin-right: -24px; }
 .bi-complete-stage { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 24px; width: 100%; }
 .bi-check-wrap { position: relative; width: 80px; height: 80px; display: grid; place-items: center; }
 .bi-check-ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(18,161,80,.35) 0%, transparent 70%); opacity: 0; }
