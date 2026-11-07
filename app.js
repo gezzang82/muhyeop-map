@@ -4293,6 +4293,18 @@ function setCmSort(s) {
   renderCommunity();
 }
 // 후기 지역 필터 탭(전체·서울·경기·…). 가로 스크롤, 활성=볼드+밑줄바.
+// 후기 피드: auth 확정 후 리스트 재fetch 없이 진입카드/내후기 링크만 갱신(불필요한 재로딩 방지)
+function cmRefreshAuthChrome() {
+  const body = document.getElementById('cmBody');
+  if (!body) return;
+  const want = blogImportCardHtml();            // 현재 로그인/플랫폼 기준 진입카드(로그아웃이면 '')
+  const cur = body.querySelector('.bi-entry');
+  if (cur && want) { const d = document.createElement('div'); d.innerHTML = want; cur.replaceWith(d.firstElementChild); }
+  else if (cur && !want) { cur.remove(); }
+  else if (!cur && want) { const tabs = body.querySelector('.cm-region-tabs'); if (tabs) { const d = document.createElement('div'); d.innerHTML = want; tabs.parentNode.insertBefore(d.firstElementChild, tabs); } }
+  const link = document.getElementById('cmMyRevLink');
+  if (link) link.hidden = !(isMobileView() && !!currentUser);
+}
 // 지역탭이 스크롤로 상단에 '붙었는지' 감지 → .cm-region-stuck 토글(붙으면 bg #fff + 탭 아래 shadow)
 function cmStickyWatch() {
   const scroller = document.getElementById('cmScroll');
@@ -5769,7 +5781,12 @@ async function refreshAuthUI() {
   // 커뮤니티 탭이 열려 있으면 로그인 상태 반영해 재렌더 — 첫 진입 시 auth 확정 전 렌더되어
   // '로그인하고 SNS 등록' 프롬프트가 로그인 상태인데도 남던 문제(기본 세그먼트 seoichu 포함).
   const _cmv = document.getElementById('tabView-community');
-  if (_cmv && !_cmv.hidden) renderCommunity(true);
+  if (_cmv && !_cmv.hidden) {
+    // 후기 피드 리스트는 쿠키 기반이라 첫 fetch에 이미 정확 → auth 확정됐다고 통째로 재fetch하면
+    // 리스트가 '떴다가 몇 초 뒤 다시 로딩'됨. 후기 세그는 리스트 유지하고 진입카드/링크만 갱신.
+    if (_cmSeg === 'feed') cmRefreshAuthChrome();
+    else renderCommunity(true);   // 수다방(compose)·내 후기(로그인 의존)는 기존대로 재렌더
+  }
   // PC 하단 MY 영역 (로그인 전: 간편로그인 안내 / 로그인 후: 아바타+닉네임+로그아웃)
   const pcMyGuest = document.getElementById('pcNavMyGuest');
   const pcMyUser = document.getElementById('pcNavMyUser');
