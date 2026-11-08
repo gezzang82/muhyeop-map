@@ -64,6 +64,10 @@ public class CustomBrowserPlugin extends Plugin {
         close.setText("닫기");
         close.setTextColor(Color.BLACK);
         close.setBackgroundColor(Color.TRANSPARENT);
+        close.setAllCaps(false);
+        close.setTextSize(16);
+        close.setPadding(dp(4), 0, dp(4), 0);
+        close.setMinWidth(0); close.setMinimumWidth(0);
 
         TextView title = new TextView(getActivity());
         try { title.setText(Uri.parse(url).getHost()); } catch (Exception ignored) {}
@@ -75,11 +79,21 @@ public class CustomBrowserPlugin extends Plugin {
         refresh.setText("↻"); // ↻
         refresh.setTextColor(Color.BLACK);
         refresh.setBackgroundColor(Color.TRANSPARENT);
+        refresh.setAllCaps(false);
+        refresh.setTextSize(24);
+        refresh.setPadding(dp(4), 0, dp(4), 0);
+        refresh.setMinWidth(0); refresh.setMinimumWidth(0);
 
         final WebView webView = new WebView(getActivity());
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
+        // 안드 WebView UA엔 '; wv' 마커가 있어 일부 사이트(리뷰노트 등)가 "웹뷰 감지→앱 업데이트 넛지"를 띄움.
+        // 'wv' 마커를 빼 일반 Chrome처럼 보이게 → 그 넛지 제거(iOS는 UA에 wv 없어 무관).
+        try {
+            String ua = s.getUserAgentString();
+            if (ua != null && ua.contains("wv")) s.setUserAgentString(ua.replace("; wv", "").replace(" wv", ""));
+        } catch (Exception ignored) {}
         CookieManager.getInstance().setAcceptCookie(true);
         if (Build.VERSION.SDK_INT >= 21) CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
         webView.setWebViewClient(new WebViewClient() {
@@ -124,6 +138,7 @@ public class CustomBrowserPlugin extends Plugin {
         });
         dialog.setOnDismissListener(d -> { try { CookieManager.getInstance().flush(); } catch (Exception ignored) {} });
         dialog.setContentView(root);
+        if (dialog.getWindow() != null) dialog.getWindow().setWindowAnimations(R.style.CustomBrowserSlide); // 아래→위 슬라이드(iOS 모달 느낌)
         dialog.show();
         webView.loadUrl(url);
     }
