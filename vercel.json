@@ -4,6 +4,20 @@
       "maxDuration": 300
     }
   },
+  "headers": [
+    {
+      "source": "/",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }]
+    },
+    {
+      "source": "/index.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }]
+    },
+    {
+      "source": "/app.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }]
+    }
+  ],
   "crons": [
     { "path": "/api/campaigns?action=igcron", "schedule": "0 2 * * *" }
   ],
