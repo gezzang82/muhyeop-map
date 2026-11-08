@@ -470,9 +470,12 @@
             <span class="bi-complete-pill bi-rise bi-d3" id="biCompletePill">등록 0 · 건너뜀 0</span>
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" onclick="biGoHome()">홈으로</button>
-          <button class="btn-submit" onclick="biGoMyReviews()">내 후기 보러가기</button>
+        <div class="bi-complete-footer" id="biCompleteFooter">
+          <button class="btn-submit" id="biContinueBtn" onclick="biContinue()" hidden>이어서 더 불러오기</button>
+          <div class="modal-footer">
+            <button class="btn-cancel" onclick="biGoHome()">홈으로</button>
+            <button class="btn-submit" onclick="biGoMyReviews()">내 후기 보러가기</button>
+          </div>
         </div>
       </div>
       <canvas class="bi-confetti" id="biConfetti"></canvas>

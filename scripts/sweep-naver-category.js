@@ -24,8 +24,10 @@ const { mapNaverCat } = require('../api/_scrape');
 // ── 인자 ──
 const arg = (k) => { const a = process.argv.find(x => x.startsWith(k + '=')); return a ? a.slice(k.length + 1) : null; };
 const APPLY = process.argv.includes('apply');
+const VERBOSE = process.argv.includes('verbose');  // 변경없음 포함 모든 매칭 항목의 네이버 카테고리 출력(점검용)
 const CAT = arg('cat');              // 대상 카테고리(기본 '기타'), namelike 지정 시 무시 가능
 const NAMELIKE = arg('namelike');    // 이름 LIKE 대상(예: 안마의자)
+const IDS = (arg('ids') || '').split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);  // 특정 매장 id만(콤마구분) — DRY에서 검증한 '안전한' 후보만 선별 적용
 const LIMIT = parseInt(arg('limit') || '0', 10) || 0;
 const THROTTLE_MS = parseInt(arg('throttle') || '250', 10);
 const BATCH = 500;
@@ -82,12 +84,14 @@ async function resolveNaverCat(name, addr) {
 
   // 대상 선정
   let where, params = [];
-  if (NAMELIKE) { where = "name LIKE ? AND COALESCE(hidden,0)=0"; params = ['%' + NAMELIKE + '%']; }
+  if (IDS.length) { where = `id IN (${IDS.map(() => '?').join(',')})`; params = IDS; }
+  else if (NAMELIKE) { where = "name LIKE ? AND COALESCE(hidden,0)=0"; params = ['%' + NAMELIKE + '%']; }
   else { where = "COALESCE(category,'기타') = ? AND COALESCE(hidden,0)=0"; params = [CAT || '기타']; }
   let sql = `SELECT id, name, address, category FROM places WHERE ${where} ORDER BY id`;
   if (LIMIT) sql += ` LIMIT ${LIMIT}`;
   const rows = (await db.execute({ sql, args: params })).rows;
-  console.log(`대상 ${rows.length}건  (${NAMELIKE ? 'name~'+NAMELIKE : 'category='+(CAT||'기타')})  모드: ${APPLY ? 'APPLY(실제 쓰기)' : 'DRY(미리보기)'}`);
+  const label = IDS.length ? `ids=${IDS.length}개` : (NAMELIKE ? 'name~' + NAMELIKE : 'category=' + (CAT || '기타'));
+  console.log(`대상 ${rows.length}건  (${label})  모드: ${APPLY ? 'APPLY(실제 쓰기)' : 'DRY(미리보기)'}`);
   console.log('');
 
   const changes = [];            // {id, name, cur, next, ncat}
@@ -104,7 +108,7 @@ async function resolveNaverCat(name, addr) {
       if (next && next !== cur) {
         changes.push({ id: Number(p.id), name: p.name, cur, next, ncat: r.category });
         console.log(`  #${p.id} ${p.name}  [${cur}] → [${next}]   (네이버: ${r.category || '?'})`);
-      } else same++;
+      } else { same++; if (VERBOSE) console.log(`  =#${p.id} ${p.name}  [${cur}]   (네이버: ${r.category || '?'})`); }
     }
     if ((i + 1) % 200 === 0) console.log(`  …진행 ${i + 1}/${rows.length}  (변경후보 ${changes.length})`);
     await sleep(THROTTLE_MS);

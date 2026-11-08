@@ -4424,6 +4424,10 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 /* 완료 스텝 하단버튼은 흐름 배치(모달이 내용 높이로 hug돼도 겹치지 않게; stage flex:1이 아래로 밀어줌).
    margin으로 스텝 좌우 패딩을 상쇄해 결과/후기등록 푸터와 동일한 폭(inset 20)·하단 여백을 갖게 함(.modal-footer 자체 패딩 사용) */
 .bi-step-complete .modal-footer { position: static; align-self: stretch; margin-left: -24px; margin-right: -24px; }
+/* 완료 푸터: '이어서 더 불러오기'(있을 때)를 홈으로/내후기 행 위에 쌓음 */
+.bi-complete-footer { align-self: stretch; }
+/* 스텝 좌우패딩(24)과 모달푸터 버튼 인셋(20)의 차(4px)를 상쇄해 아래 버튼행과 좌우 정렬 */
+.bi-complete-footer #biContinueBtn { width: calc(100% + 8px); margin: 0 -4px 10px; }
 .bi-complete-stage { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 24px; width: 100%; }
 .bi-check-wrap { position: relative; width: 80px; height: 80px; display: grid; place-items: center; }
 .bi-check-ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(18,161,80,.35) 0%, transparent 70%); opacity: 0; }

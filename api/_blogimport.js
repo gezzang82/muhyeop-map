@@ -22,31 +22,37 @@ async function fetchBlogPosts(blogId, limit = 50) {
   })).filter(p => p.title && p.link);
 }
 
-// 네이버 블로그 글목록 API(PostTitleListAsync) — 페이지네이션으로 '전체' 글(제목·logNo·작성일). 요약은 없음(제목만).
-//  과거 글까지 불러오기용(RSS는 최근 ~50개 한계). 제목에 매장명이 들어가는 체험단 특성상 제목만으로 매칭 가능.
+// 네이버 블로그 글목록 API(PostTitleListAsync) — 한 페이지(≤30개) 글(제목·logNo·작성일). 요약 없음(제목만).
+//  제목에 매장명이 들어가는 체험단 특성상 제목만으로 매칭 가능. 반환: {posts, isLast}(isLast=마지막 페이지/더 없음).
+async function fetchBlogPage(blogId, page) {
+  const decTitle = (t) => { try { return decodeURIComponent(String(t).replace(/\+/g, ' ')).trim(); } catch (e) { return String(t).replace(/\+/g, ' ').trim(); } };
+  let text = '';
+  try {
+    const r = await fetch(`https://blog.naver.com/PostTitleListAsync.naver?blogId=${encodeURIComponent(blogId)}&currentPage=${page}&countPerPage=30&categoryNo=0`, { headers: { 'User-Agent': 'Mozilla/5.0', Referer: `https://blog.naver.com/${blogId}` } });
+    if (!r.ok) return { posts: [], isLast: true };
+    text = await r.text();  // ⚠️ JSON.parse 금지: 응답에 깨진 이스케이프 있어 던짐 → 정규식 추출
+  } catch (e) { return { posts: [], isLast: true }; }
+  const matches = [...text.matchAll(/"logNo":"(\d+)"[\s\S]*?"title":"([^"]*)"[\s\S]*?"addDate":"([^"]*)"/g)];
+  const posts = [];
+  for (const m of matches) {
+    const logNo = m[1], title = decTitle(m[2]);
+    if (!title || !logNo) continue;
+    const d = String(m[3] || '').replace(/\s/g, '').replace(/\.$/, '').split('.'); // "2026. 11. 1." → ["2026","11","1"]
+    const date = d.length === 3 ? `${d[0]}-${String(d[1]).padStart(2, '0')}-${String(d[2]).padStart(2, '0')}` : '';
+    posts.push({ title, link: `https://blog.naver.com/${blogId}/${logNo}`, date, desc: '' });
+  }
+  const totalM = text.match(/"totalCount":"?(\d+)"?/);
+  const isLast = (!matches.length) || (matches.length < 30) || !!(totalM && page * 30 >= Number(totalM[1]));
+  return { posts, isLast };
+}
+
+// 과거 글까지 '전체'(유지보수/스크립트용). importList는 페이지 단위 배치(fetchBlogPage)를 직접 쓴다.
 async function fetchAllBlogPosts(blogId, maxPosts = 300) {
   const out = [];
-  const decTitle = (t) => { try { return decodeURIComponent(String(t).replace(/\+/g, ' ')).trim(); } catch (e) { return String(t).replace(/\+/g, ' ').trim(); } };
   for (let page = 1; page <= 20 && out.length < maxPosts; page++) {
-    let text = '';
-    try {
-      const r = await fetch(`https://blog.naver.com/PostTitleListAsync.naver?blogId=${encodeURIComponent(blogId)}&currentPage=${page}&countPerPage=30&categoryNo=0`, { headers: { 'User-Agent': 'Mozilla/5.0', Referer: `https://blog.naver.com/${blogId}` } });
-      if (!r.ok) break;
-      text = await r.text();  // ⚠️ JSON.parse 금지: 응답에 깨진 이스케이프 있어 던짐 → 정규식 추출
-    } catch (e) { break; }
-    // 아이템별 logNo→title→addDate 순서 추출(title은 URL인코딩이라 " 없음)
-    const matches = [...text.matchAll(/"logNo":"(\d+)"[\s\S]*?"title":"([^"]*)"[\s\S]*?"addDate":"([^"]*)"/g)];
-    if (!matches.length) break;
-    for (const m of matches) {
-      const logNo = m[1], title = decTitle(m[2]);
-      if (!title || !logNo) continue;
-      const d = String(m[3] || '').replace(/\s/g, '').replace(/\.$/, '').split('.'); // "2026. 11. 1." → ["2026","11","1"]
-      const date = d.length === 3 ? `${d[0]}-${String(d[1]).padStart(2, '0')}-${String(d[2]).padStart(2, '0')}` : '';
-      out.push({ title, link: `https://blog.naver.com/${blogId}/${logNo}`, date, desc: '' });
-    }
-    const totalM = text.match(/"totalCount":"?(\d+)"?/);
-    if (totalM && page * 30 >= Number(totalM[1])) break;
-    if (matches.length < 30) break; // 마지막 페이지
+    const { posts, isLast } = await fetchBlogPage(blogId, page);
+    out.push(...posts);
+    if (isLast) break;
     await new Promise(r => setTimeout(r, 120)); // throttle
   }
   return out.slice(0, maxPosts);
@@ -114,22 +120,34 @@ async function matchPlace(db, storeName, region) {
   return { placeId: place.id, name: place.name, address: place.address, confidence: (regHit.length && nameExact) ? 'auto' : 'confirm' };
 }
 
-// 메인: 블로그 → [{title, link, date, store, region, match, confidence}]. existingUrls=이미 등록된 후기 url(Set) 제외.
-//  all=true → RSS(최근50) 대신 글목록 API로 '과거 글까지 전체'. 이미 등록된 건 existingUrls로 제외(중복 방지).
-async function importList({ db, blogId, existingUrls = new Set(), all = false }) {
-  const posts = all ? await fetchAllBlogPosts(blogId) : await fetchBlogPosts(blogId);
-  if (!posts.length) return { postCount: 0, items: [] };
-  // ⚡ 이미 등록된 글은 AI 돌리기 전에 먼저 제외 → 새 글만 AI 분석(반복 실행 시 점점 빨라짐)
-  const newPosts = posts.filter(p => !existingUrls.has(p.link));
-  if (!newPosts.length) return { postCount: posts.length, items: [] };
-  const ex = await extractPosts(newPosts);
+// 메인(배치): 블로그 → [{title, link, date, store, region, match, confidence}].
+//  existingUrls=이미 등록된 후기 url(Set). **최신 페이지부터 순회하며 '아직 등록 안 된 글'을 batch(기본 30)개까지만** 모아 AI 분석.
+//  → 한 번에 너무 많이 안 뜨고(검토 피로↓) AI도 ≤30건만(빠름). 등록 후 '다시 불러오기'하면 existingUrls가 늘어 자연히 그 다음(더 과거) 30개가 뜸.
+//  done=true: 더 불러올 미등록 글이 없음(전부 등록했거나 블로그 끝까지 도달).
+async function importList({ db, blogId, existingUrls = new Set(), batch = 30, maxPages = 20 }) {
+  // 1) 최신부터 페이지 순회 → 미등록 글을 batch개 모을 때까지(또는 블로그 끝)
+  const collected = [];
+  let reachedEnd = false;
+  for (let page = 1; page <= maxPages; page++) {
+    const { posts, isLast } = await fetchBlogPage(blogId, page);
+    for (const p of posts) { if (!existingUrls.has(p.link)) collected.push(p); }
+    if (collected.length >= batch) break;      // 이 배치 분량 충분(뒤에 더 있을 수 있음)
+    if (isLast) { reachedEnd = true; break; }   // 블로그 끝까지 왔는데 batch 미만 → 마지막 배치
+    await new Promise(r => setTimeout(r, 120)); // throttle
+  }
+  const take = collected.slice(0, batch);
+  // 모은 게 batch 미만이고 블로그 끝까지 왔으면, 이번이 마지막(더 없음)
+  const done = reachedEnd && collected.length <= batch;
+  if (!take.length) return { items: [], done: true };
+  // 2) AI 추출(≤batch건 → 보통 청크 1회, 빠름)
+  const ex = await extractPosts(take);
   const byIdx = {}; (ex || []).forEach(e => { if (e && e.idx != null) byIdx[e.idx] = e; });
-  // 매칭용 매장 메모리 1회 로드(글마다 DB 풀스캔 방지 — 전체 불러오기 성능/읽기량 최적화)
+  // 3) 매칭용 매장 메모리 1회 로드(글마다 DB 풀스캔 방지)
   let allPlaces = [];
   try { allPlaces = (await db.execute("SELECT id, name, address FROM places WHERE COALESCE(hidden,0)=0")).rows; allPlaces.forEach(p => { p._n = norm(p.name); }); } catch (e) {}
   const items = [];
-  for (let i = 0; i < newPosts.length; i++) {
-    const p = newPosts[i];
+  for (let i = 0; i < take.length; i++) {
+    const p = take[i];
     const e = byIdx[i] || {};
     if (!e.isStoreReview) continue;                 // 매장 체험후기 아님 제외
     const mt = matchPlaceInMem(allPlaces, e.storeName, e.region);
@@ -140,7 +158,7 @@ async function importList({ db, blogId, existingUrls = new Set(), all = false })
       confidence: mt ? mt.confidence : 'none',       // auto | confirm | none
     });
   }
-  return { postCount: posts.length, items };
+  return { items, done };
 }
 
-module.exports = { importList, fetchBlogPosts, fetchAllBlogPosts, extractPosts, matchPlace };
+module.exports = { importList, fetchBlogPosts, fetchBlogPage, fetchAllBlogPosts, extractPosts, matchPlace };

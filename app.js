@@ -3874,6 +3874,7 @@ let _biStorePick = null;  // 시트에서 고른 매장 {placeId,name,address}
 let _biStoreRows = [];    // 매장검색 결과(인덱스로 선택)
 let _biStoreTimer = null;
 let _biLoadTimer = null, _biLoadN = 0, _biLoadStart = 0;
+let _biDone = false;  // 서버 배치 응답: 더 불러올(과거) 미등록 글이 없음 → '이어서 더 불러오기' 숨김
 let _biParts = [], _biConfettiRaf = null;
 let _biEntryRevealed = false;  // 진입카드 '펼쳐지며 등장' 애니 1회성(커뮤니티 열 때마다 리셋, me 재렌더 시 중복재생 방지)
 
@@ -3952,7 +3953,7 @@ function biStartLoad() {
     dots = (dots + 1) % 4;
     if (label) label.textContent = base + '.'.repeat(dots);
   }, 450);
-  fetch('/api/places?blogimport=list&scope=all')
+  fetch('/api/places?blogimport=list')   // 서버가 미등록 글 최신 30개씩 배치 반환
     .then(async r => {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw Object.assign(new Error('fail'), { body: j, status: r.status });
@@ -3962,9 +3963,7 @@ function biStartLoad() {
     .catch(err => biHandleError(err));
 }
 function biFinishLoad(data) {
-  const label = document.getElementById('biLoadCount');
-  const postCount = Number((data && data.postCount) || 0);
-  if (label && postCount) label.textContent = `글 ${postCount}개 확인 중…`;
+  _biDone = !!(data && data.done);   // 더 과거 미등록 글 없음
   const all = (data && Array.isArray(data.items)) ? data.items : [];
   // 매장없음(confidence==='none')은 목록에서 제외(2026-11-07 결정)
   _biItems = all.filter(it => it && it.confidence !== 'none').map(it => ({
@@ -4010,9 +4009,9 @@ function biRenderResult(errored) {
     if (commitBtn) commitBtn.hidden = true;     // 빨강 '등록하기' 숨김
     if (closeBtn) closeBtn.hidden = false;      // 라인(검정 텍스트) '닫기'를 하단 고정으로
     scroll.innerHTML = `<div class="bi-empty">
-      <p class="bi-empty-title">불러올 체험단 후기를 못 찾았어요</p>
-      <p class="bi-empty-desc">${errored ? '잠시 후 다시 시도해주세요.' : '최근 글에서 새로 등록할 체험단 후기를 찾지 못했어요.'}</p>
-      ${errored ? '' : '<p class="bi-empty-desc">오래된 글(최근 50개 밖)은 자동으로 못 불러와요.<br><a class="bi-note-link" onclick="closeBlogImport();openReviewRegister()">후기 직접 등록하기</a></p>'}
+      <p class="bi-empty-title">${errored ? '불러오지 못했어요' : (_biDone ? '모두 불러왔어요' : '새로 등록할 후기를 못 찾았어요')}</p>
+      <p class="bi-empty-desc">${errored ? '잠시 후 다시 시도해주세요.' : (_biDone ? '블로그의 체험단 후기를 전부 확인했어요.<br>새 글을 쓰면 다시 불러올 수 있어요.' : '이 구간에서 새로 등록할 체험단 후기를 찾지 못했어요.')}</p>
+      ${errored ? '' : '<p class="bi-empty-desc"><a class="bi-note-link" onclick="closeBlogImport();openReviewRegister()">후기 직접 등록하기</a></p>'}
     </div>`;
     return;
   }
@@ -4032,7 +4031,7 @@ function biRenderResult(errored) {
     </div>
   </div>`;
   scroll.innerHTML = summary + '<div class="bi-list">' + _biItems.map((it, i) => biRowHtml(it, i)).join('') + '</div>'
-    + '<p class="bi-note">최근 50개 글만 자동으로 불러와요. 더 예전 후기는 <a class="bi-note-link" onclick="closeBlogImport();openReviewRegister()">후기 등록</a>에서 직접 올릴 수 있어요.</p>';
+    + `<p class="bi-note">최신 글부터 30개씩 찾아요.${_biDone ? ' 이게 마지막이에요.' : " 등록하면 '이어서 더 불러오기'로 그 다음 과거 글을 찾아요."}</p>`;
   biUpdateCta();
   biSyncSelectAll();
 }
@@ -4188,8 +4187,16 @@ function biShowComplete(res) {
   const pill = document.getElementById('biCompletePill');
   if (title) title.textContent = `후기 ${registered}개가 등록됐어요!`;
   if (pill) pill.textContent = `등록 ${registered} · 건너뜀 ${skipped + failed}`;
+  const cont = document.getElementById('biContinueBtn');
+  if (cont) cont.hidden = _biDone;   // 이번 배치가 마지막이 아니면 '이어서 더 불러오기' 노출
   biShowStep('complete');
   biPlaySuccess();
+}
+// 등록 후 그 다음(더 과거) 배치 이어서 불러오기 — 서버가 방금 등록분을 existingUrls로 제외해 다음 30개 반환
+function biContinue() {
+  biStopConfetti();
+  biShowStep('loading');
+  biStartLoad();
 }
 // 체크 드로우인 + 컨페티 버스트 (success-animation.html 프로토타입 이식)
 function biPlaySuccess() {
