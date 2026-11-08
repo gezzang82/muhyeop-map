@@ -4,7 +4,8 @@
 const norm = s => String(s || '').replace(/\s/g, '').toLowerCase();
 
 // 네이버 블로그 공개 RSS로 최근 글 목록(제목·링크·날짜·요약). 권한/스코프 불필요.
-async function fetchBlogPosts(blogId, limit = 30) {
+//  limit=50: UI 안내("최근 50개까지")와 일치. RSS 자체가 최근 ~50개만 노출 → 그보다 과거 글은 불러오기 불가(수동 등록).
+async function fetchBlogPosts(blogId, limit = 50) {
   let xml = '';
   try {
     const r = await fetch(`https://rss.blog.naver.com/${encodeURIComponent(blogId)}.xml`);
