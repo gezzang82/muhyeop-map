@@ -84,6 +84,9 @@
 - **저장 성공 토스트**: 내 장소 저장 시 `mlSave`(모바일)·`pcPlaceSave`(PC) 공통으로 **'내 장소가 추가되었어요'(신규)/'변경사항을 저장했어요'(수정)** 토스트. 이전엔 시트만 닫혀 저장 여부가 불확실했음. (PC는 `pcPlaceSave`로 경로가 달라 둘 다 배선)
 - **알림설정 3분류 + 서버 게이트(2026-11-05)**: MY>알림설정 토글이 **전체 알림 받기(마스터) + 하위 3종(내 장소 신규협찬 `alarmNewCampaign` / 커뮤니티 `alarmCommunity` / 이벤트·공지 `alarmEvent`)**. `onAlarmToggle`이 각 효력값(**마스터 && 하위**)을 계산해 **`POST /api/users?push=notifpref {digest, comment, event}`** 로 서버 3컬럼(`push_digest_enabled`/`push_comment_enabled`/`push_event_enabled`)에 반영(로그인 유저). 끄면 실제 발송 억제: digest=하루요약, comment=수다방 댓글(`handleSeoichuCommentAdd`가 작성자 `push_comment_enabled` 체크), event=이벤트 브로드캐스트(발송 시 끈 유저 제외, 단 **비로그인 기기는 user_id 없어 못 거름=한계**). 마스터 OFF면 하위 3개 dim+비활성(`applyAlarmGate`)+서버 3값 0. 커뮤니티 토글 신설(2026-11-05, 기존 digestpref→notifpref로 확장, 구버전 클라용 digestpref는 유지). per-place on/off는 내 장소별 `alarm_enabled`([[api-db]]).
 
+## 커뮤니티 후기 지역탭 (2026-11-08)
+- 후기 피드 상단 지역탭(`cmRegionTabsHtml`, `.cm-region-tabs` 가로 스크롤, `_cmFeedRegion`). `setCmRegion`이 `renderCommunity`로 피드를 통째 재렌더해 탭 DOM이 새로 그려짐 → **스와이프로 우측 지역(전남 등)을 선택하면 탭 줄이 맨 앞(전체)으로 리셋되던 버그** → `setCmRegion`이 재렌더 전 `.cm-region-tabs.scrollLeft`를 저장했다가 직후 + `requestAnimationFrame`으로 복원(브라우저 스크롤 리셋 방지).
+
 ## 커뮤니티 후기 정렬 (2026-10-10)
 - 후기 피드(`_cmFeedSort`)·내 후기(`_myRevSort`) **기본 정렬을 좋아요순 → 최신순(`latest`)** 으로 변경(새 후기가 바로 안 보여 최신순이 자연스러움). 매장별 후기 리스트(`_reviewSort`)는 기존대로 최신순. 좋아요순은 정렬 버튼 토글로 유지.
 

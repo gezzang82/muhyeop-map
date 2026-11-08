@@ -4518,8 +4518,15 @@ function cmRegionTabsHtml() {
 }
 function setCmRegion(r) {
   if (r === _cmFeedRegion) return;
+  // 지역탭은 가로 스크롤인데 renderCommunity가 탭 DOM을 새로 그려 scrollLeft가 0으로 리셋됨
+  //  (스와이프해서 '전남' 누르면 탭 줄이 맨 앞으로 돌아가던 버그) → 현재 스크롤 위치를 저장했다 복원.
+  const prev = document.querySelector('.cm-region-tabs');
+  const sl = prev ? prev.scrollLeft : 0;
   _cmFeedRegion = r;
   renderCommunity();
+  const restore = () => { const now = document.querySelector('.cm-region-tabs'); if (now) now.scrollLeft = sl; };
+  restore();
+  requestAnimationFrame(restore);  // 레이아웃 반영 후 한 번 더(브라우저 스크롤 복원 방지)
 }
 // '내 후기' — 후기 화면 링크 → 별도 서브화면(백버튼). 후기 카드/정렬은 기존 컴포넌트 재사용.
 let _myRevSort = 'latest';
