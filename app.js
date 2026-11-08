@@ -1715,7 +1715,7 @@ function setReviewSort(placeId, sort) {
   loadReviews(placeId, sort);
 }
 
-function reviewCardHtml(r, isPreview) {
+function reviewCardHtml(r, isPreview, showStore) {
   const date = fmtReviewDate(r.postDate) || fmtReviewDate(r.createdAt);
   // 본인이 올린 후기에만 삭제 뱃지(썸네일 우하단) 노출
   const delBadge = (!isPreview && r.mine)
@@ -1733,14 +1733,31 @@ function reviewCardHtml(r, isPreview) {
     : `${byline}
        <button class="rv-like${r.liked ? ' liked' : ''}" onclick="event.stopPropagation();toggleReviewLike(${r.id}, this)">${rvHeart()}<span class="rv-like-count">${r.likeCount || 0}</span></button>`;
   const clickAttr = isPreview ? '' : ` onclick="trackReviewClick(${r.id});openExternal('${rvEsc(r.url)}')"`;
-  return `<div class="rv-card"${clickAttr}>
-      ${thumb}
+  const bodyRow = `${thumb}
       <div class="rv-card-body">
         <p class="rv-card-title">${rvEsc(r.title)}</p>
         <p class="rv-card-excerpt">${rvEsc(r.excerpt)}</p>
         <div class="rv-card-meta">${meta}</div>
-      </div>
-    </div>`;
+      </div>`;
+  // 커뮤니티 후기/내 후기 카드엔 매장명 헤더(탭 시 홈 지도의 그 매장 상세로 이동). 매장 상세 후기탭·미리보기엔 미노출
+  if (showStore && r.placeId && r.placeName) {
+    const storeHeader = `<button class="rv-card-store" onclick="event.stopPropagation();openReviewPlace(${r.placeId})"><span class="rv-card-store-name">${rvEsc(r.placeName)}</span><svg class="rv-card-store-arrow" width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    return `<div class="rv-card rv-card--store"${clickAttr}>${storeHeader}<div class="rv-card-row">${bodyRow}</div></div>`;
+  }
+  return `<div class="rv-card"${clickAttr}>${bodyRow}</div>`;
+}
+
+// 커뮤니티 후기 카드의 매장명 탭 → 홈(지도)으로 전환 후 그 매장 상세 열기(모바일 GNB / PC 탭 각각)
+function openReviewPlace(placeId) {
+  if (!placeId) return;
+  try {
+    if (document.body.classList.contains('pc-community-mode')) {
+      if (typeof switchPcTab === 'function') switchPcTab('home');
+    } else if (typeof switchTab === 'function') {
+      switchTab('home', { silent: true });
+    }
+  } catch (e) {}
+  try { if (typeof focusPlace === 'function') focusPlace(placeId); } catch (e) {}
 }
 
 function toggleReviewSort(placeId) {
@@ -3416,9 +3433,12 @@ function switchTab(tab, opts) {
   }
   if (tab === 'community') {
     bindMobileScrollHeader('cmScroll', 'cmScrollHeader', 'cmStickyHeader');
-    const sh = document.getElementById('cmStickyHeader'); if (sh) sh.classList.remove('show');
-    const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
-    openCommunity();
+    // 이미 렌더됐으면(홈 갔다 재진입) 스크롤·세그먼트·목록 그대로 유지 — 재렌더/스크롤리셋 안 함(#2)
+    if (!_cmRendered) {
+      const sh = document.getElementById('cmStickyHeader'); if (sh) sh.classList.remove('show');
+      const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+      openCommunity();
+    }
     markCommunitySeen();  // 커뮤니티 열람 → GNB 새글 점 제거(봤음 기록)
   }
   if (tab === 'my') {
@@ -3728,6 +3748,7 @@ function renderFavSidebar(list, countEl) {
 //  - 후기: 전체 후기 피드(매소리 포스트잇). - 내 후기: 로그인 본인 후기만.
 // 설계/결정: docs/product/17-travel-pins.md · 06-decision-log(2026-10-02).
 let _cmSeg = 'seoichu';
+let _cmRendered = false;      // 커뮤니티 1회 렌더 여부 — 홈↔커뮤니티 전환 시 재렌더/스크롤리셋 없이 상태 유지(#2)
 let _cmFeedSort = 'latest';   // 후기 정렬 기본=최신순: 'likes'(좋아요 순) | 'latest'(최신 순)
 let _cmFeedRegion = '전체';    // 후기 지역 필터(시/도). '전체'=필터 없음
 const CM_REGIONS = ['전체', '서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
@@ -3768,6 +3789,7 @@ function openCommunity() {
   bindCmTopBtn();
   updateCommunitySegUI();
   renderCommunity();
+  _cmRendered = true;   // 이후 홈↔커뮤니티 재진입 시 상태 유지(#2)
 }
 // 우하단 플로팅: 이웃찾기=스크롤 투 탑(↑), 후기=후기작성(연필 FAB)
 let _cmTopBound = false;
@@ -3803,6 +3825,7 @@ function updateCommunitySegUI() {
   const fab = document.getElementById('cmWriteFab'); if (fab) fab.hidden = !isReview;        // 후기작성 FAB는 후기/내후기에서
   const top = document.getElementById('cmTopBtn'); if (top && isReview) top.hidden = true;   // 후기 계열에선 탑버튼 안 씀
 }
+function cmCenterSpinner() { return '<div class="cm-center-loading"><span class="cm-center-spinner"></span></div>'; }
 async function renderCommunity(fresh) {
   const body = document.getElementById('cmBody');
   if (!body) return;
@@ -3813,7 +3836,7 @@ async function renderCommunity(fresh) {
 
   if (_cmSeg === 'seoichu') {
     body.innerHTML = cmInfoBannerHtml() + seoichuComposeHtml()
-      + '<div class="cm-sc-list" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
+      + '<div class="cm-sc-list" id="cmList">' + cmCenterSpinner() + '</div><div class="cm-infinite" id="cmSentinel"></div>';
     const listEl = document.getElementById('cmList');
     const sentinel = document.getElementById('cmSentinel');
     _cmInfinite = createInfiniteScroll(root, sentinel, async (offset) => {
@@ -3825,6 +3848,7 @@ async function renderCommunity(fresh) {
         listEl.innerHTML = '<div class="cm-empty"><p class="cm-empty-title">아직 인사가 없어요</p><p class="cm-empty-desc">첫 인사를 남겨보세요. 이웃을 맺고 함께 소통해요.</p></div>';
         return 0;
       }
+      if (offset === 0) listEl.innerHTML = '';   // 첫 페이지: 로딩 스피너 제거
       listEl.insertAdjacentHTML('beforeend', posts.map(seoichuPostHtml).join(''));
       return posts.length;
     });
@@ -3840,7 +3864,7 @@ async function renderCommunity(fresh) {
     return;
   }
   body.innerHTML = cmFeedInfoHtml(mine) + (mine ? '' : blogImportCardHtml()) + (mine ? '' : cmRegionTabsHtml()) + cmFeedTopHtml(0)
-    + '<div class="rv-cards" id="cmList"></div><div class="cm-infinite" id="cmSentinel"></div>';
+    + '<div class="rv-cards" id="cmList">' + cmCenterSpinner() + '</div><div class="cm-infinite" id="cmSentinel"></div>';
   const listEl = document.getElementById('cmList');
   const sentinel = document.getElementById('cmSentinel');
   cmStickyWatch();  // 지역탭이 상단에 붙으면 bg #fff + 탭 아래 shadow 토글
@@ -3860,8 +3884,9 @@ async function renderCommunity(fresh) {
           : cmEmptyHtml('아직 후기가 없어요', '첫 후기를 남겨보세요.');
         return 0;
       }
+      listEl.innerHTML = '';   // 첫 페이지: 로딩 스피너 제거
     }
-    listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false)).join(''));
+    listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false, true)).join(''));
     return items.length;
   });
 }
@@ -4481,8 +4506,9 @@ function renderMyReviews() {
         listEl.innerHTML = '<div class="cm-empty"><p class="cm-empty-title">아직 등록한 후기가 없어요</p><p class="cm-empty-desc">다녀온 곳의 블로그 후기를 등록해보세요.</p></div>';
         return 0;
       }
+      listEl.innerHTML = '';   // 첫 페이지: 로딩 스피너 제거
     }
-    listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false)).join(''));
+    listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false, true)).join(''));
     return items.length;
   });
 }

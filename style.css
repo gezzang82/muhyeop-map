@@ -3555,6 +3555,15 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 .rv-card-author--founder { color: #006cff; }
 .rv-card-dot { width: 2px; height: 2px; border-radius: 50%; background: #bbb; flex-shrink: 0; }
 .rv-card-date { font-size: 12px; color: #777; line-height: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 커뮤니티 후기 카드 매장명 헤더(매장명 + › + 구분선) — 탭 시 그 매장 상세로 */
+.rv-card-row { display: flex; gap: 16px; align-items: center; width: 100%; }
+.rv-card-store { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0 0 12px; border: 0; border-bottom: 1px solid #eee; background: none; cursor: pointer; text-align: left; font-family: inherit; }
+.rv-card-store-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-card-store-arrow { flex-shrink: 0; color: #bbb; }
+/* 커뮤니티 세그먼트 전환/첫 로드 가운데 로딩 스피너 */
+.cm-center-loading { display: flex; justify-content: center; align-items: center; padding: 48px 0; width: 100%; }
+.cm-center-spinner { width: 26px; height: 26px; border: 2.5px solid #e5e5e5; border-top-color: #999; border-radius: 50%; animation: cm-spin-c 0.7s linear infinite; }
+@keyframes cm-spin-c { to { transform: rotate(360deg); } }
 .rv-like { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; padding: 2px 0 2px 8px; flex-shrink: 0; }
 .rv-heart-off, .rv-heart-on { display: block; }
 .rv-heart-on { display: none; }
@@ -3761,6 +3770,7 @@ body.pc-community-mode .cm-sc-content { margin: 0; font-size: 15px; line-height:
 /* 후기 = 균등 그리드 (전역 .rv-card 재사용, #cmBody 흰카드 스코프는 모바일 전용이라 PC 재지정) */
 body.pc-community-mode #cmBody .rv-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 body.pc-community-mode #cmBody .rv-card { align-items: center; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+body.pc-community-mode #cmBody .rv-card--store { flex-direction: column; align-items: stretch; gap: 12px; }
 body.pc-community-mode #cmBody .rv-card-excerpt { min-height: calc(1.4em * 2); }
 body.pc-community-mode .rv-list-head { margin-bottom: 12px; }
 /* 무한스크롤 sentinel (cm-spin 키프레임은 모바일 미디어쿼리 안이라 PC용 전역 정의) */
@@ -3899,6 +3909,7 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
      상세 pane은 흰 시트 안 flat 행이지만, 커뮤니티 후기는 각 후기가 흰 카드라 #cmBody 스코프로만 카드화 */
   #cmBody .rv-cards, #myRevContent .rv-cards { gap: 12px; }
   #cmBody .rv-card, #myRevContent .rv-card { align-items: center; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.08); }
+  #cmBody .rv-card--store, #myRevContent .rv-card--store { flex-direction: column; align-items: stretch; gap: 12px; }
   /* 본문(발췌)은 항상 2줄 높이로 고정 → 카드 높이 통일(짧아도 2줄 공간 확보) */
   #cmBody .rv-card-excerpt, #myRevContent .rv-card-excerpt { min-height: calc(1.4em * 2); }
   .cm-info-char { position: absolute; right: 10px; bottom: calc(100% - 37px); width: 104px; height: 104px; object-fit: contain; pointer-events: none; }
