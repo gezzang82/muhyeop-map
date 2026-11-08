@@ -17,6 +17,7 @@
     "@capacitor/core": "^8.4.1",
     "@capacitor/geolocation": "^8.2.0",
     "@capacitor/haptics": "^8.0.2",
+    "@capacitor/inappbrowser": "^4.1.0",
     "@capacitor/ios": "^8.4.1",
     "@capacitor/keyboard": "^8.0.6",
     "@capacitor/push-notifications": "^8.1.2",

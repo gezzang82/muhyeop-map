@@ -278,11 +278,24 @@ function isMobileView() {
   try { return window.matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) {}
   return window.innerWidth <= 640; // 폴백(matchMedia 미지원 환경)
 }
+// 인앱브라우저(@capacitor/inappbrowser) WebView 옵션 — 전체 필드 명시(네이티브 기본병합 비의존). 0=TOP, 2=FULL_SCREEN, 2=COVER_VERTICAL
+var IAB_WEBVIEW_OPTS = {
+  showToolbar: true, showURL: true, clearCache: false, clearSessionCache: false,
+  mediaPlaybackRequiresUserAction: false, closeButtonText: '닫기',
+  toolbarPosition: 0, showNavigationButtons: true, leftToRight: false, customWebViewUserAgent: null,
+  android: { allowZoom: false, hardwareBack: true, pauseMedia: true, isIsolated: true, successUrlPatterns: [] },
+  iOS: { allowOverScroll: true, enableViewportScale: false, allowInLineMediaPlayback: false, surpressIncrementalRendering: false, viewStyle: 2, animationEffect: 2, allowsBackForwardNavigationGestures: true }
+};
 function openExternal(url) {
   if (!url) return;
-  const B = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
-  if (isNativeApp() && B) {
-    B.open({ url, presentationStyle: 'popover' }).catch(() => window.open(url, '_blank', 'noopener'));
+  const P = (window.Capacitor && window.Capacitor.Plugins) || {};
+  const sysBrowser = () => { if (P.Browser) P.Browser.open({ url, presentationStyle: 'popover' }).catch(() => window.open(url, '_blank', 'noopener')); else window.open(url, '_blank', 'noopener'); };
+  if (isNativeApp() && P.InAppBrowser && P.InAppBrowser.openInWebView) {
+    // 제어 가능한 WebView로 연다 → revu:// 같은 앱-스킴을 자동으로 안 열어 "OO앱에서 열겠습니까?" 시스템 팝업이 안 뜸.
+    // (플러그인 없는 구버전 앱 바이너리에선 아래 Browser(SFSafariVC)로 폴백 — app.js는 OTA라 호환 필수)
+    P.InAppBrowser.openInWebView({ url, options: IAB_WEBVIEW_OPTS }).catch(sysBrowser);
+  } else if (isNativeApp()) {
+    sysBrowser();
   } else {
     window.open(url, '_blank', 'noopener');
   }
