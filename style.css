@@ -4460,7 +4460,8 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 /* 매장 직접 선택 바텀시트 */
 .bi-store-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1100; align-items: flex-end; justify-content: center; }
 .bi-store-overlay.open { display: flex; }
-.bi-store-sheet { background: #fff; width: 100%; max-width: 480px; border-radius: 20px 20px 0 0; max-height: 82vh; display: flex; flex-direction: column; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); animation: sheetSlideUp 0.26s cubic-bezier(0.2,0.8,0.2,1); }
+/* 높이 고정(85vh) — 내용에 맞춰 hug하면 재검색 시 시트가 짧아져 검색 입력칸이 키패드에 가려짐. 크게 고정해 입력칸을 항상 상단(키패드 위)에 둠. 결과는 .bi-store-results가 flex:1로 내부 스크롤 */
+.bi-store-sheet { background: #fff; width: 100%; max-width: 480px; border-radius: 20px 20px 0 0; height: 85vh; max-height: 85vh; display: flex; flex-direction: column; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); animation: sheetSlideUp 0.26s cubic-bezier(0.2,0.8,0.2,1); }
 .bi-store-handle-wrap { display: flex; justify-content: center; padding: 10px 0 4px; cursor: pointer; }
 .bi-store-handle { width: 40px; height: 4px; border-radius: 2px; background: #d9d9de; }
 .bi-store-title { padding: 8px 20px 12px; font-size: 18px; font-weight: 800; color: #1a1a1e; letter-spacing: -0.02em; }
