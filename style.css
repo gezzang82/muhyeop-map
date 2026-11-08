@@ -3558,7 +3558,9 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 /* 커뮤니티 후기 카드 매장명 헤더(매장명 + › + 구분선) — 탭 시 그 매장 상세로 */
 .rv-card-row { display: flex; gap: 16px; align-items: center; width: 100%; }
 /* padding-top + 음수 margin-top: 텍스트 위치는 그대로 두고 위쪽 터치 영역만 10px 확장(터치 잘 안 됨 피드백). 아래는 padding 12px가 터치영역에 포함 */
-.rv-card-store { display: flex; align-items: center; gap: 6px; width: 100%; padding: 10px 0 12px; margin-top: -10px; border: 0; border-bottom: 1px solid #eee; background: none; cursor: pointer; text-align: left; font-family: inherit; }
+/* 터치 영역: 헤더가 얇아 탭이 잘 안 돼 위로 10px 확장(텍스트 위치는 margin-top 음수로 유지) + min-height 44로 보장.
+   position/z-index로 카드 전체 onclick(블로그 열기)보다 위에서 터치 받아 충돌 방지. box-sizing으로 min-height에 패딩 포함. */
+.rv-card-store { display: flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 0 12px; margin-top: -10px; position: relative; z-index: 2; border: 0; border-bottom: 1px solid #eee; background: none; cursor: pointer; text-align: left; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .rv-card-store-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rv-card-store-view { flex-shrink: 0; font-size: 13px; font-weight: 400; color: #777; }
 .rv-card-store-arrow { flex-shrink: 0; display: block; width: 5px; height: 9px; color: #777; }
