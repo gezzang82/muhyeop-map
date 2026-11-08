@@ -24,6 +24,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(CustomBrowserPlugin.class);  // 커스텀 인앱브라우저(앱-스킴 조용히 차단) — super 전 등록
         super.onCreate(savedInstanceState);
 
         final ViewGroup decor = (ViewGroup) getWindow().getDecorView();

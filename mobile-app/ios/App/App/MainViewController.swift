@@ -180,6 +180,7 @@ public class CustomBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
 class CustomBrowserViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     private let initialURL: URL
     private var webView: WKWebView!
+    private var bottomBar: UIView!   // 하단 세이프에어리어(홈 인디케이터) 전용 색 영역
 
     init(url: URL) { self.initialURL = url; super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -202,7 +203,20 @@ class CustomBrowserViewController: UIViewController, WKNavigationDelegate, WKUID
             webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            // 바닥을 세이프에어리어까지만(홈 인디케이터 영역은 네이티브 여백) → 페이지 하단 버튼이 끝에 딱 붙어 답답하던 것 해소
+            webView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ])
+
+        // 하단 세이프에어리어 전용 색 영역(여기만 칠함 → 상단 툴바는 흰색 유지). 기본 흰색, 페이지 하단 버튼색 감지해 매칭(아래 syncBottomColor)
+        bottomBar = UIView()
+        bottomBar.backgroundColor = .systemBackground
+        bottomBar.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(bottomBar)
+        NSLayoutConstraint.activate([
+            bottomBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bottomBar.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: "닫기", style: .plain, target: self, action: #selector(closeTapped))
@@ -239,6 +253,33 @@ class CustomBrowserViewController: UIViewController, WKNavigationDelegate, WKUID
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         navigationItem.title = webView.url?.host ?? initialURL.host
+        syncBottomColor()
+        // 레이아웃/하단 버튼이 늦게 잡히는 페이지 대비 한 번 더
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.syncBottomColor() }
+    }
+
+    // 페이지 하단(고정 버튼 등) 배경색을 감지해 하단 네이티브 여백 색을 맞춘다(강남맛집=주황 등 플랫폼 자동 대응)
+    private func syncBottomColor() {
+        let js = "(function(){try{var el=document.elementFromPoint(Math.round(window.innerWidth/2), window.innerHeight-2);var i=0;while(el&&i<6){var bg=getComputedStyle(el).backgroundColor;if(bg&&bg.indexOf('rgba(0, 0, 0, 0)')<0&&bg!=='transparent'){return bg;}el=el.parentElement;i++;}}catch(e){}return '';})()"
+        webView.evaluateJavaScript(js) { [weak self] result, _ in
+            guard let self = self else { return }
+            if let rgb = result as? String, let color = Self.colorFromCSS(rgb) {
+                self.bottomBar.backgroundColor = color   // 하단 영역만 칠함(상단 툴바 영향 없음)
+            } else {
+                self.bottomBar.backgroundColor = .systemBackground
+            }
+        }
+    }
+
+    // "rgb(r, g, b)" / "rgba(r, g, b, a)" → UIColor
+    private static func colorFromCSS(_ s: String) -> UIColor? {
+        guard let open = s.firstIndex(of: "("), let close = s.firstIndex(of: ")") else { return nil }
+        let inner = s[s.index(after: open)..<close]
+        let parts = inner.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count >= 3, let r = Double(parts[0]), let g = Double(parts[1]), let b = Double(parts[2]) else { return nil }
+        let a = parts.count >= 4 ? (Double(parts[3]) ?? 1) : 1
+        if a < 0.05 { return nil }   // 투명이면 기본색 사용
+        return UIColor(red: r/255, green: g/255, blue: b/255, alpha: 1)
     }
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
