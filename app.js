@@ -7601,7 +7601,7 @@ function openMobileSheet(place) {
   const overlay = document.getElementById('mobileSheetOverlay');
   const content = document.getElementById('mobileSheetContent');
   content.innerHTML = createMobileDetailContent(place);
-  try { if (window.showToast) { const _pn = content.querySelector('.rv-pane-campaign'); showToast('[DBG] act=' + getActiveCampaigns(place.id).length + ' lf=' + _campaignPaneLoadingFor + ' pid=' + place.id + ' empty=' + (_pn ? /rv-empty/.test(_pn.innerHTML) : '?')); } } catch (e) {}
+  try { if (window.showToast && currentUser && (currentUser.id === 12 || currentUser.nickname === '개짜장')) { const _pn = content.querySelector('.rv-pane-campaign'); showToast('[DBG] act=' + getActiveCampaigns(place.id).length + ' lf=' + _campaignPaneLoadingFor + ' pid=' + place.id + ' empty=' + (_pn ? /rv-empty/.test(_pn.innerHTML) : '?')); } } catch (e) {}
   initDetailTabs(place);
   sheet.style.transform = '';
   overlay.classList.add('show');
