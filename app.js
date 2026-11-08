@@ -1748,8 +1748,11 @@ function reviewCardHtml(r, isPreview, showStore) {
 }
 
 // 커뮤니티 후기 카드의 매장명 탭 → 홈(지도)으로 전환 후 그 매장 상세 열기(모바일 GNB / PC 탭 각각)
-function openReviewPlace(placeId) {
+async function openReviewPlace(placeId) {
   if (!placeId) return;
+  // 캠페인을 먼저 확보 → 상세가 열릴 때 기본탭 판정(_defaultDetailTab: 활성 캠페인 있으면 '캠페인', 없으면 '후기')이
+  //  첫 렌더부터 정확. (예전엔 시트를 먼저 열고 캠페인이 늦게 도착해 후기탭에서 시작되곤 했음)
+  try { if (typeof ensurePlaceCampaigns === 'function') await ensurePlaceCampaigns(placeId); } catch (e) {}
   try {
     if (document.body.classList.contains('pc-community-mode')) {
       if (typeof switchPcTab === 'function') switchPcTab('home');
@@ -3760,12 +3763,13 @@ const CM_PAGE_SIZE = 20;
 let _cmInfinite = null, _myRevInfinite = null;  // 활성 컨트롤러(재렌더 시 destroy)
 // sentinelEl이 보이면 loadPage(offset)를 호출. loadPage는 append 후 '받은 개수'를 반환(에러는 -1).
 // 20개 미만이면 끝. 짧은 목록이면 재관찰로 연속 로드. destroy()로 해제.
-function createInfiniteScroll(rootEl, sentinelEl, loadPage) {
+function createInfiniteScroll(rootEl, sentinelEl, loadPage, opts) {
+  const centerSpinner = !!(opts && opts.centerSpinner);  // 첫 페이지는 중앙 스피너가 담당 → 하단 센티넬 스피너 중복 방지
   let offset = 0, loading = false, hasMore = true, dead = false;
   async function next() {
     if (loading || !hasMore || dead) return;
     loading = true;
-    sentinelEl.classList.add('loading');
+    if (!(centerSpinner && offset === 0)) sentinelEl.classList.add('loading');
     let count = -1;
     try { count = await loadPage(offset); } catch (e) { count = -1; }
     loading = false;
@@ -3906,7 +3910,7 @@ async function renderCommunity(fresh) {
       if (offset === 0) listEl.innerHTML = '';   // 첫 페이지: 로딩 스피너 제거
       listEl.insertAdjacentHTML('beforeend', posts.map(seoichuPostHtml).join(''));
       return posts.length;
-    });
+    }, { centerSpinner: true });
     showSeoichuCommentBar(false);  // 입력바는 평소 숨김 — 글의 '댓글 N' 탭 시 등장(openSeoichuCommentInput)
     return;
   }
@@ -3943,7 +3947,7 @@ async function renderCommunity(fresh) {
     }
     listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false, true)).join(''));
     return items.length;
-  });
+  }, { centerSpinner: true });
 }
 function cmEmptyHtml(title, desc, login) {
   return `<div class="cm-empty">
