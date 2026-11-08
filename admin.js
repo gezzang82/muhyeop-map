@@ -900,6 +900,12 @@ function renderDashboard() {
     renderGnbClicks(s.gnbToday || {}, s.gnbTotal || {});
     renderSearchStats(s.searchToday || 0, s.searchTotal || 0, s.recentSearches || [], s.searchZeroToday || 0, s.searchZeroTotal || 0, s.recentZeroSearches || []);
     renderAppInstall(s.appInstallToday || {}, s.appInstallTotal || {});
+    // 앱 스토어 다운로드(누적) — iOS 누적 다운로드 / Android 활성 설치, 플랫폼별 기준일
+    const sd = s.storeDownloads || {};
+    const md = d => (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d.slice(5) : '-';
+    const setDl = (vId, aId, o) => { const v = document.getElementById(vId), a = document.getElementById(aId); if (v) v.textContent = o ? Number(o.total || 0).toLocaleString() : '-'; if (a) a.textContent = o ? md(o.asOf) : '-'; };
+    setDl('statDlIos', 'statDlIosAsof', sd.ios);
+    setDl('statDlPlay', 'statDlPlayAsof', sd.play);
   }).catch(() => {});
 }
 
