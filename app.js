@@ -2277,13 +2277,15 @@ function moveToMyLocation() {
 // 후기 pane/활성 탭/스크롤 위치는 건드리지 않아 후기 탭을 보고 있어도 깜빡임이 없음.
 function refreshOpenDetailCampaignPane(place) {
   if (_detailPlaceId !== place.id) return;                 // 이미 다른 상세로 넘어감
+  // ⚠️ 상세 캠페인 pane이 아직 없으면(시트/카드 오픈 전) 로딩 플래그를 건드리지 않고 그대로 둔다.
+  //  (예전엔 여기서 _campaignPaneLoading을 먼저 꺼버려, 정작 pane 생성 시 로딩 대신 '협찬 없음'이 떴다 바뀌던 버그)
+  const livePane = document.querySelector('#rvTabBody .rv-pane-campaign');
+  if (!livePane) return;
   const hasActive = getActiveCampaigns(place.id).length;
   // 채울 캠페인도 없고 로딩 중도 아니면 그대로(기존 동작). 로딩 중이면 캠페인 0이어도 pane을 갱신해
   //  스피너를 실제 내용(또는 '협찬 없음')으로 바꾸고 로딩을 해제한다.
   if (!hasActive && !_campaignPaneLoading) return;
   _campaignPaneLoading = false;                            // 캠페인 확보 완료(0이어도) → 로딩 스피너 해제
-  const livePane = document.querySelector('#rvTabBody .rv-pane-campaign');
-  if (!livePane) return;
   const html = (isMobileView()) ? createMobileDetailContent(place) : createInfoContent(place);
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
