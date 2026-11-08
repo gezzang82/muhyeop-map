@@ -141,6 +141,9 @@
 ## 이메일 선택 수취 (추가정보입력 / 내 정보)
 - 카카오는 OAuth 이메일을 못 받는 경우가 많아(비즈앱 검수 필요), **이메일을 '추가 정보 입력'(`#signupEmail`)·'내 정보'(`#profileEmail`) 시트에서 선택 입력**받음. **네이버는 OAuth로 받은 이메일을 prefill**(`currentUser.email`), 카카오는 빈 칸. `confirmSignupInfo`/`saveProfile`이 `email`을 `/api/auth/profile`로 전송, 형식 검증 `isValidEmail`. 제보 폼 자체엔 여전히 이메일 입력란 없음(닉네임+링크만).
 
+## 현재위치 버튼 로딩 (2026-11-09)
+- `moveToMyLocation`(`.btn-my-location`)이 `getGeoPosition()`(고정밀 GPS, `enableHighAccuracy:true`)로 **정확한 위치 1회** 획득 → 안드/실내에선 몇 초(최대 timeout 15s) 걸려 무반응처럼 보였음 → **지도 가운데 로딩 스피너**(`showCenterLoading`/`hideCenterLoading`, `.center-loading` 흰 카드 안 스피너, `pointer-events:none`)를 획득 동안 표시, 성공/실패 시 `hideCenterLoading`. **정확도 우선 결정(2026-11-09)**: 속도용 하이브리드(빠른 대략 위치→고정밀 보정)도 검토했으나 원우님이 **"정확하지 않으면 10초 대기"**(정확도 우선) 선택 → 고정밀 단일 유지 + 로딩으로 대기 체감만 완화. `showCenterLoading`은 GPS 느린 다른 곳에도 재사용 가능.
+
 ## 매장명 클릭 → 네이버지도 연결
 - 인포윈도우(`.iw-name-link`)·모바일 상세시트(`.detail-name-link`)의 **매장명을 클릭하면 네이버지도로 이동**(`openNaverMapByPlace(placeId)` → `openNaverMap`). 매장명 옆에 `image/ic_link_16.svg`(외부링크 아이콘, 16px, 이름과 6px 간격) 표시.
 - 검색어는 **매장명만** 사용(주소를 붙이면 지번/건물/호수 토큰까지 매칭하려다 네이버 장소검색 결과 0건 나는 케이스가 있어서). 매장명에 지점명이 포함돼 특정도 충분.

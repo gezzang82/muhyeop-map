@@ -2260,13 +2260,27 @@ function getGeoPosition() {
     );
   });
 }
+// 지도 가운데 로딩 스피너(GPS 획득 등 몇 초 걸리는 작업 중). 중복 호출 안전.
+function showCenterLoading() {
+  if (document.getElementById('centerLoading')) return;
+  const el = document.createElement('div');
+  el.id = 'centerLoading';
+  el.className = 'center-loading';
+  el.innerHTML = '<div class="center-loading-box"><span class="center-loading-spinner"></span></div>';
+  document.body.appendChild(el);
+}
+function hideCenterLoading() {
+  const el = document.getElementById('centerLoading');
+  if (el) el.remove();
+}
 function moveToMyLocation() {
   _suppressInitialLocation = true;  // 사용자 위치이동 시작 → 늦게 오는 초기 위치이동과 충돌 방지
   resetMapSearch();  // 현재 위치 누르면 검색 핀·FAB 제거 + 검색어 리셋
   const btn = document.querySelector('.btn-my-location');
   if (btn) { btn.style.opacity = '0.4'; btn.disabled = true; }
-  const restore = () => { if (btn) { btn.style.opacity = ''; btn.disabled = false; } };
-  getGeoPosition().then(({ lat, lng }) => {
+  showCenterLoading();  // GPS 획득이 몇 초 걸려 무반응처럼 보이던 것 → 가운데 로딩 표시(정확도 우선, 고정밀 대기)
+  const restore = () => { if (btn) { btn.style.opacity = ''; btn.disabled = false; } hideCenterLoading(); };
+  getGeoPosition().then(({ lat, lng }) => {   // 고정밀(GPS) — 정확한 위치 1회
     map.setCenter(new naver.maps.LatLng(lat, lng));
     map.setZoom(15);
     showMyLocationMarker(lat, lng);

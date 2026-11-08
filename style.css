@@ -3564,6 +3564,11 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 .rv-card-store-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rv-card-store-view { flex-shrink: 0; font-size: 13px; font-weight: 400; color: #777; }
 .rv-card-store-arrow { flex-shrink: 0; display: block; width: 5px; height: 9px; color: #777; }
+/* 지도 가운데 로딩(현재위치 GPS 획득 등 몇 초 걸리는 작업) — 흰 카드 안 스피너, 지도 입력은 통과(pointer-events:none) */
+.center-loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 9000; pointer-events: none; }
+.center-loading-box { width: 56px; height: 56px; background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.18); display: flex; align-items: center; justify-content: center; }
+.center-loading-spinner { width: 30px; height: 30px; border: 3px solid #e5e5e5; border-top-color: #e82a2d; border-radius: 50%; animation: center-spin 0.7s linear infinite; }
+@keyframes center-spin { to { transform: rotate(360deg); } }
 /* 커뮤니티 세그먼트 전환/첫 로드 가운데 로딩 스피너 */
 .cm-center-loading { display: flex; justify-content: center; align-items: center; padding: 48px 0; width: 100%; }
 .cm-center-spinner { width: 26px; height: 26px; border: 2.5px solid #e5e5e5; border-top-color: #999; border-radius: 50%; animation: cm-spin-c 0.7s linear infinite; }
