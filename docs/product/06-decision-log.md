@@ -2,6 +2,13 @@
 
 ## 2026-11
 
+### 커뮤니티 후기 UX 개선 + 첫 후기 작성자 닉네임 라이브 해석 (2026-11-08)
+Figma 1999-9088 기반 커뮤니티 후기 다듬기 + 후속 제보 수정(원우씨).
+- **후기 카드 매장 헤더 + 매장명 클릭=캠페인 탭 우선**: 후기/내 후기 피드 카드 상단에 매장명 헤더(`reviewCardHtml(..., showStore)`), 탭하면 홈 지도의 그 매장 상세로. **기본탭은 활성 캠페인 있으면 '캠페인', 없으면 '후기'**(원우씨 요청) — `openReviewPlace`가 열기 전에 `await ensurePlaceCampaigns`로 캠페인을 먼저 확보해 첫 렌더부터 정확(예전엔 시트 먼저 열고 캠페인이 늦게 도착해 후기탭으로 시작되던 레이스).
+- **탭 상태 유지**: 홈↔커뮤니티 전환마다 재렌더+스크롤 리셋되던 것 → `_cmRendered` 플래그로 1회만 렌더(세그먼트·스크롤 위치 보존).
+- **세그먼트 전환 로딩 + 당겨서 새로고침**: 수다방↔후기 전환·첫 진입에 가운데 스피너, `#cmScroll` 최상단에서 당기면 새로고침(`bindCmPullRefresh`). ⚠️ **로딩 스피너 2개 버그**: 첫 페이지에 가운데 스피너 + 하단 센티넬 스피너가 동시에 뜨던 것 → `createInfiniteScroll(…,{centerSpinner:true})`로 첫 페이지 센티넬 스피너 억제(내 후기는 가운데 스피너 없어 미적용).
+- **첫 후기 작성자 닉네임 불일치(아푸파 제보)**: 작성자가 후기 등록 후 닉네임을 바꾸니 '첫 후기' 뱃지(`places.founder_nickname`=스냅샷)가 후기 카드(현재 닉네임 조인)와 어긋남. **원칙=현재 닉네임이 단일 소스** → 공개 매장 GET(`?map=1`·`?q=`·레거시)에 `LEFT JOIN users`로 `founder_nickname_live` 추가, `toPlace`가 라이브 우선(드리프트 없음, 기존 데이터도 재배포만으로 교정). 추가로 `auth/profile.js`가 닉네임 변경 시 본인 `places.founder_nickname`·`reviews.author` 스냅샷도 동기화(어드민 제보자검색·`r.author` 폴백까지 일치). [[frontend]]·[[api-db]].
+
 ### 외부 링크 커스텀 인앱브라우저(앱-스킴 팝업 제거) + 매장선택 네이버 병합 (2026-11-08)
 - **앱-스킴 팝업**: 캠페인 상세보기 시 레뷰(revu.net) 등이 자기 앱 딥링크(`revu://`)를 쏴 iOS "'레뷰'에서 열겠습니까?" 시스템 팝업이 뜸(원우씨 제보). 기존 `@capacitor/browser`(SFSafariVC)는 시스템 컴포넌트라 차단 불가.
 - **시도→폐기**: `@capacitor/inappbrowser`(openInWebView)로 전환했으나, 그 라이브러리가 커스텀 앱 스킴을 `.allow`해 WKWebView 로드 실패("Couldn't load the page content")가 나서 폐기(+안드 라이브러리가 minSdk26 요구). → **제거하고 minSdk 24 복원.**
