@@ -2347,6 +2347,10 @@ async function focusPlace(placeId, zoom) {
   const place = places.find(p => p.id === placeId);
   if (!place) return;
 
+  // 앱 콜드스타트에 매장(검색·버블·매장보기)으로 이동하면, 뒤늦게 완료되는 초기 GPS 위치이동(tryInitialLocation)이
+  //  이 매장 위치를 '현재 위치'로 덮어써 지도가 되돌아가던 문제 → 매장 이동 시 그 초기 위치이동을 취소.
+  _suppressInitialLocation = true;
+
   // PC: 매장을 여는 지도 자동이동(카드↔핀 붙이기)은 리스트 고정 유지 + stale로 치지 않음.
   //  또 setZoom이 유발하는 zoom_changed가 '방금 연 PC 카드'를 닫지 않게 잠깐 억제(커뮤니티 등 줌차 큰 데서
   //  올 때 줌 애니가 카드 오픈(200ms) 이후 끝나며 closePcCard가 호출돼 카드가 깜빡 닫히던 문제).
