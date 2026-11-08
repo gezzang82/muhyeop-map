@@ -1451,7 +1451,7 @@ function createInfoContent(place) {
       ${detailTabsHtml(place)}
       <div class="rv-line"></div>
       <div class="rv-tab-body" id="rvTabBody">
-        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="iw-campaigns-wrap">${campaignsHtml}</div>` : (_campaignPaneLoading ? cmCenterSpinner() : campaignEmptyHtml(place))}</div>
+        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="iw-campaigns-wrap">${campaignsHtml}</div>` : (_campaignPaneLoadingFor === place.id ? cmCenterSpinner() : campaignEmptyHtml(place))}</div>
         <div class="rv-pane rv-pane-review"${_defaultDetailTab(place) === 'review' ? '' : ' style="display:none"'}></div>
       </div>
     </div>`;
@@ -1568,7 +1568,7 @@ function createMobileDetailContent(place) {
     </div>
     <div class="detail-scroll">
       <div class="rv-tab-body" id="rvTabBody">
-        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="detail-campaigns-wrap">${campaignsHtml}</div>` : (_campaignPaneLoading ? cmCenterSpinner() : campaignEmptyHtml(place))}</div>
+        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="detail-campaigns-wrap">${campaignsHtml}</div>` : (_campaignPaneLoadingFor === place.id ? cmCenterSpinner() : campaignEmptyHtml(place))}</div>
         <div class="rv-pane rv-pane-review"${_defaultDetailTab(place) === 'review' ? '' : ' style="display:none"'}></div>
       </div>
     </div>`;
@@ -1591,7 +1591,9 @@ let _forceReviewTab = false;
 let _forceCampaignTab = false;
 // 위 강제로 캠페인 탭을 열었는데 캠페인이 아직 메모리에 없을 때 → 캠페인 pane에 '협찬 없음' 대신 로딩 스피너.
 //  focusPlace 백그라운드가 캠페인 확보 후 refreshOpenDetailCampaignPane이 실제 내용(또는 empty)으로 교체하며 해제.
-let _campaignPaneLoading = false;
+//  ⚠️ placeId로 관리(boolean 아님): 연속으로 다른 매장을 열면 이전 매장의 늦은 캠페인 콜백이 현재 매장 로딩을
+//  꺼버려 '협찬 없어요'가 깜빡이던 레이스 → 로딩 중인 매장 id가 일치할 때만 스피너/해제.
+let _campaignPaneLoadingFor = null;
 // 검색·버블로 캠페인 로드 전 상세가 열려 '활성 캠페인 0'으로 판단돼 후기가 기본 탭이 된 경우 true.
 // (버블 강제 후기와 구분) 캠페인이 백그라운드로 도착하면 refreshOpenDetailCampaignPane가 캠페인 탭으로 되돌린다.
 let _detailReviewByAbsence = false;
@@ -1765,7 +1767,7 @@ async function openReviewPlace(placeId, hasActive) {
   const go = () => {
     // 피드가 '활성 캠페인 있음'이라 알려줬으면(hasActive) 캠페인 미로드여도 '바로 캠페인 탭'으로 열고 pane은 로딩 표시
     //  → 후기탭 먼저 떴다 캠페인탭으로 바뀌던 깜빡임 제거. 캠페인 없으면 기본(후기탭).
-    if (hasActive) { _forceCampaignTab = true; _campaignPaneLoading = true; }
+    if (hasActive) { _forceCampaignTab = true; _campaignPaneLoadingFor = placeId; }
     try {
       if (document.body.classList.contains('pc-community-mode')) {
         if (typeof switchPcTab === 'function') switchPcTab('campaigns');  // PC 홈(지도) 탭 = 'campaigns'
@@ -2282,10 +2284,11 @@ function refreshOpenDetailCampaignPane(place) {
   const livePane = document.querySelector('#rvTabBody .rv-pane-campaign');
   if (!livePane) return;
   const hasActive = getActiveCampaigns(place.id).length;
-  // 채울 캠페인도 없고 로딩 중도 아니면 그대로(기존 동작). 로딩 중이면 캠페인 0이어도 pane을 갱신해
+  const loadingThis = (_campaignPaneLoadingFor === place.id);  // 이 매장이 로딩 중일 때만
+  // 채울 캠페인도 없고 (이 매장)로딩 중도 아니면 그대로. 로딩 중이면 캠페인 0이어도 pane을 갱신해
   //  스피너를 실제 내용(또는 '협찬 없음')으로 바꾸고 로딩을 해제한다.
-  if (!hasActive && !_campaignPaneLoading) return;
-  _campaignPaneLoading = false;                            // 캠페인 확보 완료(0이어도) → 로딩 스피너 해제
+  if (!hasActive && !loadingThis) return;
+  if (loadingThis) _campaignPaneLoadingFor = null;         // 이 매장 캠페인 확보 완료(0이어도) → 로딩 해제
   const html = (isMobileView()) ? createMobileDetailContent(place) : createInfoContent(place);
   const tmp = document.createElement('div');
   tmp.innerHTML = html;

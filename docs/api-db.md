@@ -2,6 +2,7 @@
 
 ## 구성
 - Vercel 서버리스 함수 (`api/*.js`) + Turso(libSQL) — `api/_db.js`의 `getDb()`로 클라이언트 생성 (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` 환경변수 필요)
+- **⚠️ `vercel.json` `headers` — `index.html`·`app.js` no-store(2026-11-08)**: 앱 웹뷰(WKWebView/안드 WebView)가 index.html을 재검증 없이 캐시해 **구버전 `app.js`를 참조**(PC는 최신인데 모바일만 옛 동작)하던 문제 → `/`·`/index.html`·`/app.js`에 `Cache-Control: no-store, max-age=0, must-revalidate`. **app.js 수정은 배포만으로 앱 반영**(재시작 시), `?v=` 수동 상향 불필요. 트레이드오프·후속(해시 immutable 전환)은 [[project_mobile_app]].
 - `schema.sql`: 테이블 정의 원본. 실제 운영 DB 스키마 변경은 각 API 핸들러 내 `ALTER TABLE ... ADD COLUMN` try/catch 패턴으로 점진 적용되는 경우가 있음 (예: `campaigns.js`의 `source` 컬럼)
 - **환경변수**: 위 Turso 2개 + `SESSION_SECRET`·`ADMIN_PASSWORD`·`PUBLIC_BASE_URL`·카카오/네이버 OAuth·`NAVER_SEARCH_*`. **오토파일럿용 추가**: `OPENAI_API_KEY`(AI 판정), 선택 `OPENAI_MODEL`(기본 gpt-4o-mini). (`CRON_SECRET`은 크론 폐지 2026-08-30로 불필요 — 수동 autopilot은 관리자 인증만으로 접근) **지오코딩(2026-08-30)**: `NAVER_MAPS_KEY_ID`/`NAVER_MAPS_KEY`(네이버 NCP Geocoding, 주소→좌표. 지도 스크립트 ncpKeyId와 동일 NCP 계정 — 로컬·Vercel 양쪽 등록 필요).
 - **⚠️ Sensitive 변수와 `.env.local`**: 카카오/네이버 OAuth·`ADMIN_PASSWORD`·`SESSION_SECRET` 등은 Vercel에서 Sensitive라 `vercel env pull`로 **빈 값으로 내려와 로컬 파일을 덮어씀**(사고 이력). `.env.local` 수정은 [[15-operations]] 8절의 보호 훅(`.claude/hooks/protect-env-local.sh`)이 차단하므로, 값 추가는 각 콘솔에서 직접 복사해 넣는다.
