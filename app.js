@@ -3755,6 +3755,7 @@ function renderFavSidebar(list, countEl) {
 // 설계/결정: docs/product/17-travel-pins.md · 06-decision-log(2026-10-02).
 let _cmSeg = 'seoichu';
 let _cmRendered = false;      // 커뮤니티 1회 렌더 여부 — 홈↔커뮤니티 전환 시 재렌더/스크롤리셋 없이 상태 유지(#2)
+let _cmRenderedAuthPending = false;  // 마지막 커뮤니티 렌더가 auth 미확정(_authChecked=false) 상태였는지 — refreshAuthUI가 그때만 1회 재렌더(확정 후 열었으면 중복 재렌더/로딩 2번 방지)
 let _cmFeedSort = 'latest';   // 후기 정렬 기본=최신순: 'likes'(좋아요 순) | 'latest'(최신 순)
 let _cmFeedRegion = '전체';    // 후기 지역 필터(시/도). '전체'=필터 없음
 const CM_REGIONS = ['전체', '서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
@@ -3891,6 +3892,7 @@ function cmCenterSpinner() { return '<div class="cm-center-loading"><span class=
 async function renderCommunity(fresh) {
   const body = document.getElementById('cmBody');
   if (!body) return;
+  _cmRenderedAuthPending = !_authChecked;  // 이 렌더가 auth 확정 전이면 refreshAuthUI가 나중에 1회 재렌더
   const seq = ++_cmReqSeq;
   const bust = fresh ? ('&_=' + Date.now()) : '';   // 등록 직후엔 엣지/브라우저 캐시 우회(첫 페이지에만)
   if (_cmInfinite) { _cmInfinite.destroy(); _cmInfinite = null; }
@@ -4493,6 +4495,18 @@ function cmRefreshAuthChrome() {
   else if (!cur && want) { const tabs = body.querySelector('.cm-region-tabs'); if (tabs) { const d = document.createElement('div'); d.innerHTML = want; tabs.parentNode.insertBefore(d.firstElementChild, tabs); } }
   const link = document.getElementById('cmMyRevLink');
   if (link) link.hidden = !(isMobileView() && !!currentUser);
+}
+// 수다방(seoichu): auth 확정 시 리스트는 유지(공개라 재fetch 불필요)하고 compose 영역만 갱신 →
+//  콜드스타트에 수다방이 '통째 재렌더'돼 로딩 스피너가 2번 돌던 문제 방지.
+function cmRefreshSeoichuChrome() {
+  const body = document.getElementById('cmBody');
+  if (!body) return;
+  const want = seoichuComposeHtml();           // '' 또는 .cm-compose
+  const cur = body.querySelector('.cm-compose');
+  const list = body.querySelector('.cm-sc-list');
+  if (cur && want) { const d = document.createElement('div'); d.innerHTML = want; cur.replaceWith(d.firstElementChild); }
+  else if (cur && !want) { cur.remove(); }
+  else if (!cur && want && list) { const d = document.createElement('div'); d.innerHTML = want; list.parentNode.insertBefore(d.firstElementChild, list); }
 }
 // 지역탭이 스크롤로 상단에 '붙었는지' 감지 → .cm-region-stuck 토글(붙으면 bg #fff + 탭 아래 shadow)
 function cmStickyWatch() {
@@ -5978,11 +5992,17 @@ async function refreshAuthUI() {
   // 커뮤니티 탭이 열려 있으면 로그인 상태 반영해 재렌더 — 첫 진입 시 auth 확정 전 렌더되어
   // '로그인하고 SNS 등록' 프롬프트가 로그인 상태인데도 남던 문제(기본 세그먼트 seoichu 포함).
   const _cmv = document.getElementById('tabView-community');
-  if (_cmv && !_cmv.hidden) {
+  // 커뮤니티 열림 판정: 모바일=`!hidden`, PC=`pc-community-mode` 클래스(PC는 hidden 속성이 아니라 CSS로 표시 →
+  //  예전엔 PC에서 이 조건이 늘 false라 auth 확정 후 커뮤니티 재렌더가 안 돼 '블로그 글 불러오기' 카드가 미노출로 남던 버그).
+  const _cmOpen = _cmv && (!_cmv.hidden || document.body.classList.contains('pc-community-mode'));
+  // auth 미확정 상태로 렌더된 경우에만 1회 재렌더(확정 후 열었으면 이미 정확 → 재렌더 안 함 = 수다방 최초 2번 로딩 방지)
+  if (_cmOpen && _cmRenderedAuthPending) {
+    _cmRenderedAuthPending = false;
     // 후기 피드 리스트는 쿠키 기반이라 첫 fetch에 이미 정확 → auth 확정됐다고 통째로 재fetch하면
     // 리스트가 '떴다가 몇 초 뒤 다시 로딩'됨. 후기 세그는 리스트 유지하고 진입카드/링크만 갱신.
     if (_cmSeg === 'feed') cmRefreshAuthChrome();
-    else renderCommunity(true);   // 수다방(compose)·내 후기(로그인 의존)는 기존대로 재렌더
+    else if (_cmSeg === 'seoichu') cmRefreshSeoichuChrome();  // 수다방: 리스트 유지, compose만 갱신(로딩 2번 방지)
+    else renderCommunity(true);   // 내 후기(myreviews, 로그인 의존)만 통째 재렌더
   }
   // PC 하단 MY 영역 (로그인 전: 간편로그인 안내 / 로그인 후: 아바타+닉네임+로그아웃)
   const pcMyGuest = document.getElementById('pcNavMyGuest');
@@ -6846,8 +6866,11 @@ function switchPcTab(tab) {
 
   // 커뮤니티 PC (전체폭 콘텐츠 — 모바일 #tabView-community 재사용, 이웃찾기=masonry/후기=grid는 CSS)
   if (tab === 'community') {
-    openCommunity();
-    const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+    // 모바일과 동일: 이미 렌더됐으면(다른 탭 갔다 재진입) 스크롤·세그먼트·목록 그대로 유지 — 재렌더/스크롤리셋 안 함
+    if (!_cmRendered) {
+      openCommunity();
+      const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
+    }
     markCommunitySeen();  // 커뮤니티 열람 → 새글 점 제거(PC)
   }
 
