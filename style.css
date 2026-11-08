@@ -3560,7 +3560,7 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 .rv-card-store { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0 0 12px; border: 0; border-bottom: 1px solid #eee; background: none; cursor: pointer; text-align: left; font-family: inherit; }
 .rv-card-store-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rv-card-store-view { flex-shrink: 0; font-size: 13px; font-weight: 400; color: #777; }
-.rv-card-store-arrow { flex-shrink: 0; display: block; width: 5px; height: 9px; }
+.rv-card-store-arrow { flex-shrink: 0; display: block; width: 5px; height: 9px; color: #777; }
 /* 커뮤니티 세그먼트 전환/첫 로드 가운데 로딩 스피너 */
 .cm-center-loading { display: flex; justify-content: center; align-items: center; padding: 48px 0; width: 100%; }
 .cm-center-spinner { width: 26px; height: 26px; border: 2.5px solid #e5e5e5; border-top-color: #999; border-radius: 50%; animation: cm-spin-c 0.7s linear infinite; }
