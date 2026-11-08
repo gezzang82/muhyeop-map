@@ -4010,6 +4010,7 @@ function biRenderResult(errored) {
     scroll.innerHTML = `<div class="bi-empty">
       <p class="bi-empty-title">불러올 체험단 후기를 못 찾았어요</p>
       <p class="bi-empty-desc">${errored ? '잠시 후 다시 시도해주세요.' : '최근 글에서 새로 등록할 체험단 후기를 찾지 못했어요.'}</p>
+      ${errored ? '' : '<p class="bi-empty-desc">오래된 글(최근 50개 밖)은 자동으로 못 불러와요.<br><a class="bi-note-link" onclick="closeBlogImport();openReviewRegister()">후기 직접 등록하기</a></p>'}
     </div>`;
     return;
   }
@@ -4028,7 +4029,8 @@ function biRenderResult(errored) {
       <span class="bi-chip bi-chip-confirm">확인 필요 ${confirmN}</span>
     </div>
   </div>`;
-  scroll.innerHTML = summary + '<div class="bi-list">' + _biItems.map((it, i) => biRowHtml(it, i)).join('') + '</div>';
+  scroll.innerHTML = summary + '<div class="bi-list">' + _biItems.map((it, i) => biRowHtml(it, i)).join('') + '</div>'
+    + '<p class="bi-note">최근 50개 글만 자동으로 불러와요. 더 예전 후기는 <a class="bi-note-link" onclick="closeBlogImport();openReviewRegister()">후기 등록</a>에서 직접 올릴 수 있어요.</p>';
   biUpdateCta();
   biSyncSelectAll();
 }
