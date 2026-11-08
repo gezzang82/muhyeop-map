@@ -74,9 +74,25 @@ async function extractChunk(posts, offset) {
 async function extractPosts(posts) {
   const CHUNK = 60;
   if (posts.length <= CHUNK) return extractChunk(posts, 0);
-  let all = [];
-  for (let i = 0; i < posts.length; i += CHUNK) all = all.concat(await extractChunk(posts.slice(i, i + CHUNK), i));
-  return all;
+  const jobs = [];
+  for (let i = 0; i < posts.length; i += CHUNK) jobs.push(extractChunk(posts.slice(i, i + CHUNK), i)); // 청크 병렬
+  return (await Promise.all(jobs)).flat();
+}
+
+// 매칭(메모리판): 미리 로드한 places 배열에서 매장명(공백무시 부분일치)+지역으로. 글마다 DB 풀스캔 방지용.
+function matchPlaceInMem(places, storeName, region) {
+  const sn = norm(storeName);
+  if (sn.length < 2) return null;
+  const sn6 = sn.slice(0, 6);
+  const rows = places.filter(p => p._n.includes(sn6));
+  if (!rows.length) return null;
+  const reg = String(region || '').replace(/\s/g, '');
+  const regHit = reg ? rows.filter(r => (r.address || '').replace(/\s/g, '').includes(reg.slice(0, 2))) : [];
+  const cand = (regHit.length ? regHit : rows).slice(0, 50);
+  cand.sort((a, b) => (b._n.includes(sn) ? 1 : 0) - (a._n.includes(sn) ? 1 : 0));
+  const place = cand[0];
+  const nameExact = place._n.includes(sn) || sn.includes(place._n);
+  return { placeId: place.id, name: place.name, address: place.address, confidence: (regHit.length && nameExact) ? 'auto' : 'confirm' };
 }
 
 // DB 매칭: 매장명(공백무시 부분일치) 후보 → 지역(주소 포함)으로 좁힘 → 신뢰도 판정.
@@ -103,15 +119,20 @@ async function matchPlace(db, storeName, region) {
 async function importList({ db, blogId, existingUrls = new Set(), all = false }) {
   const posts = all ? await fetchAllBlogPosts(blogId) : await fetchBlogPosts(blogId);
   if (!posts.length) return { postCount: 0, items: [] };
-  const ex = await extractPosts(posts);
+  // ⚡ 이미 등록된 글은 AI 돌리기 전에 먼저 제외 → 새 글만 AI 분석(반복 실행 시 점점 빨라짐)
+  const newPosts = posts.filter(p => !existingUrls.has(p.link));
+  if (!newPosts.length) return { postCount: posts.length, items: [] };
+  const ex = await extractPosts(newPosts);
   const byIdx = {}; (ex || []).forEach(e => { if (e && e.idx != null) byIdx[e.idx] = e; });
+  // 매칭용 매장 메모리 1회 로드(글마다 DB 풀스캔 방지 — 전체 불러오기 성능/읽기량 최적화)
+  let allPlaces = [];
+  try { allPlaces = (await db.execute("SELECT id, name, address FROM places WHERE COALESCE(hidden,0)=0")).rows; allPlaces.forEach(p => { p._n = norm(p.name); }); } catch (e) {}
   const items = [];
-  for (let i = 0; i < posts.length; i++) {
-    const p = posts[i];
-    if (existingUrls.has(p.link)) continue;        // 이미 등록된 글 제외(중복 방지)
+  for (let i = 0; i < newPosts.length; i++) {
+    const p = newPosts[i];
     const e = byIdx[i] || {};
     if (!e.isStoreReview) continue;                 // 매장 체험후기 아님 제외
-    const mt = await matchPlace(db, e.storeName, e.region);
+    const mt = matchPlaceInMem(allPlaces, e.storeName, e.region);
     items.push({
       title: p.title, link: p.link, date: p.date,
       store: e.storeName || '', region: e.region || '',
