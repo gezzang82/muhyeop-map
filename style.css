@@ -3557,7 +3557,8 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 .rv-card-date { font-size: 12px; color: #777; line-height: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 커뮤니티 후기 카드 매장명 헤더(매장명 + › + 구분선) — 탭 시 그 매장 상세로 */
 .rv-card-row { display: flex; gap: 16px; align-items: center; width: 100%; }
-.rv-card-store { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0 0 12px; border: 0; border-bottom: 1px solid #eee; background: none; cursor: pointer; text-align: left; font-family: inherit; }
+/* padding-top + 음수 margin-top: 텍스트 위치는 그대로 두고 위쪽 터치 영역만 10px 확장(터치 잘 안 됨 피드백). 아래는 padding 12px가 터치영역에 포함 */
+.rv-card-store { display: flex; align-items: center; gap: 6px; width: 100%; padding: 10px 0 12px; margin-top: -10px; border: 0; border-bottom: 1px solid #eee; background: none; cursor: pointer; text-align: left; font-family: inherit; }
 .rv-card-store-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rv-card-store-view { flex-shrink: 0; font-size: 13px; font-weight: 400; color: #777; }
 .rv-card-store-arrow { flex-shrink: 0; display: block; width: 5px; height: 9px; color: #777; }
