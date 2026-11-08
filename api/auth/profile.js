@@ -95,6 +95,14 @@ module.exports = async function handler(req, res) {
     await db.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args });
   }
 
+  // 닉네임 변경 시, 작성자 닉네임 스냅샷도 함께 갱신 → '첫 후기' 뱃지(places.founder_nickname)·
+  //  후기 author가 과거 닉네임으로 남아 현재 닉네임과 어긋나던 문제 방지(조회는 라이브 조인이 우선이나
+  //  어드민 제보자검색·r.author 폴백까지 일치시키려 스냅샷도 동기화). 본인 소유 행만 갱신(바운디드).
+  if (hasNick) {
+    try { await db.execute({ sql: "UPDATE places SET founder_nickname = ? WHERE founder_user_id = ? AND founder_kind = 'review'", args: [finalNick, session.userId] }); } catch (e) {}
+    try { await db.execute({ sql: "UPDATE reviews SET author = ? WHERE user_id = ?", args: [finalNick, session.userId] }); } catch (e) {}
+  }
+
   // email은 users 테이블에만 저장(위 UPDATE). 세션 쿠키에는 담지 않음 → 제보/신고 시 userId로 DB 조회
   res.setHeader('Set-Cookie', createSessionCookie({
     userId: session.userId, nickname: hasNick ? finalNick : session.nickname, provider: session.provider

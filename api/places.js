@@ -17,7 +17,9 @@ function toPlace(row) {
     lng: row.lng,
     category: row.category,
     foodSubtype: row.food_subtype || '',   // 음식점 세부(치킨·피자·고기·분식·술집) — 지도 핀 글리프용
-    founderNickname: row.founder_nickname || '',
+    // 첫 후기 작성자 닉네임: 저장된 스냅샷(founder_nickname)은 작성자가 닉네임을 바꿔도 안 갱신돼
+    //  후기 카드(현재 닉네임 조인)와 어긋남 → founder_user_id로 조인한 현재 닉네임(founder_nickname_live) 우선.
+    founderNickname: row.founder_nickname_live || row.founder_nickname || '',
     founderEmail: row.founder_email || '',
     founderUrl: row.founder_url || '',
     founderKind: row.founder_kind || '',   // 'review'=첫 후기 작성자 / 그 외(''/'report')=최초제보자
@@ -928,7 +930,9 @@ module.exports = async function handler(req, res) {
       const activeSub = "EXISTS(SELECT 1 FROM campaigns c WHERE c.place_id=p.id AND COALESCE(c.hidden,0)=0 AND (c.deadline='' OR c.deadline IS NULL OR c.deadline>=?))";
       const reviewSub = "EXISTS(SELECT 1 FROM reviews r WHERE r.place_id=p.id AND COALESCE(r.hidden,0)=0)";
       const rows = (await db.execute({
-        sql: `SELECT p.*, (${reviewSub}) AS has_review FROM places p WHERE COALESCE(p.hidden,0)=0 AND ((${activeSub}) OR (${reviewSub}))`,
+        sql: `SELECT p.*, (${reviewSub}) AS has_review, fu.nickname AS founder_nickname_live
+              FROM places p LEFT JOIN users fu ON fu.id = p.founder_user_id
+              WHERE COALESCE(p.hidden,0)=0 AND ((${activeSub}) OR (${reviewSub}))`,
         args: [today],
       })).rows;
       return res.status(200).json(rows.map(r => { const p = toPlace(r); delete p.founderEmail; p.hasReview = !!Number(r.has_review); return p; }));
@@ -938,7 +942,7 @@ module.exports = async function handler(req, res) {
       const term = String(q.q || '').replace(/\s/g, '').slice(0, 60);
       if (!term) return res.status(200).json([]);
       const rows = (await db.execute({
-        sql: "SELECT * FROM places WHERE COALESCE(hidden,0)=0 AND REPLACE(name,' ','') LIKE ? ORDER BY (REPLACE(name,' ','') LIKE ?) DESC, id DESC LIMIT 40",
+        sql: "SELECT p.*, fu.nickname AS founder_nickname_live FROM places p LEFT JOIN users fu ON fu.id = p.founder_user_id WHERE COALESCE(p.hidden,0)=0 AND REPLACE(p.name,' ','') LIKE ? ORDER BY (REPLACE(p.name,' ','') LIKE ?) DESC, p.id DESC LIMIT 40",
         args: ['%' + term + '%', term + '%'],
       })).rows;
       // 검색결과 매장별 '활성 캠페인 수'를 함께 계산해 내려줌 → 클라 picker 뱃지/정렬이 캠페인 타일
@@ -965,7 +969,7 @@ module.exports = async function handler(req, res) {
     // 공개 지도 조회(레거시/폴백): 숨김 매장 제외 + 이메일(PII) 제외하고 전량 반환. (어드민은 여전히 이걸 사용)
     // 엣지 캐싱: 매장은 거의 안 바뀜 → 60분 CDN 캐시 + 120분 SWR (Fast Origin Transfer 절감, 2026-09-17).
     res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
-    const result = await db.execute('SELECT * FROM places WHERE COALESCE(hidden,0)=0');
+    const result = await db.execute('SELECT p.*, fu.nickname AS founder_nickname_live FROM places p LEFT JOIN users fu ON fu.id = p.founder_user_id WHERE COALESCE(p.hidden,0)=0');
     return res.status(200).json(result.rows.map(r => { const p = toPlace(r); delete p.founderEmail; return p; }));
   }
 
