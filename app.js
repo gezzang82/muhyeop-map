@@ -1751,8 +1751,20 @@ function reviewCardHtml(r, isPreview, showStore) {
 // 커뮤니티 후기 카드의 매장명 탭 → 홈(지도)으로 전환 후 그 매장 상세 열기(모바일 GNB / PC 탭 각각)
 async function openReviewPlace(placeId) {
   if (!placeId) return;
-  // 매장이 메모리에 없으면(방금 올린 후기 매장이 ?map=1 엣지캐시에 아직 없거나 죽은 매장) by-id로 확보해 병합.
-  //  focusPlace는 places.find 미스 시 조용히 return하므로, 확보 안 하면 '매장보기'가 아무 반응 없이 먹통.
+  // 홈 전환 + 상세 오픈. focusPlace가 캠페인을 백그라운드로 확보해 캠페인 탭으로 보정(refreshOpenDetailCampaignPane)
+  //  하므로 여기서 캠페인을 await하지 않는다 → 매장보기 탭이 '두 번 눌러야' 열리던 지연 제거(즉시 반응).
+  const go = () => {
+    try {
+      if (document.body.classList.contains('pc-community-mode')) {
+        if (typeof switchPcTab === 'function') switchPcTab('campaigns');  // PC 홈(지도) 탭 = 'campaigns'
+      } else if (typeof switchTab === 'function') {
+        switchTab('home', { silent: true });
+      }
+    } catch (e) {}
+    try { if (typeof focusPlace === 'function') focusPlace(placeId); } catch (e) {}
+  };
+  // 매장이 메모리에 있으면(대부분) 즉시 오픈. 없으면(방금 올린 후기·죽은 매장) by-id 확보가 '필수'(focusPlace는
+  //  places.find 미스 시 조용히 return) → 이 경우만 1회 네트워크 대기 후 오픈.
   if (typeof places !== 'undefined' && !places.find(p => p.id === placeId)) {
     try {
       const r = await fetch('/api/places?id=' + placeId).then(x => x.ok ? x.json() : null);
@@ -1762,17 +1774,7 @@ async function openReviewPlace(placeId) {
       }
     } catch (e) {}
   }
-  // 캠페인을 먼저 확보 → 상세가 열릴 때 기본탭 판정(_defaultDetailTab: 활성 캠페인 있으면 '캠페인', 없으면 '후기')이
-  //  첫 렌더부터 정확. (예전엔 시트를 먼저 열고 캠페인이 늦게 도착해 후기탭에서 시작되곤 했음)
-  try { if (typeof ensurePlaceCampaigns === 'function') await ensurePlaceCampaigns(placeId); } catch (e) {}
-  try {
-    if (document.body.classList.contains('pc-community-mode')) {
-      if (typeof switchPcTab === 'function') switchPcTab('campaigns');  // PC 홈(지도) 탭 = 'campaigns'
-    } else if (typeof switchTab === 'function') {
-      switchTab('home', { silent: true });
-    }
-  } catch (e) {}
-  try { if (typeof focusPlace === 'function') focusPlace(placeId); } catch (e) {}
+  go();
 }
 
 function toggleReviewSort(placeId) {
