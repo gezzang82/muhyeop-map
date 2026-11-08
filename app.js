@@ -2238,7 +2238,9 @@ function refreshOpenDetailCampaignPane(place) {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   const freshPane = tmp.querySelector('.rv-pane-campaign');
-  if (freshPane) livePane.innerHTML = freshPane.innerHTML;
+  // 내용이 같으면 교체 안 함 — 불필요한 innerHTML 교체가 '상세보기' 버튼 DOM을 새로 만들어
+  //  열자마자 탭할 때 첫 탭이 유실되던(두 번 눌러야 열리던) 문제 방지.
+  if (freshPane && livePane.innerHTML !== freshPane.innerHTML) livePane.innerHTML = freshPane.innerHTML;
   // 캠페인 로드 전에 열려 후기가 기본이 됐던 상세라면(버블 강제 아님), 사용자가 아직 캠페인 탭으로
   // 바꾸지 않았을 때만 캠페인 탭으로 되돌린다(검색으로 화면 밖 매장을 열면 후기부터 뜨던 문제).
   if (_detailReviewByAbsence && _detailTab === 'review') switchDetailTab(place.id, 'campaign');
