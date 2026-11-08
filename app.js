@@ -1223,20 +1223,18 @@ function _initialViewBounds() {
 
 // 특정 매장의 활성 캠페인이 아직 안 받아졌으면 서버에서 받아 병합(상세 폴백). 화면 밖 매장을 focus로 열 때.
 async function ensurePlaceCampaigns(placeId) {
-  const _dbg = (m) => { try { if (window.showToast && currentUser && (currentUser.id === 12 || currentUser.nickname === '개짜장')) showToast('[E] ' + m); } catch (e) {} };
-  if (getActiveCampaigns(placeId).length) { _dbg('had'); return; }      // 이미 있음
-  if (_loadedPlaceCampaigns.has(placeId)) { _dbg('skip(loaded)'); return; }       // 이미 시도(빈 결과 포함)
+  if (getActiveCampaigns(placeId).length) return;      // 이미 있음
+  if (_loadedPlaceCampaigns.has(placeId)) return;       // 이미 시도(빈 결과 포함)
   _loadedPlaceCampaigns.add(placeId);
   try {
     const res = await fetch(`/api/campaigns?active=1&placeId=${placeId}`);
-    if (!res.ok) { _dbg('!ok ' + res.status); return; }
+    if (!res.ok) return;
     const arr = await res.json();
-    if (!Array.isArray(arr)) { _dbg('notarr'); return; }
+    if (!Array.isArray(arr)) return;
     let added = 0;
     for (const c of arr) { if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); added++; } }
     if (added > 0) invalidateActiveCache();
-    _dbg('fetch=' + arr.length + ' add=' + added + ' now=' + getActiveCampaigns(placeId).length);
-  } catch (e) { _dbg('err'); }
+  } catch (e) {}
 }
 
 function renderMarkers() {
@@ -2283,14 +2281,18 @@ function refreshOpenDetailCampaignPane(place) {
   if (_detailPlaceId !== place.id) return;                 // 이미 다른 상세로 넘어감
   // ⚠️ 상세 캠페인 pane이 아직 없으면(시트/카드 오픈 전) 로딩 플래그를 건드리지 않고 그대로 둔다.
   //  (예전엔 여기서 _campaignPaneLoading을 먼저 꺼버려, 정작 pane 생성 시 로딩 대신 '협찬 없음'이 떴다 바뀌던 버그)
-  const livePane = document.querySelector('#rvTabBody .rv-pane-campaign');
+  // ⚠️ #rvTabBody id가 PC(인포윈도우/카드)·모바일 시트 양쪽에 중복이라 document.querySelector가 엉뚱한 걸
+  //  집을 수 있음 → 열린 상세 컨테이너(모바일=#mobileSheetContent / PC=#pcCard) 안에서만 pane을 찾는다.
+  const _root = isMobileView() ? document.getElementById('mobileSheetContent') : document.getElementById('pcCard');
+  const livePane = (_root && _root.querySelector('.rv-pane-campaign')) || document.querySelector('#rvTabBody .rv-pane-campaign');
   if (!livePane) return;
   const hasActive = getActiveCampaigns(place.id).length;
-  const loadingThis = (_campaignPaneLoadingFor === place.id);  // 이 매장이 로딩 중일 때만
-  // 채울 캠페인도 없고 (이 매장)로딩 중도 아니면 그대로. 로딩 중이면 캠페인 0이어도 pane을 갱신해
-  //  스피너를 실제 내용(또는 '협찬 없음')으로 바꾸고 로딩을 해제한다.
-  if (!hasActive && !loadingThis) return;
-  if (loadingThis) _campaignPaneLoadingFor = null;         // 이 매장 캠페인 확보 완료(0이어도) → 로딩 해제
+  // ⚠️ 캠페인이 아직 메모리에 없으면(0) 아무것도 하지 않는다 → 로딩 스피너/현재 pane 그대로 유지.
+  //  (예전엔 캠페인 로드 전 ensurePlaceCampaigns가 skip(loaded)로 즉시 resolve→이 함수가 0인 채 '협찬 없어요'로
+  //   바꾸고 로딩을 꺼버림→ 이후 bbox/재ensure로 캠페인 도착 시 다시 캠페인으로 바뀌어 '없어요→캠페인' 깜빡임.)
+  //  hasActive>0일 때만 실제 캠페인으로 교체 + 로딩 해제. hasActive=1 매장은 캠페인이 반드시 오므로(서버 일치) 안전.
+  if (!hasActive) return;
+  if (_campaignPaneLoadingFor === place.id) _campaignPaneLoadingFor = null;  // 캠페인 도착 → 로딩 해제
   const html = (isMobileView()) ? createMobileDetailContent(place) : createInfoContent(place);
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
@@ -7603,7 +7605,6 @@ function openMobileSheet(place) {
   const overlay = document.getElementById('mobileSheetOverlay');
   const content = document.getElementById('mobileSheetContent');
   content.innerHTML = createMobileDetailContent(place);
-  try { if (window.showToast && currentUser && (currentUser.id === 12 || currentUser.nickname === '개짜장')) { const _pn = content.querySelector('.rv-pane-campaign'); showToast('[DBG] act=' + getActiveCampaigns(place.id).length + ' lf=' + _campaignPaneLoadingFor + ' pid=' + place.id + ' empty=' + (_pn ? /rv-empty/.test(_pn.innerHTML) : '?')); } } catch (e) {}
   initDetailTabs(place);
   sheet.style.transform = '';
   overlay.classList.add('show');
