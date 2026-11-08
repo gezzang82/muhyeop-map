@@ -1741,7 +1741,7 @@ function reviewCardHtml(r, isPreview, showStore) {
       </div>`;
   // 커뮤니티 후기/내 후기 카드엔 매장명 헤더(탭 시 홈 지도의 그 매장 상세로 이동). 매장 상세 후기탭·미리보기엔 미노출
   if (showStore && r.placeId && r.placeName) {
-    const storeHeader = `<button class="rv-card-store" onclick="event.stopPropagation();openReviewPlace(${r.placeId})"><span class="rv-card-store-name">${rvEsc(r.placeName)}</span><svg class="rv-card-store-arrow" width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    const storeHeader = `<button class="rv-card-store" onclick="event.stopPropagation();openReviewPlace(${r.placeId})"><span class="rv-card-store-name">${rvEsc(r.placeName)}</span><span class="rv-card-store-view">매장보기</span><img class="rv-card-store-arrow" src="image/ic_chevron_store_8.svg" width="5" height="9" alt=""></button>`;
     return `<div class="rv-card rv-card--store"${clickAttr}>${storeHeader}<div class="rv-card-row">${bodyRow}</div></div>`;
   }
   return `<div class="rv-card"${clickAttr}>${bodyRow}</div>`;
