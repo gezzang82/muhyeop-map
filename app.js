@@ -4119,11 +4119,32 @@ function biOpenStore(i) {
   if (results) results.innerHTML = '';
   if (confirm) confirm.disabled = true;
   if (ov) ov.classList.add('open');
+  biStoreSwipeInit();
   if (input && input.value.trim()) biStoreSearch();  // 블로그 매장명으로 초기 검색
+}
+// 상단 핸들을 아래로 끌면 시트가 내려가 닫힘(탭도 닫힘). 중간에서 놓으면 제자리 복귀.
+function biStoreSwipeInit() {
+  const sheet = document.querySelector('#biStoreOverlay .bi-store-sheet');
+  const handle = document.getElementById('biStoreHandle');
+  if (!sheet || !handle || handle._biSwipe) return;
+  handle._biSwipe = true;
+  let startY = 0, cur = 0, dragging = false;
+  const reset = () => { sheet.style.transition = ''; sheet.style.transform = ''; };
+  const onStart = (e) => { dragging = true; startY = (e.touches ? e.touches[0].clientY : e.clientY); cur = 0; sheet.style.transition = 'none'; };
+  const onMove = (e) => { if (!dragging) return; const y = (e.touches ? e.touches[0].clientY : e.clientY); cur = Math.max(0, y - startY); sheet.style.transform = 'translateY(' + cur + 'px)'; };
+  const onEnd = () => { if (!dragging) return; dragging = false; sheet.style.transition = ''; if (cur > 110 || cur < 6) { sheet.style.transform = ''; closeBiStore(); } else { sheet.style.transform = 'translateY(0)'; } };
+  handle.addEventListener('touchstart', onStart, { passive: true });
+  handle.addEventListener('touchmove', onMove, { passive: true });
+  handle.addEventListener('touchend', onEnd);
+  handle.addEventListener('mousedown', onStart);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onEnd);
 }
 function closeBiStore() {
   const ov = document.getElementById('biStoreOverlay');
   if (ov) ov.classList.remove('open');
+  const sheet = document.querySelector('#biStoreOverlay .bi-store-sheet');
+  if (sheet) { sheet.style.transition = ''; sheet.style.transform = ''; }  // 다음 열림 위해 드래그 변형 초기화
 }
 function biStoreSearchDebounced() {
   if (_biStoreTimer) clearTimeout(_biStoreTimer);
@@ -4136,27 +4157,81 @@ async function biStoreSearch() {
   const q = input.value.trim();
   if (!q) { box.innerHTML = ''; return; }
   box.innerHTML = '<div class="search-hint">검색 중…</div>';
-  let rows = [];
-  try { rows = await fetch('/api/places?q=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []); } catch (e) {}
-  _biStoreRows = Array.isArray(rows) ? rows.slice(0, 20) : [];
+  const _seq = (biStoreSearch._seq = (biStoreSearch._seq || 0) + 1);  // 최신 요청만 반영(디바운스 레이스 방지)
+  // 우리 DB + 네이버 검색 병합 — DB에 없는 매장(예: 옥된장 산본점)도 네이버에서 찾아 '신규 등록' 가능
+  let dbRows = [], nvRows = [];
+  try {
+    [dbRows, nvRows] = await Promise.all([
+      fetch('/api/places?q=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch('/api/search-place?query=' + encodeURIComponent(q)).then(r => r.ok ? r.json() : []).catch(() => [])
+    ]);
+  } catch (e) {}
+  if (_seq !== biStoreSearch._seq) return;  // 더 최신 검색이 들어왔으면 폐기
+  dbRows = Array.isArray(dbRows) ? dbRows : [];
+  nvRows = Array.isArray(nvRows) ? nvRows : [];
+  const norm = s => String(s || '').replace(/\s/g, '').toLowerCase();
+  const dbNames = new Set(dbRows.map(p => norm(p.name)));
+  const naverNew = nvRows.filter(it => it && it.name && !dbNames.has(norm(it.name))).slice(0, 10);
+  _biStoreRows = [
+    ...dbRows.slice(0, 20).map(p => ({ _t: 'db', id: p.id, name: p.name, address: p.address || '' })),
+    ...naverNew.map(it => ({ _t: 'naver', name: it.name, address: it.roadAddress || it.address || '', naverCategory: it.category || '' }))
+  ];
   if (!_biStoreRows.length) { box.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
   box.innerHTML = _biStoreRows.map((p, idx) => `<button class="bi-store-item" data-idx="${idx}" onclick="biPickStore(${idx})">
-      <div class="bi-store-item-txt"><p class="bi-store-item-name">${rvEsc(p.name)}</p><p class="bi-store-item-addr">${rvEsc(p.address || '')}</p></div>
+      <div class="bi-store-item-txt"><p class="bi-store-item-name">${rvEsc(p.name)}${p._t === 'naver' ? ' <span class="bi-store-new">신규</span>' : ''}</p><p class="bi-store-item-addr">${rvEsc(p.address || '')}</p></div>
       <svg class="bi-store-item-check" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 12.5L10 17.5L19 7" stroke="#006cff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>`).join('');
+}
+function biMarkStorePick(idx) {
+  document.querySelectorAll('#biStoreResults .bi-store-item').forEach(el => el.classList.toggle('on', Number(el.getAttribute('data-idx')) === idx));
+  const c = document.getElementById('biStoreConfirm'); if (c) c.disabled = false;
 }
 function biPickStore(idx) {
   const p = _biStoreRows[idx];
   if (!p) return;
+  if (p._t === 'naver') {
+    // 네이버 신규 매장 → 좌표 지오코딩 후 선택(등록은 '선택' 눌렀을 때 생성)
+    if (typeof naver === 'undefined' || !naver.maps || !naver.maps.Service) { showToast('지도 로딩 후 다시 시도해주세요.'); return; }
+    const c = document.getElementById('biStoreConfirm'); if (c) c.disabled = true;
+    _biStorePick = null;
+    naver.maps.Service.geocode({ query: p.address || p.name }, function (status, response) {
+      if (status !== naver.maps.Service.Status.OK || !response.v2.addresses || !response.v2.addresses.length) { showToast('주소를 확인할 수 없어요. 다른 매장을 선택해주세요.'); return; }
+      const a = response.v2.addresses[0];
+      _biStorePick = { placeId: null, _isNew: true, name: p.name, address: a.roadAddress || a.jibunAddress || p.address, lat: parseFloat(a.y), lng: parseFloat(a.x), naverCategory: p.naverCategory || '' };
+      biMarkStorePick(idx);
+    });
+    return;
+  }
   _biStorePick = { placeId: p.id, name: p.name, address: p.address || '' };
-  document.querySelectorAll('#biStoreResults .bi-store-item').forEach(el => el.classList.toggle('on', Number(el.getAttribute('data-idx')) === idx));
-  const c = document.getElementById('biStoreConfirm'); if (c) c.disabled = false;
+  biMarkStorePick(idx);
 }
-function biConfirmStore() {
+async function biConfirmStore() {
   if (!_biStorePick || _biStoreIdx < 0) return;
   const it = _biItems[_biStoreIdx];
+  let placeId = _biStorePick.placeId;
+  // 네이버 신규 매장이면 먼저 생성해 placeId 확보(카테고리는 네이버 기준으로 서버가 매핑)
+  if (_biStorePick._isNew && !placeId) {
+    const c = document.getElementById('biStoreConfirm');
+    if (c) { c.disabled = true; c.textContent = '등록 중…'; }
+    let np = null;
+    try {
+      np = await fetch('/api/places', {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: _biStorePick.name, address: _biStorePick.address,
+          lat: _biStorePick.lat, lng: _biStorePick.lng,
+          naverCategory: _biStorePick.naverCategory || '',
+          founderNickname: (currentUser && currentUser.nickname) || ''
+        })
+      }).then(r => r.ok ? r.json() : null);
+    } catch (e) {}
+    if (c) c.textContent = '선택';
+    if (!np || !np.id) { showToast('매장 등록에 실패했어요. 잠시 후 다시 시도해주세요.'); if (c) c.disabled = false; return; }
+    placeId = np.id;
+    try { if (!places.find(p => p.id === np.id)) places.push(np); } catch (e) {}
+  }
   if (it) {
-    it._placeId = _biStorePick.placeId;
+    it._placeId = placeId;
     it._store = { name: _biStorePick.name, address: _biStorePick.address };
     it._userPicked = true;   // 사용자가 직접 확인/선택 → 매칭(빨강) 박스로 전환
     it._checked = true;

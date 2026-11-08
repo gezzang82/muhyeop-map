@@ -972,14 +972,19 @@ module.exports = async function handler(req, res) {
   if (req.method === 'POST') {
     // 매장 제보 스팸 방지: IP당 1분에 15회
     if (!await enforceRateLimit(req, res, { name: 'write', limit: 15, windowSec: 60 })) return;
-    const { name, address, lat, lng, category, founderUrl } = req.body || {};
+    const { name, address, lat, lng, founderUrl, naverCategory } = req.body || {};
+    // category는 명시값 우선, 없으면 네이버 카테고리(naverCategory)를 16종으로 매핑(블로그 불러오기 신규매장 등 — 클라가 우리 분류체계 몰라도 OK)
+    let category = req.body && req.body.category;
+    if (!category && naverCategory) {
+      try { const { categoryByKeyword, mapNaverCat } = require('./_scrape'); category = mapNaverCat(naverCategory, name) || categoryByKeyword(String(naverCategory || '') + ' ' + String(name || ''), name) || '기타'; } catch (e) { category = '기타'; }
+    }
     if (!name || !address || lat == null || lng == null || !category) {
       return res.status(400).json({ error: 'name, address, lat, lng, category는 필수입니다.' });
     }
     // 수집 승인(source='admin') 중복 매장 방지: 같은 이름 + 같은 좌표 매장이 이미 있으면 새로 안 만들고 그걸 반환.
     // 디너의여왕은 채널(블로그/클립/인스타)마다 별도 캠페인이라 한 매장이 여러 행으로 승인되는데,
     // 이걸로 매장은 1개·캠페인만 여러 개 붙게 함(빠른 연속 승인 시 클라 메모리 dedup 경합도 서버에서 차단).
-    if (req.body?.source === 'admin') {
+    if (req.body?.source === 'admin' || naverCategory) {
       const dup = await db.execute({
         sql: "SELECT id, name, address, lat, lng, category, founder_nickname, founder_email, founder_url FROM places WHERE REPLACE(name,' ','') = REPLACE(?,' ','') AND ABS(lat - ?) < 0.0007 AND ABS(lng - ?) < 0.0007 LIMIT 1",
         args: [String(name), Number(lat), Number(lng)],
