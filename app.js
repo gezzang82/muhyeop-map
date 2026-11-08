@@ -1223,18 +1223,20 @@ function _initialViewBounds() {
 
 // 특정 매장의 활성 캠페인이 아직 안 받아졌으면 서버에서 받아 병합(상세 폴백). 화면 밖 매장을 focus로 열 때.
 async function ensurePlaceCampaigns(placeId) {
-  if (getActiveCampaigns(placeId).length) return;      // 이미 있음
-  if (_loadedPlaceCampaigns.has(placeId)) return;       // 이미 시도(빈 결과 포함)
+  const _dbg = (m) => { try { if (window.showToast && currentUser && (currentUser.id === 12 || currentUser.nickname === '개짜장')) showToast('[E] ' + m); } catch (e) {} };
+  if (getActiveCampaigns(placeId).length) { _dbg('had'); return; }      // 이미 있음
+  if (_loadedPlaceCampaigns.has(placeId)) { _dbg('skip(loaded)'); return; }       // 이미 시도(빈 결과 포함)
   _loadedPlaceCampaigns.add(placeId);
   try {
     const res = await fetch(`/api/campaigns?active=1&placeId=${placeId}`);
-    if (!res.ok) return;
+    if (!res.ok) { _dbg('!ok ' + res.status); return; }
     const arr = await res.json();
-    if (!Array.isArray(arr)) return;
+    if (!Array.isArray(arr)) { _dbg('notarr'); return; }
     let added = 0;
     for (const c of arr) { if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); added++; } }
     if (added > 0) invalidateActiveCache();
-  } catch (e) {}
+    _dbg('fetch=' + arr.length + ' add=' + added + ' now=' + getActiveCampaigns(placeId).length);
+  } catch (e) { _dbg('err'); }
 }
 
 function renderMarkers() {
