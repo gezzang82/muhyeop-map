@@ -34,6 +34,11 @@ class MainViewController: CAPBridgeViewController {
         }
     }
 
+    // 앱-타깃 커스텀 플러그인은 자동발견 안 됨(Capacitor 6+) → 여기서 명시 등록. (CustomBrowser: 앱-스킴 조용히 취소 인앱브라우저, 아래)
+    override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(CustomBrowserPlugin())
+    }
+
     private func applyInsetForCurrentURL(_ webView: WKWebView) {
         let host = webView.url?.host ?? ""
         // 우리 도메인이거나 아직 로드 전(빈 host)이면 edge-to-edge, 그 외(OAuth 등)는 상태바 아래로 인셋
@@ -143,5 +148,104 @@ enum Keychain {
             kSecAttrAccount as String: key,
         ]
         SecItemDelete(q as CFDictionary)
+    }
+}
+
+// MARK: - 커스텀 인앱브라우저 (2026-11-08)
+// @capacitor/inappbrowser는 커스텀 앱 스킴(revu:// 등)을 .allow 해버려 WKWebView 로드 실패→"Couldn't load" 에러가 떴다.
+// 이 플러그인은 decidePolicyFor에서 **앱 스킴을 조용히 .cancel**(앱 열기/팝업/에러 없이 현재 웹페이지 유지) + http(s)만 로드.
+// JS: window.Capacitor.Plugins.CustomBrowser.open({ url }) — app.js openExternal가 우선 사용. (pbxproj 수술 피하려 MainViewController.swift에 합침)
+@objc(CustomBrowserPlugin)
+public class CustomBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "CustomBrowserPlugin"
+    public let jsName = "CustomBrowser"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func open(_ call: CAPPluginCall) {
+        guard let urlString = call.getString("url"), let url = URL(string: urlString) else {
+            call.reject("invalid url"); return
+        }
+        DispatchQueue.main.async {
+            let vc = CustomBrowserViewController(url: url)
+            let nav = UINavigationController(rootViewController: vc)
+            nav.modalPresentationStyle = .fullScreen
+            self.bridge?.viewController?.present(nav, animated: true, completion: nil)
+            call.resolve()
+        }
+    }
+}
+
+class CustomBrowserViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
+    private let initialURL: URL
+    private var webView: WKWebView!
+
+    init(url: URL) { self.initialURL = url; super.init(nibName: nil, bundle: nil) }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = WKWebsiteDataStore.default()   // 영구 저장소 → revu 등 로그인(영구 쿠키) 유지
+        config.allowsInlineMediaPlayback = true
+
+        webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = self
+        webView.uiDelegate = self
+        webView.allowsBackForwardNavigationGestures = true
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(webView)
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "닫기", style: .plain, target: self, action: #selector(closeTapped))
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .refresh, target: self, action: #selector(reloadTapped))
+        navigationItem.title = initialURL.host
+
+        webView.load(URLRequest(url: initialURL))
+    }
+
+    @objc private func closeTapped() { dismiss(animated: true, completion: nil) }
+    @objc private func reloadTapped() { webView.reload() }
+
+    // 스킴 분기: http(s)=로드 / tel·mailto 등=시스템 / 그 외 앱 스킴(revu:// 등)=조용히 취소(팝업·에러 없이 현재 페이지 유지)
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        guard let url = navigationAction.request.url, let scheme = url.scheme?.lowercased() else {
+            decisionHandler(.allow); return
+        }
+        if scheme == "http" || scheme == "https" || scheme == "about" {
+            if navigationAction.targetFrame == nil {   // target=_blank → 현재 웹뷰에서 로드
+                webView.load(navigationAction.request)
+                decisionHandler(.cancel)
+            } else {
+                decisionHandler(.allow)
+            }
+            return
+        }
+        if ["tel", "mailto", "sms", "facetime", "itms-apps", "itms-appss", "maps"].contains(scheme) {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)   // 전화·메일·앱스토어 등은 시스템에
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.cancel)   // revu:// 등 커스텀 앱 스킴 → 조용히 무시(웹페이지 유지)
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        navigationItem.title = webView.url?.host ?? initialURL.host
+    }
+
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
+            let scheme = url.scheme?.lowercased() ?? ""
+            if scheme == "http" || scheme == "https" { webView.load(navigationAction.request) }
+        }
+        return nil
     }
 }
