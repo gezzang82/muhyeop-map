@@ -518,7 +518,8 @@ module.exports = async function handler(req, res) {
         existing = new Set(er.map(r => String(r.url || '').split('?')[0]));
       } catch (e) {}
       const { importList } = require('./_blogimport');
-      const result = await importList({ db, blogId: u.url_id, existingUrls: existing });
+      const all = req.query.scope === 'all'; // 과거 글까지 전체(글목록 API) / 기본=최근50(RSS)
+      const result = await importList({ db, blogId: u.url_id, existingUrls: existing, all });
       return res.status(200).json(result);
     }
     // 선택분 일괄 등록 — items:[{link, placeId}]. 본인 블로그 글만, 중복/레이트리밋/founder 승격은 기존 후기 플로우와 동일.

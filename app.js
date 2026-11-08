@@ -3904,8 +3904,9 @@ function blogImportCardHtml() {
     </div>`;
   if (plat === '블로그') {  // A: 네이버 블로그 등록자
     return `<div class="bi-entry${reveal}">
-      ${head('네이버 블로그에 쓴 최근 체험단 후기를 자동으로 매칭해 한 번에 등록해요', '* 한 번에 최근 50개의 글을 불러올 수 있어요. (중복 불가)')}
+      ${head('네이버 블로그에 쓴 체험단 후기를 자동으로 매칭해 한 번에 등록해요', '* 최근 글은 빠르게 · 과거 글까지는 전체 불러오기(시간이 조금 걸려요). 이미 등록된 글은 자동 제외.')}
       <button class="bi-entry-btn bi-entry-btn-primary" onclick="openBlogImport()">내 블로그 글 불러오기</button>
+      <button class="bi-entry-btn bi-entry-btn-outline" onclick="openBlogImport(true)">과거 글까지 전체 불러오기</button>
     </div>`;
   }
   if (plat === '인스타그램') {  // C: 인스타만 등록(보조링크 없는 최신본)
@@ -3927,14 +3928,14 @@ function biShowStep(step) {
     if (el) el.hidden = (s.toLowerCase() !== step);
   });
 }
-function openBlogImport() {
+function openBlogImport(all) {   // all=true → 과거 글까지 전체(글목록 API), 기본=최근 50(RSS)
   if (!currentUser) { openLoginSheet(); return; }
   const ov = document.getElementById('blogImportOverlay');
   if (!ov) return;
   biShowStep('loading');
-  const lc = document.getElementById('biLoadCount'); if (lc) lc.textContent = '글을 확인하는 중…';
+  const lc = document.getElementById('biLoadCount'); if (lc) lc.textContent = all ? '과거 글까지 확인하는 중…' : '글을 확인하는 중…';
   ov.classList.add('open');
-  biStartLoad();
+  biStartLoad(all);
 }
 function closeBlogImport() {
   if (_biLoadTimer) { clearInterval(_biLoadTimer); _biLoadTimer = null; }
@@ -3942,7 +3943,7 @@ function closeBlogImport() {
   const ov = document.getElementById('blogImportOverlay');
   if (ov) ov.classList.remove('open');
 }
-function biStartLoad() {
+function biStartLoad(all) {
   const label = document.getElementById('biLoadCount');
   _biLoadN = 0; _biLoadStart = Date.now();
   if (_biLoadTimer) clearInterval(_biLoadTimer);
@@ -3950,7 +3951,7 @@ function biStartLoad() {
     _biLoadN += 1 + Math.floor(Math.random() * 3);
     if (label) label.textContent = `글 ${_biLoadN}개 확인 중…`;
   }, 160);
-  fetch('/api/places?blogimport=list')
+  fetch('/api/places?blogimport=list' + (all ? '&scope=all' : ''))
     .then(async r => {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw Object.assign(new Error('fail'), { body: j, status: r.status });
