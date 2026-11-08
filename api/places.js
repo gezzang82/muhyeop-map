@@ -922,6 +922,20 @@ module.exports = async function handler(req, res) {
       const rows = rowsRes.rows.map(r => ({ ...toPlace(r), activeCount: Number(r.active_count || 0) }));
       return res.status(200).json({ rows, total, page, size });
     }
+    // 단일 매장 by-id 조회(공개): GET ?id=N — 비숨김 1건(PII 제거). 커뮤니티 후기 '매장보기'가
+    //  방금 올린 후기 매장(?map=1 엣지캐시에 아직 없음)·죽은 매장을 메모리에 확보해 이동 가능하게.
+    if (q.id !== undefined) {
+      const pid = Number(q.id);
+      if (!pid) return res.status(400).json({ error: 'id 필요' });
+      const row = (await db.execute({
+        sql: `SELECT p.*, fu.nickname AS founder_nickname_live FROM places p LEFT JOIN users fu ON fu.id = p.founder_user_id WHERE p.id=? AND COALESCE(p.hidden,0)=0`,
+        args: [pid],
+      })).rows[0];
+      if (!row) return res.status(404).json({ error: '매장을 찾을 수 없어요.' });
+      const p = toPlace(row); delete p.founderEmail;
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+      return res.status(200).json(p);
+    }
     // 지도 경량화 v2(2026-09-11): 지도 마커 = 활성 캠페인 OR 후기 있는 매장만(죽은 매장 제외).
     // 죽은 매장 ~1.6만 제외로 초기 로드/파싱 40%↓. hasReview 플래그로 클라 핀 상태(후기 매장=정상노출) 구분.
     if (q.map !== undefined) {

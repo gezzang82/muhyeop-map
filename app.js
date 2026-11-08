@@ -1751,6 +1751,17 @@ function reviewCardHtml(r, isPreview, showStore) {
 // 커뮤니티 후기 카드의 매장명 탭 → 홈(지도)으로 전환 후 그 매장 상세 열기(모바일 GNB / PC 탭 각각)
 async function openReviewPlace(placeId) {
   if (!placeId) return;
+  // 매장이 메모리에 없으면(방금 올린 후기 매장이 ?map=1 엣지캐시에 아직 없거나 죽은 매장) by-id로 확보해 병합.
+  //  focusPlace는 places.find 미스 시 조용히 return하므로, 확보 안 하면 '매장보기'가 아무 반응 없이 먹통.
+  if (typeof places !== 'undefined' && !places.find(p => p.id === placeId)) {
+    try {
+      const r = await fetch('/api/places?id=' + placeId).then(x => x.ok ? x.json() : null);
+      if (r && r.id != null && !places.find(p => p.id === r.id)) {
+        places.push(r);
+        if (typeof invalidateActiveCache === 'function') invalidateActiveCache();
+      }
+    } catch (e) {}
+  }
   // 캠페인을 먼저 확보 → 상세가 열릴 때 기본탭 판정(_defaultDetailTab: 활성 캠페인 있으면 '캠페인', 없으면 '후기')이
   //  첫 렌더부터 정확. (예전엔 시트를 먼저 열고 캠페인이 늦게 도착해 후기탭에서 시작되곤 했음)
   try { if (typeof ensurePlaceCampaigns === 'function') await ensurePlaceCampaigns(placeId); } catch (e) {}
@@ -3793,7 +3804,7 @@ function createInfiniteScroll(rootEl, sentinelEl, loadPage, opts) {
 }
 
 function openCommunity() {
-  _biEntryRevealed = false;  // 커뮤니티 진입 시마다 진입카드 펼침 애니 재생
+  // (펼침 애니는 최초 1회만 — 예전엔 진입 때마다 재생해 거슬린다는 피드백. blogImportCardHtml이 localStorage로 1회 가드)
   bindCmTopBtn();
   bindCmPullRefresh();
   updateCommunitySegUI();
@@ -3988,8 +3999,13 @@ function blogImportCardHtml() {
     if (!c || !c.in) return '';                                    // 캐시 없음/로그아웃 캐시 → 미노출
     plat = c.plat || '';
   } else { return ''; }                                            // me 확정됐는데 비로그인 → 미노출
-  const reveal = _biEntryRevealed ? '' : ' bi-entry-reveal';  // 처음 노출 시 1회만 펼침 애니(중복재생 방지)
+  // 펼침 애니는 '처음 한 번만'(기기 영구) — 매 진입마다 재생돼 거슬린다는 피드백.
+  //  세션(_biEntryRevealed) + localStorage(앱 재실행에도 1회) 둘 다 체크.
+  let revealed = _biEntryRevealed;
+  try { if (localStorage.getItem('mh_bi_revealed')) revealed = true; } catch (e) {}
+  const reveal = revealed ? '' : ' bi-entry-reveal';
   _biEntryRevealed = true;
+  try { localStorage.setItem('mh_bi_revealed', '1'); } catch (e) {}
   const head = (desc, note) => `<div class="bi-entry-head">
       <div class="bi-entry-titlerow">
         <img class="bi-entry-blogicon" src="image/ic_naver_blog_20.png" width="16" height="16" alt="">
