@@ -670,8 +670,13 @@ module.exports = async function handler(req, res) {
         sql: `SELECT COUNT(*) AS n FROM reviews r JOIN places p ON p.id = r.place_id WHERE ${whereSql}`,
         args: wargs
       })).rows[0] || {};
+      // 매장별 '활성 캠페인 있음' 플래그 → 클라가 '매장보기' 시 네트워크 대기 없이 바로 캠페인 탭으로 열게([[frontend]]).
+      //  활성 정의 = 숨김 아님 AND (상시(빈 마감일)는 등록 45일 이내 OR 마감일>=오늘KST). campaigns.js 활성필터와 동일.
+      const feedToday = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+      const activeExists = "EXISTS(SELECT 1 FROM campaigns c WHERE c.place_id=r.place_id AND COALESCE(c.hidden,0)=0 AND (((c.deadline='' OR c.deadline IS NULL) AND c.created_at>=datetime('now','-45 days')) OR c.deadline>=?))";
       const r = await db.execute({
         sql: `SELECT r.*, p.name AS place_name, p.category AS place_category,
+                     ${activeExists} AS has_active,
                      COALESCE(NULLIF(u.nickname,''),
                        (SELECT u2.nickname FROM users u2 WHERE u2.url_platform='블로그' AND u2.url_id=r.blog_id AND NULLIF(u2.nickname,'') IS NOT NULL ORDER BY u2.id DESC LIMIT 1)
                      ) AS user_nickname
@@ -681,7 +686,7 @@ module.exports = async function handler(req, res) {
               WHERE ${whereSql}
               ORDER BY ${order}
               LIMIT ? OFFSET ?`,
-        args: [...wargs, limit, offset]
+        args: [feedToday, ...wargs, limit, offset]
       });
       // ⚠️ 피드 응답엔 사용자별 상태(liked=내가 누른 하트, mine=내 후기)가 섞임 → 같은 URL이 사람마다 다른 몸체.
       //   CDN은 쿠키를 캐시키에 안 넣으므로 public 캐시하면 다른 사용자/과거 좋아요 상태가 새어 "일부만 반영"처럼 보임.
@@ -697,6 +702,7 @@ module.exports = async function handler(req, res) {
       const items = r.rows.map(row => {
         const rv = toReview(row, likedSet.has(row.id));
         rv.placeName = row.place_name || '';
+        rv.hasActive = !!Number(row.has_active);  // 매장 활성 캠페인 유무 → 매장보기 시 바로 캠페인 탭
         rv.mine = !!(session && row.user_id != null && row.user_id === session.userId);  // 본인 후기(삭제 뱃지)
         return rv;
       });

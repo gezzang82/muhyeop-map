@@ -1451,7 +1451,7 @@ function createInfoContent(place) {
       ${detailTabsHtml(place)}
       <div class="rv-line"></div>
       <div class="rv-tab-body" id="rvTabBody">
-        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="iw-campaigns-wrap">${campaignsHtml}</div>` : campaignEmptyHtml(place)}</div>
+        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="iw-campaigns-wrap">${campaignsHtml}</div>` : (_campaignPaneLoading ? cmCenterSpinner() : campaignEmptyHtml(place))}</div>
         <div class="rv-pane rv-pane-review"${_defaultDetailTab(place) === 'review' ? '' : ' style="display:none"'}></div>
       </div>
     </div>`;
@@ -1568,7 +1568,7 @@ function createMobileDetailContent(place) {
     </div>
     <div class="detail-scroll">
       <div class="rv-tab-body" id="rvTabBody">
-        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="detail-campaigns-wrap">${campaignsHtml}</div>` : campaignEmptyHtml(place)}</div>
+        <div class="rv-pane rv-pane-campaign"${_defaultDetailTab(place) === 'campaign' ? '' : ' style="display:none"'}>${active.length ? `<div class="detail-campaigns-wrap">${campaignsHtml}</div>` : (_campaignPaneLoading ? cmCenterSpinner() : campaignEmptyHtml(place))}</div>
         <div class="rv-pane rv-pane-review"${_defaultDetailTab(place) === 'review' ? '' : ' style="display:none"'}></div>
       </div>
     </div>`;
@@ -1586,11 +1586,19 @@ function fmtReviewDate(s) { const m = String(s || '').match(/(\d{4})[-.](\d{1,2}
 
 // 라이브버블(후기 등록 알림) 클릭 등에서 상세를 '후기 탭'으로 강제로 열 때 사용(1회성). initDetailTabs가 소비 후 리셋.
 let _forceReviewTab = false;
+// 커뮤니티 '매장보기'(피드 hasActive=1): 캠페인이 아직 로드 안 됐어도 '바로 캠페인 탭'으로 열기 위한 1회성 강제.
+//  (후기탭 먼저 떴다 캠페인탭으로 바뀌던 깜빡임 제거) — initDetailTabs가 탭 결정에 1회 소비.
+let _forceCampaignTab = false;
+// 위 강제로 캠페인 탭을 열었는데 캠페인이 아직 메모리에 없을 때 → 캠페인 pane에 '협찬 없음' 대신 로딩 스피너.
+//  focusPlace 백그라운드가 캠페인 확보 후 refreshOpenDetailCampaignPane이 실제 내용(또는 empty)으로 교체하며 해제.
+let _campaignPaneLoading = false;
 // 검색·버블로 캠페인 로드 전 상세가 열려 '활성 캠페인 0'으로 판단돼 후기가 기본 탭이 된 경우 true.
 // (버블 강제 후기와 구분) 캠페인이 백그라운드로 도착하면 refreshOpenDetailCampaignPane가 캠페인 탭으로 되돌린다.
 let _detailReviewByAbsence = false;
 function _defaultDetailTab(place) {
-  return _forceReviewTab ? 'review' : (getActiveCampaigns(place.id).length ? 'campaign' : 'review');
+  if (_forceReviewTab) return 'review';
+  if (_forceCampaignTab) return 'campaign';          // 피드 hasActive → 바로 캠페인 탭(캠페인 미로드여도)
+  return getActiveCampaigns(place.id).length ? 'campaign' : 'review';
 }
 function detailTabsHtml(place) {
   const def = _defaultDetailTab(place);
@@ -1617,6 +1625,7 @@ function initDetailTabs(place) {
   const forced = _forceReviewTab;
   const def = _defaultDetailTab(place);
   _forceReviewTab = false; // 1회성 소비: 다음 상세 열림엔 다시 기본 로직
+  _forceCampaignTab = false; // 탭 결정에 1회 소비(_campaignPaneLoading은 캠페인 도착 시 해제)
   // 후기가 기본이 된 이유가 '버블 강제'가 아니라 '아직 캠페인 미로드(활성 0)'였는지 기록.
   _detailReviewByAbsence = (def === 'review' && !forced);
   _detailTab = def;
@@ -1742,18 +1751,21 @@ function reviewCardHtml(r, isPreview, showStore) {
       </div>`;
   // 커뮤니티 후기/내 후기 카드엔 매장명 헤더(탭 시 홈 지도의 그 매장 상세로 이동). 매장 상세 후기탭·미리보기엔 미노출
   if (showStore && r.placeId && r.placeName) {
-    const storeHeader = `<button class="rv-card-store" onclick="event.stopPropagation();openReviewPlace(${r.placeId})"><span class="rv-card-store-name">${rvEsc(r.placeName)}</span><span class="rv-card-store-view">매장보기</span><svg class="rv-card-store-arrow" width="5" height="9" viewBox="0 0 5 9" fill="none"><path d="M0.5 0.5L4.5 4.5L0.5 8.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    const storeHeader = `<button class="rv-card-store" onclick="event.stopPropagation();openReviewPlace(${r.placeId}, ${r.hasActive ? 1 : 0})"><span class="rv-card-store-name">${rvEsc(r.placeName)}</span><span class="rv-card-store-view">매장보기</span><svg class="rv-card-store-arrow" width="5" height="9" viewBox="0 0 5 9" fill="none"><path d="M0.5 0.5L4.5 4.5L0.5 8.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
     return `<div class="rv-card rv-card--store"${clickAttr}>${storeHeader}<div class="rv-card-row">${bodyRow}</div></div>`;
   }
   return `<div class="rv-card"${clickAttr}>${bodyRow}</div>`;
 }
 
 // 커뮤니티 후기 카드의 매장명 탭 → 홈(지도)으로 전환 후 그 매장 상세 열기(모바일 GNB / PC 탭 각각)
-async function openReviewPlace(placeId) {
+async function openReviewPlace(placeId, hasActive) {
   if (!placeId) return;
   // 홈 전환 + 상세 오픈. focusPlace가 캠페인을 백그라운드로 확보해 캠페인 탭으로 보정(refreshOpenDetailCampaignPane)
   //  하므로 여기서 캠페인을 await하지 않는다 → 매장보기 탭이 '두 번 눌러야' 열리던 지연 제거(즉시 반응).
   const go = () => {
+    // 피드가 '활성 캠페인 있음'이라 알려줬으면(hasActive) 캠페인 미로드여도 '바로 캠페인 탭'으로 열고 pane은 로딩 표시
+    //  → 후기탭 먼저 떴다 캠페인탭으로 바뀌던 깜빡임 제거. 캠페인 없으면 기본(후기탭).
+    if (hasActive) { _forceCampaignTab = true; _campaignPaneLoading = true; }
     try {
       if (document.body.classList.contains('pc-community-mode')) {
         if (typeof switchPcTab === 'function') switchPcTab('campaigns');  // PC 홈(지도) 탭 = 'campaigns'
@@ -2265,7 +2277,11 @@ function moveToMyLocation() {
 // 후기 pane/활성 탭/스크롤 위치는 건드리지 않아 후기 탭을 보고 있어도 깜빡임이 없음.
 function refreshOpenDetailCampaignPane(place) {
   if (_detailPlaceId !== place.id) return;                 // 이미 다른 상세로 넘어감
-  if (!getActiveCampaigns(place.id).length) return;         // 새로 채울 캠페인 없음
+  const hasActive = getActiveCampaigns(place.id).length;
+  // 채울 캠페인도 없고 로딩 중도 아니면 그대로(기존 동작). 로딩 중이면 캠페인 0이어도 pane을 갱신해
+  //  스피너를 실제 내용(또는 '협찬 없음')으로 바꾸고 로딩을 해제한다.
+  if (!hasActive && !_campaignPaneLoading) return;
+  _campaignPaneLoading = false;                            // 캠페인 확보 완료(0이어도) → 로딩 스피너 해제
   const livePane = document.querySelector('#rvTabBody .rv-pane-campaign');
   if (!livePane) return;
   const html = (isMobileView()) ? createMobileDetailContent(place) : createInfoContent(place);
