@@ -87,6 +87,12 @@
 ## 커뮤니티 후기 정렬 (2026-10-10)
 - 후기 피드(`_cmFeedSort`)·내 후기(`_myRevSort`) **기본 정렬을 좋아요순 → 최신순(`latest`)** 으로 변경(새 후기가 바로 안 보여 최신순이 자연스러움). 매장별 후기 리스트(`_reviewSort`)는 기존대로 최신순. 좋아요순은 정렬 버튼 토글로 유지.
 
+## 커뮤니티 UX 개선 (2026-11-08, Figma 1999-9088)
+- **후기 카드 매장 헤더(#1)**: 커뮤니티 **후기/내 후기** 피드의 후기 카드 상단에 **매장명 헤더**(`reviewCardHtml(r, isPreview, showStore)`의 `showStore=true`) — `.rv-card-store`(매장명 + 화살표), 탭하면 `openReviewPlace(placeId)`(모바일 `switchTab('home',{silent:true})`→`focusPlace` / PC `switchPcTab('home')`→`focusPlace`)로 홈 지도의 그 매장 상세로 이동. 매장별 리스트(1건) 및 상세 미리보기는 `showStore` 없음(이미 매장 컨텍스트). CSS `.rv-card--store`는 `#cmBody`/`#myRevContent`/PC에서 세로배치.
+- **탭 상태 유지(#2)**: 예전엔 홈↔커뮤니티 전환 때마다 `renderCommunity`로 재렌더+스크롤 리셋 → **`_cmRendered` 플래그**로 커뮤니티를 **1회만** 렌더(`openCommunity`가 세팅), `switchTab` 커뮤니티 분기가 `if(!_cmRendered)`일 때만 `openCommunity`/리셋 호출 → 홈 갔다 돌아와도 **세그먼트·스크롤 위치 보존**. 세그먼트 변경·당겨서 새로고침은 명시적 재렌더라 예외.
+- **세그먼트 전환/첫 로드 로딩(#3b)**: `renderCommunity`가 리스트 컨테이너에 `cmCenterSpinner()`(가운데 스피너)를 먼저 깔고, 무한스크롤 첫 페이지(`offset===0`)에서 `listEl.innerHTML=''`로 교체 → 수다방↔후기 전환·첫 진입에 **로딩 스피너** 노출(빈 화면 깜빡임 제거).
+- **당겨서 새로고침(#3a)**: `#cmScroll` 최상단(`scrollTop<=0`)에서 아래로 당기면(`bindCmPullRefresh`, `openCommunity`에서 1회 바인드) `.cm-inner`가 저항감 있게 따라 내려오고(`translateY`, 0.5배·최대 90px), 임계(64px) 넘겨 떼면 `#cmPullIndicator` 스피너 돌며 `renderCommunity(true)`(캐시우회 새로고침). `.cm-scroll`은 `overscroll-behavior:none`이라 네이티브 바운스 없음(터치 전용, PC 무관).
+
 ## 수다방(커뮤니티) 댓글 (2026-11-04)
 - 커뮤니티 세그먼트 **'이웃찾기' → '수다방'** 리네이밍(내부 키 `seoichu`는 유지, 표시 라벨·소개문구만). 댓글로 소통 공간 성격이 커짐.
 - **댓글 표시**: 글 카드(`seoichuPostHtml`) 아래 **항상 전부 노출**(연회색 `.cm-sc-comments`), 메타행 우측 `💬 댓글 N`(`cmCommentIcon`=Figma 실물 `image/ic_comm_14.svg`). 목록 GET이 `comments[]` 임베드라 추가 요청 없음. 본인 댓글 🗑(`deleteSeoichuComment`).

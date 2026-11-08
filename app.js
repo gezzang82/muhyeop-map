@@ -3787,9 +3787,64 @@ function createInfiniteScroll(rootEl, sentinelEl, loadPage) {
 function openCommunity() {
   _biEntryRevealed = false;  // 커뮤니티 진입 시마다 진입카드 펼침 애니 재생
   bindCmTopBtn();
+  bindCmPullRefresh();
   updateCommunitySegUI();
   renderCommunity();
   _cmRendered = true;   // 이후 홈↔커뮤니티 재진입 시 상태 유지(#2)
+}
+// 당겨서 새로고침(#3a): #cmScroll 최상단에서 아래로 당기면 renderCommunity(true)로 새로 불러옴
+let _cmPullBound = false;
+function bindCmPullRefresh() {
+  if (_cmPullBound) return;
+  const sc = document.getElementById('cmScroll');
+  const inner = sc && sc.querySelector('.cm-inner');
+  const ind = document.getElementById('cmPullIndicator');
+  if (!sc || !inner || !ind) return;
+  const THRESHOLD = 64, MAX = 90;
+  let startY = 0, pulling = false, dist = 0, refreshing = false;
+  sc.addEventListener('touchstart', (e) => {
+    if (refreshing || sc.scrollTop > 0 || e.touches.length !== 1) { pulling = false; return; }
+    startY = e.touches[0].clientY; pulling = true; dist = 0;
+  }, { passive: true });
+  sc.addEventListener('touchmove', (e) => {
+    if (!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy <= 0) { // 위로 스크롤이면 당김 취소
+      if (dist > 0) { inner.style.transform = ''; ind.classList.remove('show', 'ready'); }
+      pulling = false; dist = 0; return;
+    }
+    dist = Math.min(MAX, dy * 0.5);  // 저항감
+    inner.style.transform = `translateY(${dist}px)`;
+    inner.style.transition = 'none';
+    ind.classList.add('show');
+    ind.classList.toggle('ready', dist >= THRESHOLD);
+    if (e.cancelable) e.preventDefault();  // 네이티브 바운스 억제
+  }, { passive: false });
+  const end = () => {
+    if (!pulling) return;
+    pulling = false;
+    const ready = dist >= THRESHOLD;
+    inner.style.transition = 'transform .2s ease-out';
+    if (ready) {
+      refreshing = true;
+      inner.style.transform = 'translateY(40px)';
+      ind.classList.add('show', 'ready', 'spin');
+      renderCommunity(true);
+      setTimeout(() => {
+        inner.style.transition = 'transform .25s ease-out';
+        inner.style.transform = '';
+        ind.classList.remove('show', 'ready', 'spin');
+        refreshing = false;
+      }, 650);
+    } else {
+      inner.style.transform = '';
+      ind.classList.remove('show', 'ready');
+    }
+    dist = 0;
+  };
+  sc.addEventListener('touchend', end, { passive: true });
+  sc.addEventListener('touchcancel', end, { passive: true });
+  _cmPullBound = true;
 }
 // 우하단 플로팅: 이웃찾기=스크롤 투 탑(↑), 후기=후기작성(연필 FAB)
 let _cmTopBound = false;

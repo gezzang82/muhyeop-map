@@ -3564,6 +3564,13 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 .cm-center-loading { display: flex; justify-content: center; align-items: center; padding: 48px 0; width: 100%; }
 .cm-center-spinner { width: 26px; height: 26px; border: 2.5px solid #e5e5e5; border-top-color: #999; border-radius: 50%; animation: cm-spin-c 0.7s linear infinite; }
 @keyframes cm-spin-c { to { transform: rotate(360deg); } }
+/* 당겨서 새로고침(#3a) — #cmScroll 최상단에 숨겨진 인디케이터, .cm-inner가 내려오며 드러남 */
+.cm-scroll { position: relative; }
+.cm-pull-indicator { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s ease; pointer-events: none; z-index: 1; }
+.cm-pull-indicator.show { opacity: 1; }
+.cm-pull-spinner { width: 22px; height: 22px; border: 2.5px solid #e5e5e5; border-top-color: #999; border-radius: 50%; transition: transform .1s linear; }
+.cm-pull-indicator.ready .cm-pull-spinner { border-top-color: #e82a2d; transform: rotate(180deg); }
+.cm-pull-indicator.spin .cm-pull-spinner { animation: cm-spin-c 0.7s linear infinite; }
 .rv-like { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; padding: 2px 0 2px 8px; flex-shrink: 0; }
 .rv-heart-off, .rv-heart-on { display: block; }
 .rv-heart-on { display: none; }
