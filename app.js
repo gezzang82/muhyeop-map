@@ -175,6 +175,7 @@ let markers = [];
 let markerCluster = null;
 let openInfoWindow = null;
 let openPcCardPlaceId = null;
+let _suppressPcZoomClose = false;  // focusPlace의 프로그램적 setZoom이 유발하는 zoom_changed로 PC 카드가 닫히지 않게 잠깐 억제
 let openPcCardPlace = null;
 let pcCardPanTimer = null;
 let markerMap = {}; // placeId → { marker, infoWindow }
@@ -819,7 +820,7 @@ function initMap() {
   });
 
   naver.maps.Event.addListener(map, 'zoom_changed', () => {
-    if (!isMobileView()) closePcCard();
+    if (!isMobileView() && !_suppressPcZoomClose) closePcCard();
   });
 
   // idle(지도 멈춤) 처리 — PC는 '고정 + 새로고침' 모델: 지도를 움직여도 리스트는 그대로 두고,
@@ -1755,7 +1756,7 @@ async function openReviewPlace(placeId) {
   try { if (typeof ensurePlaceCampaigns === 'function') await ensurePlaceCampaigns(placeId); } catch (e) {}
   try {
     if (document.body.classList.contains('pc-community-mode')) {
-      if (typeof switchPcTab === 'function') switchPcTab('home');
+      if (typeof switchPcTab === 'function') switchPcTab('campaigns');  // PC 홈(지도) 탭 = 'campaigns'
     } else if (typeof switchTab === 'function') {
       switchTab('home', { silent: true });
     }
@@ -2316,7 +2317,9 @@ async function focusPlace(placeId, zoom) {
   if (!place) return;
 
   // PC: 매장을 여는 지도 자동이동(카드↔핀 붙이기)은 리스트 고정 유지 + stale로 치지 않음.
-  if (!isMobileView()) _sbSkipStale = true;
+  //  또 setZoom이 유발하는 zoom_changed가 '방금 연 PC 카드'를 닫지 않게 잠깐 억제(커뮤니티 등 줌차 큰 데서
+  //  올 때 줌 애니가 카드 오픈(200ms) 이후 끝나며 closePcCard가 호출돼 카드가 깜빡 닫히던 문제).
+  if (!isMobileView()) { _sbSkipStale = true; _suppressPcZoomClose = true; setTimeout(() => { _suppressPcZoomClose = false; }, 700); }
 
   map.setCenter(new naver.maps.LatLng(place.displayLat ?? place.lat, place.displayLng ?? place.lng));
   map.setZoom(zoom || 16);
