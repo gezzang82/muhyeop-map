@@ -8022,8 +8022,8 @@ function initSplash() {
 const APP_VERSION = '1.1.4';
 // 스토어 최신 버전(플랫폼마다 승인 시점이 달라 분리). 설치버전 < 해당 플랫폼 값이면 MY에 '앱 업데이트' 버튼.
 // 플랫폼이 다른데 하나로 묶으면 아직 승인 안 된 스토어로도 업데이트를 유도하게 됨 → iOS/안드 각각 라이브된 버전만 올릴 것.
-const LATEST_APP_VERSION_ANDROID = '1.1.2'; // 2026-11-02 Play 라이브
-const LATEST_APP_VERSION_IOS = '1.1.3';     // 2026-11-06 App Store 라이브(로그인 유지 B)
+const LATEST_APP_VERSION_ANDROID = '1.1.3'; // 2026-11-08 Play 라이브(커스텀 인앱브라우저 등)
+const LATEST_APP_VERSION_IOS = '1.1.4';     // 2026-11-08 App Store 라이브(커스텀 인앱브라우저 등)
 // 네이티브 설치버전: undefined=미확인 / ''=웹·@capacitor/app 없는 구버전앱(버전 신뢰 불가) / 'x.y.z'=확인됨
 let _nativeAppVer = undefined;
 async function getNativeAppVer() {
