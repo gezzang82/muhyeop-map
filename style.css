@@ -3658,7 +3658,7 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 .sidebar-loading::after { content: ''; width: 24px; height: 24px; border: 2.5px solid #eee; border-top-color: #bbb; border-radius: 50%; animation: sb-spin 0.7s linear infinite; }
 @keyframes sb-spin { to { transform: rotate(360deg); } }
 /* 광고 구좌(홈 리스트 3번째 아래) — 통이미지 1장, 좌우는 sb-item과 동일 20px, 라운드 8px */
-.ad-slot { padding: 8px 20px 16px; }
+.ad-slot { padding: 8px 20px; }
 .ad-slot-full { display: block; width: 100%; height: auto; border-radius: 8px; cursor: pointer; }
 .sidebar-notice {
   margin: 0 16px 8px;
