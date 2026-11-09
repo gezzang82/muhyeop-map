@@ -2149,6 +2149,15 @@ function sidebarItemHtml(place) {
     </div>`;
 }
 
+// 운영자(개짜장) 식별 — 공개 전 기능을 본인에게만 미리보기 노출할 때 쓰는 공용 가드.
+function isOperator() {
+  return !!(currentUser && (currentUser.id === 12 || currentUser.nickname === '개짜장'));
+}
+// 홈 '모집 중인 체험' 리스트 광고 구좌(배너). 지금은 본인 미리보기 + 무협맵 홍보 샘플. 추후 1인 개발자 광고로 교체 + 노출/클릭 집계.
+function adSlotHomeHtml() {
+  // 통이미지 1장(광고주 제공, 1050×240 @3x). 라운드(8px)만 코드에서. 추후 link·클릭/노출 집계 배선.
+  return `<div class="ad-slot" data-slot="home"><img class="ad-slot-full" src="image/ad_slot_home.png" alt="광고" loading="lazy"></div>`;
+}
 function renderSidebar() {
   const list = document.getElementById('campaignList');
   const countEl = document.getElementById('campaignCount');
@@ -2213,7 +2222,13 @@ function renderSidebar() {
   }
 
   const noticeHtml = '<div class="sidebar-notice">모집 일정·조건·내용은 변경될 수 있어요. 신청 전 <strong>해당 플랫폼에서 최신 정보를 꼭 확인</strong>해 주세요.</div>';
-  list.innerHTML = noticeHtml + activePlaces.map(sidebarItemHtml).join('');
+  // 광고 구좌: '모집 중인 체험' 리스트 3번째 항목 아래에 배너 1개(현재 본인=개짜장 미리보기만). 3개 미만이면 미노출.
+  const showAd = isOperator();
+  const itemsHtml = activePlaces.map((p, i) => {
+    const h = sidebarItemHtml(p);
+    return (showAd && i === 2) ? h + adSlotHomeHtml() : h;
+  }).join('');
+  list.innerHTML = noticeHtml + itemsHtml;
   updateSidebarListFade();
 }
 
