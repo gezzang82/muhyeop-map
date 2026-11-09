@@ -449,11 +449,11 @@ module.exports = async function handler(req, res) {
         (await db.execute({ sql: "SELECT action, cnt FROM app_install_daily WHERE visit_date = ?", args: [day] })).rows.forEach(r => { appInstallToday[r.action] = Number(r.cnt || 0); });
         (await db.execute("SELECT action, SUM(cnt) AS cnt FROM app_install_daily GROUP BY action")).rows.forEach(r => { appInstallTotal[r.action] = Number(r.cnt || 0); });
       } catch (e) {}
-      // 앱 스토어 누적 다운로드(로컬 크론 store-downloads.cjs가 app_downloads에 저장한 스냅샷). iOS=누적 다운로드 / play=활성 설치.
+      // 앱 스토어 누적 다운로드(로컬 크론 store-downloads.cjs가 app_downloads에 저장한 스냅샷). iOS·play 모두 total=누적 신규설치, play.active=활성 기기수(iOS는 null).
       const storeDownloads = { ios: null, play: null };
       try {
-        (await db.execute("SELECT platform, total, as_of FROM app_downloads")).rows.forEach(r => {
-          storeDownloads[r.platform] = { total: Number(r.total || 0), asOf: r.as_of || '' };
+        (await db.execute("SELECT platform, total, as_of, active FROM app_downloads")).rows.forEach(r => {
+          storeDownloads[r.platform] = { total: Number(r.total || 0), asOf: r.as_of || '', active: (r.active == null ? null : Number(r.active)) };
         });
       } catch (e) {}
       const vsPayload = {

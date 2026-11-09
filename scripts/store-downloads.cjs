@@ -101,9 +101,111 @@ async function playInstalls(date) {
   return { ok: true, date, dailyInstalls: dayInstalls, activeInstalls: active, columns: head };
 }
 
-module.exports = { iosDownloads, playInstalls };
+// ---------- Play 누적 다운로드 + 활성 ----------
+//  Play Console '총 설치 수'(누적) = Daily User Installs 합(출시월~date). ('Total User Installs' 컬럼은 이 export에서 전부 0이라 못 씀 → iOS처럼 일별 합산)
+//  '활성 기기 수' = Active Device Installs 최신행. 둘 다 반환 {date, total(누적), active(활성)}.
+async function playTotal(date) {
+  const BUCKET = envGet('GPLAY_STATS_BUCKET');
+  const saFile = envGet('GOOGLE_PLAY_SA_FILE');
+  let saRaw = saFile ? fs.readFileSync(saFile.replace(/^~/, process.env.HOME), 'utf8') : envGet('GOOGLE_PLAY_SA_JSON');
+  if (!saRaw || !BUCKET) return null;
+  let sa; try { sa = JSON.parse(saRaw); } catch (e) { return null; }
+  const now = Math.floor(Date.now() / 1000);
+  const jh = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const jp = b64url(JSON.stringify({ iss: sa.client_email, scope: 'https://www.googleapis.com/auth/devstorage.read_only', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }));
+  const jsig = b64url(crypto.sign('RSA-SHA256', Buffer.from(jh + '.' + jp), sa.private_key));
+  const tk = await (await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jh + '.' + jp + '.' + jsig }) })).json();
+  if (!tk.access_token) return null;
+  // 출시월(2026-10, Play 리포트 시작)부터 date월까지 월 CSV 순회
+  const months = [];
+  { let y = 2026, m = 10; const endYm = Number(date.slice(0, 4)) * 100 + Number(date.slice(5, 7)); while (y * 100 + m <= endYm) { months.push(String(y) + String(m).padStart(2, '0')); m++; if (m > 12) { m = 1; y++; } } }
+  let cum = 0, active = null, asOf = null;
+  for (const ym of months) {
+    const obj = encodeURIComponent(`stats/installs/installs_${PKG}_${ym}_overview.csv`);
+    const res = await fetch(`https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${obj}?alt=media`, { headers: { Authorization: 'Bearer ' + tk.access_token } });
+    if (!res.ok) continue;
+    const csv = Buffer.from(await res.arrayBuffer()).toString('utf16le').replace(/^﻿/, '');
+    const lines = csv.split(/\r?\n/).filter(Boolean);
+    const head = lines[0].split(',');
+    const iDate = head.findIndex(h => /^Date/i.test(h));
+    const iDU = head.findIndex(h => /Daily User Installs/i.test(h));
+    const iAD = head.findIndex(h => /Active Device Installs/i.test(h));
+    for (let i = 1; i < lines.length; i++) {
+      const c = lines[i].split(',');
+      if (c[iDate] > date) continue;              // date 이후는 제외
+      const du = parseInt(c[iDU], 10); if (!isNaN(du)) cum += du;         // 누적 신규(일별 설치 합)
+      const ad = parseInt(c[iAD], 10); if (!isNaN(ad)) { active = ad; asOf = c[iDate]; }  // 활성(최신행)
+    }
+  }
+  if (asOf == null) return null;
+  return { date: asOf, total: cum, active };
+}
 
-if (require.main === module) {
+// ---------- 앱 누적 다운로드 토탈 (대시보드용) ----------
+//  iOS = 일별 '첫 다운로드' 합(출시~어제). Play = Total User Installs 최신행. 각 플랫폼 기준일(asOf) 함께 반환.
+async function appTotals(opts = {}) {
+  const startIos = opts.startIos || '2026-10-15'; // 출시(~10월말) 이전은 리포트 없음→0, 안전하게 10/15부터
+  const endExclusive = new Date(Date.now()); // 오늘(어제 리포트까지 자연히 0/미생성)
+  let iosTotal = 0, iosAsOf = null, iosUpdates = 0;
+  for (let d = new Date(startIos + 'T00:00:00Z'); d < endExclusive; d.setUTCDate(d.getUTCDate() + 1)) {
+    const ds = d.toISOString().slice(0, 10);
+    let r; try { r = await iosDownloads(ds); } catch (e) { continue; }
+    if (r && r.ok && typeof r.downloads === 'number') { iosTotal += r.downloads; iosUpdates += (r.updates || 0); if (r.downloads > 0) iosAsOf = ds; }
+  }
+  // Play: 최근 10일 중 데이터 있는 최신(누적 total + 활성 active)
+  let play = null;
+  for (let i = 1; i <= 10 && !play; i++) { const ds = yyyymmdd(new Date(Date.now() - i * 864e5)); try { play = await playTotal(ds); } catch (e) {} }
+  return { iosTotal, iosAsOf, iosUpdates, playTotal: play ? play.total : null, playActive: play ? play.active : null, playAsOf: play ? play.date : null };
+}
+
+module.exports = { iosDownloads, playInstalls, playTotal, appTotals };
+
+if (process.argv[2] === 'totals') {
+  (async () => {
+    const t = await appTotals();
+    console.log('TOTALS ' + JSON.stringify(t));
+    // 운영 DB에 스냅샷 저장(대시보드용). TURSO_PROD_* 있으면.
+    const PURL = envGet('TURSO_PROD_URL'), PTOK = envGet('TURSO_PROD_AUTH_TOKEN');
+    if (PURL && PTOK) {
+      try {
+        const { createClient } = require('@libsql/client');
+        const db = createClient({ url: PURL, authToken: PTOK });
+        await db.execute("CREATE TABLE IF NOT EXISTS app_downloads (platform TEXT PRIMARY KEY, total INTEGER, as_of TEXT, updated_at TEXT)");
+        try { await db.execute("ALTER TABLE app_downloads ADD COLUMN active INTEGER"); } catch (e) {}  // Play 활성 기기 수(iOS는 null)
+        const now = new Date().toISOString();
+        const rows = [['ios', t.iosTotal, t.iosAsOf, null], ['play', t.playTotal, t.playAsOf, t.playActive]];
+        for (const [p, tot, asof, act] of rows) {
+          if (tot == null) continue; // 값 없으면 기존 유지(덮어쓰지 않음)
+          await db.execute({ sql: "INSERT INTO app_downloads(platform,total,as_of,active,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(platform) DO UPDATE SET total=excluded.total, as_of=excluded.as_of, active=excluded.active, updated_at=excluded.updated_at", args: [p, tot, asof || '', act, now] });
+        }
+        console.log('SAVED app_downloads (ios/play)');
+      } catch (e) { console.log('DB save 실패:', e.message); }
+    }
+  })();
+}
+if (process.argv[2] === 'playdump') {
+  (async () => {
+    const BUCKET = envGet('GPLAY_STATS_BUCKET');
+    const saFile = envGet('GOOGLE_PLAY_SA_FILE');
+    const sa = JSON.parse(saFile ? fs.readFileSync(saFile.replace(/^~/, process.env.HOME), 'utf8') : envGet('GOOGLE_PLAY_SA_JSON'));
+    const now = Math.floor(Date.now() / 1000);
+    const jh = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' })), jp = b64url(JSON.stringify({ iss: sa.client_email, scope: 'https://www.googleapis.com/auth/devstorage.read_only', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }));
+    const jsig = b64url(crypto.sign('RSA-SHA256', Buffer.from(jh + '.' + jp), sa.private_key));
+    const tk = await (await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jh + '.' + jp + '.' + jsig }) })).json();
+    for (const ym of ['202610', '202611']) {
+      const obj = encodeURIComponent(`stats/installs/installs_${PKG}_${ym}_overview.csv`);
+      const res = await fetch(`https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${obj}?alt=media`, { headers: { Authorization: 'Bearer ' + tk.access_token } });
+      console.log('=== ' + ym + ' http:' + res.status + ' ===');
+      if (!res.ok) continue;
+      const csv = Buffer.from(await res.arrayBuffer()).toString('utf16le').replace(/^﻿/, '');
+      const lines = csv.split(/\r?\n/).filter(Boolean);
+      console.log('COLS:', lines[0]);
+      lines.slice(1).forEach(l => console.log(l));
+    }
+  })();
+}
+
+if (require.main === module && !['totals', 'playdump'].includes(process.argv[2])) {
   (async () => {
     console.log(`==== 스토어 다운로드 (${reportDate}) ====`);
     for (const [label, fn] of [['iOS', iosDownloads], ['Play', playInstalls]]) {
