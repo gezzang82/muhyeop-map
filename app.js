@@ -3517,6 +3517,7 @@ function switchTab(tab, opts) {
       openCommunity();
     }
     markCommunitySeen();  // 커뮤니티 열람 → GNB 새글 점 제거(봤음 기록)
+    trackCmSeg(_cmSeg);   // 진입 시 현재 보는 세그(기본=수다방) 조회 1
   }
   if (tab === 'my') {
     // MY 탭: 기존 '메뉴'를 흡수(로그인/내정보/신고/소개/약관 등). 제보하기는 제외(후기+매장등록으로 대체 방향).
@@ -3939,9 +3940,15 @@ function cmScrollTop() {
   const sc = document.getElementById('cmScroll');
   if (sc) sc.scrollTo({ top: 0, behavior: 'smooth' });
 }
+// 커뮤니티 세그먼트 조회 집계(수다방/후기/내후기 중 뭘 보나) — fire-and-forget, 운영자 집IP는 서버에서 제외.
+function trackCmSeg(seg) {
+  if (!['seoichu', 'feed', 'myreviews'].includes(seg)) return;
+  try { fetch('/api/places?visit=cmseg&seg=' + encodeURIComponent(seg), { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}
+}
 function setCommunitySeg(seg) {
   if (seg === _cmSeg) return;
   _cmSeg = seg;
+  trackCmSeg(seg);   // 세그 전환 = 그 세그 조회 1
   updateCommunitySegUI();
   renderCommunity();
   const sc = document.getElementById('cmScroll'); if (sc) { sc.scrollTop = 0; }
@@ -6948,6 +6955,7 @@ function switchPcTab(tab) {
       const sc = document.getElementById('cmScroll'); if (sc) sc.scrollTop = 0;
     }
     markCommunitySeen();  // 커뮤니티 열람 → 새글 점 제거(PC)
+    trackCmSeg(_cmSeg);   // 진입 시 현재 보는 세그 조회 1
   }
 
   if (tab === 'report') {

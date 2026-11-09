@@ -614,6 +614,25 @@ function renderGnbClicks(today, total) {
   }).join('');
 }
 
+// 커뮤니티 세그먼트 조회: 수다방/후기/내후기 중 뭘 많이 보나(누적 비율 + 오늘). GNB 탭 집계와 동일 패턴.
+function renderCmSeg(today, total) {
+  const el = document.getElementById('cmSegStats');
+  if (!el) return;
+  today = today || {}; total = total || {};
+  const segs = [['seoichu', '수다방'], ['feed', '후기'], ['myreviews', '내 후기']];
+  const totalAll = segs.reduce((s, t) => s + (total[t[0]] || 0), 0);
+  if (!totalAll) { el.innerHTML = '<div class="empty-msg">아직 세그먼트 조회 데이터가 없어요. (배포 이후부터 수집)</div>'; return; }
+  const max = Math.max(1, ...segs.map(t => total[t[0]] || 0));
+  el.innerHTML = segs.map(t => {
+    const tot = total[t[0]] || 0, tdy = today[t[0]] || 0, pct = Math.round(tot / totalAll * 100);
+    return `<div class="stat-row">
+        <span class="stat-badge" style="background:#39395c1a;color:#39395c">${t[1]}</span>
+        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(tot / max * 100)}%;background:#39395c"></div></div>
+        <span class="stat-num">${tot.toLocaleString()} <span style="color:#aaa;font-weight:400">(${pct}%)</span> · 오늘 ${tdy}</span>
+      </div>`;
+  }).join('');
+}
+
 // 지도 검색창 사용: 누적/오늘 횟수 + 최근 검색어 태그(최근 100건 내 중복 묶음, 최신순)
 //  + 결과 0건 검색(수요 있는데 못 찾은 검색어 = 데이터/지역 공백) 별도 섹션.
 function renderSearchStats(today, total, recent, zeroToday, zeroTotal, zeroRecent) {
@@ -898,6 +917,7 @@ function renderDashboard() {
     renderReferrerDaily(s.referrerDaily || []);
     renderPlatforms(s.todayPlatforms || []);
     renderGnbClicks(s.gnbToday || {}, s.gnbTotal || {});
+    renderCmSeg(s.cmSegToday || {}, s.cmSegTotal || {});
     renderSearchStats(s.searchToday || 0, s.searchTotal || 0, s.recentSearches || [], s.searchZeroToday || 0, s.searchZeroTotal || 0, s.recentZeroSearches || []);
     renderAppInstall(s.appInstallToday || {}, s.appInstallTotal || {});
     // 앱 스토어 다운로드(누적) — iOS 누적 다운로드 / Android 활성 설치, 플랫폼별 기준일
