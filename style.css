@@ -3561,8 +3561,9 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 /* 터치 영역: 헤더가 얇아 탭이 잘 안 돼 위로 10px 확장(텍스트 위치는 margin-top 음수로 유지) + min-height 44로 보장.
    position/z-index로 카드 전체 onclick(블로그 열기)보다 위에서 터치 받아 충돌 방지. box-sizing으로 min-height에 패딩 포함. */
 .rv-card-store { display: flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 0 12px; margin-top: -10px; position: relative; z-index: 2; border: 0; border-bottom: 1px solid #eee; background: none; cursor: pointer; text-align: left; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-.rv-card-store-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rv-card-store-view { flex-shrink: 0; font-size: 13px; font-weight: 400; color: #777; }
+.rv-card-store-name { flex: 0 1 auto; min-width: 0; font-size: 14px; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-card-store-tag { flex-shrink: 0; font-size: 11px; font-weight: 500; line-height: 1; color: #376BCB; background: #E5EEFF; border-radius: 4px; padding: 3px 5px; }
+.rv-card-store-view { flex-shrink: 0; margin-left: auto; font-size: 13px; font-weight: 400; color: #777; }
 .rv-card-store-arrow { flex-shrink: 0; display: block; width: 5px; height: 9px; color: #777; }
 /* 지도 가운데 로딩(현재위치 GPS 획득 등 몇 초 걸리는 작업) — 흰 카드 안 스피너, 지도 입력은 통과(pointer-events:none) */
 .center-loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 9000; pointer-events: none; }

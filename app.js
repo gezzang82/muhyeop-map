@@ -1756,7 +1756,8 @@ function reviewCardHtml(r, isPreview, showStore) {
       </div>`;
   // 커뮤니티 후기/내 후기 카드엔 매장명 헤더(탭 시 홈 지도의 그 매장 상세로 이동). 매장 상세 후기탭·미리보기엔 미노출
   if (showStore && r.placeId && r.placeName) {
-    const storeHeader = `<button class="rv-card-store" onclick="event.stopPropagation();openReviewPlace(${r.placeId}, ${r.hasActive ? 1 : 0})"><span class="rv-card-store-name">${rvEsc(r.placeName)}</span><span class="rv-card-store-view">매장보기</span><svg class="rv-card-store-arrow" width="5" height="9" viewBox="0 0 5 9" fill="none"><path d="M0.5 0.5L4.5 4.5L0.5 8.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    const campTag = r.hasActive ? '<span class="rv-card-store-tag">진행중</span>' : '';  // 그 매장 활성 캠페인 있으면 표시(데이터는 피드에 이미 포함, 추가 비용 0)
+    const storeHeader = `<button class="rv-card-store" onclick="event.stopPropagation();openReviewPlace(${r.placeId}, ${r.hasActive ? 1 : 0})"><span class="rv-card-store-name">${rvEsc(r.placeName)}</span>${campTag}<span class="rv-card-store-view">매장보기</span><svg class="rv-card-store-arrow" width="5" height="9" viewBox="0 0 5 9" fill="none"><path d="M0.5 0.5L4.5 4.5L0.5 8.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
     return `<div class="rv-card rv-card--store"${clickAttr}>${storeHeader}<div class="rv-card-row">${bodyRow}</div></div>`;
   }
   return `<div class="rv-card"${clickAttr}>${bodyRow}</div>`;
