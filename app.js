@@ -1111,6 +1111,9 @@ function attachBannerSwipe() {
 function closeBannerPopup() {
   clearInterval(_bannerAuto); _bannerAuto = null; // 자동 스와이프 정지
   document.getElementById('bannerPopupOverlay').classList.remove('show');
+  // 이벤트 팝업을 닫은 직후 = 알림 소프트 프롬프트 띄우기 좋은 순간(iOS 토큰 확보). 배너 탭→공지로 간 경우엔
+  //  오버레이가 떠 있어 maybePromptPush가 알아서 스킵하고 다음 기회로 미룬다.
+  setTimeout(function () { try { maybePromptPush(); } catch (e) {} }, 800);
 }
 
 function dismissBannerToday() {
@@ -8373,6 +8376,32 @@ async function initPush() {
     if (perm && perm.receive === 'granted') await P.register();
   } catch (e) {}
 }
+// iOS는 OS 알림 권한을 '명시 요청'해야 토큰이 잡힌다(안드는 자동 허용 → 앱만 켜도 토큰 등록). 그래서
+//  내 장소/이 지역 알림을 안 쓴 iOS 유저는 평생 토큰이 없어 푸시 도달이 극소수였음(실측 iOS 21 vs 안드 238).
+//  → 좋은 순간(이벤트 팝업 닫은 직후 등)에 '소프트 프리프롬프트'를 1회만 띄우고, 동의한 사람만 OS 권한을 요청
+//    (OS 원샷 팝업을 무관심 유저에게 낭비하지 않는 iOS 권장 패턴). '나중에'/닫기는 다시 안 물음.
+function _pushPromptBlocked() {
+  const sel = ['#bannerPopupOverlay.show', '#alertPopupOverlay.open', '#noticeOverlay.open', '#noticeDetailOverlay.open', '.modal-overlay.open', '.mobile-sheet.show'];
+  try { return sel.some(s => document.querySelector(s)); } catch (e) { return false; }
+}
+async function maybePromptPush() {
+  if (!isNativeApp()) return;               // 앱 전용(웹 no-op)
+  const P = pushPlugin(); if (!P) return;   // 구버전 플러그인 없음
+  try { if (localStorage.getItem('mh_push_asked') === '1') return; } catch (e) {}
+  let perm; try { perm = await P.checkPermissions(); } catch (e) { return; }
+  if (!perm) return;
+  // 이미 허용(안드 대부분, initPush가 토큰 등록)·거부(OS가 재요청 안 받음)면 더 안 물음.
+  if (perm.receive === 'granted' || perm.receive === 'denied') { try { localStorage.setItem('mh_push_asked', '1'); } catch (e) {} return; }
+  // perm.receive === 'prompt' : 다른 오버레이가 떠 있으면 플래그 안 세우고 다음 기회로.
+  if (_pushPromptBlocked()) return;
+  try { localStorage.setItem('mh_push_asked', '1'); } catch (e) {}  // 1회성
+  showAlert('새 협찬·공지 알림 받을까요?', '내 주변에 새로 올라온 체험단 협찬과 중요 공지를 바로 알려드려요.', {
+    header: '알림 받기', twoButton: true, cancelText: '나중에', confirmText: '알림 받기',
+    onConfirm: async () => {
+      try { const p = await P.requestPermissions(); if (p && p.receive === 'granted') await P.register(); } catch (e) {}
+    }
+  });
+}
 // 내 장소 알림 ON 저장 시: 네이티브면 OS 알림 권한 맥락요청 + FCM 토큰 등록(로그인 상태라 user_id 귀속).
 //  발송 대상은 서버가 user_places.alarm_enabled로 직접 조회 → 여기선 '권한+토큰'만 확보. 반환=권한 허용 여부.
 async function ensurePushForMyPlaceAlarm() {
@@ -8474,6 +8503,9 @@ window.addEventListener('load', async function() {
   renderLeaderboard();
   if (LEADERBOARD_ENABLED) setInterval(renderLeaderboard, 60000);
   initPush(); // 앱 푸시 초기화(네이티브만, 백그라운드)
+  // 부팅 폴백: 이벤트 팝업이 없는(오늘 그만 보기 등) 유저도 알림 소프트 프롬프트를 받도록 한 번 시도.
+  //  팝업/시트가 떠 있으면 maybePromptPush가 스킵(플래그 안 세움) → closeBannerPopup 등 다음 기회에 뜸.
+  setTimeout(function () { try { maybePromptPush(); } catch (e) {} }, 5000);
   initNativeKeyboard(); // 키보드 올라올 때 웹뷰 밀림 방지 + 포커스 입력 키보드 위로 스크롤(네이티브만)
 });
 
