@@ -8274,6 +8274,11 @@ function applyPushNav(nav) {
     openCommunityPost(nav.postId);
     return;
   }
+  // 이벤트·공지 푸시 → 앱 안 공지 상세로 바로 이동(지도/위치 로직 스킵, 배너 팝업→공지와 동일).
+  if (nav.kind === 'notice' && nav.noticeId != null && nav.noticeId !== '' && typeof openNoticeDetail === 'function') {
+    openNoticeDetail(Number(nav.noticeId));
+    return;
+  }
   // 후기 독려 이벤트 푸시 → 커뮤니티 후기 피드로(배너 내부링크와 동일 스킴).
   if (nav.url === 'app:community-reviews') { gotoCommunityReviews(); return; }
   // 푸시로 특정 매장/위치로 이동할 땐, 콜드스타트의 '현재 위치로 이동'(tryInitialLocation)이

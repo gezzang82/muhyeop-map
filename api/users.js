@@ -198,6 +198,8 @@ async function handlePushPost(req, res, db, kind) {
     const bd = String(body.body || '').trim();
     if (!title || !bd) return res.status(400).json({ error: '제목·내용은 필수' });
     const data = { kind: 'event' }; // 탭 집계 구분용
+    // 공지 딥링크: noticeId 주면 탭 시 앱 안 공지 상세로 이동(applyPushNav kind:'notice')
+    if (body.noticeId != null && String(body.noticeId).trim() !== '') { data.kind = 'notice'; data.noticeId = String(body.noticeId).trim(); }
     if (body.placeId != null && String(body.placeId).trim() !== '') data.placeId = String(body.placeId).trim();
     if (body.url && String(body.url).trim()) data.url = String(body.url).trim();
     // 이벤트·공지 알림 끈 로그인 유저 제외(push_event_enabled=0). 비로그인 토큰(user_id NULL)은 거를 수 없어 그대로 발송(한계).
