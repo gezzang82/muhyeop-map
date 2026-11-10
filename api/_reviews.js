@@ -4,7 +4,9 @@
 const UA = 'Mozilla/5.0 (compatible; muhyeop-map/1.0; +https://muhyeop-map.vercel.app)';
 
 function normalize(s) {
-  return String(s || '').replace(/\s+/g, '').toLowerCase();
+  // 공백 + 구두점/기호 제거(한글·영문·숫자만 남김). 매장명 '장수촌.'(끝 마침표)처럼 크롤 아티팩트가
+  //  블로그 본문의 '장수촌'과 매칭 실패하던 문제 해결(후기 등록 재검증용, 양쪽 동일 적용이라 안전).
+  return String(s || '').toLowerCase().replace(/[^0-9a-z가-힣ㄱ-ㅎㅏ-ㅣ]/g, '');
 }
 
 // 입력 URL에서 blogId, logNo 추출 (지원: blog.naver.com/{id}/{logNo}, m.blog..., PostView.naver?blogId=&logNo=)
