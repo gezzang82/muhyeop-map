@@ -2342,6 +2342,10 @@ function refreshOpenDetailCampaignPane(place) {
 let _sbRenderedBounds = null;
 let _sidebarStale = false;
 let _sbSkipStale = false;
+// 지역 검색으로 지도를 옮긴 직후 시간창(ms): 이 동안은 '고정+새로고침(stale)' 대신 사이드바를 자동 갱신한다.
+//  (손 패닝은 기존대로 고정; 검색은 유저가 명시적으로 그 지역을 보려는 의도라 리스트가 따라와야 함 — 유저 피드백 2026-11-10)
+let _sbSearchMoveUntil = 0;
+let _searchLoadingTimer = null;   // 검색 로딩 스피너 안전 해제 타이머
 
 function setSidebarStale(on) {
   _sidebarStale = !!on;
@@ -2367,10 +2371,15 @@ function _sidebarViewChanged() {
 // 모바일: 리스트에서 상세를 연 동안엔 리스트를 프리즈(지도 이동으로 재렌더되지 않게) → 닫을 때 스크롤 위치 복원 가능.
 let _mobileListReturn = null;   // {full, scrollTop} — 확장 리스트에서 상세를 연 경우만. 복원 대기 중엔 프리즈.
 function maybeRenderSidebarForView() {
+  const searching = Date.now() < _sbSearchMoveUntil;  // 지역 검색 직후 시간창
+  if (searching) hideCenterLoading();                 // B: 지도 멈춤(idle) = 검색 완료 → 로딩 스피너 해제
   if (isMobileView()) { if (_mobileListReturn) return; renderSidebar(); return; }
   const below = map && map.getZoom && map.getZoom() < CAMPAIGN_MIN_ZOOM;
   if (below) { renderSidebar(); return; }          // 저줌: 항상 '확대 안내'로 동기화(고정 안 함)
   if (_sbSkipStale) return;                        // 카드 오픈용 자동이동 중: 완전 고정(렌더·stale 둘 다 안 함)
+  // A: 지역 검색으로 지도를 옮긴 직후엔 '고정+새로고침' 대신 자동 갱신(타일이 비동기로 들어와도 새 지역 목록이 채워짐).
+  //  손 패닝은 아래 기존 로직대로 고정. 유저 피드백(2026-11-10): 지역 바꿔 검색해도 좌측 목록이 안 바뀜.
+  if (searching) { renderSidebar(); return; }
   // 보던 리스트(내용 있음)가 있는데 지도가 다른 지역으로 이동 → 고정 + 새로고침 버튼 강조.
   // 리스트가 비었거나(지역 진입/빈 지역) 같은 뷰면 → 그대로 렌더(진입 직후 자동 채움, 빈 리스트에 갇히지 않음).
   const list = document.getElementById('campaignList');
@@ -2494,6 +2503,12 @@ async function searchRegion() {
   _suppressInitialLocation = true;  // 검색 시작 → 늦게 오는 초기 위치이동 취소(검색 중 지도 튐 방지)
   const query = document.getElementById('regionSearch').value.trim();
   if (!query) return;
+  // 검색 시작 → ①가운데 로딩 스피너(지오코딩+타일 로드 동안 '멈춘 듯' 보이던 것 해소) ②사이드바 자동갱신 시간창 세팅
+  //  (유저 피드백 2026-11-10: 지역 바꿔 검색해도 좌측 목록이 안 바뀌고, 기다리는 동안 로딩 표시가 없음)
+  _sbSearchMoveUntil = Date.now() + 4000;
+  showCenterLoading();
+  clearTimeout(_searchLoadingTimer);
+  _searchLoadingTimer = setTimeout(hideCenterLoading, 3000);  // 안전 해제(지도 idle 없이 끝나는 경로 대비)
   // 검색창 사용 집계(fire-and-forget, 운영자 집IP는 서버에서 제외): 일별 횟수 + 최근 검색어
   try { fetch('/api/places?visit=search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ q: query.slice(0, 60) }) }).catch(function () {}); } catch (e) {}
   _nameFilter = ''; _regionFilter = ''; _searchCatFilter = '';  // 새 검색마다 검색필터 초기화(지역+카테고리/키워드 성공 시 아래에서 다시 설정)
@@ -2815,6 +2830,7 @@ function geocodeRegion(query) {
 
 // 같은 이름 매장이 여러 곳일 때 주소로 구분해 고르는 선택 팝업
 function showPlacePicker(matches, query) {
+  hideCenterLoading();  // 피커는 지도 이동이 없어 idle이 안 와 스피너가 안 꺼짐 → 여기서 해제
   const list = document.getElementById('placePickerList');
   const titleEl = document.getElementById('placePickerTitle');
   if (!list || !titleEl) return;
@@ -2852,6 +2868,7 @@ async function searchRegionViaLocalSearch(query) {
     if (!items.length) {
       // 결과 0건 집계(수요는 있는데 못 찾은 검색어 = 데이터/지역 공백 신호). 운영자 집IP는 서버에서 제외.
       try { fetch('/api/places?visit=search&zero=1', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ q: String(query || '').slice(0, 60) }) }).catch(function () {}); } catch (e) {}
+      hideCenterLoading();  // 결과 없음 → 지도 이동 없으니 스피너 해제
       showToast('검색 결과가 없어요.<br>주소로 검색해보세요 (예: 강남구, 성수동)');
       return;
     }
