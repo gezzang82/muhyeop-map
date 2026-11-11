@@ -125,40 +125,51 @@ async function matchPlace(db, storeName, region) {
 //  → 한 번에 너무 많이 안 뜨고(검토 피로↓) AI도 ≤30건만(빠름). 등록 후 '다시 불러오기'하면 existingUrls가 늘어 자연히 그 다음(더 과거) 30개가 뜸.
 //  done=true: 더 불러올 미등록 글이 없음(전부 등록했거나 블로그 끝까지 도달).
 async function importList({ db, blogId, existingUrls = new Set(), batch = 30, maxPages = 20 }) {
-  // 1) 최신부터 페이지 순회 → 미등록 글을 batch개 모을 때까지(또는 블로그 끝)
-  const collected = [];
-  let reachedEnd = false;
-  for (let page = 1; page <= maxPages; page++) {
-    const { posts, isLast } = await fetchBlogPage(blogId, page);
-    for (const p of posts) { if (!existingUrls.has(p.link)) collected.push(p); }
-    if (collected.length >= batch) break;      // 이 배치 분량 충분(뒤에 더 있을 수 있음)
-    if (isLast) { reachedEnd = true; break; }   // 블로그 끝까지 왔는데 batch 미만 → 마지막 배치
-    await new Promise(r => setTimeout(r, 120)); // throttle
-  }
-  const take = collected.slice(0, batch);
-  // 모은 게 batch 미만이고 블로그 끝까지 왔으면, 이번이 마지막(더 없음)
-  const done = reachedEnd && collected.length <= batch;
-  if (!take.length) return { items: [], done: true };
-  // 2) AI 추출(≤batch건 → 보통 청크 1회, 빠름)
-  const ex = await extractPosts(take);
-  const byIdx = {}; (ex || []).forEach(e => { if (e && e.idx != null) byIdx[e.idx] = e; });
-  // 3) 매칭용 매장 메모리 1회 로드(글마다 DB 풀스캔 방지)
+  // 매칭용 매장 메모리 1회 로드(글마다 DB 풀스캔 방지)
   let allPlaces = [];
   try { allPlaces = (await db.execute("SELECT id, name, address FROM places WHERE COALESCE(hidden,0)=0")).rows; allPlaces.forEach(p => { p._n = norm(p.name); }); } catch (e) {}
+
+  // 최신부터 페이지 순회하며 미등록 글을 모으되, '비체험단(여행·일상·정보 글)은 AI가 걸러서 건너뛰고'
+  //  체험단 후기가 batch개 나올 때까지(또는 블로그 끝/페이지 상한) 더 깊이 스캔한다.
+  //  (예전엔 미등록 30개만 모아 AI 1회 → 그 30개가 전부 비체험단이면 빈 결과로 멈춰, 더 과거의 체험단에 '막히던' 문제)
   const items = [];
-  for (let i = 0; i < take.length; i++) {
-    const p = take[i];
-    const e = byIdx[i] || {};
-    if (!e.isStoreReview) continue;                 // 매장 체험후기 아님 제외
-    const mt = matchPlaceInMem(allPlaces, e.storeName, e.region);
-    items.push({
-      title: p.title, link: p.link, date: p.date,
-      store: e.storeName || '', region: e.region || '',
-      match: mt ? { placeId: mt.placeId, name: mt.name, address: mt.address } : null,
-      confidence: mt ? mt.confidence : 'none',       // auto | confirm | none
-    });
+  let buffer = [];            // 아직 AI로 안 돌린 미등록 글
+  let reachedEnd = false;
+  const CHUNK = 60;           // extractPosts 내부 청크와 동일
+
+  async function flush() {     // buffer를 AI로 판별 → 체험단만 items에 누적(비체험단은 스킵)
+    if (!buffer.length || items.length >= batch) return;
+    const take = buffer; buffer = [];
+    const ex = await extractPosts(take);
+    const byIdx = {}; (ex || []).forEach(e => { if (e && e.idx != null) byIdx[e.idx] = e; });
+    for (let i = 0; i < take.length && items.length < batch; i++) {
+      const e = byIdx[i] || {};
+      if (!e.isStoreReview) continue;                 // 비체험단(관광지/일상/정보 글) 건너뜀
+      const p = take[i];
+      const mt = matchPlaceInMem(allPlaces, e.storeName, e.region);
+      items.push({
+        title: p.title, link: p.link, date: p.date,
+        store: e.storeName || '', region: e.region || '',
+        match: mt ? { placeId: mt.placeId, name: mt.name, address: mt.address } : null,
+        confidence: mt ? mt.confidence : 'none',       // auto | confirm | none
+      });
+    }
   }
-  return { items, done };
+
+  for (let page = 1; page <= maxPages; page++) {
+    const { posts, isLast } = await fetchBlogPage(blogId, page);
+    for (const p of posts) { if (!existingUrls.has(p.link)) buffer.push(p); }
+    if (buffer.length >= CHUNK) await flush();   // 청크 차면 판별(비체험단 건너뛰며 체험단 누적)
+    if (items.length >= batch) break;            // 체험단 batch개 확보 → 충분
+    if (isLast) { reachedEnd = true; break; }     // 블로그 끝
+    await new Promise(r => setTimeout(r, 120));   // throttle
+  }
+  if (items.length < batch) await flush();        // 남은 버퍼 처리
+
+  // done: 블로그 끝까지 와서(더 스캔할 글 없음) 체험단이 batch 미만이면 '더 없음'.
+  //  페이지 상한(maxPages)으로 끝 미도달 시엔 더 있을 수 있어 done=false('이어서'로 계속).
+  const done = reachedEnd && items.length < batch;
+  return { items: items.slice(0, batch), done };
 }
 
 module.exports = { importList, fetchBlogPosts, fetchBlogPage, fetchAllBlogPosts, extractPosts, matchPlace };
