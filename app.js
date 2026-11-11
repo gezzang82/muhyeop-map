@@ -2173,8 +2173,9 @@ function adSlotHomeHtml() {
   return `<div class="ad-slot" data-slot="home"><img class="ad-slot-full" src="image/ad_slot_home.png" alt="광고" loading="lazy"></div>`;
 }
 // 커뮤니티 후기 피드 광고 구좌(리스트 3번째 뒤). 본인 미리보기(isOperator)만. 추후 노출/클릭 집계 + 어드민 등록.
+//  클릭 시 광고주 링크(openExternal=네이티브 인앱브라우저/웹 처리). 지금은 하늘정원 샘플.
 function adSlotFeedHtml() {
-  return `<div class="ad-slot-feed" data-slot="feed"><img class="ad-slot-full" src="image/ad_slot_feed.png" alt="광고" loading="lazy"></div>`;
+  return `<div class="ad-slot-feed" data-slot="feed" onclick="openExternal('https://myskygarden.com/')"><img class="ad-slot-full" src="image/ad_slot_feed.png" alt="광고 - 하늘정원" loading="lazy"></div>`;
 }
 function renderSidebar() {
   const list = document.getElementById('campaignList');
