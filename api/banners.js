@@ -24,6 +24,66 @@ function toBanner(row) {
 module.exports = async function handler(req, res) {
   const db = getDb();
 
+  // ===== 광고 구좌 배너(ad_banners): 홈 리스트 / 후기 피드 구좌. 구좌당 여러 개 로테이션 =====
+  //  (함수 12개 제한으로 banners.js에 ?ad= 분기로 합침). 클릭은 배너별 click_count 누적(운영자 집IP 제외).
+  if (req.query.ad !== undefined) {
+    await db.execute(`CREATE TABLE IF NOT EXISTS ad_banners (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, slot TEXT NOT NULL, image_url TEXT, link_url TEXT,
+      enabled INTEGER DEFAULT 1, sort_order INTEGER DEFAULT 0, click_count INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')))`);
+    const toAd = r => ({ id: r.id, slot: r.slot, imageUrl: r.image_url, linkUrl: r.link_url || '', enabled: !!r.enabled, sortOrder: r.sort_order || 0, clickCount: r.click_count || 0 });
+
+    // 공개: 배너 클릭 집계(운영자 집IP 제외)
+    if (req.method === 'POST' && req.query.ad === 'click') {
+      const id = Number(req.query.id); if (!id) return res.status(400).json({ error: 'id required' });
+      const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+      if (EXCLUDED_TRACK_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true });
+      try { await db.execute({ sql: "UPDATE ad_banners SET click_count = COALESCE(click_count,0)+1 WHERE id=?", args: [id] }); } catch (e) {}
+      return res.status(200).json({ ok: true });
+    }
+    // GET: 공개(enabled만, 구좌별 그룹) / 어드민(?admin=1, 전체+클릭수)
+    if (req.method === 'GET') {
+      if (req.query.admin === '1') {
+        if (!requireAdmin(req, res)) return;
+        return res.status(200).json((await db.execute("SELECT * FROM ad_banners ORDER BY slot, sort_order ASC, id ASC")).rows.map(toAd));
+      }
+      const rows = (await db.execute("SELECT id, slot, image_url, link_url FROM ad_banners WHERE enabled=1 ORDER BY slot, sort_order ASC, id ASC")).rows;
+      const bySlot = {};
+      rows.forEach(r => { (bySlot[r.slot] = bySlot[r.slot] || []).push({ id: r.id, imageUrl: r.image_url, linkUrl: r.link_url || '' }); });
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
+      return res.status(200).json(bySlot);
+    }
+    // 쓰기는 관리자만
+    if (!requireAdmin(req, res)) return;
+    if (req.method === 'POST' && req.query.ad === 'add') {
+      const b = req.body || {};
+      const slot = String(b.slot || '').trim();
+      if (!['home', 'feed'].includes(slot)) return res.status(400).json({ error: 'slot(home|feed) 필수' });
+      if (!b.imageUrl) return res.status(400).json({ error: '이미지 필수' });
+      const so = Number(((await db.execute({ sql: "SELECT COALESCE(MAX(sort_order),-1)+1 AS n FROM ad_banners WHERE slot=?", args: [slot] })).rows[0] || {}).n || 0);
+      await db.execute({ sql: "INSERT INTO ad_banners (slot, image_url, link_url, enabled, sort_order) VALUES (?,?,?,1,?)", args: [slot, b.imageUrl, String(b.linkUrl || ''), so] });
+      return res.status(200).json({ ok: true });
+    }
+    if (req.method === 'PATCH') {
+      const id = Number(req.query.id); if (!id) return res.status(400).json({ error: 'id required' });
+      const b = req.body || {}; const sets = [], args = [];
+      if (b.linkUrl !== undefined) { sets.push('link_url=?'); args.push(String(b.linkUrl || '')); }
+      if (b.enabled !== undefined) { sets.push('enabled=?'); args.push(b.enabled ? 1 : 0); }
+      if (b.sortOrder !== undefined) { sets.push('sort_order=?'); args.push(Number(b.sortOrder) || 0); }
+      if (b.imageUrl !== undefined && b.imageUrl) { sets.push('image_url=?'); args.push(b.imageUrl); }
+      if (!sets.length) return res.status(400).json({ error: '변경할 값 없음' });
+      args.push(id);
+      await db.execute({ sql: `UPDATE ad_banners SET ${sets.join(', ')} WHERE id=?`, args });
+      return res.status(200).json({ ok: true });
+    }
+    if (req.method === 'DELETE') {
+      const id = Number(req.query.id); if (!id) return res.status(400).json({ error: 'id required' });
+      await db.execute({ sql: "DELETE FROM ad_banners WHERE id=?", args: [id] });
+      return res.status(200).json({ ok: true });
+    }
+    return res.status(400).json({ error: 'unknown ad action' });
+  }
+
   // 공개: 인스타 자동발행용 이미지 서빙. IG Graph API는 '공개 이미지 URL'만 받으므로,
   // 생성한 카드 PNG를 ig_assets에 base64로 저장해두고 이 URL(?asset=<id>)로 서빙한다.
   // (함수 12개 제한 때문에 새 파일 대신 banners.js에 분기로 합침)

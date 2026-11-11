@@ -57,6 +57,7 @@ function showTab(tab) {
   }
   if (tab === 'view') { renderPlaceList(); renderCampaignList(); }
   if (tab === 'banners') refreshBannersFromServer();
+  if (tab === 'adbanners') renderAdBannerList();
   if (tab === 'notices') renderNoticeList();
   if (tab === 'reports') renderReportList();
   if (tab === 'reviews') renderReviewList();
@@ -633,23 +634,6 @@ function renderCmSeg(today, total) {
   }).join('');
 }
 
-// 광고 구좌 클릭(구좌별 누적·오늘). 운영자 집IP는 서버에서 제외됨.
-function renderAdClicks(today, total) {
-  const el = document.getElementById('adClicks');
-  if (!el) return;
-  today = today || {}; total = total || {};
-  const slots = [['feed', '후기 피드 (하늘정원)'], ['home', '홈 리스트']];
-  const totalAll = slots.reduce((s, t) => s + (total[t[0]] || 0), 0);
-  if (!totalAll) { el.innerHTML = '<div class="empty-msg">아직 광고 클릭 데이터가 없어요. (배포 이후부터 수집)</div>'; return; }
-  el.innerHTML = slots.map(t => {
-    const tot = total[t[0]] || 0, tdy = today[t[0]] || 0;
-    return `<div class="stat-row">
-        <span class="stat-badge" style="background:#e82a2d1a;color:#e82a2d">${t[1]}</span>
-        <span class="stat-num">누적 ${tot.toLocaleString()} · 오늘 ${tdy}</span>
-      </div>`;
-  }).join('');
-}
-
 // 지도 검색창 사용: 누적/오늘 횟수 + 최근 검색어 태그(최근 100건 내 중복 묶음, 최신순)
 //  + 결과 0건 검색(수요 있는데 못 찾은 검색어 = 데이터/지역 공백) 별도 섹션.
 function renderSearchStats(today, total, recent, zeroToday, zeroTotal, zeroRecent) {
@@ -935,7 +919,6 @@ function renderDashboard() {
     renderPlatforms(s.todayPlatforms || []);
     renderGnbClicks(s.gnbToday || {}, s.gnbTotal || {});
     renderCmSeg(s.cmSegToday || {}, s.cmSegTotal || {});
-    renderAdClicks(s.adToday || {}, s.adTotal || {});
     renderSearchStats(s.searchToday || 0, s.searchTotal || 0, s.recentSearches || [], s.searchZeroToday || 0, s.searchZeroTotal || 0, s.recentZeroSearches || []);
     renderAppInstall(s.appInstallToday || {}, s.appInstallTotal || {});
     // 앱 스토어 다운로드(누적) — iOS/Android 둘 다 누적 신규 설치. Android는 활성 기기수도 함께(괄호).
@@ -1436,6 +1419,202 @@ async function moveBanner(id, dir) {
       });
     }
   } catch (e) { adminToast('순서 저장에 실패했어요. 새로고침 후 다시 시도해 주세요.'); }
+}
+
+// ===== 배너 설정 (광고 구좌, ad_banners) =====
+let adBannerRows = []; // [{id, slot, imageUrl, linkUrl, enabled, sortOrder, clickCount}]
+const AD_SLOT_LABEL = { home: '홈 리스트', feed: '후기 피드' };
+
+function handleAdBannerFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { adminToast('이미지 파일만 첨부할 수 있어요.'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX_W = 960;
+      const scale = Math.min(1, MAX_W / img.width);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUri = canvas.toDataURL('image/jpeg', 0.85);
+      document.getElementById('adImageUrl').value = dataUri;
+      updateAdPreview();
+      const kb = Math.round(dataUri.length * 0.75 / 1024);
+      adminToast(`이미지 첨부됨 (${w}×${h}, ~${kb}KB)`);
+    };
+    img.onerror = () => adminToast('이미지를 불러오지 못했어요.');
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateAdPreview() {
+  const url = (document.getElementById('adImageUrl').value || '').trim();
+  const prev = document.getElementById('adPreview');
+  if (!prev) return;
+  if (url) { prev.src = url; prev.style.display = 'block'; }
+  else { prev.removeAttribute('src'); prev.style.display = 'none'; }
+}
+
+function resetAdBannerForm() {
+  document.getElementById('adImageUrl').value = '';
+  document.getElementById('adLinkUrl').value = '';
+  const fileEl = document.getElementById('adImageFile'); if (fileEl) fileEl.value = '';
+  updateAdPreview();
+}
+
+async function renderAdBannerList() {
+  const body = document.getElementById('adBannerTableBody');
+  if (body) body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">불러오는 중…</td></tr>';
+  try {
+    const res = await fetch('/api/banners?ad=1&admin=1', { credentials: 'same-origin' });
+    const data = res.ok ? await res.json() : [];
+    // 어드민 GET은 전체 배너 평탄 배열(slot/enabled/clickCount 포함)을 반환
+    adBannerRows = Array.isArray(data) ? data : [];
+  } catch (e) {
+    adBannerRows = [];
+  }
+  renderAdBannerRows();
+}
+
+function renderAdBannerRows() {
+  const body = document.getElementById('adBannerTableBody');
+  if (!body) return;
+  if (!adBannerRows.length) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">등록된 광고 배너가 없어요.</td></tr>';
+    return;
+  }
+  // slot별로 묶어 순서대로
+  const order = { home: 0, feed: 1 };
+  const sorted = [...adBannerRows].sort((a, b) =>
+    (order[a.slot] - order[b.slot]) || (a.sortOrder || 0) - (b.sortOrder || 0) || a.id - b.id);
+  const bySlot = {};
+  sorted.forEach(b => { (bySlot[b.slot] = bySlot[b.slot] || []).push(b); });
+  body.innerHTML = sorted.map(b => {
+    const slotList = bySlot[b.slot] || [];
+    const idx = slotList.findIndex(x => x.id === b.id);
+    const upDis = idx <= 0 ? 'disabled' : '';
+    const downDis = idx >= slotList.length - 1 ? 'disabled' : '';
+    const link = b.linkUrl
+      ? `<a href="${escHtml(b.linkUrl)}" target="_blank" rel="noopener" style="color:#376BCB;word-break:break-all;">${escHtml(b.linkUrl)}</a>`
+      : '-';
+    const on = b.enabled ? 1 : 0;
+    return `<tr>
+      <td><span class="badge">${AD_SLOT_LABEL[b.slot] || b.slot}</span></td>
+      <td><img src="${escHtml(b.imageUrl)}" alt="" style="width:160px;max-height:60px;object-fit:cover;border-radius:6px;border:1px solid #eee;"></td>
+      <td style="max-width:220px;font-size:12px;">${link}</td>
+      <td style="white-space:nowrap;">
+        <div class="row-actions">
+          <button class="btn-edit-sm" ${upDis} onclick="moveAdBanner(${b.id},-1)" title="위로">▲</button>
+          <button class="btn-edit-sm" ${downDis} onclick="moveAdBanner(${b.id},1)" title="아래로">▼</button>
+        </div>
+      </td>
+      <td><span class="badge-status ${on ? 'active' : 'expired'}" style="cursor:pointer;" onclick="toggleAdBanner(${b.id})">${on ? '노출' : '숨김'}</span></td>
+      <td class="td-id">${(b.clickCount || 0).toLocaleString()}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn-edit-sm" onclick="editAdBannerLink(${b.id})">URL 수정</button>
+          <button class="btn-del-sm" onclick="deleteAdBanner(${b.id})">삭제</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function submitAdBanner() {
+  const slot = document.getElementById('adSlot').value;
+  const imageUrl = document.getElementById('adImageUrl').value.trim();
+  const linkUrl = document.getElementById('adLinkUrl').value.trim();
+  if (!imageUrl) { adminToast('이미지를 첨부하거나 URL을 입력해 주세요.'); return; }
+  const btn = document.getElementById('adSubmitBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/banners?ad=add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify({ slot, imageUrl, linkUrl })
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || '추가 실패'); }
+    adminToast('광고 배너를 추가했어요.');
+    resetAdBannerForm();
+    renderAdBannerList();
+  } catch (e) {
+    adminToast('오류: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function toggleAdBanner(id) {
+  const b = adBannerRows.find(x => x.id === id);
+  if (!b) return;
+  const next = b.enabled ? 0 : 1;
+  try {
+    await fetch(`/api/banners?ad=1&id=${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify({ enabled: next })
+    });
+    b.enabled = next;
+    adminToast(next ? '배너를 노출로 바꿨어요.' : '배너를 숨겼어요.');
+    renderAdBannerRows();
+  } catch (e) { adminToast('상태 변경에 실패했어요.'); }
+}
+
+async function editAdBannerLink(id) {
+  const b = adBannerRows.find(x => x.id === id);
+  if (!b) return;
+  const next = prompt('이동 URL (비우면 링크 없음):', b.linkUrl || '');
+  if (next === null) return;
+  const linkUrl = next.trim();
+  try {
+    await fetch(`/api/banners?ad=1&id=${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify({ linkUrl })
+    });
+    b.linkUrl = linkUrl;
+    adminToast('이동 URL을 수정했어요.');
+    renderAdBannerRows();
+  } catch (e) { adminToast('수정에 실패했어요.'); }
+}
+
+async function deleteAdBanner(id) {
+  if (!confirm('이 광고 배너를 삭제할까요?')) return;
+  try {
+    await fetch(`/api/banners?ad=1&id=${id}`, { method: 'DELETE', credentials: 'same-origin' });
+    adBannerRows = adBannerRows.filter(x => x.id !== id);
+    adminToast('삭제했어요.');
+    renderAdBannerRows();
+  } catch (e) { adminToast('삭제에 실패했어요.'); }
+}
+
+// 같은 slot 내에서만 순서 교체
+async function moveAdBanner(id, dir) {
+  const b = adBannerRows.find(x => x.id === id);
+  if (!b) return;
+  const slotList = adBannerRows
+    .filter(x => x.slot === b.slot)
+    .sort((a, c) => (a.sortOrder || 0) - (c.sortOrder || 0) || a.id - c.id);
+  const idx = slotList.findIndex(x => x.id === id);
+  const swap = idx + dir;
+  if (idx < 0 || swap < 0 || swap >= slotList.length) return;
+  [slotList[idx], slotList[swap]] = [slotList[swap], slotList[idx]];
+  const updates = [];
+  slotList.forEach((x, i) => { if ((x.sortOrder || 0) !== i) { x.sortOrder = i; updates.push({ id: x.id, i }); } });
+  renderAdBannerRows();
+  try {
+    for (const u of updates) {
+      await fetch(`/api/banners?ad=1&id=${u.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ sortOrder: u.i })
+      });
+    }
+  } catch (e) { adminToast('순서 저장에 실패했어요.'); }
 }
 
 async function submitBanner() {

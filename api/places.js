@@ -39,7 +39,6 @@ async function ensureSiteVisitTables(db) {
   await db.execute("CREATE TABLE IF NOT EXISTS gnb_daily (visit_date TEXT NOT NULL, tab TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, tab))");
   // 커뮤니티 세그먼트 조회 일자 집계(수다방/후기/내후기) — 커뮤니티 안에서 뭘 많이 보나(setCommunitySeg·openCommunity에서 ?visit=cmseg&seg=).
   await db.execute("CREATE TABLE IF NOT EXISTS cmseg_daily (visit_date TEXT NOT NULL, seg TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, seg))");
-  await db.execute("CREATE TABLE IF NOT EXISTS ad_daily (visit_date TEXT NOT NULL, slot TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, slot))"); // 광고 구좌 클릭수(일별·구좌별)
   await db.execute("CREATE TABLE IF NOT EXISTS app_install_daily (visit_date TEXT NOT NULL, action TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, action))"); // 모바일웹 앱 설치 팝업(show=노출/install=다운로드탭)
   // 지도 검색창 사용 집계 — 일별 검색 횟수 + 최근 검색어 로그(어드민: 얼마나 쓰나 + 뭘 검색하나 태그)
   await db.execute("CREATE TABLE IF NOT EXISTS search_daily (visit_date TEXT PRIMARY KEY, cnt INTEGER DEFAULT 0)");
@@ -303,19 +302,6 @@ module.exports = async function handler(req, res) {
       } catch (e) { /* 무시 */ }
       return res.status(200).json({ ok: true });
     }
-    // 광고 구좌 클릭 집계(?visit=adclick&slot=feed|home). 운영자 집IP 제외. 어드민 대시보드 'AD 클릭' 카드.
-    if (req.method === 'POST' && req.query.visit === 'adclick') {
-      try {
-        await ensureSiteVisitTables(db);
-        const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-        if (EXCLUDED_VISIT_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true }); // 운영자 본인 클릭 제외
-        const slot = String(req.query.slot || '');
-        if (['feed', 'home'].includes(slot)) {
-          await db.execute({ sql: "INSERT INTO ad_daily (visit_date, slot, cnt) VALUES (?, ?, 1) ON CONFLICT(visit_date, slot) DO UPDATE SET cnt = cnt + 1", args: [kstDay(), slot] });
-        }
-      } catch (e) { /* 무시 */ }
-      return res.status(200).json({ ok: true });
-    }
 
     // 지도 검색창 사용 집계: POST ?visit=search {q:검색어} (searchRegion에서 fire-and-forget, 운영자 IP 제외).
     //  일별 검색 횟수(search_daily) + 최근 검색어 로그(search_log, 최근 500건만 유지). 빈 검색은 클라에서 이미 제외.
@@ -441,12 +427,6 @@ module.exports = async function handler(req, res) {
         (await db.execute({ sql: "SELECT seg, cnt FROM cmseg_daily WHERE visit_date = ?", args: [day] })).rows.forEach(r => { cmSegToday[r.seg] = Number(r.cnt || 0); });
         (await db.execute("SELECT seg, SUM(cnt) AS cnt FROM cmseg_daily GROUP BY seg")).rows.forEach(r => { cmSegTotal[r.seg] = Number(r.cnt || 0); });
       } catch (e) {}
-      // 광고 구좌 클릭(오늘 + 누적) — 구좌별
-      const adToday = {}, adTotal = {};
-      try {
-        (await db.execute({ sql: "SELECT slot, cnt FROM ad_daily WHERE visit_date = ?", args: [day] })).rows.forEach(r => { adToday[r.slot] = Number(r.cnt || 0); });
-        (await db.execute("SELECT slot, SUM(cnt) AS cnt FROM ad_daily GROUP BY slot")).rows.forEach(r => { adTotal[r.slot] = Number(r.cnt || 0); });
-      } catch (e) {}
       // 지도 검색: 오늘/누적 횟수 + 최근 검색어 태그(최근 100건 내 중복 묶어 최신순)
       let searchToday = 0, searchTotal = 0, recentSearches = [];
       try {
@@ -477,7 +457,7 @@ module.exports = async function handler(req, res) {
         });
       } catch (e) {}
       const vsPayload = {
-        gnbToday, gnbTotal, cmSegToday, cmSegTotal, adToday, adTotal, appInstallToday, appInstallTotal, storeDownloads,
+        gnbToday, gnbTotal, cmSegToday, cmSegTotal, appInstallToday, appInstallTotal, storeDownloads,
         searchToday, searchTotal, recentSearches,
         searchZeroToday, searchZeroTotal, recentZeroSearches,
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),

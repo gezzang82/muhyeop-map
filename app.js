@@ -5,6 +5,7 @@
 let places = [];
 let campaigns = [];
 let banners = [];
+let adBanners = { home: [], feed: [] };  // 광고 구좌 배너(구좌별 enabled 배너 로테이션). /api/banners?ad=1
 
 // 지도 경량화(뷰포트 로딩, 2026-09-01): 공개 앱은 캠페인을 화면(bbox)에 보이는 것만 받아 `campaigns`에 누적.
 let totalActiveCount = 0;      // 전역 활성 캠페인 수(서버 count) — 총 협찬수 표시용
@@ -92,15 +93,17 @@ function loadInitialData() {
         campaigns = []; // 프리페치가 push하기 전에 먼저 초기화(경쟁 시 덮어쓰기 방지)
         // 첫 화면 캠페인을 매장/배너 로드와 '병렬'로 프리페치 → 지도 뜨자마자 핀 표시(첫 핀 지연 제거).
         const prefetchP = _fetchCampaignTiles(_initialViewBounds());
-        const [placesRes, bannersRes, countRes, recentRes] = await Promise.all([
+        const [placesRes, bannersRes, countRes, recentRes, adRes] = await Promise.all([
           fetch('/api/places?map=1'), fetch('/api/banners'),
-          fetch('/api/campaigns?count=active'), fetch('/api/places?reviews=recent&limit=24')
+          fetch('/api/campaigns?count=active'), fetch('/api/places?reviews=recent&limit=24'),
+          fetch('/api/banners?ad=1')
         ]);
-        // 매장 실패는 치명적(부팅 핸들러가 #mapError 노출). count/recent/배너는 비필수(기본값).
+        // 매장 실패는 치명적(부팅 핸들러가 #mapError 노출). count/recent/배너/광고는 비필수(기본값).
         if (!placesRes.ok) throw new Error(`데이터 로드 실패: places ${placesRes.status}`);
         places = await placesRes.json();
         if (!Array.isArray(places)) throw new Error('데이터 형식 오류(배열 아님)');
         banners = bannersRes.ok ? await bannersRes.json().catch(() => []) : [];
+        adBanners = adRes.ok ? (await adRes.json().catch(() => ({})) || {}) : {};
         totalActiveCount = countRes.ok ? ((await countRes.json().catch(() => ({}))).count || 0) : 0;
         recentReviews = recentRes.ok ? (await recentRes.json().catch(() => []) || []) : [];
         await prefetchP; // 캠페인 시딩 완료 보장 후 아래 invalidateActiveCache
@@ -2167,18 +2170,28 @@ function sidebarItemHtml(place) {
 function isOperator() {
   return !!(currentUser && (currentUser.id === 12 || currentUser.nickname === '개짜장'));
 }
-// 홈 '모집 중인 체험' 리스트 광고 구좌(배너). 지금은 본인 미리보기 + 무협맵 홍보 샘플. 추후 1인 개발자 광고로 교체 + 노출/클릭 집계.
-function adSlotHomeHtml() {
-  // 통이미지 1장(광고주 제공, 1050×240 @3x). 라운드(8px)만 코드에서. 추후 link·클릭/노출 집계 배선.
-  return `<div class="ad-slot" data-slot="home"><img class="ad-slot-full" src="image/ad_slot_home.png" alt="광고" loading="lazy"></div>`;
+// 광고 구좌 배너 1개 선택(enabled 중 랜덤 로테이션). 어드민 '배너 설정'에서 등록·관리(ad_banners).
+//  세션 내엔 구좌별로 고정(지도 이동 재렌더마다 안 바뀌게=깜빡임 방지). 로테이션은 페이지 로드/재방문마다.
+let _adPick = {};
+function pickAdBanner(slot) {
+  const list = (adBanners && adBanners[slot]) || [];
+  if (!list.length) return null;
+  if (_adPick[slot] && list.some(b => b.id === _adPick[slot].id)) return _adPick[slot];
+  _adPick[slot] = list[Math.floor(Math.random() * list.length)];
+  return _adPick[slot];
 }
-// 커뮤니티 후기 피드 광고 구좌(리스트 3번째 뒤). 하늘정원 배너 = 공개. 클릭 시 광고주 링크(openExternal) + 클릭 집계.
-function adSlotFeedHtml() {
-  return `<div class="ad-slot-feed" data-slot="feed" onclick="trackAdClick('feed');openExternal('https://myskygarden.com/')"><img class="ad-slot-full" src="image/ad_slot_feed.png" alt="광고 - 하늘정원" loading="lazy"></div>`;
+function adSlotBannerHtml(slot, cls) {
+  const b = pickAdBanner(slot);
+  if (!b || !b.imageUrl) return '';
+  const link = b.linkUrl ? `;openExternal('${String(b.linkUrl).replace(/'/g, "\\'")}')` : '';
+  return `<div class="${cls}" data-slot="${slot}" onclick="trackAdClick(${b.id})${link}"><img class="ad-slot-full" src="${b.imageUrl}" alt="광고" loading="lazy"></div>`;
 }
-// 광고 구좌 클릭 집계(fire-and-forget, 운영자 집IP는 서버에서 제외). 어드민 'AD 클릭' 카드.
-function trackAdClick(slot) {
-  try { fetch('/api/places?visit=adclick&slot=' + encodeURIComponent(slot), { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}
+// 홈 '모집 중인 체험' 리스트 광고 구좌. 커뮤니티 후기 피드 광고 구좌.
+function adSlotHomeHtml() { return adSlotBannerHtml('home', 'ad-slot'); }
+function adSlotFeedHtml() { return adSlotBannerHtml('feed', 'ad-slot-feed'); }
+// 광고 배너 클릭 집계(배너 id별 누적, fire-and-forget, 운영자 집IP는 서버에서 제외).
+function trackAdClick(id) {
+  try { fetch('/api/banners?ad=click&id=' + encodeURIComponent(id), { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}
 }
 function renderSidebar() {
   const list = document.getElementById('campaignList');
