@@ -2172,10 +2172,13 @@ function adSlotHomeHtml() {
   // 통이미지 1장(광고주 제공, 1050×240 @3x). 라운드(8px)만 코드에서. 추후 link·클릭/노출 집계 배선.
   return `<div class="ad-slot" data-slot="home"><img class="ad-slot-full" src="image/ad_slot_home.png" alt="광고" loading="lazy"></div>`;
 }
-// 커뮤니티 후기 피드 광고 구좌(리스트 3번째 뒤). 본인 미리보기(isOperator)만. 추후 노출/클릭 집계 + 어드민 등록.
-//  클릭 시 광고주 링크(openExternal=네이티브 인앱브라우저/웹 처리). 지금은 하늘정원 샘플.
+// 커뮤니티 후기 피드 광고 구좌(리스트 3번째 뒤). 하늘정원 배너 = 공개. 클릭 시 광고주 링크(openExternal) + 클릭 집계.
 function adSlotFeedHtml() {
-  return `<div class="ad-slot-feed" data-slot="feed" onclick="openExternal('https://myskygarden.com/')"><img class="ad-slot-full" src="image/ad_slot_feed.png" alt="광고 - 하늘정원" loading="lazy"></div>`;
+  return `<div class="ad-slot-feed" data-slot="feed" onclick="trackAdClick('feed');openExternal('https://myskygarden.com/')"><img class="ad-slot-full" src="image/ad_slot_feed.png" alt="광고 - 하늘정원" loading="lazy"></div>`;
+}
+// 광고 구좌 클릭 집계(fire-and-forget, 운영자 집IP는 서버에서 제외). 어드민 'AD 클릭' 카드.
+function trackAdClick(slot) {
+  try { fetch('/api/places?visit=adclick&slot=' + encodeURIComponent(slot), { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}
 }
 function renderSidebar() {
   const list = document.getElementById('campaignList');
@@ -4064,8 +4067,8 @@ async function renderCommunity(fresh) {
       }
       listEl.innerHTML = '';   // 첫 페이지: 로딩 스피너 제거
     }
-    // 광고 구좌: 첫 페이지 3번째 후기 카드 뒤에 배너(운영자 본인 미리보기만). 공개 시 가드 제거 + 집계.
-    const showAd = isOperator() && offset === 0 && !mine;
+    // 광고 구좌: 첫 페이지 3번째 후기 카드 뒤에 배너. 하늘정원 배너는 공개(피드 전용). 클릭 집계 배선됨.
+    const showAd = offset === 0 && !mine;
     const cardsHtml = items.map((r, i) => {
       const card = reviewCardHtml(r, false, true);
       return (showAd && i === 2) ? card + adSlotFeedHtml() : card;

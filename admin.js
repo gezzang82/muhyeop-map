@@ -633,6 +633,23 @@ function renderCmSeg(today, total) {
   }).join('');
 }
 
+// 광고 구좌 클릭(구좌별 누적·오늘). 운영자 집IP는 서버에서 제외됨.
+function renderAdClicks(today, total) {
+  const el = document.getElementById('adClicks');
+  if (!el) return;
+  today = today || {}; total = total || {};
+  const slots = [['feed', '후기 피드 (하늘정원)'], ['home', '홈 리스트']];
+  const totalAll = slots.reduce((s, t) => s + (total[t[0]] || 0), 0);
+  if (!totalAll) { el.innerHTML = '<div class="empty-msg">아직 광고 클릭 데이터가 없어요. (배포 이후부터 수집)</div>'; return; }
+  el.innerHTML = slots.map(t => {
+    const tot = total[t[0]] || 0, tdy = today[t[0]] || 0;
+    return `<div class="stat-row">
+        <span class="stat-badge" style="background:#e82a2d1a;color:#e82a2d">${t[1]}</span>
+        <span class="stat-num">누적 ${tot.toLocaleString()} · 오늘 ${tdy}</span>
+      </div>`;
+  }).join('');
+}
+
 // 지도 검색창 사용: 누적/오늘 횟수 + 최근 검색어 태그(최근 100건 내 중복 묶음, 최신순)
 //  + 결과 0건 검색(수요 있는데 못 찾은 검색어 = 데이터/지역 공백) 별도 섹션.
 function renderSearchStats(today, total, recent, zeroToday, zeroTotal, zeroRecent) {
@@ -918,6 +935,7 @@ function renderDashboard() {
     renderPlatforms(s.todayPlatforms || []);
     renderGnbClicks(s.gnbToday || {}, s.gnbTotal || {});
     renderCmSeg(s.cmSegToday || {}, s.cmSegTotal || {});
+    renderAdClicks(s.adToday || {}, s.adTotal || {});
     renderSearchStats(s.searchToday || 0, s.searchTotal || 0, s.recentSearches || [], s.searchZeroToday || 0, s.searchZeroTotal || 0, s.recentZeroSearches || []);
     renderAppInstall(s.appInstallToday || {}, s.appInstallTotal || {});
     // 앱 스토어 다운로드(누적) — iOS/Android 둘 다 누적 신규 설치. Android는 활성 기기수도 함께(괄호).
