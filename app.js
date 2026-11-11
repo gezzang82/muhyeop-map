@@ -1730,6 +1730,14 @@ function setReviewSort(placeId, sort) {
   loadReviews(placeId, sort);
 }
 
+// 후기 등록(created_at, UTC 'YYYY-MM-DD HH:MM:SS') 후 24시간 이내인지 — 썸네일 'N'(NEW) 뱃지용.
+function reviewIsNew(createdAt) {
+  if (!createdAt) return false;
+  const ms = Date.parse(String(createdAt).replace(' ', 'T') + 'Z');  // SQLite UTC 문자열 → UTC로 파싱
+  if (isNaN(ms)) return false;
+  const diff = Date.now() - ms;
+  return diff >= -60000 && diff < 24 * 3600 * 1000;  // 미래값 방지 + 24h 이내
+}
 function reviewCardHtml(r, isPreview, showStore) {
   const date = fmtReviewDate(r.postDate) || fmtReviewDate(r.createdAt);
   // 본인이 올린 후기에만 삭제 뱃지(썸네일 우하단) 노출
@@ -1739,7 +1747,9 @@ function reviewCardHtml(r, isPreview, showStore) {
   const thumbInner = r.thumbnail
     ? `<img src="${rvEsc(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('rv-thumb-empty');this.remove()">`
     : '';
-  const thumb = `<div class="rv-thumb${r.thumbnail ? '' : ' rv-thumb-empty'}">${thumbInner}${delBadge}</div>`;
+  // 등록(created_at) 후 24시간 이내면 썸네일 우상단에 빨간 'N'(NEW) 뱃지. 피드는 no-store라 재로드마다 재평가=자동 소멸.
+  const newBadge = (!isPreview && reviewIsNew(r.createdAt)) ? '<span class="rv-thumb-new" aria-label="새 후기">N</span>' : '';
+  const thumb = `<div class="rv-thumb${r.thumbnail ? '' : ' rv-thumb-empty'}">${thumbInner}${delBadge}${newBadge}</div>`;
   const founderMedal = r.isFounder ? `<img class="rv-card-medal" src="image/ic_workspace_premium_24.svg" width="20" height="20" alt="첫 후기">` : '';
   const authorCls = r.isFounder ? 'rv-card-author rv-card-author--founder' : 'rv-card-author';
   const byline = `<span class="rv-card-byline">${founderMedal}<span class="${authorCls}">${rvEsc(r.author)}</span>${date ? `<span class="rv-card-dot"></span><span class="rv-card-date">${date}</span>` : ''}</span>`;
