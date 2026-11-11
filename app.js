@@ -4067,8 +4067,8 @@ async function renderCommunity(fresh) {
       }
       listEl.innerHTML = '';   // 첫 페이지: 로딩 스피너 제거
     }
-    // 광고 구좌: 첫 페이지 3번째 후기 카드 뒤에 배너. 하늘정원 배너는 공개(피드 전용). 클릭 집계 배선됨.
-    const showAd = offset === 0 && !mine;
+    // 광고 구좌: 첫 페이지 3번째 후기 카드 뒤에 배너. 하늘정원 배너는 공개(피드 전용, 모바일만 — PC 미노출). 클릭 집계 배선됨.
+    const showAd = offset === 0 && !mine && isMobileView();
     const cardsHtml = items.map((r, i) => {
       const card = reviewCardHtml(r, false, true);
       return (showAd && i === 2) ? card + adSlotFeedHtml() : card;
