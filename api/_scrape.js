@@ -1282,6 +1282,7 @@ function cleanStoreName(name) {
       .trim();
   } while (n && n !== prev);
   n = n.replace(/\s*\((?:[^)]*(?:테이크아웃|포장|예약|주차|가능|필수|불가|새주소|주소\s*이전|이전|신규\s*오픈|리뉴얼|재오픈|폐점|임시)[^)]*)\)\s*$/, '').trim();
+  n = n.replace(/[.．。…]+\s*$/, '').trim();  // 끝 마침표/말줄임표 제거(레뷰 등 '장수촌.'·'앤크.' 아티팩트). 쉼표(,)·가운뎃점은 의도적 브랜드명일 수 있어 보존
   return n || String(name || '').trim();
 }
 const rnCleanName = (t) => cleanStoreName(String(t || '').replace(/^\s*(?:\[[^\]]*\]\s*)+/, '').replace(/\s*[/·]\s*$/, '').trim());
