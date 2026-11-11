@@ -142,11 +142,12 @@
 ## 이메일 선택 수취 (추가정보입력 / 내 정보)
 - 카카오는 OAuth 이메일을 못 받는 경우가 많아(비즈앱 검수 필요), **이메일을 '추가 정보 입력'(`#signupEmail`)·'내 정보'(`#profileEmail`) 시트에서 선택 입력**받음. **네이버는 OAuth로 받은 이메일을 prefill**(`currentUser.email`), 카카오는 빈 칸. `confirmSignupInfo`/`saveProfile`이 `email`을 `/api/auth/profile`로 전송, 형식 검증 `isValidEmail`. 제보 폼 자체엔 여전히 이메일 입력란 없음(닉네임+링크만).
 
-## 광고 구좌(배너) — 홈 리스트 (2026-11-09, 본인 미리보기 단계)
-- **위치**: 홈 '모집 중인 체험' 리스트(`renderSidebar`→`#campaignList`)의 **3번째 매장(`activePlaces` index 2) 아래**에 배너 1개. 3개 미만이면 미노출.
-- **노출 가드**: `isOperator()`(운영자=개짜장: `currentUser.id===12` 또는 nickname '개짜장')일 때만 렌더 → **실유저엔 안 보이고 본인만 미리보기**. 공개 시 이 가드만 제거(또는 조건 교체). `isOperator`는 공개 전 기능 미리보기용 공용 헬퍼.
-- **형식=통이미지 1장**(`adSlotHomeHtml`, `image/ad_slot_home.png`, 1050×240 @3x 권장, `.ad-slot-full` `width:100%`+`border-radius:8px`). 광고주(1인 개발자)가 배너를 통째 제공→그대로 노출, 어드민 등록만으로 교체(기존 이벤트배너 data URI 패턴 재사용 예정). 현재 이미지는 무협맵 홍보 샘플.
-- **TODO(공개 시)**: ①`ad_banners(slot,image,link,enabled,기간)` 테이블 + 어드민 등록 ②링크 연결(클릭 시 외부) ③**노출(IntersectionObserver 뷰포트 진입)·클릭 집계 → CTR**(운영자 집IP 제외) ④커뮤니티 구좌(분산)도 추가해 위치별 CTR 비교. 기획 맥락 [[04-revenue-model]]·[[08-partnership]].
+## 광고 구좌(배너) — DB 구동 로테이션 (2026-11-11)
+- **구좌 2곳**: **홈**('모집 중인 체험' 리스트 `renderSidebar`→`#campaignList`의 **3번째 매장(`activePlaces` index 2) 아래**)·**후기피드**(커뮤니티 후기 피드 3번째 뒤, `offset===0 && !mine`). 둘 다 3개 미만이면 미노출.
+- **DB 구동 전환(2026-11-11)**: 예전 하드코딩(`adSlotHomeHtml`/`adSlotFeedHtml`이 고정 이미지·링크)에서 **어드민 '배너 설정'(`ad_banners` 테이블)으로 관리**하게 전환. `loadInitialData`가 `/api/banners?ad=1`(구좌별 enabled 배너)을 받아 전역 `adBanners={home:[],feed:[]}`에 담고, `pickAdBanner(slot)`가 **구좌별로 enabled 중 랜덤 1개**를 골라(세션 내 고정=재렌더 깜빡임 방지, 로테이션은 로드/재방문마다) `adSlotBannerHtml(slot,cls)`로 통이미지 1장 렌더(`.ad-slot-full` `width:100%`+`border-radius:8px`). 여러 개 등록 시 로테이션.
+- **노출 가드**: **홈=`isOperator()`(운영자 개짜장)만**(미리보기 단계) / **후기피드=`isMobileView()` 공개**(모바일만, PC 미노출). `isOperator`는 공개 전 기능 미리보기용 공용 헬퍼. 공개 확대 시 홈 가드만 교체.
+- **클릭 집계**: 배너 클릭 시 `trackAdClick(배너id)`→`POST /api/banners?ad=click&id=`로 **배너별 `click_count` 누적**(운영자 집IP는 서버에서 제외) + `linkUrl` 있으면 `openExternal`. 어드민 '배너 설정' 목록에 구좌·클릭수 표시([[admin]]). 현재 라이브: 후기피드=하늘정원(`myskygarden.com`).
+- 테이블/엔드포인트 [[api-db]] `banners.js ?ad=`·`ad_banners`, 어드민 UI [[admin]] 배너 설정, 기획 [[04-revenue-model]]·[[08-partnership]]. **남은 TODO**: 노출(IntersectionObserver) 집계 → CTR, 기간(start/end) 필드.
 
 ## 현재위치 버튼 로딩 (2026-11-09)
 - `moveToMyLocation`(`.btn-my-location`)이 `getGeoPosition()`(고정밀 GPS, `enableHighAccuracy:true`)로 **정확한 위치 1회** 획득 → 안드/실내에선 몇 초(최대 timeout 15s) 걸려 무반응처럼 보였음 → **지도 가운데 로딩 스피너**(`showCenterLoading`/`hideCenterLoading`, `.center-loading` 흰 카드 안 스피너, `pointer-events:none`)를 획득 동안 표시, 성공/실패 시 `hideCenterLoading`. **정확도 우선 결정(2026-11-09)**: 속도용 하이브리드(빠른 대략 위치→고정밀 보정)도 검토했으나 원우님이 **"정확하지 않으면 10초 대기"**(정확도 우선) 선택 → 고정밀 단일 유지 + 로딩으로 대기 체감만 완화. `showCenterLoading`은 GPS 느린 다른 곳에도 재사용 가능.
