@@ -2172,6 +2172,10 @@ function adSlotHomeHtml() {
   // 통이미지 1장(광고주 제공, 1050×240 @3x). 라운드(8px)만 코드에서. 추후 link·클릭/노출 집계 배선.
   return `<div class="ad-slot" data-slot="home"><img class="ad-slot-full" src="image/ad_slot_home.png" alt="광고" loading="lazy"></div>`;
 }
+// 커뮤니티 후기 피드 광고 구좌(리스트 3번째 뒤). 본인 미리보기(isOperator)만. 추후 노출/클릭 집계 + 어드민 등록.
+function adSlotFeedHtml() {
+  return `<div class="ad-slot-feed" data-slot="feed"><img class="ad-slot-full" src="image/ad_slot_feed.png" alt="광고" loading="lazy"></div>`;
+}
 function renderSidebar() {
   const list = document.getElementById('campaignList');
   const countEl = document.getElementById('campaignCount');
@@ -4059,7 +4063,13 @@ async function renderCommunity(fresh) {
       }
       listEl.innerHTML = '';   // 첫 페이지: 로딩 스피너 제거
     }
-    listEl.insertAdjacentHTML('beforeend', items.map(r => reviewCardHtml(r, false, true)).join(''));
+    // 광고 구좌: 첫 페이지 3번째 후기 카드 뒤에 배너(운영자 본인 미리보기만). 공개 시 가드 제거 + 집계.
+    const showAd = isOperator() && offset === 0 && !mine;
+    const cardsHtml = items.map((r, i) => {
+      const card = reviewCardHtml(r, false, true);
+      return (showAd && i === 2) ? card + adSlotFeedHtml() : card;
+    }).join('');
+    listEl.insertAdjacentHTML('beforeend', cardsHtml);
     return items.length;
   }, { centerSpinner: true });
 }
