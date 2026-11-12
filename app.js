@@ -4081,7 +4081,8 @@ async function renderCommunity(fresh) {
       listEl.innerHTML = '';   // 첫 페이지: 로딩 스피너 제거
     }
     // 광고 구좌: 첫 페이지 3번째 후기 카드 뒤에 배너. 하늘정원 배너는 공개(피드 전용, 모바일만 — PC 미노출). 클릭 집계 배선됨.
-    const showAd = offset === 0 && !mine && isMobileView();
+    //  지역탭 '전체'일 때만 노출(특정 지역탭에선 미노출 — 원우님 요청 2026-11-12).
+    const showAd = offset === 0 && !mine && isMobileView() && _cmFeedRegion === '전체';
     const cardsHtml = items.map((r, i) => {
       const card = reviewCardHtml(r, false, true);
       return (showAd && i === 2) ? card + adSlotFeedHtml() : card;
