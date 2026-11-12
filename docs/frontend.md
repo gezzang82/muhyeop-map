@@ -73,6 +73,11 @@
 - **알림 '탭'(앱 접근) 집계(2026-10-10)**: `pushNotificationActionPerformed`(실제 탭)에서 `POST /api/users?push=open`으로 1건 기록(payload의 `kind`=digest|event 구분, `placeId`, `deviceId`). 포그라운드 수신(`pushNotificationReceived`)은 탭이 아니라 미집계. 어드민 '알림 탭' 카드 [[admin]].
 - **전역 `detectPlatform()`(2026-10-10)**: 방문집계 `_detectPlatform`과 동일 규칙(ios/android/app/mweb/pcweb)의 전역 함수. `refreshAuthUI`의 `/api/auth/me?platform=` 호출에 실어 보내 `users.last_platform`(마지막 접속 기기) 갱신([[api-db]]·[[admin]] 기기 컬럼).
 
+## 안드 하드웨어 백버튼 (`window.__androidBack`, 네이티브 브릿지, 2026-11-12)
+- **문제**: Capacitor 8 기본 `BridgeActivity`는 백을 WebView로 안 보내고 Activity를 바로 종료 → SPA라 백=즉시 앱 종료(열린 바텀시트/모달도 안 닫고 꺼짐, 수다방 kon님 제보). **app.js(OTA)만으론 불가**(백이 WebView에 도달 안 함) → `MainActivity`에 `OnBackPressedCallback` 브릿지 필요(`@capacitor/app` 미사용, 직접).
+- **동작**: 네이티브가 매 백마다 `window.__androidBack()`을 `evaluateJavascript`로 호출 → 반환 `'false'`면 웹이 처리(앱 유지), 그 외(`'true'`·`'null'`=구버전/예외)면 `moveTaskToBack`(홈으로, 상태보존). `__androidBack` 우선순위: ①`_closeTopOverlayForBack()`이 열린 오버레이/바텀시트 **최상단만** 닫기(공통 close 함수 재사용: alertPopup→biStore→blogImport→selectSheet→댓글바→공지→프로필→제보모달→이벤트팝업→매장시트→카테고리드롭다운) ②홈 아닌 GNB 탭이면 `switchTab('home')` ③홈 루트면 **공통 확인 바텀시트 `showAlert('앱을 종료할까요?', …, {confirmText:'종료하기', onConfirm:_androidExitApp})`** → '종료하기' 시 `window.MuhyeopNativeUI.exitApp()`(네이티브 moveTaskToBack).
+- **네이티브는 브릿지 2개뿐**(백 잡아 `__androidBack` 호출 + `exitApp`) → **시트 UI·문구·로직은 전부 웹(app.js)이라 빌드 후 OTA 수정 가능**. 구버전 바이너리(브릿지 없음)에선 `__androidBack` 미호출=무해. iOS는 하드웨어 백 없음(엣지 스와이프=웹뷰 자체) → 안드 전용. ⚠️ **안드 재빌드 필요**(네이티브). [[api-db]]·[[project_mobile_app]]·[[06-decision-log]].
+
 ## 하단 GNB 탭 — 햅틱·클릭집계·키보드 (2026-10-13)
 - **햅틱**: `switchTab`에서 `hapticTap()` — 안드=`navigator.vibrate(35)`(impact LIGHT가 안드선 체감 안 됨)·iOS=`Haptics.impact LIGHT`(Taptic 또렷). `@capacitor/haptics`, 세기조정은 app.js(ms)만. 웹/구버전앱 no-op.
 - **클릭 집계**: `switchTab`가 `POST /api/places?visit=gnb&tab=home|places|community|my`(fire-and-forget, 운영자 집IP 제외)로 탭별 클릭수 누적 → 어드민 'GNB 탭 클릭' 카드([[admin]]·[[api-db]]). `switchTab`은 GNB onclick 4개에서만 호출(프로그램 호출 없음 → 집계 뻥튀기 없음).

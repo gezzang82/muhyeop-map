@@ -2,6 +2,12 @@
 
 ## 2026-11
 
+### 안드 백버튼 + iOS 외부 플랫폼 세션 유지 (2026-11-12, 다음 네이티브 빌드)
+수다방 제보(kon님)·원우씨 iOS 관찰 2건을 다음 네이티브 빌드로 처리.
+- **안드 백버튼이 바로 앱 종료되던 문제(kon님)**: Capacitor 8 기본 BridgeActivity는 백을 WebView로 안 보내고 Activity를 finish → SPA라 백=즉시 종료. **OTA 불가 확인**(백이 WebView에 도달 안 함). → MainActivity에 `OnBackPressedCallback` 브릿지(`@capacitor/app` 불필요, CustomBrowser처럼 직접)가 매 백마다 `window.__androidBack()` 호출. 웹 로직: ①열린 오버레이/바텀시트 최상단만 닫기(공통 close 재사용) ②홈 아니면 홈 탭 ③홈 루트면 **공통 확인 바텀시트(`showAlert`)** 로 '앱 종료' 확인→`exitApp`(moveTaskToBack). **종료 UI를 네이티브 alert가 아닌 우리 공통 웹 시트로**(원우씨 요청) → 문구·버튼('앱 종료'/'종료하기'·'취소')·로직 전부 OTA 수정 가능. 네이티브는 백 브릿지 + exitApp 둘뿐.
+- **iOS 외부 플랫폼 재로그인(원우씨)**: 레뷰/리뷰노트/강남맛집 등은 세션 쿠키(만료 없음)로 로그인 유지 → WKWebView가 앱 종료 시 세션 쿠키를 영속 안 해 재진입마다 재로그인. CustomBrowser는 이미 `.default()`(영구)였으나 세션 쿠키는 설계상 안 남음. → `ExtCookieJar`가 로드완료/닫힘/백그라운드 때 (muhyeop 제외) 외부 쿠키 전부를 Keychain에 스냅샷, 다음 열 때 **로드 전 복원 주입**(세션 쿠키도 살아 재로그인 사라짐). 우리 `mhm_session`은 기존 `CookieSync`가 담당(분리).
+- **반영**: app.js는 배포 완료(네이티브 브릿지 없으면 `__androidBack` 미호출=무해, 다음 안드 빌드부터 작동). 네이티브 2개(MainActivity.java·MainViewController.swift)는 커밋만 → 다음 안드/iOS 재빌드+스토어. 빌드 후 실기기 검증 필요(백버튼 각 케이스·레뷰 재진입 세션). [[frontend]]·[[project_mobile_app]].
+
 ### 광고 구좌 배너 DB 구동 + 어드민 '배너 설정' 탭 (2026-11-11)
 광고 구좌(홈 리스트 / 커뮤니티 후기 피드)를 하드코딩에서 **어드민에서 관리하는 DB 구동**으로 전환(원우씨 "어드민에도 배너 설정 메뉴가 추가되어야").
 - **왜**: 하늘정원 후기피드 배너를 코드 하드코딩(`adSlotFeedHtml`에 고정 이미지·링크)으로 공개했는데, 광고주가 늘면 매번 배포해야 함 → 어드민 등록만으로 교체·추가하게.
