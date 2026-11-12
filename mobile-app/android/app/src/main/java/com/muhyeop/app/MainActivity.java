@@ -5,8 +5,10 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import android.widget.FrameLayout;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -64,6 +66,20 @@ public class MainActivity extends BridgeActivity {
 
         // 웹에서 전체화면 흰 모달 열림/닫힘 시 상단 바 색을 전환할 수 있게 인터페이스 노출
         getBridge().getWebView().addJavascriptInterface(this, "MuhyeopNativeUI");
+
+        // 하드웨어 백버튼: Capacitor 8 기본은 백을 WebView로 안 보내고 Activity를 바로 종료(=앱 꺼짐, kon님 제보).
+        //  매 백마다 웹의 window.__androidBack()을 호출 → 'false'면 웹이 처리(오버레이 닫기·홈 이동)해 앱 유지,
+        //  그 외('true'·'null'=구버전 app.js/예외)면 moveTaskToBack(홈으로, 상태 보존·웜 재개).
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                WebView wv = (getBridge() != null) ? getBridge().getWebView() : null;
+                if (wv == null) { moveTaskToBack(true); return; }
+                wv.evaluateJavascript("(window.__androidBack && window.__androidBack())", value -> {
+                    if (!"false".equals(value)) moveTaskToBack(true);
+                });
+            }
+        });
     }
 
     // white=true: 상단 흰색 + 어두운 아이콘(흰 배경 모달 화면). false: 상단 검정 + 흰 아이콘(지도)
@@ -80,6 +96,12 @@ public class MainActivity extends BridgeActivity {
     @JavascriptInterface
     public void setStatusBar(final boolean white) {
         runOnUiThread(() -> applyStatusBar(white));
+    }
+
+    // 웹의 종료 확인 바텀시트(showAlert)에서 '종료' 선택 시 호출 — 앱을 홈으로 내림(상태 보존·웜 재개).
+    @JavascriptInterface
+    public void exitApp() {
+        runOnUiThread(() -> moveTaskToBack(true));
     }
 
     // 저장된 인셋값(CSS px)을 WebView에 CSS 변수로 밀어넣는다.

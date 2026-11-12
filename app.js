@@ -8105,6 +8105,46 @@ const APP_VERSION = '1.1.4';
 // 플랫폼이 다른데 하나로 묶으면 아직 승인 안 된 스토어로도 업데이트를 유도하게 됨 → iOS/안드 각각 라이브된 버전만 올릴 것.
 const LATEST_APP_VERSION_ANDROID = '1.1.3'; // 2026-11-08 Play 라이브(커스텀 인앱브라우저 등)
 const LATEST_APP_VERSION_IOS = '1.1.4';     // 2026-11-08 App Store 라이브(커스텀 인앱브라우저 등)
+// ===== 안드로이드 하드웨어 백버튼 처리 (네이티브 MainActivity가 호출, 2026-11-12) =====
+// Capacitor 8 기본 BridgeActivity는 백을 WebView로 안 보내고 Activity를 바로 종료(=앱 꺼짐, kon님 제보).
+// MainActivity의 OnBackPressedCallback이 매 백마다 window.__androidBack()을 evaluateJavascript로 호출하고,
+// 반환이 'false'일 때만 소비(앱 유지), 그 외('true'·'null'=구버전·예외)면 네이티브가 moveTaskToBack(홈으로).
+//  ① 열린 오버레이/시트가 있으면 최상단만 닫음(바텀시트/모달 공통 close) ② 없으면 홈 아닌 탭→홈
+//  ③ 홈 루트면 공통 확인 바텀시트(showAlert)로 '앱 종료' 확인 → '종료' 시 네이티브 exitApp.
+// ⚠️ 네이티브 빌드(@capacitor/app 불필요, MainActivity 직접)가 있어야 호출됨 — 구버전 바이너리에선 미호출(무해).
+function _closeTopOverlayForBack() {
+  const open = (id, cls) => { const el = document.getElementById(id); return !!(el && el.classList.contains(cls)); };
+  const shown = (id) => { const el = document.getElementById(id); return !!(el && !el.hidden); };
+  // 위에 뜬(모달성 강한) 것부터 — 공통 바텀시트/모달의 기존 close 함수 재사용
+  if (open('alertPopupOverlay', 'open')) { closeAlertPopup(); return true; } // 종료확인 등 공통 알림시트 = 취소
+  if (open('biStoreOverlay', 'open')) { closeBiStore(); return true; }
+  if (open('blogImportOverlay', 'open')) { closeBlogImport(); return true; }
+  if (open('selectSheetPanel', 'show')) { closeSelectSheet(); return true; }
+  if (shown('scCmtBar')) { showSeoichuCommentBar(false); return true; }
+  if (open('noticeDetailOverlay', 'open')) { closeNoticeDetail(); return true; }
+  if (open('profileOverlay', 'open')) { closeProfileSheet(); return true; }
+  if (open('modalOverlay', 'open')) { closeModal(); return true; }
+  if (open('bannerPopupOverlay', 'show')) { closeBannerPopup(); return true; }
+  if (open('mobileSheet', 'show')) { closeMobileSheet(); return true; }
+  if (shown('catDropdown')) { closeCategoryDropdown(); return true; }
+  return false;
+}
+// JS→네이티브 종료(홈으로, 상태보존). MainActivity의 MuhyeopNativeUI.exitApp()이 moveTaskToBack 수행.
+function _androidExitApp() {
+  try { if (window.MuhyeopNativeUI && window.MuhyeopNativeUI.exitApp) window.MuhyeopNativeUI.exitApp(); } catch (e) {}
+}
+window.__androidBack = function () {
+  try {
+    if (_closeTopOverlayForBack()) return false;               // 오버레이/시트 닫음 → 종료 안 함
+    const activeEl = document.querySelector('.gnb-tab.active');
+    const activeTab = activeEl ? activeEl.getAttribute('data-tab') : 'home';
+    if (activeTab && activeTab !== 'home') { switchTab('home'); return false; } // 홈 아닌 탭 → 홈(뒤로)
+    // 홈 루트: 공통 확인 바텀시트로 종료 확인(kon님 요청 "종료 alert", 공통 UI 재사용)
+    showAlert('앱을 종료할까요?', '', { twoButton: true, header: '앱 종료', confirmText: '종료하기', cancelText: '취소', align: 'left', onConfirm: _androidExitApp });
+    return false;
+  } catch (e) { return true; }                                  // 예외 → 기본 동작(종료)
+};
+
 // 네이티브 설치버전: undefined=미확인 / ''=웹·@capacitor/app 없는 구버전앱(버전 신뢰 불가) / 'x.y.z'=확인됨
 let _nativeAppVer = undefined;
 async function getNativeAppVer() {
