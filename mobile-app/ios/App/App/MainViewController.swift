@@ -151,6 +151,59 @@ enum Keychain {
     }
 }
 
+// MARK: - 외부 플랫폼 로그인 유지: CustomBrowser 쿠키 스냅샷/복원 (2026-11-12)
+// 레뷰/리뷰노트/강남맛집 등 외부 플랫폼은 세션 쿠키(만료 없음)로 로그인을 유지하는데, WKWebView는
+// 앱 종료 시 세션 쿠키를 디스크에 영속하지 않아 "앱 종료 후 재진입"마다 재로그인 화면이 떴다(제보).
+// → 브라우저가 페이지를 다 읽을/닫을/백그라운드 갈 때 (muhyeop 제외) 전 쿠키를 Keychain에 스냅샷하고,
+//   다음에 열 때 '로드 전' 복원 주입한다(세션 쿠키도 살아 재로그인 사라짐). 우리 도메인은 CookieSync가 담당.
+enum ExtCookieJar {
+    private static let key = "ext_cookies_v1"
+    private static func isOurs(_ domain: String) -> Bool {
+        let d = domain.hasPrefix(".") ? String(domain.dropFirst()) : domain
+        return d == "muhyeop.com" || d.hasSuffix(".muhyeop.com")
+    }
+    // 저장소의 외부 쿠키 전부(세션 포함)를 Keychain에 영속(전체 blob 교체 → 사이트 로그아웃도 반영).
+    static func snapshot(_ store: WKHTTPCookieStore) {
+        store.getAllCookies { cookies in
+            var arr: [[String: Any]] = []
+            for c in cookies where !isOurs(c.domain) {
+                var d: [String: Any] = [
+                    "name": c.name, "value": c.value, "domain": c.domain,
+                    "path": c.path, "secure": c.isSecure,
+                ]
+                if let exp = c.expiresDate { d["expires"] = exp.timeIntervalSince1970 }
+                arr.append(d)
+            }
+            guard let data = try? JSONSerialization.data(withJSONObject: arr) else { return }
+            Keychain.set(data, for: key)
+        }
+    }
+    // 저장분을 저장소에 복원 주입한 뒤 completion(로드 트리거). 없으면 즉시 completion.
+    static func restore(into store: WKHTTPCookieStore, completion: @escaping () -> Void) {
+        guard let data = Keychain.get(key),
+              let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]],
+              !arr.isEmpty else { completion(); return }
+        let group = DispatchGroup()
+        for d in arr {
+            guard let name = d["name"] as? String, let value = d["value"] as? String,
+                  let domain = d["domain"] as? String, let path = d["path"] as? String else { continue }
+            var props: [HTTPCookiePropertyKey: Any] = [
+                .name: name, .value: value, .domain: domain, .path: path,
+            ]
+            if (d["secure"] as? Bool) == true { props[.secure] = "TRUE" }
+            if let exp = d["expires"] as? Double {
+                let date = Date(timeIntervalSince1970: exp)
+                if date <= Date() { continue }   // 만료분 스킵
+                props[.expires] = date
+            }
+            guard let cookie = HTTPCookie(properties: props) else { continue }
+            group.enter()
+            store.setCookie(cookie) { group.leave() }
+        }
+        group.notify(queue: .main) { completion() }
+    }
+}
+
 // MARK: - 커스텀 인앱브라우저 (2026-11-08)
 // @capacitor/inappbrowser는 커스텀 앱 스킴(revu:// 등)을 .allow 해버려 WKWebView 로드 실패→"Couldn't load" 에러가 떴다.
 // 이 플러그인은 decidePolicyFor에서 **앱 스킴을 조용히 .cancel**(앱 열기/팝업/에러 없이 현재 웹페이지 유지) + http(s)만 로드.
@@ -223,7 +276,26 @@ class CustomBrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .refresh, target: self, action: #selector(reloadTapped))
         navigationItem.title = initialURL.host
 
-        webView.load(URLRequest(url: initialURL))
+        // 백그라운드 전환 시(앱이 곧 kill될 수 있음) 외부 로그인 쿠키를 즉시 스냅샷
+        NotificationCenter.default.addObserver(self, selector: #selector(appBackgrounded),
+                                               name: UIApplication.didEnterBackgroundNotification, object: nil)
+
+        // 저장된 외부 플랫폼 쿠키(세션 포함)를 '로드 전' 복원 주입한 뒤 로드 → 재로그인 방지
+        ExtCookieJar.restore(into: webView.configuration.websiteDataStore.httpCookieStore) { [weak self] in
+            guard let self = self else { return }
+            self.webView.load(URLRequest(url: self.initialURL))
+        }
+    }
+
+    deinit { NotificationCenter.default.removeObserver(self) }
+
+    @objc private func appBackgrounded() {
+        ExtCookieJar.snapshot(webView.configuration.websiteDataStore.httpCookieStore)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        ExtCookieJar.snapshot(webView.configuration.websiteDataStore.httpCookieStore)   // 브라우저 닫힐 때 최종 스냅샷
     }
 
     @objc private func closeTapped() { dismiss(animated: true, completion: nil) }
@@ -256,6 +328,8 @@ class CustomBrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         syncBottomColor()
         // 레이아웃/하단 버튼이 늦게 잡히는 페이지 대비 한 번 더
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.syncBottomColor() }
+        // 페이지 로드 완료 = 로그인/쿠키 세팅 직후일 수 있음 → 외부 쿠키 스냅샷(사이트 로그아웃도 반영)
+        ExtCookieJar.snapshot(webView.configuration.websiteDataStore.httpCookieStore)
     }
 
     // 페이지 하단(고정 버튼 등) 배경색을 감지해 하단 네이티브 여백 색을 맞춘다(강남맛집=주황 등 플랫폼 자동 대응)
