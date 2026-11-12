@@ -108,6 +108,15 @@ public class CustomBrowserPlugin extends Plugin {
                     try { getActivity().startActivity(new Intent(Intent.ACTION_VIEW, request.getUrl())); } catch (Exception ignored) {}
                     return true;
                 }
+                // 소셜 간편로그인 앱 스킴(카카오/네이버/라인 등)은 시스템으로 열어 로그인 왕복 허용.
+                //  디너의여왕·리뷰노트 등이 네이버/카카오 간편로그인을 쓰는데, 앱 설치 기기에선 이 스킴이
+                //  차단돼 '네이버 로그인 → 회원가입'으로 빠지던 문제(2026-11-13). revu:// 등은 계속 차단.
+                if (scheme.startsWith("kakao") || scheme.equals("naversearchapp") || scheme.equals("naversearchthirdlogin")
+                        || scheme.equals("nidlogin") || scheme.equals("line") || scheme.equals("fbauth2") || scheme.equals("fb")
+                        || scheme.equals("storylink") || scheme.equals("payco")) {
+                    try { getActivity().startActivity(new Intent(Intent.ACTION_VIEW, request.getUrl())); } catch (Exception ignored) {}
+                    return true;
+                }
                 // revu://, intent:// 등 커스텀 앱 스킴 → 조용히 차단(앱 열기/에러 없이 웹페이지 유지)
                 return true;
             }

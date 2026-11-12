@@ -320,6 +320,15 @@ class CustomBrowserViewController: UIViewController, WKNavigationDelegate, WKUID
             decisionHandler(.cancel)
             return
         }
+        // 소셜 간편로그인 앱 스킴(카카오/네이버/라인 등)은 시스템으로 열어 로그인 왕복 허용.
+        //  디너의여왕·리뷰노트 등이 네이버/카카오 간편로그인을 쓰는데, 앱이 설치된 기기에선 이 스킴이
+        //  차단돼 '네이버 로그인 → 회원가입'으로 빠지던 문제(2026-11-13). revu:// 등 캠페인 앱 스킴은 계속 차단.
+        let authSchemes: Set<String> = ["naversearchapp", "naversearchthirdlogin", "nidlogin", "line", "fbauth2", "fb", "storylink", "kakaolink", "kakaotalk", "kakaokompassauth", "payco"]
+        if scheme.hasPrefix("kakao") || authSchemes.contains(scheme) {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            decisionHandler(.cancel)
+            return
+        }
         decisionHandler(.cancel)   // revu:// 등 커스텀 앱 스킴 → 조용히 무시(웹페이지 유지)
     }
 
