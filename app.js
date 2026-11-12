@@ -3933,14 +3933,20 @@ function bindCmPullRefresh() {
   const ind = document.getElementById('cmPullIndicator');
   if (!sc || !inner || !ind) return;
   const THRESHOLD = 64, MAX = 90;
-  let startY = 0, pulling = false, dist = 0, refreshing = false;
+  let startY = 0, startX = 0, pulling = false, dist = 0, refreshing = false, locked = 0;
   sc.addEventListener('touchstart', (e) => {
     if (refreshing || sc.scrollTop > 0 || e.touches.length !== 1) { pulling = false; return; }
-    startY = e.touches[0].clientY; pulling = true; dist = 0;
+    // 지역탭(.cm-region-tabs) 가로 스와이프는 당김으로 가로채지 않음(가로 스크롤 먹통 방지)
+    if (e.target.closest && e.target.closest('.cm-region-tabs')) { pulling = false; return; }
+    startY = e.touches[0].clientY; startX = e.touches[0].clientX; pulling = true; dist = 0; locked = 0;
   }, { passive: true });
   sc.addEventListener('touchmove', (e) => {
     if (!pulling) return;
     const dy = e.touches[0].clientY - startY;
+    const dx = e.touches[0].clientX - startX;
+    // 첫 유의미 이동에서 제스처 방향 확정 — 가로 제스처면 당김 취소(가로 스크롤 양보)
+    if (!locked && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) locked = (Math.abs(dx) > Math.abs(dy)) ? 'x' : 'y';
+    if (locked === 'x') { if (dist > 0) { inner.style.transform = ''; ind.classList.remove('show', 'ready'); } pulling = false; dist = 0; return; }
     if (dy <= 0) { // 위로 스크롤이면 당김 취소
       if (dist > 0) { inner.style.transform = ''; ind.classList.remove('show', 'ready'); }
       pulling = false; dist = 0; return;
