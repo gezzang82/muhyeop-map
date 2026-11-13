@@ -6,6 +6,7 @@ let places = [];
 let campaigns = [];
 let banners = [];
 let adBanners = { home: { mode: 'random', items: [] }, feed: { mode: 'random', items: [] } };  // 광고 구좌(구좌별 mode+items). /api/banners?ad=1
+let _adSlotOperatorRendered = false;  // 홈 운영자 광고구좌는 currentUser 확정 뒤에야 판정 → auth 변화 시 1회 재렌더 가드(refreshAuthUI)
 
 // 지도 경량화(뷰포트 로딩, 2026-09-01): 공개 앱은 캠페인을 화면(bbox)에 보이는 것만 받아 `campaigns`에 누적.
 let totalActiveCount = 0;      // 전역 활성 캠페인 수(서버 count) — 총 협찬수 표시용
@@ -6186,6 +6187,13 @@ async function refreshAuthUI() {
   await loadFavorites();
   _favorites.forEach(pid => updateFavStars(pid));
   if (_favMode) { renderMarkers(); renderSidebar(); }
+  // 홈 '모집 중인 체험' 리스트의 운영자 전용 광고 구좌(isOperator)는 currentUser 확정 뒤에야 판정됨.
+  //  부팅 땐 renderAll()이 refreshAuthUI()보다 먼저 돌아(auth 미확정) 구좌가 빠진 채 굳어 탭 전환 전까지 안 보이던 문제
+  //  → 운영자 상태가 처음 확정되거나 바뀔 때만 홈 리스트 1회 재렌더(비운영자/무변화 땐 스킵 = 불필요한 스크롤 리셋 방지).
+  if (!_favMode && typeof renderSidebar === 'function' && isOperator() !== _adSlotOperatorRendered) {
+    _adSlotOperatorRendered = isOperator();
+    renderSidebar();
+  }
   const loggedIn = !!currentUser;
   // 로그인 상태에 따라 갱신되는 탭들 먼저 처리 — 아래 PC/사이드메뉴/마커 로직 중 하나가 실패해도 항상 반영되도록 앞에 둠
   renderMyPage();       // MY 탭
