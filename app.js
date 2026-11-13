@@ -5,7 +5,7 @@
 let places = [];
 let campaigns = [];
 let banners = [];
-let adBanners = { home: [], feed: [] };  // 광고 구좌 배너(구좌별 enabled 배너 로테이션). /api/banners?ad=1
+let adBanners = { home: { mode: 'random', items: [] }, feed: { mode: 'random', items: [] } };  // 광고 구좌(구좌별 mode+items). /api/banners?ad=1
 
 // 지도 경량화(뷰포트 로딩, 2026-09-01): 공개 앱은 캠페인을 화면(bbox)에 보이는 것만 받아 `campaigns`에 누적.
 let totalActiveCount = 0;      // 전역 활성 캠페인 수(서버 count) — 총 협찬수 표시용
@@ -2170,21 +2170,62 @@ function sidebarItemHtml(place) {
 function isOperator() {
   return !!(currentUser && (currentUser.id === 12 || currentUser.nickname === '개짜장'));
 }
-// 광고 구좌 배너 1개 선택(enabled 중 랜덤 로테이션). 어드민 '배너 설정'에서 등록·관리(ad_banners).
-//  세션 내엔 구좌별로 고정(지도 이동 재렌더마다 안 바뀌게=깜빡임 방지). 로테이션은 페이지 로드/재방문마다.
-let _adPick = {};
+// 광고 구좌 배너. 어드민 '배너 설정'에서 등록·관리(ad_banners) + 구좌별 노출방식(ad_slot_config.mode):
+//  random=접속마다 1개 랜덤(세션 고정) / single=1개 고정 / multiple=정렬 순서대로 플립 자동순환.
+let _adPick = {};   // random: 세션 내 구좌별 고정
+let _adFlip = {};   // multiple: 구좌별 {idx, timer}
+function adSlotData(slot) {  // 신규 {mode,items} + 구버전 배열 하위호환
+  const s = (adBanners && adBanners[slot]) || {};
+  if (Array.isArray(s)) return { mode: 'random', items: s };
+  return { mode: s.mode || 'random', items: s.items || [] };
+}
 function pickAdBanner(slot) {
-  const list = (adBanners && adBanners[slot]) || [];
-  if (!list.length) return null;
-  if (_adPick[slot] && list.some(b => b.id === _adPick[slot].id)) return _adPick[slot];
-  _adPick[slot] = list[Math.floor(Math.random() * list.length)];
+  const { items } = adSlotData(slot);
+  if (!items.length) return null;
+  if (_adPick[slot] && items.some(b => b.id === _adPick[slot].id)) return _adPick[slot];
+  _adPick[slot] = items[Math.floor(Math.random() * items.length)];
   return _adPick[slot];
 }
-function adSlotBannerHtml(slot, cls) {
-  const b = pickAdBanner(slot);
+function _adOnclick(b) { return `trackAdClick(${b.id})` + (b.linkUrl ? `;openExternal('${String(b.linkUrl).replace(/'/g, "\\'")}')` : ''); }
+function _adDivHtml(slot, cls, b, extraCls) {
   if (!b || !b.imageUrl) return '';
-  const link = b.linkUrl ? `;openExternal('${String(b.linkUrl).replace(/'/g, "\\'")}')` : '';
-  return `<div class="${cls}" data-slot="${slot}" onclick="trackAdClick(${b.id})${link}"><img class="ad-slot-full" src="${b.imageUrl}" alt="광고" loading="lazy"></div>`;
+  return `<div class="${cls}${extraCls ? ' ' + extraCls : ''}" data-slot="${slot}" onclick="${_adOnclick(b)}"><img class="ad-slot-full" src="${b.imageUrl}" alt="광고" loading="lazy"></div>`;
+}
+function adSlotBannerHtml(slot, cls) {
+  const { mode, items } = adSlotData(slot);
+  if (!items.length) return '';
+  if (mode === 'multiple' && items.length > 1) {
+    const st = _adFlip[slot] || (_adFlip[slot] = { idx: 0, timer: null });
+    if (st.idx >= items.length) st.idx = 0;
+    setTimeout(() => ensureAdFlip(slot), 0);   // 플립 순환 타이머 확보(이미 돌면 무시)
+    return _adDivHtml(slot, cls, items[st.idx], 'ad-flip');
+  }
+  if (mode === 'single') return _adDivHtml(slot, cls, items[0]);   // 1개 고정
+  return _adDivHtml(slot, cls, pickAdBanner(slot));                // random
+}
+// 복수형 플립 자동순환: 단일 인터벌이 매 틱 live 요소를 조회해 다음 배너로 '가로 카드 넘김'(rotateY).
+//  재렌더로 요소가 새로 그려져도 st.idx를 보여주므로 끊김 없음. 요소가 화면에 없으면 다음 틱에 재시도.
+function ensureAdFlip(slot) {
+  const st = _adFlip[slot]; if (!st || st.timer) return;
+  st.timer = setInterval(() => {
+    const { items } = adSlotData(slot);
+    if (!items || items.length < 2) { clearInterval(st.timer); st.timer = null; return; }
+    const el = document.querySelector('.ad-flip[data-slot="' + slot + '"]');
+    if (!el) return;
+    const img = el.querySelector('img'); if (!img) return;
+    const next = (st.idx + 1) % items.length, b = items[next];
+    el.classList.add('ad-flipping');                 // 0→90° (엣지온)
+    setTimeout(() => {
+      if (!document.body.contains(el)) { st.idx = next; return; }
+      img.src = b.imageUrl;
+      el.setAttribute('onclick', _adOnclick(b));
+      el.classList.remove('ad-flipping');
+      el.classList.add('ad-pre');                    // -90° 즉시(무전환)
+      void el.offsetWidth;                            // reflow
+      el.classList.remove('ad-pre');                 // -90→0° 전환(넘어옴)
+      st.idx = next;
+    }, 300);
+  }, 3800);
 }
 // 홈 '모집 중인 체험' 리스트 광고 구좌. 커뮤니티 후기 피드 광고 구좌.
 function adSlotHomeHtml() { return adSlotBannerHtml('home', 'ad-slot'); }

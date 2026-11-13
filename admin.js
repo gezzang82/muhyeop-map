@@ -1470,18 +1470,46 @@ function resetAdBannerForm() {
   updateAdPreview();
 }
 
+let adSlotModes = { home: 'random', feed: 'random' };
+const AD_MODE_LABEL = { random: '랜덤형(접속마다 1개)', single: '단일형(1개 고정)', multiple: '복수형(플립 순환)' };
 async function renderAdBannerList() {
   const body = document.getElementById('adBannerTableBody');
   if (body) body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">불러오는 중…</td></tr>';
   try {
     const res = await fetch('/api/banners?ad=1&admin=1', { credentials: 'same-origin' });
-    const data = res.ok ? await res.json() : [];
-    // 어드민 GET은 전체 배너 평탄 배열(slot/enabled/clickCount 포함)을 반환
-    adBannerRows = Array.isArray(data) ? data : [];
+    const data = res.ok ? await res.json() : {};
+    // 어드민 GET: {banners:[...평탄], modes:{home,feed}} (구버전 호환: 배열이면 banners로)
+    adBannerRows = Array.isArray(data) ? data : (data.banners || []);
+    adSlotModes = (data && data.modes) || { home: 'random', feed: 'random' };
   } catch (e) {
-    adBannerRows = [];
+    adBannerRows = []; adSlotModes = { home: 'random', feed: 'random' };
   }
+  renderAdSlotModes();
   renderAdBannerRows();
+}
+// 구좌별 노출 방식 선택(랜덤/단일/복수)
+function renderAdSlotModes() {
+  const el = document.getElementById('adSlotModes');
+  if (!el) return;
+  el.innerHTML = ['home', 'feed'].map(slot => {
+    const cur = adSlotModes[slot] || 'random';
+    const opts = ['random', 'single', 'multiple'].map(m => `<option value="${m}"${m === cur ? ' selected' : ''}>${AD_MODE_LABEL[m]}</option>`).join('');
+    return `<label style="display:inline-flex;align-items:center;gap:8px;margin-right:24px;font-size:14px;">
+      <strong>${AD_SLOT_LABEL[slot]}</strong>
+      <select onchange="setAdSlotMode('${slot}', this.value)" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;">${opts}</select>
+    </label>`;
+  }).join('');
+}
+async function setAdSlotMode(slot, mode) {
+  try {
+    const res = await fetch('/api/banners?ad=mode', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify({ slot, mode })
+    });
+    if (!res.ok) throw new Error('실패');
+    adSlotModes[slot] = mode;
+    adminToast(`${AD_SLOT_LABEL[slot]} 노출방식: ${AD_MODE_LABEL[mode]}`);
+  } catch (e) { adminToast('모드 변경 실패'); renderAdSlotModes(); }
 }
 
 function renderAdBannerRows() {

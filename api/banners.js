@@ -31,7 +31,10 @@ module.exports = async function handler(req, res) {
       id INTEGER PRIMARY KEY AUTOINCREMENT, slot TEXT NOT NULL, image_url TEXT, link_url TEXT,
       enabled INTEGER DEFAULT 1, sort_order INTEGER DEFAULT 0, click_count INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')))`);
+    // 구좌별 노출 방식: random(접속마다 1개 랜덤)·single(1개 고정)·multiple(정렬 순서대로 플립 자동순환)
+    await db.execute(`CREATE TABLE IF NOT EXISTS ad_slot_config (slot TEXT PRIMARY KEY, mode TEXT DEFAULT 'random')`);
     const toAd = r => ({ id: r.id, slot: r.slot, imageUrl: r.image_url, linkUrl: r.link_url || '', enabled: !!r.enabled, sortOrder: r.sort_order || 0, clickCount: r.click_count || 0 });
+    const getModes = async () => { const m = { home: 'random', feed: 'random' }; try { (await db.execute("SELECT slot, mode FROM ad_slot_config")).rows.forEach(r => { if (r.mode) m[r.slot] = r.mode; }); } catch (e) {} return m; };
 
     // 공개: 배너 클릭 집계(운영자 집IP 제외)
     if (req.method === 'POST' && req.query.ad === 'click') {
@@ -43,18 +46,29 @@ module.exports = async function handler(req, res) {
     }
     // GET: 공개(enabled만, 구좌별 그룹) / 어드민(?admin=1, 전체+클릭수)
     if (req.method === 'GET') {
+      const modes = await getModes();
       if (req.query.admin === '1') {
         if (!requireAdmin(req, res)) return;
-        return res.status(200).json((await db.execute("SELECT * FROM ad_banners ORDER BY slot, sort_order ASC, id ASC")).rows.map(toAd));
+        const all = (await db.execute("SELECT * FROM ad_banners ORDER BY slot, sort_order ASC, id ASC")).rows.map(toAd);
+        return res.status(200).json({ banners: all, modes });
       }
       const rows = (await db.execute("SELECT id, slot, image_url, link_url FROM ad_banners WHERE enabled=1 ORDER BY slot, sort_order ASC, id ASC")).rows;
-      const bySlot = {};
-      rows.forEach(r => { (bySlot[r.slot] = bySlot[r.slot] || []).push({ id: r.id, imageUrl: r.image_url, linkUrl: r.link_url || '' }); });
+      const out = { home: { mode: modes.home, items: [] }, feed: { mode: modes.feed, items: [] } };
+      rows.forEach(r => { (out[r.slot] = out[r.slot] || { mode: modes[r.slot] || 'random', items: [] }).items.push({ id: r.id, imageUrl: r.image_url, linkUrl: r.link_url || '' }); });
       res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600');
-      return res.status(200).json(bySlot);
+      return res.status(200).json(out);
     }
     // 쓰기는 관리자만
     if (!requireAdmin(req, res)) return;
+    // 구좌 노출 방식 설정
+    if (req.method === 'POST' && req.query.ad === 'mode') {
+      const b = req.body || {};
+      const slot = String(b.slot || '').trim(), mode = String(b.mode || '').trim();
+      if (!['home', 'feed'].includes(slot)) return res.status(400).json({ error: 'slot(home|feed) 필수' });
+      if (!['random', 'single', 'multiple'].includes(mode)) return res.status(400).json({ error: 'mode(random|single|multiple)' });
+      await db.execute({ sql: "INSERT INTO ad_slot_config (slot, mode) VALUES (?,?) ON CONFLICT(slot) DO UPDATE SET mode=excluded.mode", args: [slot, mode] });
+      return res.status(200).json({ ok: true });
+    }
     if (req.method === 'POST' && req.query.ad === 'add') {
       const b = req.body || {};
       const slot = String(b.slot || '').trim();
