@@ -2193,17 +2193,10 @@ function _adDivHtml(slot, cls, b, extraCls) {
 }
 const AD_FLAP_N = 10;        // 복수형: 가로 배너 분할 수(세로 조각)
 const AD_FLAP_STAGGER = 48;  // 조각 간 지연(좌→우 순차)
-// 레이어 reveal: 밑 bg엔 '현재 배너'를 깔고, 위에도 '현재 배너'를 N조각으로 올려 둔다(정지 땐 top=bg 동일이라 조각 seam 안 보임).
-//  순환 시작 때 bg를 '다음 배너'로 바꾼 뒤 위 조각을 좌→우로 좌우(rotateY) 넘겨 밑의 다음 배너를 드러낸다(두 장 교체 아님). 회전 조각엔 그림자로 입체감.
+// 레이어 reveal(collapse 방식): 정지 땐 통이미지(bg) 1장만 — 3D 조각 레이어가 0개라 좌측 1px seam·끝날 때 미세 확대가 원천 불가.
+//  순환 시작 때만 현재 배너를 N조각(.ad-flap-top 오버레이)으로 만들어 좌→우로 좌우(rotateY) 넘겨 밑의 다음 배너(bg)를 드러내고, 끝나면 조각을 제거(통이미지로 복귀). 회전 조각엔 그림자로 입체감.
 function _adFlapHtml(slot, cls, cur) {
-  const N = AD_FLAP_N, curSrc = cur.imageUrl;
-  let cols = '';
-  for (let i = 0; i < N; i++) {
-    // 각 조각 = 전체 이미지(폭=wrap, object-fit:fill)를 overflow:hidden 창으로 i칸만큼 좌로 밀어 그 슬라이스만.
-    //  bg(fill)와 동일 스케일 → 드러날 때/스냅 때 이미지 크기 안 바뀜(background-% 슬라이싱 반올림 오차 제거).
-    cols += `<span class="ad-flap" style="width:${100 / N}%;--i:${i}"><img class="ad-flap-img" src="${curSrc}" alt=""><span class="ad-flap-shade"></span></span>`;
-  }
-  return `<div class="${cls} ad-flap-outer" data-slot="${slot}" onclick="${_adOnclick(cur)}"><div class="ad-flap-wrap" style="--adn:${N}"><img class="ad-flap-bg" src="${curSrc}" alt=""><div class="ad-flap-top">${cols}</div></div></div>`;
+  return `<div class="${cls} ad-flap-outer" data-slot="${slot}" onclick="${_adOnclick(cur)}"><div class="ad-flap-wrap"><img class="ad-flap-bg" src="${cur.imageUrl}" alt=""></div></div>`;
 }
 function adSlotBannerHtml(slot, cls) {
   const { mode, items } = adSlotData(slot);
@@ -2224,20 +2217,24 @@ function ensureAdFlip(slot) {
     if (!items || items.length < 2) { clearInterval(st.timer); st.timer = null; return; }
     const outer = document.querySelector('.ad-flap-outer[data-slot="' + slot + '"]');
     if (!outer) return;
-    const top = outer.querySelector('.ad-flap-top'), bg = outer.querySelector('.ad-flap-bg');
-    const flaps = top ? top.querySelectorAll('.ad-flap') : [];
-    if (!flaps.length || !bg) return;
-    const next = (st.idx + 1) % items.length, nextB = items[next];
-    // 정지 땐 bg=현재(=top조각과 동일). 순환 시작 때 밑에 next를 깔고(위 조각이 아직 덮어 안 보임) 위 조각을 좌→우로 날려(rotateY) next를 드러냄
-    bg.src = nextB.imageUrl;
+    const wrap = outer.querySelector('.ad-flap-wrap'), bg = outer.querySelector('.ad-flap-bg');
+    if (!wrap || !bg) return;
+    if (wrap.querySelector('.ad-flap-top')) return;   // 이전 사이클 전환 진행 중이면 이번 틱은 건너뜀
+    if (st.idx >= items.length) st.idx = 0;
+    const N = AD_FLAP_N, next = (st.idx + 1) % items.length, nextB = items[next], curSrc = items[st.idx].imageUrl;
+    // 현재 배너를 N조각 오버레이로 만들어 bg 위에 올림(정지 땐 없던 레이어를 전환 때만 생성)
+    let cols = '';
+    for (let i = 0; i < N; i++) cols += `<span class="ad-flap" style="width:${100 / N}%;--i:${i}"><img class="ad-flap-img" src="${curSrc}" alt=""><span class="ad-flap-shade"></span></span>`;
+    const top = document.createElement('div');
+    top.className = 'ad-flap-top'; top.style.setProperty('--adn', N); top.innerHTML = cols;
+    wrap.appendChild(top);
+    bg.src = nextB.imageUrl;   // 밑에 다음 배너를 깔고(위 조각이 아직 덮어 안 보임) 위 조각을 좌→우로 날려(rotateY) next를 드러냄
+    const flaps = top.querySelectorAll('.ad-flap');
     flaps.forEach((f, i) => setTimeout(() => { if (document.body.contains(f)) f.classList.add('ad-flap-go'); }, i * AD_FLAP_STAGGER));
-    // 전부 날아간 뒤: 위 조각도 next로 재구성(스냅·무전환)해 다시 flat → top=bg=next로 정지(다음 사이클 대비, seam 없음)
+    // 전부 날아간 뒤: 조각 오버레이를 통째로 제거 → bg(next) 통이미지 1장만 남아 정지(3D 레이어 0개=seam·확대 없음)
     setTimeout(() => {
-      if (!document.body.contains(outer)) { st.idx = next; return; }
-      flaps.forEach(f => { const im = f.querySelector('.ad-flap-img'); if (im) im.src = nextB.imageUrl; f.classList.add('ad-flap-snap'); f.classList.remove('ad-flap-go'); });
-      void top.offsetWidth;
-      flaps.forEach(f => f.classList.remove('ad-flap-snap'));
-      outer.setAttribute('onclick', _adOnclick(nextB));
+      top.remove();
+      if (document.body.contains(outer)) outer.setAttribute('onclick', _adOnclick(nextB));
       st.idx = next;
     }, flaps.length * AD_FLAP_STAGGER + 240);
   }, 3800);
