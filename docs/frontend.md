@@ -84,8 +84,10 @@
 - **키보드 뜰 때 하단버튼 딸려올라옴(안드)**: 하단 고정버튼(`position:absolute bottom:0`, 예: 내 장소 장소추가 '이 위치로 선택'/'저장')이 키보드에 딸려 올라와 겹치던 것 → **Capacitor(Android15 edge-to-edge)가 IME 인셋을 웹뷰에 적용**해 웹뷰 리사이즈되던 게 원인. `Keyboard.resize:'none'`·manifest `adjustNothing`로 안 잡혀 → **`MainActivity` 인셋리스너에서 IME 인셋을 `Insets.NONE`으로 소비**해 리사이즈 차단(네이티브=빌드 필요). iOS는 `Keyboard.resize:'none'`+`initNativeKeyboard`로 처리. 상세 [[project_mobile_app]]·[[06-decision-log]].
 - **검색 시 키보드 내림**: `mlStep1DoSearch`(내 장소 장소추가 지역 검색 Enter)가 input `.blur()`+네이티브 `Keyboard.hide()` — 예전엔 검색 후 키보드가 유지돼 하단 버튼을 가렸음.
 
-## MY 버전 표기 (2026-10-13)
-- MY 하단 버전은 **app.js `APP_VERSION` 상수**(현재 `1.1.1`)로 렌더(DOMContentLoaded에서 `.mypage-version-num` 세팅). 예전 하드코딩 `ver 0.1`(오래됨) 대체. 릴리스 때 **스토어 versionName(iOS/안드) = APP_VERSION**을 같이 올림(버전체계 3층: 사용자표기/빌드번호/웹캐시 — [[06-decision-log]]).
+## MY 버전 표기 + 앱 업데이트 버튼 (2026-10-13, 2026-11-13 수정)
+- MY 하단 버전(`#mypageVersion`/`.mypage-version-num`)은 `renderAppVersionUI`(DOMContentLoaded)가 세팅. 릴리스 때 **스토어 versionName = `APP_VERSION`** 같이 올림(버전체계 3층: 사용자표기/빌드번호/웹캐시 — [[06-decision-log]]).
+- **표시 소스(2026-11-13 수정)**: `getNativeAppVer()`(= `@capacitor/app` `App.getInfo()`로 실제 설치버전)가 있으면 그걸, **없으면 `APP_VERSION` 폴백**으로 항상 표시. ⚠️ **현재 `@capacitor/app`이 빌드에 미탑재** → `getNativeAppVer`는 항상 `''` → 실제로는 **APP_VERSION이 표시됨**(=최신 릴리스 버전 라벨, 미업데이트 유저에겐 부정확할 수 있음). **예전엔 `!ver`면 버전 줄을 통째 숨겨서 버전이 아예 안 떴던 버그**를 폴백으로 수정.
+- **⚠️ '앱 업데이트' 버튼(`#mypageUpdateBtn`)은 현재 미작동**: `설치버전 < LATEST_APP_VERSION_<plat>`일 때만 뜨는데, 설치버전을 알려면 `@capacitor/app`이 필요 → 미탑재라 **버튼이 안 뜸**(`LATEST_APP_VERSION_*` 올려도 효과 없음). **정확한 설치버전 + 업데이트 버튼을 실제 작동시키려면 다음 네이티브 빌드에 `@capacitor/app` 추가** 필요(설치 후 JS 변경 불필요, `getNativeAppVer`가 바로 작동).
 
 ## 내 장소 저장 피드백 + 알림설정 (2026-10-08~10)
 - **저장 성공 토스트**: 내 장소 저장 시 `mlSave`(모바일)·`pcPlaceSave`(PC) 공통으로 **'내 장소가 추가되었어요'(신규)/'변경사항을 저장했어요'(수정)** 토스트. 이전엔 시트만 닫혀 저장 여부가 불확실했음. (PC는 `pcPlaceSave`로 경로가 달라 둘 다 배선)
