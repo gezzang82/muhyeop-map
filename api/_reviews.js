@@ -25,11 +25,22 @@ function parseNaverBlogUrl(input) {
   return null;
 }
 
+// og:title/description에 섞인 HTML 엔티티(&middot; &amp; &#39; 등)를 실제 문자로 디코드(제목 깔끔하게).
+function decodeEntities(s) {
+  return String(s)
+    .replace(/&#(\d+);/g, (_, n) => { try { return String.fromCodePoint(Number(n)); } catch (e) { return _; } })
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => { try { return String.fromCodePoint(parseInt(n, 16)); } catch (e) { return _; } })
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ').replace(/&middot;/g, '·').replace(/&hellip;/g, '…')
+    .replace(/&amp;/g, '&');  // amp는 마지막(이중 디코드 방지)
+}
 function ogTag(html, prop) {
-  const re1 = new RegExp('property=["\\\']og:' + prop + '["\\\']\\s+content=["\\\']([^"\\\']+)', 'i');
-  const re2 = new RegExp('content=["\\\']([^"\\\']+)["\\\']\\s+property=["\\\']og:' + prop, 'i');
+  // content의 '여는 따옴표'를 캡처해 '같은 따옴표'로 닫는다 → 값 안에 다른 따옴표(예: 제목 속 '우숙')가 있어도
+  //  거기서 잘리지 않음(기존 [^"']+ 는 작은따옴표 만나면 끊겨 제목이 통째로 날아가던 버그, 2026-11-13).
+  const re1 = new RegExp('property=["\\\']og:' + prop + '["\\\']\\s+content=(["\\\'])([\\s\\S]*?)\\1', 'i');
+  const re2 = new RegExp('content=(["\\\'])([\\s\\S]*?)\\1\\s+property=["\\\']og:' + prop, 'i');
   const m = html.match(re1) || html.match(re2);
-  return m ? m[1].trim() : '';
+  return m ? decodeEntities(m[2].trim()) : '';
 }
 
 // 네이버 블로그 게시일 추출 (SmartEditor의 se_publishDate, 예: "2026. 3. 14. 17:22" → "2026-03-14")
