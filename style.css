@@ -3672,10 +3672,11 @@ body.pc-community-mode #cmBody .ad-slot-feed { grid-column: 1 / -1; }  /* PC는 
 .ad-flap-wrap { position: relative; width: 100%; aspect-ratio: 1050 / 240; border-radius: 8px; overflow: hidden; perspective: 1100px; background: #eee; }
 .ad-flap-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .ad-flap-top { position: relative; display: flex; width: 100%; height: 100%; }
-.ad-flap { position: relative; height: 100%; flex: 0 0 auto; background-repeat: no-repeat; background-size: calc(var(--adn, 10) * 100%) 100%; transform-origin: left center; transition: transform .2s ease-in; backface-visibility: hidden; }
-.ad-flap.ad-flap-go { transform: rotateY(-108deg); }              /* 왼쪽 경첩으로 넘어가며 밑 배너 드러남 */
+.ad-flap { position: relative; height: 100%; flex: 0 0 auto; background-repeat: no-repeat; background-size: calc(var(--adn, 10) * 100%) 100%; transform-origin: center center; transition: transform .26s cubic-bezier(.42, 0, .22, 1); backface-visibility: hidden; }
+.ad-flap.ad-flap-go { transform: rotateY(-92deg); }              /* 세로축 회전으로 넘어가며 밑 배너 드러남(겹침 없음) */
 .ad-flap.ad-flap-snap { transition: none; transform: rotateY(0deg); }
-.ad-flap-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,0) 38%, rgba(0,0,0,.52)); opacity: 0; transition: opacity .2s ease-in; pointer-events: none; }
+.ad-flap.ad-flap-snap .ad-flap-shade { transition: none; opacity: 0; }   /* 마무리 그림자 잔상 제거 */
+.ad-flap-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.06), rgba(0,0,0,.42)); opacity: 0; transition: opacity .26s cubic-bezier(.42, 0, .22, 1); pointer-events: none; }
 .ad-flap.ad-flap-go .ad-flap-shade { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .ad-flap { transition: none; } }
 .sidebar-notice {
