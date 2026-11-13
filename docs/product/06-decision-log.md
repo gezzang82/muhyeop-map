@@ -2,6 +2,13 @@
 
 ## 2026-11
 
+### 매장명 HTML 엔티티 디코드(&amp; 등) (2026-11-13)
+인스타 자동발행 카드에 매장명이 `샤인온유 속눈썹&amp;의정부눈썹문신`처럼 **HTML 엔티티가 그대로** 노출(원우씨 발견, 게시 직후 삭제). 원인은 **크롤러 `cleanStoreName`이 엔티티를 디코드하지 않아** `places.name`에 `&amp;`·`&#39;` 등이 저장된 것(이미지 생성기는 given name 그대로 스펠). 3단 수정:
+- **크롤러**: `api/_scrape.js`에 `decodeEntities`(숫자·named, `&amp;` 마지막=이중디코드 방지) 추가, `cleanStoreName`이 디코드 후 정리 → 향후 인서트·`_autopilot.insertPlace` 전부 커버.
+- **IG 방어**: `api/_igpost.js` `cleanRows`가 `decodeEntities` 적용 → 레거시 DB 행도 이미지엔 깨끗이(배포 즉시 반영).
+- **데이터**: `scripts/sweep-html-entities.cjs`(운영 TURSO_PROD_*, DRY 기본·`apply`)로 기존 `places.name` 교정 — DRY 528행(전부 `&amp;`→`&`류 안전 디코드). 소급 교정 1회. (campaigns.content 등 다른 필드는 필요 시 후속)
+- 분류 원칙(네이버 기준)과 무관한 **표기 버그** — 이름 자체는 바뀌지 않고 엔티티만 디코드.
+
 ### 안드 백버튼 + iOS 외부 플랫폼 세션 유지 (2026-11-12, 다음 네이티브 빌드)
 수다방 제보(kon님)·원우씨 iOS 관찰 2건을 다음 네이티브 빌드로 처리.
 - **안드 백버튼이 바로 앱 종료되던 문제(kon님)**: Capacitor 8 기본 BridgeActivity는 백을 WebView로 안 보내고 Activity를 finish → SPA라 백=즉시 종료. **OTA 불가 확인**(백이 WebView에 도달 안 함). → MainActivity에 `OnBackPressedCallback` 브릿지(`@capacitor/app` 불필요, CustomBrowser처럼 직접)가 매 백마다 `window.__androidBack()` 호출. 웹 로직: ①열린 오버레이/바텀시트 최상단만 닫기(공통 close 재사용) ②홈 아니면 홈 탭 ③홈 루트면 **공통 확인 바텀시트(`showAlert`)** 로 '앱 종료' 확인→`exitApp`(moveTaskToBack). **종료 UI를 네이티브 alert가 아닌 우리 공통 웹 시트로**(원우씨 요청) → 문구·버튼('앱 종료'/'종료하기'·'취소')·로직 전부 OTA 수정 가능. 네이티브는 백 브릿지 + exitApp 둘뿐.
