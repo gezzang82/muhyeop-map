@@ -8208,15 +8208,19 @@ async function renderAppVersionUI() {
   const row = document.getElementById('mypageVersion');
   const btn = document.getElementById('mypageUpdateBtn');
   const num = document.querySelector('.mypage-version-num');
-  const ver = await getNativeAppVer();
-  if (!ver) { if (row) row.style.display = 'none'; if (btn) btn.style.display = 'none'; return; }
+  const ver = await getNativeAppVer();  // '' = 웹 / @capacitor/app 미탑재(설치버전 모름)
   const plat = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
   const latest = plat === 'android' ? LATEST_APP_VERSION_ANDROID : LATEST_APP_VERSION_IOS;
-  if (cmpAppVer(ver, latest) < 0) {
-    if (row) row.style.display = 'none'; if (btn) btn.style.display = '';
-  } else {
-    if (num) num.textContent = ver; if (row) row.style.display = ''; if (btn) btn.style.display = 'none';
+  // 설치버전을 '정확히' 알고(네이티브=@capacitor/app) 최신보다 낮을 때만 업데이트 버튼
+  if (ver && cmpAppVer(ver, latest) < 0) {
+    if (row) row.style.display = 'none';
+    if (btn) btn.style.display = '';
+    return;
   }
+  // 그 외엔 버전 표시 — 네이티브 설치버전이 있으면 그걸, 없으면(현재 @capacitor/app 미탑재) APP_VERSION 폴백
+  if (num) num.textContent = ver || APP_VERSION;
+  if (row) row.style.display = '';
+  if (btn) btn.style.display = 'none';
 }
 document.addEventListener('DOMContentLoaded', renderAppVersionUI);
 document.addEventListener('DOMContentLoaded', initSplash);
