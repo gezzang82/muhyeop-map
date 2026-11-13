@@ -1262,8 +1262,16 @@ const RN_CAT = { 맛집: '음식점', 식품: '음식점', 뷰티: '뷰티', 여
 const RN_CH = { BLOG: '블로그', BLOG_CLIP: '블로그,클립', BLOGCLIP: '블로그,클립', INSTAGRAM: '인스타그램', INSTA: '인스타그램', REELS: '릴스', CLIP: '클립', YOUTUBE: '유튜브' };
 const rnMapCh = (c) => RN_CH[String(c || '').toUpperCase()] || '';
 // 매장명 앞쪽 평수/층수 접두 + 뒤쪽 안내 괄호 제거(여러 플랫폼 공용). 다 지워지면 원본 유지(안전).
+// HTML 엔티티 디코드(매장명에 '&amp;'·'&#39;' 등이 그대로 저장돼 이미지/화면에 노출되던 것 방지). &amp;는 맨 마지막(이중 디코드 방지).
+function decodeEntities(s) {
+  return String(s || '')
+    .replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(+d); } catch (e) { return _; } })
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch (e) { return _; } })
+    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&(?:#0?39|apos);/g, "'").replace(/&amp;/g, '&');
+}
 function cleanStoreName(name) {
-  let n = String(name || '').trim();
+  let n = decodeEntities(name).trim();
   let prev;
   // 접두 토큰은 '뒤에 공백이 있을 때만' 제거(붙어있는 실제 이름 '3층집'·'지하수'·'1943점' 오인 방지)
   do {
@@ -2450,4 +2458,4 @@ function mapNaverCat(cat, name) {
   if (/음식점|한식|중식|일식|양식|분식|술집|주점|이자카야|바\(BAR\)|포장마차|뷔페|도시락|컵밥|고기|육류|해물|생선|치킨|피자|요리|식당|국밥|면류|샐러드|샌드위치|햄버거|이탈리아|파스타|스파게티|레스토랑|떡,한과/.test(c)) return '음식점';
   return '기타';
 }
-module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, rnFetchDetail, rnDays, rnHours, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, decodeEntities, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, rnFetchDetail, rnDays, rnHours, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };

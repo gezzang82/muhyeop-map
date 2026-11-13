@@ -10,6 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { decodeEntities } = require('./_scrape');  // 매장명 HTML 엔티티(&amp; 등) 디코드 — 레거시 DB 행도 이미지에 깨끗이
 
 const USER_ID = '17841444037888902';           // @muhyeopmap IG user id
 const IG_BASE = 'https://graph.instagram.com/v21.0';
@@ -103,7 +104,7 @@ const shortName = (s) => { s = String(s || '').trim(); return s.length > 16 ? s.
 function cleanRows(rows) {
   const seen = new Set(); const out = [];
   for (const r of rows) {
-    const nm = String(r.name || '').trim();
+    const nm = decodeEntities(r.name).trim();
     if (!nm || nm.length < 2 || seen.has(nm)) continue;
     seen.add(nm);
     out.push({ name: nm, meta: ddayLabel(r.deadline), cat: r.category || '', region: (String(r.address || '').split(/\s+/).slice(0, 2).join(' ')) });
