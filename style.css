@@ -3666,11 +3666,13 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 /* 커뮤니티 후기 피드 광고 구좌: .rv-cards(flex column gap)가 간격 처리 → 추가 패딩 없이 전체폭 */
 .ad-slot-feed { width: 100%; }
 body.pc-community-mode #cmBody .ad-slot-feed { grid-column: 1 / -1; }  /* PC는 .rv-cards가 그리드 → 전체폭 차지 */
-/* 복수형 플립 자동순환: 가로 카드 넘김(rotateY). 90°(엣지온)에서 이미지 교체 → -90→0°로 넘어옴(상하 아님) */
-.ad-flip { transform: perspective(1200px) rotateY(0deg); transition: transform .3s ease; backface-visibility: hidden; will-change: transform; }
-.ad-flip.ad-flipping { transform: perspective(1200px) rotateY(90deg); }
-.ad-flip.ad-pre { transform: perspective(1200px) rotateY(-90deg); transition: none; }
-@media (prefers-reduced-motion: reduce) { .ad-flip, .ad-flip.ad-flipping, .ad-flip.ad-pre { transition: none; transform: none; } }
+/* 복수형: 가로 배너를 N조각(세로)으로 나눠 좌→우 순차 split-flap(rotateX). 간판처럼 '스스륵' 넘어감 */
+.ad-flap-outer { line-height: 0; }
+.ad-flap-wrap { display: flex; width: 100%; aspect-ratio: 1050 / 240; border-radius: 8px; overflow: hidden; perspective: 900px; background: #eee; }
+.ad-flap { height: 100%; flex: 0 0 auto; background-repeat: no-repeat; background-size: calc(var(--adn, 10) * 100%) 100%; transform-origin: center center; transition: transform .15s ease-in; backface-visibility: hidden; }
+.ad-flap.ad-flap-go { transform: rotateX(-90deg); }
+.ad-flap.ad-flap-pre { transform: rotateX(90deg); transition: none; }
+@media (prefers-reduced-motion: reduce) { .ad-flap { transition: none; } }
 .sidebar-notice {
   margin: 0 16px 8px;
   padding: 10px 12px;

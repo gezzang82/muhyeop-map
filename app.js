@@ -2191,40 +2191,54 @@ function _adDivHtml(slot, cls, b, extraCls) {
   if (!b || !b.imageUrl) return '';
   return `<div class="${cls}${extraCls ? ' ' + extraCls : ''}" data-slot="${slot}" onclick="${_adOnclick(b)}"><img class="ad-slot-full" src="${b.imageUrl}" alt="광고" loading="lazy"></div>`;
 }
+const AD_FLAP_N = 10;        // 복수형: 가로 배너 분할 수(세로 조각)
+const AD_FLAP_STAGGER = 48;  // 조각 간 지연(좌→우 '스스륵')
+function _adFlapHtml(slot, cls, b) {
+  const src = String(b.imageUrl).replace(/'/g, "\\'"), N = AD_FLAP_N;
+  let cols = '';
+  for (let i = 0; i < N; i++) {
+    const pos = N > 1 ? (i / (N - 1)) * 100 : 0;   // 배경을 조각 위치로(각 조각이 통이미지의 자기 부분)
+    cols += `<span class="ad-flap" style="width:${100 / N}%;background-image:url('${src}');background-position-x:${pos}%;"></span>`;
+  }
+  return `<div class="${cls} ad-flap-outer" data-slot="${slot}" onclick="${_adOnclick(b)}"><div class="ad-flap-wrap" style="--adn:${N}">${cols}</div></div>`;
+}
 function adSlotBannerHtml(slot, cls) {
   const { mode, items } = adSlotData(slot);
   if (!items.length) return '';
   if (mode === 'multiple' && items.length > 1) {
     const st = _adFlip[slot] || (_adFlip[slot] = { idx: 0, timer: null });
     if (st.idx >= items.length) st.idx = 0;
-    setTimeout(() => ensureAdFlip(slot), 0);   // 플립 순환 타이머 확보(이미 돌면 무시)
-    return _adDivHtml(slot, cls, items[st.idx], 'ad-flip');
+    setTimeout(() => ensureAdFlip(slot), 0);   // 캐스케이드 순환 타이머 확보(이미 돌면 무시)
+    return _adFlapHtml(slot, cls, items[st.idx]);
   }
   if (mode === 'single') return _adDivHtml(slot, cls, items[0]);   // 1개 고정
   return _adDivHtml(slot, cls, pickAdBanner(slot));                // random
 }
-// 복수형 플립 자동순환: 단일 인터벌이 매 틱 live 요소를 조회해 다음 배너로 '가로 카드 넘김'(rotateY).
-//  재렌더로 요소가 새로 그려져도 st.idx를 보여주므로 끊김 없음. 요소가 화면에 없으면 다음 틱에 재시도.
+// 복수형: 가로 배너를 N조각으로 나눠 **좌측부터 순차로 split-flap(rotateX)** 하며 다음 배너로 교체(간판 스타일).
+//  단일 인터벌이 매 틱 live 요소를 조회 → 각 조각을 스태거(48ms)로 뒤집음. 재렌더에도 st.idx를 출력하므로 끊김 없음.
 function ensureAdFlip(slot) {
   const st = _adFlip[slot]; if (!st || st.timer) return;
   st.timer = setInterval(() => {
     const { items } = adSlotData(slot);
     if (!items || items.length < 2) { clearInterval(st.timer); st.timer = null; return; }
-    const el = document.querySelector('.ad-flip[data-slot="' + slot + '"]');
-    if (!el) return;
-    const img = el.querySelector('img'); if (!img) return;
+    const outer = document.querySelector('.ad-flap-outer[data-slot="' + slot + '"]');
+    if (!outer) return;
+    const flaps = outer.querySelectorAll('.ad-flap');
+    if (!flaps.length) return;
     const next = (st.idx + 1) % items.length, b = items[next];
-    el.classList.add('ad-flipping');                 // 0→90° (엣지온)
-    setTimeout(() => {
-      if (!document.body.contains(el)) { st.idx = next; return; }
-      img.src = b.imageUrl;
-      el.setAttribute('onclick', _adOnclick(b));
-      el.classList.remove('ad-flipping');
-      el.classList.add('ad-pre');                    // -90° 즉시(무전환)
-      void el.offsetWidth;                            // reflow
-      el.classList.remove('ad-pre');                 // -90→0° 전환(넘어옴)
-      st.idx = next;
-    }, 300);
+    const src = String(b.imageUrl).replace(/'/g, "\\'");
+    flaps.forEach((f, i) => setTimeout(() => {
+      if (!document.body.contains(f)) return;
+      f.classList.add('ad-flap-go');                      // 0→ -90°(아래로 넘어감)
+      setTimeout(() => {
+        f.style.backgroundImage = "url('" + src + "')";   // 엣지온서 그 조각만 새 이미지로
+        f.classList.remove('ad-flap-go');
+        f.classList.add('ad-flap-pre');                    // +90° 즉시(무전환)
+        void f.offsetWidth;
+        f.classList.remove('ad-flap-pre');                 // +90→0° 넘어옴
+      }, 150);
+    }, i * AD_FLAP_STAGGER));
+    setTimeout(() => { if (document.body.contains(outer)) outer.setAttribute('onclick', _adOnclick(b)); st.idx = next; }, flaps.length * AD_FLAP_STAGGER + 200);
   }, 3800);
 }
 // 홈 '모집 중인 체험' 리스트 광고 구좌. 커뮤니티 후기 피드 광고 구좌.
