@@ -3666,12 +3666,17 @@ body.pc-community-mode .cm-region-tabs.cm-region-stuck { background: #f7f9fa; }
 /* 커뮤니티 후기 피드 광고 구좌: .rv-cards(flex column gap)가 간격 처리 → 추가 패딩 없이 전체폭 */
 .ad-slot-feed { width: 100%; }
 body.pc-community-mode #cmBody .ad-slot-feed { grid-column: 1 / -1; }  /* PC는 .rv-cards가 그리드 → 전체폭 차지 */
-/* 복수형: 가로 배너를 N조각(세로)으로 나눠 좌→우 순차 split-flap(rotateX). 간판처럼 '스스륵' 넘어감 */
+/* 복수형: 밑에 '다음 배너'(ad-flap-bg)가 깔리고, 위 '현재 배너'를 N조각(세로)으로 나눠 좌→우로
+   좌우(rotateY) 넘겨 밑을 드러낸다(간판/페이지 넘김). 회전 조각에 그림자로 입체감. */
 .ad-flap-outer { line-height: 0; }
-.ad-flap-wrap { display: flex; width: 100%; aspect-ratio: 1050 / 240; border-radius: 8px; overflow: hidden; perspective: 900px; background: #eee; }
-.ad-flap { height: 100%; flex: 0 0 auto; background-repeat: no-repeat; background-size: calc(var(--adn, 10) * 100%) 100%; transform-origin: center center; transition: transform .15s ease-in; backface-visibility: hidden; }
-.ad-flap.ad-flap-go { transform: rotateX(-90deg); }
-.ad-flap.ad-flap-pre { transform: rotateX(90deg); transition: none; }
+.ad-flap-wrap { position: relative; width: 100%; aspect-ratio: 1050 / 240; border-radius: 8px; overflow: hidden; perspective: 1100px; background: #eee; }
+.ad-flap-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.ad-flap-top { position: relative; display: flex; width: 100%; height: 100%; }
+.ad-flap { position: relative; height: 100%; flex: 0 0 auto; background-repeat: no-repeat; background-size: calc(var(--adn, 10) * 100%) 100%; transform-origin: left center; transition: transform .2s ease-in; backface-visibility: hidden; }
+.ad-flap.ad-flap-go { transform: rotateY(-108deg); }              /* 왼쪽 경첩으로 넘어가며 밑 배너 드러남 */
+.ad-flap.ad-flap-snap { transition: none; transform: rotateY(0deg); }
+.ad-flap-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,0) 38%, rgba(0,0,0,.52)); opacity: 0; transition: opacity .2s ease-in; pointer-events: none; }
+.ad-flap.ad-flap-go .ad-flap-shade { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .ad-flap { transition: none; } }
 .sidebar-notice {
   margin: 0 16px 8px;
