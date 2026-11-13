@@ -3670,7 +3670,7 @@ body.pc-community-mode #cmBody .ad-slot-feed { grid-column: 1 / -1; }  /* PC는 
    좌우(rotateY) 넘겨 밑을 드러낸다(간판/페이지 넘김). 회전 조각에 그림자로 입체감. */
 .ad-flap-outer { line-height: 0; }
 .ad-flap-wrap { position: relative; width: 100%; aspect-ratio: 1050 / 240; border-radius: 8px; overflow: hidden; perspective: 1100px; background: #eee; }
-.ad-flap-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.ad-flap-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; display: block; }  /* 위 조각(background-size 늘림)과 동일 스케일 → 드러날 때 사이즈 안 바뀜 */
 .ad-flap-top { position: relative; display: flex; width: 100%; height: 100%; }
 .ad-flap { position: relative; height: 100%; flex: 0 0 auto; background-repeat: no-repeat; background-size: calc(var(--adn, 10) * 100%) 100%; transform-origin: center center; transition: transform .26s cubic-bezier(.42, 0, .22, 1); backface-visibility: hidden; }
 .ad-flap.ad-flap-go { transform: rotateY(-92deg); }              /* 세로축 회전으로 넘어가며 밑 배너 드러남(겹침 없음) */
