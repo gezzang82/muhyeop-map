@@ -44,7 +44,8 @@
 - **탭 진입 시 서버 재조회(`refreshBannersFromServer`, 2026-11-06)**: 배너 탭(`switchTab('banners')`)을 열 때마다 **`/api/banners?admin=1`(숨김 포함·미캐시)로 직접 받아** 전역 `banners` 갱신 후 `renderBannerList`. 예전엔 app.js `loadInitialData`가 채운 전역 `banners`에만 의존했는데, **부팅 시 공개 `/api/banners`(숨김 제외) 조기 fetch가 그 전역을 덮어써** 어드민 목록에서 **과거 숨김/종료 배너가 사라지던** 버그가 있었음(app.js쪽은 어드민 경로 가드로, admin.js쪽은 탭 진입 재조회로 이중 방어). ⚠️ **숨김 배너가 보이려면 `mh_admin` 쿠키가 유효**해야 함(만료 시 서버가 hidden=0만 반환 → 재로그인 필요).
 
 ## 배너 설정 (광고 구좌, 2026-11-11)
-- 사이드바 '배너 설정' 탭(`showTab('adbanners')`→`renderAdBannerList`): **광고 구좌 배너(`ad_banners`)** 관리. 구좌 2곳 — **홈 리스트** / **커뮤니티 후기 피드**(각 3번째 뒤), 구좌당 여러 개 등록 시 **노출마다 랜덤 로테이션**([[frontend]] 광고 구좌).
+- 사이드바 '배너 설정' 탭(`showTab('adbanners')`→`renderAdBannerList`): **광고 구좌 배너(`ad_banners`)** 관리. 구좌 2곳 — **홈 리스트** / **커뮤니티 후기 피드**(각 3번째 뒤).
+- **구좌별 노출 방식(2026-11-13, `#adSlotModes`/`setAdSlotMode`→`POST ?ad=mode`)**: 구좌마다 셀렉터로 **랜덤형**(접속마다 1개 랜덤)·**단일형**(맨 위 1개 고정)·**복수형**(정렬 순서대로 플립 자동순환, 공항 보드처럼 넘어감) 선택. `ad_slot_config.mode` 저장, 클라 렌더 [[frontend]] 광고 구좌.
 - **추가**: 구좌 선택 + 이미지 업로드(`handleAdBannerFile`, 이벤트배너와 동일 960px 캔버스 리사이즈→JPEG data URI, 또는 URL 직접) + 이동 URL → `submitAdBanner`→`POST /api/banners?ad=add`.
 - **목록 관리**: `GET /api/banners?ad=1&admin=1`(전체 평탄배열+clickCount, requireAdmin). 행별 **▲▼ 순서**(`moveAdBanner`, 같은 구좌 내 교체·`PATCH {sortOrder}`)·**노출↔숨김 토글**(`toggleAdBanner`, `PATCH {enabled}`)·**URL 수정**(`editAdBannerLink`, prompt→`PATCH {linkUrl}`)·**삭제**(`DELETE ?ad=1&id=`)·**클릭수**(배너별 `click_count`, 운영자 집IP 제외). 기존 이벤트팝업 테이블과 같은 버튼 클래스(`btn-edit-sm`/`btn-del-sm`/`badge-status`) 재사용.
 - app.js+admin.js 전역스코프 공유라 새 식별자(`adBannerRows`/`AD_SLOT_LABEL`/`renderAdBannerList` 등) app.js와 **이름 충돌 없음 확인**(합본 `node --check` + 배포 후 콘솔 0에러). 엔드포인트 [[api-db]] `banners.js ?ad=`·`ad_banners`.

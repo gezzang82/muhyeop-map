@@ -151,7 +151,9 @@
 
 ## 광고 구좌(배너) — DB 구동 로테이션 (2026-11-11)
 - **구좌 2곳**: **홈**('모집 중인 체험' 리스트 `renderSidebar`→`#campaignList`의 **3번째 매장(`activePlaces` index 2) 아래**)·**후기피드**(커뮤니티 후기 피드 3번째 뒤, `offset===0 && !mine` + **지역탭 '전체'(`_cmFeedRegion==='전체'`)일 때만** — 특정 지역탭 미노출, 2026-11-12). 둘 다 3개 미만이면 미노출.
-- **DB 구동 전환(2026-11-11)**: 예전 하드코딩(`adSlotHomeHtml`/`adSlotFeedHtml`이 고정 이미지·링크)에서 **어드민 '배너 설정'(`ad_banners` 테이블)으로 관리**하게 전환. `loadInitialData`가 `/api/banners?ad=1`(구좌별 enabled 배너)을 받아 전역 `adBanners={home:[],feed:[]}`에 담고, `pickAdBanner(slot)`가 **구좌별로 enabled 중 랜덤 1개**를 골라(세션 내 고정=재렌더 깜빡임 방지, 로테이션은 로드/재방문마다) `adSlotBannerHtml(slot,cls)`로 통이미지 1장 렌더(`.ad-slot-full` `width:100%`+`border-radius:8px`). 여러 개 등록 시 로테이션.
+- **DB 구동 전환(2026-11-11)**: 예전 하드코딩에서 **어드민 '배너 설정'(`ad_banners`)으로 관리**. `loadInitialData`가 `/api/banners?ad=1`을 받아 전역 `adBanners={home:{mode,items},feed:{mode,items}}`에 담음.
+- **구좌별 노출 방식 3종(2026-11-13, `ad_slot_config.mode`)**: `adSlotBannerHtml(slot,cls)`가 모드 분기 — **random**(enabled 중 랜덤 1개, 세션 내 고정=재렌더 깜빡임 방지·로테이션은 로드/재방문마다, `pickAdBanner`) / **single**(정렬 맨 위 1개 고정) / **multiple**(정렬 순서대로 **플립 자동순환**). 통이미지 1장(`.ad-slot-full` width:100%+radius8).
+  - **복수형 플립(`ensureAdFlip`, `.ad-flip`)**: 공항 Solari 보드처럼 **가로 카드 넘김**(rotateY, 상하 아님) 자동순환. 단일 `setInterval`(3.8s)이 매 틱 **live DOM(`.ad-flip[data-slot]`)을 querySelector**로 찾아 다음 배너로 전환 → 90°(엣지온)서 이미지 교체 → `.ad-pre`(-90°)→0° 복귀. **재렌더(지도 idle 등)로 요소가 새로 그려져도** 렌더가 `st.idx`(현재 인덱스)를 출력하므로 끊김/점프 없음. `prefers-reduced-motion`이면 정지. 순서는 어드민 ▲▼(`sort_order`).
 - **노출 가드**: **홈=`isOperator()`(운영자 개짜장)만**(미리보기 단계) / **후기피드=`isMobileView()` 공개**(모바일만, PC 미노출). `isOperator`는 공개 전 기능 미리보기용 공용 헬퍼. 공개 확대 시 홈 가드만 교체.
 - **클릭 집계**: 배너 클릭 시 `trackAdClick(배너id)`→`POST /api/banners?ad=click&id=`로 **배너별 `click_count` 누적**(운영자 집IP는 서버에서 제외) + `linkUrl` 있으면 `openExternal`. 어드민 '배너 설정' 목록에 구좌·클릭수 표시([[admin]]). 현재 라이브: 후기피드=하늘정원(`myskygarden.com`).
 - 테이블/엔드포인트 [[api-db]] `banners.js ?ad=`·`ad_banners`, 어드민 UI [[admin]] 배너 설정, 기획 [[04-revenue-model]]·[[08-partnership]]. **남은 TODO**: 노출(IntersectionObserver) 집계 → CTR, 기간(start/end) 필드.
