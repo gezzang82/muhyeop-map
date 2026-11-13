@@ -6,7 +6,8 @@ let places = [];
 let campaigns = [];
 let banners = [];
 let adBanners = { home: { mode: 'random', items: [] }, feed: { mode: 'random', items: [] } };  // 광고 구좌(구좌별 mode+items). /api/banners?ad=1
-let _adSlotOperatorRendered = false;  // 홈 운영자 광고구좌는 currentUser 확정 뒤에야 판정 → auth 변화 시 1회 재렌더 가드(refreshAuthUI)
+// 홈 운영자 광고구좌 재렌더 가드(refreshAuthUI). 낙관적 캐시(mh_bi_auth.op)로 첫 렌더가 이미 맞으면 auth 확정 후 중복 재렌더 안 함.
+let _adSlotOperatorRendered = (function () { try { return !!(JSON.parse(localStorage.getItem('mh_bi_auth') || 'null') || {}).op; } catch (e) { return false; } })();
 
 // 지도 경량화(뷰포트 로딩, 2026-09-01): 공개 앱은 캠페인을 화면(bbox)에 보이는 것만 받아 `campaigns`에 누적.
 let totalActiveCount = 0;      // 전역 활성 캠페인 수(서버 count) — 총 협찬수 표시용
@@ -2171,6 +2172,12 @@ function sidebarItemHtml(place) {
 function isOperator() {
   return !!(currentUser && (currentUser.id === 12 || currentUser.nickname === '개짜장'));
 }
+// auth 확정(/api/auth/me 왕복) 전에도 운영자 광고구좌를 리스트와 '동시에' 뜨게 하는 낙관적 판정.
+//  확정 후엔 실제값, 그 전엔 지난 방문에 저장한 캐시(mh_bi_auth.op) 사용 → refreshAuthUI가 확정값으로 보정(불일치 시 재렌더).
+function isOperatorOptimistic() {
+  if (_authChecked || isOperator()) return isOperator();
+  try { return !!(biAuthCache() || {}).op; } catch (e) { return false; }
+}
 // 광고 구좌 배너. 어드민 '배너 설정'에서 등록·관리(ad_banners) + 구좌별 노출방식(ad_slot_config.mode):
 //  random=접속마다 1개 랜덤(세션 고정) / single=1개 고정 / multiple=정렬 순서대로 플립 자동순환.
 let _adPick = {};   // random: 세션 내 구좌별 고정
@@ -2312,7 +2319,8 @@ function renderSidebar() {
 
   const noticeHtml = '<div class="sidebar-notice">모집 일정·조건·내용은 변경될 수 있어요. 신청 전 <strong>해당 플랫폼에서 최신 정보를 꼭 확인</strong>해 주세요.</div>';
   // 광고 구좌: '모집 중인 체험' 리스트 3번째 항목 아래에 배너 1개(현재 본인=개짜장 미리보기만). 3개 미만이면 미노출.
-  const showAd = isOperator();
+  //  isOperatorOptimistic: auth 확정 전엔 캐시로 낙관 판정 → 배너가 리스트와 동시에 뜸(늦게 팝업 안 됨).
+  const showAd = isOperatorOptimistic();
   const itemsHtml = activePlaces.map((p, i) => {
     const h = sidebarItemHtml(p);
     return (showAd && i === 2) ? h + adSlotHomeHtml() : h;
@@ -4176,7 +4184,7 @@ let _biEntryRevealed = false;  // 진입카드 '펼쳐지며 등장' 애니 1회
 // + 타이틀 '블로그 글 불러오기' + Beta 배지). A만 파인프린트, 버튼색/문구만 변형별로 다름.
 // 로그인/SNS 힌트 캐시 — /api/auth/me 응답 전에도 진입카드를 즉시 그려 '늦게 뜨는' 현상 방지(낙관적 렌더)
 function biAuthCache() { try { return JSON.parse(localStorage.getItem('mh_bi_auth') || 'null'); } catch (e) { return null; } }
-function biSaveAuthCache() { try { localStorage.setItem('mh_bi_auth', JSON.stringify({ in: !!currentUser, plat: currentUser ? (currentUser.urlPlatform || '') : '' })); } catch (e) {} }
+function biSaveAuthCache() { try { localStorage.setItem('mh_bi_auth', JSON.stringify({ in: !!currentUser, plat: currentUser ? (currentUser.urlPlatform || '') : '', op: isOperator() })); } catch (e) {} }
 function blogImportCardHtml() {
   let plat;
   if (currentUser) { plat = currentUser.urlPlatform || ''; }       // 확정: 세션 유저
