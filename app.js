@@ -8355,6 +8355,23 @@ function openAppStore() {
 // ===== 모바일웹 앱 설치 안내 팝업(Figma 1824-54280) — mweb 전용 =====
 const APP_INSTALL_SNOOZE = 7 * 24 * 3600 * 1000; // 닫으면 7일간 재노출 안 함
 function aipTrack(action) { try { fetch('/api/places?visit=appinstall&action=' + action, { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {} }
+// 모바일웹 앱 다운로드 넛지 배너(좌하단). 상시 원(아이콘) + 최초 1회 펼쳤다 접힘, 디바이스별 스토어 뱃지. mweb 전용.
+function appDlBannerGo() { aipTrack('install'); openAppStore(); }
+function initAppDlBanner() {
+  try { if (typeof detectPlatform === 'function' && detectPlatform() !== 'mweb') return; } catch (e) { return; } // 모바일웹만(앱·PC 제외)
+  const el = document.getElementById('appDlBanner'); if (!el) return;
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
+  const badge = document.getElementById('appDlBadge');
+  if (badge) { badge.src = isIOS ? 'image/ic_appstore_20.svg' : 'image/ic_googleplay_20.svg'; badge.alt = isIOS ? 'App Store' : 'Google Play'; }
+  el.style.display = 'flex';
+  // 최초 1회: 원으로 잠깐 보였다가 → 펼침(3.2s 유지) → 접힘(이후 계속 원 유지, 탭은 항상 가능)
+  setTimeout(function () {
+    el.classList.add('appdl-open');
+    setTimeout(function () { el.classList.remove('appdl-open'); }, 3200);
+  }, 1500);
+}
+document.addEventListener('DOMContentLoaded', initAppDlBanner);
 function appInstallGo() { aipTrack('install'); try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} const el = document.getElementById('appInstallPopup'); if (el) el.style.display = 'none'; openAppStore(); }
 function dismissAppInstall() { aipTrack('dismiss'); const el = document.getElementById('appInstallPopup'); if (el) { el.style.display = 'none'; el.setAttribute('aria-hidden', 'true'); } try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} }
 function maybeShowAppInstall() {
