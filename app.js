@@ -8404,7 +8404,13 @@ async function renderAppVersionUI() {
   const row = document.getElementById('mypageVersion');
   const btn = document.getElementById('mypageUpdateBtn');
   const num = document.querySelector('.mypage-version-num');
-  const ver = await getNativeAppVer();  // '' = 웹 / @capacitor/app 미탑재(설치버전 모름)
+  // 버전 표시는 네이티브 앱 전용 — 웹(모바일웹·PC)에선 숨김(앱 버전 개념이 무의미).
+  if (typeof isNativeApp === 'function' && !isNativeApp()) {
+    if (row) row.style.display = 'none';
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+  const ver = await getNativeAppVer();  // '' = @capacitor/app 미탑재(설치버전 모름) → APP_VERSION 폴백
   const plat = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || '';
   const latest = plat === 'android' ? LATEST_APP_VERSION_ANDROID : LATEST_APP_VERSION_IOS;
   // 설치버전을 '정확히' 알고(네이티브=@capacitor/app) 최신보다 낮을 때만 업데이트 버튼
