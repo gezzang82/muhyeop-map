@@ -847,6 +847,9 @@ function renderDashboard() {
     // 📥 블로그 불러오기로 등록된 후기 비중
     setN('statReviewBlogimport', st.reviewBlogimportCount);
     setN('statReviewBlogimportToday', st.reviewBlogimportTodayCount);
+    // 🚨 후기 신고(미처리) 수 — 전체 + 오늘
+    setN('statReportReview', st.reportReviewCount);
+    setN('statReportReviewToday', st.reportReviewTodayCount);
     const biTotal = Number(st.reviewCount) || 0;
     const biPct = biTotal ? Math.round((Number(st.reviewBlogimportCount) || 0) / biTotal * 100) : 0;
     const biPctEl = document.getElementById('statReviewBlogimportPct');
