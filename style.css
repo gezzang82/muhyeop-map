@@ -1433,7 +1433,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 
 /* 모바일웹 앱 다운로드 넛지(Figma 2137-72739): 접힘=원(56px 아이콘, 3px 링), 펼침=블랙 pill(흰 텍스트). 최초 1회 펼쳤다 접힘(JS, 팝업 dismiss/재방문 시점). 노출은 app.js가 mweb일 때만 display:flex. 현재위치 버튼과 같은 높이(좌 20px). */
 .appdl-banner {
-  position: fixed; bottom: 100px; left: 20px; z-index: 300;
+  position: fixed; left: 20px; z-index: 300;
+  bottom: calc(100px + var(--gnb-h, 60px) + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); /* 현재위치 버튼과 동일 높이(바텀시트 간격 동일) */
   display: flex; align-items: center; height: 56px;
   background: #000; border: none; border-radius: 28px; padding: 0;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22); overflow: hidden; cursor: pointer;
@@ -4120,6 +4121,7 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   body.tab-active .live-alert,
   body.tab-active .btn-my-location,
   body.tab-active .search-pin-review-fab,
+  body.tab-active .appdl-banner,
   body.tab-active .sidebar { display: none !important; }
 }
 
