@@ -1615,10 +1615,29 @@ function detailTabsHtml(place) {
   return `<div class="rv-tabs-row">
       <div class="rv-tabs">
         <button class="rv-tab${def === 'campaign' ? ' active' : ''}" data-tab="campaign" onclick="switchDetailTab(${place.id},'campaign')">캠페인</button>
-        <button class="rv-tab${def === 'review' ? ' active' : ''}" data-tab="review" onclick="switchDetailTab(${place.id},'review')">후기</button>
+        <button class="rv-tab${def === 'review' ? ' active' : ''}" data-tab="review" onclick="switchDetailTab(${place.id},'review')">후기<span class="rv-tab-cnt"></span></button>
       </div>
       <button class="rv-register-btn" onclick="openReviewForm(${place.id})"><img src="image/ic_naver_blog_20.png" width="20" height="20" alt="">후기 등록<img src="image/ic_chevron_right_gray.svg" width="8" height="8" alt="" class="rv-reg-chev"></button>
     </div>`;
+}
+// 후기 탭 라벨에 건수 표시(Figma 1243-10777): "후기 N". 0/미상이면 숫자 없이 "후기"만(없으면 표시안함).
+//  열린 상세(모바일 시트/PC 카드) 모두 갱신 — 동시에 하나만 열리므로 전역 셀렉터로 안전.
+function updateReviewTabCount(n) {
+  const txt = (Number(n) > 0) ? ' ' + Number(n) : '';
+  document.querySelectorAll('.rv-tab[data-tab="review"] .rv-tab-cnt').forEach(el => { el.textContent = txt; });
+}
+// 캠페인 탭으로 열려 후기를 아직 안 받은 경우에도 건수만 미리 확보(hasReview인 매장만 1회 요청, 없으면 요청 안 함).
+const _reviewCountCache = {};
+async function ensureReviewTabCount(place) {
+  if (!place) return;
+  if (!place.hasReview) { updateReviewTabCount(0); return; }        // 후기 없는 매장 → 숫자 미표시
+  if (_reviewCountCache[place.id] != null) { updateReviewTabCount(_reviewCountCache[place.id]); return; }
+  try {
+    const list = await fetch(`/api/places?reviews=list&placeId=${place.id}&sort=latest`).then(r => r.json());
+    const n = Array.isArray(list) ? list.length : 0;
+    _reviewCountCache[place.id] = n;
+    if (_detailPlaceId === place.id) updateReviewTabCount(n);       // 그 사이 다른 매장 열렸으면 무시
+  } catch (e) {}
 }
 
 function campaignEmptyHtml(place) {
@@ -1640,6 +1659,7 @@ function initDetailTabs(place) {
   _detailReviewByAbsence = (def === 'review' && !forced);
   _detailTab = def;
   if (def === 'review') { _reviewLoaded = true; loadReviews(place.id); }
+  else ensureReviewTabCount(place);   // 캠페인 탭으로 열려도 후기 건수는 탭에 바로 표시(hasReview 매장만 조회)
   // PC 인포윈도우: 팝업 내부 휠 스크롤이 지도 줌으로 새는 것 방지 (휠 전파 차단 → 내부 스크롤만)
   const tb = document.getElementById('rvTabBody');
   if (tb) tb.addEventListener('wheel', (e) => { e.stopPropagation(); }, { passive: true });
@@ -1681,7 +1701,10 @@ async function loadReviews(placeId, sort) {
   try {
     const list = await fetch(`/api/places?reviews=list&placeId=${placeId}&sort=${_reviewSort === 'likes' ? 'likes' : 'latest'}`).then(r => r.json());
     hideReviewLoading();
-    pane.innerHTML = renderReviewPane(placeId, Array.isArray(list) ? list : []);
+    const arr = Array.isArray(list) ? list : [];
+    _reviewCountCache[placeId] = arr.length;
+    updateReviewTabCount(arr.length);               // 후기 탭 라벨 건수 동기화(없으면 미표시)
+    pane.innerHTML = renderReviewPane(placeId, arr);
   } catch (e) {
     hideReviewLoading();
     pane.innerHTML = '<div class="rv-loading">후기를 불러오지 못했어요.</div>';
@@ -2097,6 +2120,7 @@ async function submitReview() {
           places.push(p);
         }
         if (p) { p.hasReview = true; invalidateActiveCache(); if (typeof renderAll === 'function') renderAll(); }
+        delete _reviewCountCache[pid];   // 새 후기 반영 위해 탭 건수 캐시 무효화(열려있으면 아래 loadReviews가 갱신)
       }
     } catch (e) {}
     if (_reviewFormPlaceId && _detailPlaceId === _reviewFormPlaceId) {
