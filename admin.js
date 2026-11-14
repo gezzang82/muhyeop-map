@@ -1545,7 +1545,7 @@ function renderAdBannerRows() {
         </div>
       </td>
       <td><span class="badge-status ${on ? 'active' : 'expired'}" style="cursor:pointer;" onclick="toggleAdBanner(${b.id})">${on ? '노출' : '숨김'}</span></td>
-      <td class="td-id">${(b.clickCount || 0).toLocaleString()}</td>
+      <td style="white-space:nowrap;font-size:12px;">노출 <b>${(b.viewCount || 0).toLocaleString()}</b> · 클릭 <b>${(b.clickCount || 0).toLocaleString()}</b><br><span style="color:#376BCB;">CTR ${b.viewCount ? ((b.clickCount || 0) / b.viewCount * 100).toFixed(1) : '0.0'}%</span></td>
       <td>
         <div class="row-actions">
           <button class="btn-edit-sm" onclick="editAdBannerLink(${b.id})">URL 수정</button>

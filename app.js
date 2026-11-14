@@ -2233,18 +2233,19 @@ function pickAdBanner(slot) {
 function _adOnclick(b) { return `trackAdClick(${b.id})` + (b.linkUrl ? `;openExternal('${String(b.linkUrl).replace(/'/g, "\\'")}')` : ''); }
 function _adDivHtml(slot, cls, b, extraCls) {
   if (!b || !b.imageUrl) return '';
-  return `<div class="${cls}${extraCls ? ' ' + extraCls : ''}" data-slot="${slot}" onclick="${_adOnclick(b)}"><img class="ad-slot-full" src="${b.imageUrl}" alt="광고" loading="lazy"></div>`;
+  return `<div class="${cls}${extraCls ? ' ' + extraCls : ''}" data-slot="${slot}" data-ad-id="${b.id}" onclick="${_adOnclick(b)}"><img class="ad-slot-full" src="${b.imageUrl}" alt="광고" loading="lazy"></div>`;
 }
 const AD_FLAP_N = 10;        // 복수형: 가로 배너 분할 수(세로 조각)
 const AD_FLAP_STAGGER = 48;  // 조각 간 지연(좌→우 순차)
 // 레이어 reveal(collapse 방식): 정지 땐 통이미지(bg) 1장만 — 3D 조각 레이어가 0개라 좌측 1px seam·끝날 때 미세 확대가 원천 불가.
 //  순환 시작 때만 현재 배너를 N조각(.ad-flap-top 오버레이)으로 만들어 좌→우로 좌우(rotateY) 넘겨 밑의 다음 배너(bg)를 드러내고, 끝나면 조각을 제거(통이미지로 복귀). 회전 조각엔 그림자로 입체감.
 function _adFlapHtml(slot, cls, cur) {
-  return `<div class="${cls} ad-flap-outer" data-slot="${slot}" onclick="${_adOnclick(cur)}"><div class="ad-flap-wrap"><img class="ad-flap-bg" src="${cur.imageUrl}" alt=""></div></div>`;
+  return `<div class="${cls} ad-flap-outer" data-slot="${slot}" data-ad-id="${cur.id}" onclick="${_adOnclick(cur)}"><div class="ad-flap-wrap"><img class="ad-flap-bg" src="${cur.imageUrl}" alt=""></div></div>`;
 }
 function adSlotBannerHtml(slot, cls) {
   const { mode, items } = adSlotData(slot);
   if (!items.length) return '';
+  setTimeout(observeAdSlots, 0);   // 렌더 직후 DOM에 삽입된 광고 요소를 노출 관찰 대상으로 등록
   if (mode === 'multiple' && items.length > 1) {
     const order = flipItems(slot);            // 랜덤 셔플된 순서(세션 고정)로 순환
     const st = _adFlip[slot] || (_adFlip[slot] = { idx: 0, timer: null });
@@ -2279,8 +2280,9 @@ function ensureAdFlip(slot) {
     // 전부 날아간 뒤: 조각 오버레이를 통째로 제거 → bg(next) 통이미지 1장만 남아 정지(3D 레이어 0개=seam·확대 없음)
     setTimeout(() => {
       top.remove();
-      if (document.body.contains(outer)) outer.setAttribute('onclick', _adOnclick(nextB));
+      if (document.body.contains(outer)) { outer.setAttribute('onclick', _adOnclick(nextB)); outer.setAttribute('data-ad-id', nextB.id); }
       st.idx = next;
+      if (_adSlotVisible[slot]) trackAdView(nextB.id);   // 뷰포트 안에서 플립됐을 때만 새 배너 노출 집계
     }, flaps.length * AD_FLAP_STAGGER + 240);
   }, 3800);
 }
@@ -2290,6 +2292,30 @@ function adSlotFeedHtml() { return adSlotBannerHtml('feed', 'ad-slot-feed'); }
 // 광고 배너 클릭 집계(배너 id별 누적, fire-and-forget, 운영자 집IP는 서버에서 제외).
 function trackAdClick(id) {
   try { fetch('/api/banners?ad=click&id=' + encodeURIComponent(id), { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}
+}
+// 광고 배너 노출 집계(CTR용). 세션당 배너별 1회만 전송(_adViewed) → view_count=유니크 세션 노출. 운영자 집IP는 서버 제외.
+const _adViewed = new Set();
+const _adSlotVisible = {};   // slot → 현재 뷰포트 안인지(플립이 뷰 안일 때만 새 배너 노출 집계)
+function trackAdView(id) {
+  id = Number(id);
+  if (!id || _adViewed.has(id)) return;
+  _adViewed.add(id);
+  try { fetch('/api/banners?ad=view&id=' + encodeURIComponent(id), { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}
+}
+let _adViewObserver = null;
+function observeAdSlots() {
+  if (!('IntersectionObserver' in window)) return;
+  if (!_adViewObserver) {
+    _adViewObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        const el = en.target, slot = el.getAttribute('data-slot');
+        if (slot) _adSlotVisible[slot] = en.isIntersecting;
+        if (en.isIntersecting) trackAdView(el.getAttribute('data-ad-id'));  // 보이는 순간 현재 배너 노출 1회
+      });
+    }, { threshold: 0.5 });  // 50% 이상 보일 때 노출로 집계
+  }
+  _adViewObserver.disconnect();
+  document.querySelectorAll('.ad-slot[data-ad-id], .ad-slot-feed[data-ad-id], .ad-flap-outer[data-ad-id]').forEach(function (el) { _adViewObserver.observe(el); });
 }
 function renderSidebar() {
   const list = document.getElementById('campaignList');

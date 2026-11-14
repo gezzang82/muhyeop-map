@@ -33,7 +33,8 @@ module.exports = async function handler(req, res) {
       created_at TEXT DEFAULT (datetime('now')))`);
     // 구좌별 노출 방식: random(접속마다 1개 랜덤)·single(1개 고정)·multiple(정렬 순서대로 플립 자동순환)
     await db.execute(`CREATE TABLE IF NOT EXISTS ad_slot_config (slot TEXT PRIMARY KEY, mode TEXT DEFAULT 'random')`);
-    const toAd = r => ({ id: r.id, slot: r.slot, imageUrl: r.image_url, linkUrl: r.link_url || '', enabled: !!r.enabled, sortOrder: r.sort_order || 0, clickCount: r.click_count || 0 });
+    try { await db.execute("ALTER TABLE ad_banners ADD COLUMN view_count INTEGER DEFAULT 0"); } catch (e) {}  // 노출(세션당 유니크) 집계 → CTR
+    const toAd = r => ({ id: r.id, slot: r.slot, imageUrl: r.image_url, linkUrl: r.link_url || '', enabled: !!r.enabled, sortOrder: r.sort_order || 0, clickCount: r.click_count || 0, viewCount: r.view_count || 0 });
     const getModes = async () => { const m = { home: 'random', feed: 'random' }; try { (await db.execute("SELECT slot, mode FROM ad_slot_config")).rows.forEach(r => { if (r.mode) m[r.slot] = r.mode; }); } catch (e) {} return m; };
 
     // 공개: 배너 클릭 집계(운영자 집IP 제외)
@@ -44,7 +45,15 @@ module.exports = async function handler(req, res) {
       try { await db.execute({ sql: "UPDATE ad_banners SET click_count = COALESCE(click_count,0)+1 WHERE id=?", args: [id] }); } catch (e) {}
       return res.status(200).json({ ok: true });
     }
-    // GET: 공개(enabled만, 구좌별 그룹) / 어드민(?admin=1, 전체+클릭수)
+    // 공개: 배너 노출 집계(운영자 집IP 제외). 클라가 세션당 배너별 1회만 전송(IntersectionObserver) → view_count=유니크 세션 노출.
+    if (req.method === 'POST' && req.query.ad === 'view') {
+      const id = Number(req.query.id); if (!id) return res.status(400).json({ error: 'id required' });
+      const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+      if (EXCLUDED_TRACK_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true });
+      try { await db.execute({ sql: "UPDATE ad_banners SET view_count = COALESCE(view_count,0)+1 WHERE id=?", args: [id] }); } catch (e) {}
+      return res.status(200).json({ ok: true });
+    }
+    // GET: 공개(enabled만, 구좌별 그룹) / 어드민(?admin=1, 전체+클릭/노출수)
     if (req.method === 'GET') {
       const modes = await getModes();
       if (req.query.admin === '1') {
