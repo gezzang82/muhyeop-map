@@ -2355,9 +2355,9 @@ function renderSidebar() {
   }
 
   const noticeHtml = '<div class="sidebar-notice">모집 일정·조건·내용은 변경될 수 있어요. 신청 전 <strong>해당 플랫폼에서 최신 정보를 꼭 확인</strong>해 주세요.</div>';
-  // 광고 구좌: '모집 중인 체험' 리스트 3번째 항목 아래에 배너 1개(현재 본인=개짜장 미리보기만). 3개 미만이면 미노출.
-  //  isOperatorOptimistic: auth 확정 전엔 캐시로 낙관 판정 → 배너가 리스트와 동시에 뜸(늦게 팝업 안 됨).
-  const showAd = isOperatorOptimistic();
+  // 광고 구좌: '모집 중인 체험' 리스트 3번째 항목 아래에 배너 1개. 3개 미만이면 미노출.
+  //  실유저 공개(2026-11-14) — 기존 운영자(isOperatorOptimistic) 전용 미리보기 게이트 해제. PC·모바일 공통 노출.
+  const showAd = true;
   const itemsHtml = activePlaces.map((p, i) => {
     const h = sidebarItemHtml(p);
     return (showAd && i === 2) ? h + adSlotHomeHtml() : h;
