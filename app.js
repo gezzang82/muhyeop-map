@@ -2364,10 +2364,9 @@ function updateSidebarListFade() {
     return;
   }
   const atTop = list.scrollTop <= 4;
-  const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
   const topStop = atTop ? '0px' : '16px';
-  const botStop = atBottom ? '100%' : 'calc(100% - 20px)';
-  const g = `linear-gradient(to bottom, transparent 0, #000 ${topStop}, #000 ${botStop}, transparent 100%)`;
+  // 상단 페이드만 유지(스크롤 내려가면 위가 흐려짐). 하단 페이드는 제거(원우님 요청) → 바닥은 #000 100%로 불투명.
+  const g = `linear-gradient(to bottom, transparent 0, #000 ${topStop}, #000 100%)`;
   // 값이 실제로 바뀔 때만(맨위/맨아래 경계 넘을 때) 설정. 중간 스크롤 중엔 g가 동일 → 마스크 재설정 안 함
   // → 마스크 걸린 스크롤 컨테이너의 매 프레임 재합성(드르륵) 제거.
   if (g === _lastFadeGradient) return;
