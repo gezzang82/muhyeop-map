@@ -2206,6 +2206,18 @@ function isOperatorOptimistic() {
 //  random=접속마다 1개 랜덤(세션 고정) / single=1개 고정 / multiple=정렬 순서대로 플립 자동순환.
 let _adPick = {};   // random: 세션 내 구좌별 고정
 let _adFlip = {};   // multiple: 구좌별 {idx, timer}
+let _adFlipOrder = {};  // multiple: 구좌별 셔플된 순서(세션 고정). 배너 구성(id 목록)이 바뀌면 재셔플.
+// 플립 순환 순서를 '랜덤형'으로 — 세션마다 한 번 셔플(세션 중엔 고정이라 재렌더에도 안 튐).
+function flipItems(slot) {
+  const { items } = adSlotData(slot);
+  const sig = items.map(b => b.id).join(',');
+  const cached = _adFlipOrder[slot];
+  if (cached && cached.sig === sig) return cached.items;
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  _adFlipOrder[slot] = { sig, items: arr };
+  return arr;
+}
 function adSlotData(slot) {  // 신규 {mode,items} + 구버전 배열 하위호환
   const s = (adBanners && adBanners[slot]) || {};
   if (Array.isArray(s)) return { mode: 'random', items: s };
@@ -2234,10 +2246,11 @@ function adSlotBannerHtml(slot, cls) {
   const { mode, items } = adSlotData(slot);
   if (!items.length) return '';
   if (mode === 'multiple' && items.length > 1) {
+    const order = flipItems(slot);            // 랜덤 셔플된 순서(세션 고정)로 순환
     const st = _adFlip[slot] || (_adFlip[slot] = { idx: 0, timer: null });
-    if (st.idx >= items.length) st.idx = 0;
+    if (st.idx >= order.length) st.idx = 0;
     setTimeout(() => ensureAdFlip(slot), 0);   // 캐스케이드 순환 타이머 확보(이미 돌면 무시)
-    return _adFlapHtml(slot, cls, items[st.idx]);
+    return _adFlapHtml(slot, cls, order[st.idx]);
   }
   if (mode === 'single') return _adDivHtml(slot, cls, items[0]);   // 1개 고정
   return _adDivHtml(slot, cls, pickAdBanner(slot));                // random
@@ -2245,7 +2258,7 @@ function adSlotBannerHtml(slot, cls) {
 function ensureAdFlip(slot) {
   const st = _adFlip[slot]; if (!st || st.timer) return;
   st.timer = setInterval(() => {
-    const { items } = adSlotData(slot);
+    const items = flipItems(slot);   // 셔플된 순서로 순환(랜덤형)
     if (!items || items.length < 2) { clearInterval(st.timer); st.timer = null; return; }
     const outer = document.querySelector('.ad-flap-outer[data-slot="' + slot + '"]');
     if (!outer) return;
