@@ -8368,7 +8368,12 @@ function initAppDlBanner() {
   const ua = navigator.userAgent || '';
   const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
   const badge = document.getElementById('appDlBadge');
-  if (badge) { badge.src = isIOS ? 'image/ic_appstore_20.svg' : 'image/ic_googleplay_20.svg'; badge.alt = isIOS ? 'App Store' : 'Google Play'; }
+  if (badge) {
+    badge.src = isIOS ? 'image/ic_appstore_20.svg' : 'image/ic_googleplay_20.svg';
+    badge.alt = isIOS ? 'App Store' : 'Google Play';
+    // 블랙 pill 위에서 앱스토어(검정 애플)는 안 보여 → 흰색 반전. 구글플레이(컬러)는 그대로.
+    badge.style.filter = isIOS ? 'brightness(0) invert(1)' : '';
+  }
   el.style.display = 'flex'; // 원(아이콘)으로 노출
   // 스플래시가 사라진 뒤 펼침(최대 ~4.5s 폴백) → 3.2s 유지 → 접힘(이후 계속 원 유지, 탭은 항상 가능)
   let n = 0;
