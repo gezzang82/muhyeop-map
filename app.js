@@ -8086,6 +8086,8 @@ function setupClearButtons() {
     const btn = createClearBtn();
     pcSearchInput.parentElement.appendChild(btn);
     bindClearBtn(btn, pcSearchInput);
+    // 검색창 포커스 시 열려 있던 PC 상세 카드 닫기(모바일 검색창이 바텀시트를 닫는 것과 동일 UX)
+    pcSearchInput.addEventListener('focus', () => { closePcCard(); });
   }
 
   // 내 장소 step1 지도검색창 (홈과 동일한 선택/클리어 동작)
