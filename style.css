@@ -1425,7 +1425,11 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .map-pin .map-pin-svg {
   display: block;
   filter: drop-shadow(0 2px 5px rgba(0,0,0,0.28));
+  transition: filter 0.15s;
 }
+/* PC 리스트 항목 호버 시 해당 핀 강조(살짝 확대 + 진한 그림자) — JS가 .map-pin--hover 토글 */
+.map-pin--hover { transform: scale(1.22); z-index: 2; }
+.map-pin--hover .map-pin-svg { filter: drop-shadow(0 4px 9px rgba(0,0,0,0.45)); }
 /* 마감(회색) 핀은 지나간 협찬이라 흐리게. 선택 시(map-pin-selected)엔 또렷하게. */
 .map-pin:not(.map-pin-selected) .map-pin-svg.map-pin-ended { opacity: 0.5; }
 .map-pin:hover .map-pin-svg.map-pin-ended { opacity: 0.7; }

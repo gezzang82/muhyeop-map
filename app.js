@@ -397,6 +397,30 @@ function setSelectedMarker(placeId) {
   selectedMarkerId = placeId;
 }
 
+// PC 사이드바 리스트 항목 호버 → 해당 매장 핀 강조(살짝 확대+그림자). PC 전용, 개별 핀(markerMap)만.
+//  setIcon 재렌더 없이 핀 DOM에 클래스만 토글(호버는 빈번하므로 가볍게). 선택된 핀과는 겹치지 않게 스킵.
+let _hoverPinId = null;
+function _pinEl(placeId) {
+  const entry = markerMap[placeId];
+  const el = entry && entry.marker && entry.marker.getElement && entry.marker.getElement();
+  return el ? el.querySelector('.map-pin') : null;
+}
+function setHoverPin(placeId) {
+  if (isMobileView() || _hoverPinId === placeId || placeId === selectedMarkerId) return;
+  clearHoverPin();
+  const pin = _pinEl(placeId);
+  if (!pin) return;
+  pin.classList.add('map-pin--hover');
+  try { markerMap[placeId].marker.setZIndex(500); } catch (e) {}
+  _hoverPinId = placeId;
+}
+function clearHoverPin() {
+  if (_hoverPinId == null) return;
+  const pin = _pinEl(_hoverPinId);
+  if (pin) pin.classList.remove('map-pin--hover');
+  try { if (_hoverPinId !== selectedMarkerId) markerMap[_hoverPinId].marker.setZIndex(0); } catch (e) {}
+  _hoverPinId = null;
+}
 function clearSelectedMarker() {
   if (selectedMarkerId == null) return;
   const entry = markerMap[selectedMarkerId];
@@ -2181,7 +2205,7 @@ function sidebarItemHtml(place) {
   // 활성 캠페인 없는 즐겨찾기 매장 → '모집 없음'
   const bodyHtml = active.length ? campaignsHtml : '<div class="sb-campaign"><span class="sb-noactive">모집 없음</span></div>';
   return `
-    <div class="sb-item" onclick="focusPlace(${place.id})">
+    <div class="sb-item" data-pid="${place.id}" onclick="focusPlace(${place.id})">
       <div class="sb-row-name">
         <span class="sb-name">${place.name}</span>
         <div class="sb-channels">${channelIconsHtml}</div>
@@ -8182,8 +8206,19 @@ function updateStatCount() {
   statCountEl.textContent = activeCount.toLocaleString();
 }
 
+// PC 리스트 항목 호버 → 지도 핀 강조(위임: 컨테이너는 유지되고 항목만 재렌더되므로 1회 바인드로 충분)
+function initSidebarHover() {
+  const list = document.getElementById('campaignList');
+  if (!list) return;
+  list.addEventListener('mouseover', function (e) {
+    const it = e.target.closest && e.target.closest('.sb-item');
+    if (it && it.dataset.pid) setHoverPin(Number(it.dataset.pid));
+  });
+  list.addEventListener('mouseleave', clearHoverPin);
+}
 document.addEventListener('DOMContentLoaded', setupClearButtons);
 document.addEventListener('DOMContentLoaded', initMapSearchReset);
+document.addEventListener('DOMContentLoaded', initSidebarHover);
 document.addEventListener('DOMContentLoaded', initAppDownloadCard);
 
 // ===== 초기 로딩 애니메이션 =====
