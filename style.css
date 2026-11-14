@@ -1457,6 +1457,8 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 /* 바텀시트(사이드바) 확장 시 숨김 — 라이브 캐릭터와 동일 */
 body:has(.sidebar.expanded) .appdl-banner,
 body:has(.sidebar.expanded-full) .appdl-banner { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .2s ease, visibility .2s ease; }
+/* 홈 탭에만 노출: 홈 외 GNB 탭(내장소/커뮤니티/MY)에선 body.tab-active → 숨김 */
+body.tab-active .appdl-banner { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .appdl-banner, .appdl-body { transition: none; } }
 /* 마감(회색) 핀은 지나간 협찬이라 흐리게. 선택 시(map-pin-selected)엔 또렷하게. */
 .map-pin:not(.map-pin-selected) .map-pin-svg.map-pin-ended { opacity: 0.5; }
@@ -4121,7 +4123,6 @@ body.pc-community-mode .cm-top-btn[hidden] { display: none; }
   body.tab-active .live-alert,
   body.tab-active .btn-my-location,
   body.tab-active .search-pin-review-fab,
-  body.tab-active .appdl-banner,
   body.tab-active .sidebar { display: none !important; }
 }
 
