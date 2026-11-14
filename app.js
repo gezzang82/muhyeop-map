@@ -8356,29 +8356,35 @@ function openAppStore() {
 const APP_INSTALL_SNOOZE = 7 * 24 * 3600 * 1000; // 닫으면 7일간 재노출 안 함
 function aipTrack(action) { try { fetch('/api/places?visit=appinstall&action=' + action, { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {} }
 // 모바일웹 앱 다운로드 넛지 배너(좌하단). 상시 원(아이콘) + 최초 1회 펼쳤다 접힘, 디바이스별 스토어 뱃지. mweb 전용.
+//  트리거: 설치 팝업에서 '모바일웹으로 볼게요'(dismiss) 누른 뒤 / 팝업이 이미 스누즈된 재방문일 때(= maybeShowAppInstall).
+//  펼침은 '스플래시가 끝난 뒤' 시작(스플래시 도중 이미 열려있던 문제 방지). 1회성(_appDlDone).
+let _appDlDone = false;
 function appDlBannerGo() { aipTrack('install'); openAppStore(); }
 function initAppDlBanner() {
+  if (_appDlDone) return;
   try { if (typeof detectPlatform === 'function' && detectPlatform() !== 'mweb') return; } catch (e) { return; } // 모바일웹만(앱·PC 제외)
   const el = document.getElementById('appDlBanner'); if (!el) return;
+  _appDlDone = true;
   const ua = navigator.userAgent || '';
   const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
   const badge = document.getElementById('appDlBadge');
   if (badge) { badge.src = isIOS ? 'image/ic_appstore_20.svg' : 'image/ic_googleplay_20.svg'; badge.alt = isIOS ? 'App Store' : 'Google Play'; }
-  el.style.display = 'flex';
-  // 최초 1회: 원으로 잠깐 보였다가 → 펼침(3.2s 유지) → 접힘(이후 계속 원 유지, 탭은 항상 가능)
-  setTimeout(function () {
-    el.classList.add('appdl-open');
-    setTimeout(function () { el.classList.remove('appdl-open'); }, 3200);
-  }, 1500);
+  el.style.display = 'flex'; // 원(아이콘)으로 노출
+  // 스플래시가 사라진 뒤 펼침(최대 ~4.5s 폴백) → 3.2s 유지 → 접힘(이후 계속 원 유지, 탭은 항상 가능)
+  let n = 0;
+  (function waitSplash() {
+    if (!document.getElementById('appSplash') || n > 30) {
+      setTimeout(function () { el.classList.add('appdl-open'); setTimeout(function () { el.classList.remove('appdl-open'); }, 3200); }, 650);
+    } else { n++; setTimeout(waitSplash, 150); }
+  })();
 }
-document.addEventListener('DOMContentLoaded', initAppDlBanner);
 function appInstallGo() { aipTrack('install'); try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} const el = document.getElementById('appInstallPopup'); if (el) el.style.display = 'none'; openAppStore(); }
-function dismissAppInstall() { aipTrack('dismiss'); const el = document.getElementById('appInstallPopup'); if (el) { el.style.display = 'none'; el.setAttribute('aria-hidden', 'true'); } try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} }
+function dismissAppInstall() { aipTrack('dismiss'); const el = document.getElementById('appInstallPopup'); if (el) { el.style.display = 'none'; el.setAttribute('aria-hidden', 'true'); } try { localStorage.setItem('appInstallDismissed', String(Date.now())); } catch (e) {} initAppDlBanner(); /* '모바일웹으로 볼게요' 선택 → 좌하단 다운로드 넛지 배너 등장 */ }
 function maybeShowAppInstall() {
   try {
     if (typeof detectPlatform === 'function' && detectPlatform() !== 'mweb') return; // 모바일웹만(앱·PC 제외)
     const last = Number(localStorage.getItem('appInstallDismissed') || 0);
-    if (last && (Date.now() - last) < APP_INSTALL_SNOOZE) return;
+    if (last && (Date.now() - last) < APP_INSTALL_SNOOZE) { initAppDlBanner(); return; } // 재방문(팝업 스누즈 중) → 팝업 없이 배너만
     const el = document.getElementById('appInstallPopup'); if (!el) return;
     const show = () => { el.style.display = 'flex'; el.setAttribute('aria-hidden', 'false'); aipTrack('show'); };
     const bn = document.getElementById('bannerPopupOverlay');

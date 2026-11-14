@@ -1431,27 +1431,28 @@ body.pc-reportissue-mode #reportOverlay .btn-next {
 .map-pin--hover { transform: scale(1.22); z-index: 2; }
 .map-pin--hover .map-pin-svg { filter: drop-shadow(0 4px 9px rgba(0,0,0,0.45)); }
 
-/* 모바일웹 앱 다운로드 넛지: 접힘=원(56px 아이콘), 펼침=pill(아이콘+텍스트). 최초 1회 펼쳤다 접힘(JS). 노출은 app.js가 mweb일 때만 display:flex. 라이브캐릭터(우152px)와 같은 높이 좌측. */
+/* 모바일웹 앱 다운로드 넛지(Figma 2137-72739): 접힘=원(56px 아이콘, 3px 링), 펼침=블랙 pill(흰 텍스트). 최초 1회 펼쳤다 접힘(JS, 팝업 dismiss/재방문 시점). 노출은 app.js가 mweb일 때만 display:flex. 현재위치 버튼과 같은 높이(좌 20px). */
 .appdl-banner {
-  position: fixed; bottom: 152px; left: 16px; z-index: 300;
+  position: fixed; bottom: 100px; left: 20px; z-index: 300;
   display: flex; align-items: center; height: 56px;
-  background: #fff; border: none; border-radius: 28px; padding: 0;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16); overflow: hidden; cursor: pointer;
+  background: #000; border: none; border-radius: 28px; padding: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22); overflow: hidden; cursor: pointer;
   max-width: 56px; transition: max-width .42s cubic-bezier(.22, 1, .36, 1);
   -webkit-tap-highlight-color: transparent; will-change: max-width;
 }
 .appdl-banner.appdl-open { max-width: 320px; }
-.appdl-icon { flex: 0 0 56px; width: 56px; height: 56px; border-radius: 50%; overflow: hidden; }
-.appdl-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 아이콘 56px 원 안에 이미지 50px → 둘레 ~3px 라인(검정 링). Figma: 아이콘 50.58 / 원 56 */
+.appdl-icon { flex: 0 0 56px; width: 56px; height: 56px; border-radius: 50%; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.appdl-icon img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; display: block; }
 .appdl-body {
   display: flex; flex-direction: column; justify-content: center; gap: 2px;
-  padding: 0 18px 0 10px; white-space: nowrap; text-align: left;
+  padding: 0 18px 0 8px; white-space: nowrap; text-align: left;
   opacity: 0; transform: translateX(-6px); transition: opacity .26s ease, transform .3s ease;
 }
 .appdl-banner.appdl-open .appdl-body { opacity: 1; transform: none; transition: opacity .3s ease .12s, transform .34s ease .1s; }
-.appdl-title { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; color: #1a1a1a; line-height: 1.2; }
+.appdl-title { display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 16px; color: #fff; line-height: 1.2; }
 .appdl-badge { display: block; flex: 0 0 auto; }
-.appdl-desc { font-size: 12px; color: #777; line-height: 1.2; }
+.appdl-desc { font-size: 13px; color: #bbb; line-height: 1.2; }
 /* 바텀시트(사이드바) 확장 시 숨김 — 라이브 캐릭터와 동일 */
 body:has(.sidebar.expanded) .appdl-banner,
 body:has(.sidebar.expanded-full) .appdl-banner { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .2s ease, visibility .2s ease; }
