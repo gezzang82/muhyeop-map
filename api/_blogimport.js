@@ -98,8 +98,12 @@ function matchPlaceInMem(places, storeName, region) {
   const cand = (regHit.length ? regHit : rows).slice(0, 50);
   cand.sort((a, b) => (b._n.includes(sn) ? 1 : 0) - (a._n.includes(sn) ? 1 : 0));
   const place = cand[0];
-  const nameExact = place._n.includes(sn) || sn.includes(place._n);
-  return { placeId: place.id, name: place.name, address: place.address, confidence: (regHit.length && nameExact) ? 'auto' : 'confirm' };
+  // 체인점 보호: 같은 기초명이 여러 지점이면(체인) 질의가 지점을 '온전히' 특정해야 auto.
+  //  (예: '동양솥밥'만 추출 → 수원역점이 폐점이라 엉뚱한 '광교엘포트점'에 auto되던 것 방지 → confirm)
+  //  단일 매장은 기존대로 부분일치 허용.
+  const chain = rows.length > 1;
+  const nameOk = chain ? (place._n === sn || sn.includes(place._n)) : (place._n.includes(sn) || sn.includes(place._n));
+  return { placeId: place.id, name: place.name, address: place.address, confidence: (regHit.length && nameOk) ? 'auto' : 'confirm' };
 }
 
 // DB 매칭: 매장명(공백무시 부분일치) 후보 → 지역(주소 포함)으로 좁힘 → 신뢰도 판정.
@@ -117,8 +121,11 @@ async function matchPlace(db, storeName, region) {
   const cand = (regHit.length ? regHit : rows);
   cand.sort((a, b) => (norm(b.name).includes(sn) ? 1 : 0) - (norm(a.name).includes(sn) ? 1 : 0));
   const place = cand[0];
-  const nameExact = norm(place.name).includes(sn) || sn.includes(norm(place.name));
-  return { placeId: place.id, name: place.name, address: place.address, confidence: (regHit.length && nameExact) ? 'auto' : 'confirm' };
+  // 체인점 보호(matchPlaceInMem과 동일): 체인이면 지점명을 온전히 특정해야 auto, 아니면 confirm.
+  const chain = rows.length > 1;
+  const pn = norm(place.name);
+  const nameOk = chain ? (pn === sn || sn.includes(pn)) : (pn.includes(sn) || sn.includes(pn));
+  return { placeId: place.id, name: place.name, address: place.address, confidence: (regHit.length && nameOk) ? 'auto' : 'confirm' };
 }
 
 // 메인(배치): 블로그 → [{title, link, date, store, region, match, confidence}].
@@ -173,4 +180,4 @@ async function importList({ db, blogId, existingUrls = new Set(), batch = 30, ma
   return { items: items.slice(0, batch), done };
 }
 
-module.exports = { importList, fetchBlogPosts, fetchBlogPage, fetchAllBlogPosts, extractPosts, matchPlace };
+module.exports = { importList, fetchBlogPosts, fetchBlogPage, fetchAllBlogPosts, extractPosts, matchPlace, matchPlaceInMem };
