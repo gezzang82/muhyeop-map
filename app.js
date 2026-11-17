@@ -3003,23 +3003,28 @@ async function tryRegionNameKeyword(query) {
 
 // 주소/지역명 → 지도 이동(등록 매장이 아닐 때). (구 searchRegion 내부 trySearch 분리)
 function geocodeRegion(query) {
-  function trySearch(q, fallback) {
-    naver.maps.Service.geocode({ query: q }, function(status, response) {
+  const alreadyPrefixed = /^(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|충청|전북|전남|전라|경북|경남|제주)/.test(query);
+  // 지오코딩 시도 순서: 원본 → (비프리픽스면)'서울 '+원본
+  const attempts = [query];
+  if (!alreadyPrefixed) attempts.push('서울 ' + query);
+  // 도로명(로/길)인데 번지가 없어 실패하는 경우: ' 1'을 붙여 그 도로 시작점으로 이동(NCP는 도로명+번지만 해석).
+  //  '구리시 안골로'→'구리시 안골로 1'(=경기 구리시 안골로 1). P3(docs/product/22). '거리/가'는 번지형이 아니라 POI 폴백이 담당.
+  if (/(로|길)$/.test(query.replace(/\s/g, ''))) {
+    attempts.push(query + ' 1');
+    if (!alreadyPrefixed) attempts.push('서울 ' + query + ' 1');
+  }
+  function run(i) {
+    if (i >= attempts.length) { searchRegionViaLocalSearch(query); return; }  // 전부 실패 → 네이버 지역검색(역·상권 등) 폴백
+    naver.maps.Service.geocode({ query: attempts[i] }, function(status, response) {
       const items = response?.v2?.addresses;
       if (status === naver.maps.Service.Status.OK && items?.length) {
         map.setCenter(new naver.maps.LatLng(parseFloat(items[0].y), parseFloat(items[0].x)));
         map.setZoom(regionZoom(items[0]));
         showSearchPin(parseFloat(items[0].y), parseFloat(items[0].x));
-      } else if (fallback) {
-        trySearch(fallback, null);
-      } else {
-        // 역명 등 POI는 geocode로 안 잡히는 경우가 많아 네이버 지역검색으로 폴백
-        searchRegionViaLocalSearch(query);
-      }
+      } else { run(i + 1); }
     });
   }
-  const alreadyPrefixed = /^(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|충청|전북|전남|전라|경북|경남|제주)/.test(query);
-  trySearch(query, alreadyPrefixed ? null : '서울 ' + query);
+  run(0);
 }
 
 // 네이버 지역검색 중 DB(dbList)에 없는 '미등록' 지점만 추려 반환.
