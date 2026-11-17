@@ -2041,7 +2041,7 @@ function rvRenderResults() {
     ...existing.map(p => ({ type: 'existing', place: p })),
     ...naver.map((item, i) => ({ type: 'naver', item, index: i }))
   ];
-  if (!combined.length) { box.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
+  if (!combined.length) { box.innerHTML = `<div class="search-hint error">검색 결과가 없어요. 지역을 함께 입력해보세요 (예: ${rvEsc(_rvQuery)} 강남)</div>`; return; }
   const rows = combined.slice(0, _rvVisibleCount).map(e => {
     if (e.type === 'existing') {
       const p = e.place;
@@ -2052,7 +2052,9 @@ function rvRenderResults() {
   }).join('');
   const more = combined.length > _rvVisibleCount
     ? `<div class="place-result-more-wrap"><div class="place-result-more" onclick="rvLoadMore()">더보기</div></div>` : '';
-  box.innerHTML = rows + more;
+  // 네이버는 최대 5개만 반환 → 흔한 이름은 특정 지점이 묻힘. 지역 붙여 검색 유도(예: 몽상 구로).
+  const hint = `<div class="search-hint rv-region-hint">찾는 지점이 없으면 지역을 함께 입력해보세요 (예: ${rvEsc(_rvQuery)} 강남)</div>`;
+  box.innerHTML = rows + more + hint;
 }
 function rvLoadMore() { _rvVisibleCount += RV_PAGE_SIZE; rvRenderResults(); }
 // 기존 DB 매장 선택 → placeId(기존, 좌표 지오코딩 불필요) + 선택 박스 + URL
@@ -2724,8 +2726,9 @@ async function searchRegion() {
     return;
   }
   if (placeMatches.length > 1) {
-    // 같은 이름 매장이 여러 곳(예: '온담' 서울·인천) → 주소가 적힌 선택 목록 팝업
-    showPlacePicker(placeMatches, query);
+    // 같은 이름 매장이 여러 곳(예: '온담' 서울·인천) → 주소가 적힌 선택 목록 팝업.
+    // + DB에 없는 네이버 '미등록' 지점도 병합(동명 DB매장이 네이버 전용 지점을 가리지 않게).
+    showPlacePicker(placeMatches, query, await naverUnregistered(query, placeMatches));
     return;
   }
 
@@ -2770,7 +2773,8 @@ async function searchRegion() {
         focusPlace(p.id, ended ? GRAY_PIN_MIN_ZOOM : 16);
         return;
       }
-      showPlacePicker(partial, query);
+      // DB 매장 + 네이버 '미등록' 지점 병합 picker(동명 DB매장이 네이버 전용 지점을 가리지 않게).
+      showPlacePicker(partial, query, await naverUnregistered(query, partial));
       return;
     }
     // DB 병합 후에도 이름 매칭 전혀 없음 → 지역/주소 검색
@@ -3011,22 +3015,45 @@ function geocodeRegion(query) {
   trySearch(query, alreadyPrefixed ? null : '서울 ' + query);
 }
 
-// 같은 이름 매장이 여러 곳일 때 주소로 구분해 고르는 선택 팝업
-function showPlacePicker(matches, query) {
+// 네이버 지역검색 중 DB(dbList)에 없는 '미등록' 지점만 추려 반환.
+//  동명 DB매장이 picker를 선점해 네이버 전용 지점(예: DB에 없는 '몽상' 구로점)이 숨겨지던 것 방지.
+//  ⚠️ 네이버 지역검색은 display=5 하드제한이라 흔한 이름은 특정 지점이 5위 밖으로 밀림 → 지역 붙이기 힌트로 보완.
+async function naverUnregistered(query, dbList) {
+  let items = [];
+  try { items = await fetch('/api/search-place?query=' + encodeURIComponent(query)).then(r => (r.ok ? r.json() : [])); } catch (e) {}
+  items = Array.isArray(items) ? items : [];
+  const norm = s => String(s || '').replace(/\s/g, '').toLowerCase();
+  const dbNames = new Set((dbList || []).map(p => norm(p.name)));
+  return items.filter(it => it && it.name && !dbNames.has(norm(it.name))).slice(0, 10);
+}
+// 같은 이름 매장이 여러 곳일 때 주소로 구분해 고르는 선택 팝업.
+//  naverItems: DB에 없는 '미등록' 네이버 지점(있으면 함께 노출). + '지역 붙여 검색' 힌트로 흔한 이름 보완.
+function showPlacePicker(matches, query, naverItems) {
   hideCenterLoading();  // 피커는 지도 이동이 없어 idle이 안 와 스피너가 안 꺼짐 → 여기서 해제
   const list = document.getElementById('placePickerList');
   const titleEl = document.getElementById('placePickerTitle');
   if (!list || !titleEl) return;
-  titleEl.textContent = `'${query}' ${matches.length}곳`;
-  list.innerHTML = matches.map(p => {
+  const nv = Array.isArray(naverItems) ? naverItems : [];
+  _naverPickerItems = nv;  // pickNaverResult(i)가 참조(네이버 미등록 지점 클릭 시)
+  titleEl.textContent = `'${query}' ${matches.length + nv.length}곳`;
+  const dbHtml = matches.map(p => {
     // 캠페인 타일 미로드(전국 흩어진 검색결과)면 인메모리는 0이라, 서버가 준 활성수(activeCount)로 폴백.
     const active = getActiveCampaigns(p.id).length || (p.activeCount || 0);
     const badge = active > 0 ? `<span class="place-picker-badge">협찬 ${active}</span>` : '<span class="place-picker-badge ended">모집 없음</span>';
     return `<button class="place-picker-item" onclick="pickSearchedPlace(${p.id})">
-        <span class="place-picker-item-top"><span class="place-picker-name">${p.name}</span>${badge}</span>
-        <span class="place-picker-addr">${p.address || ''}</span>
+        <span class="place-picker-item-top"><span class="place-picker-name">${rvEsc(p.name)}</span>${badge}</span>
+        <span class="place-picker-addr">${rvEsc(p.address || '')}</span>
       </button>`;
   }).join('');
+  const nvHtml = nv.map((it, i) => {
+    const addr = it.roadAddress || it.address || '';
+    return `<button class="place-picker-item" onclick="pickNaverResult(${i})">
+        <span class="place-picker-item-top"><span class="place-picker-name">${rvEsc(it.name)}</span><span class="place-picker-badge ended">미등록</span></span>
+        <span class="place-picker-addr">${rvEsc(addr)}</span>
+      </button>`;
+  }).join('');
+  const hint = `<p class="place-picker-hint">찾는 지점이 없으면 지역을 붙여 검색해보세요 (예: ${rvEsc(query)} 강남)</p>`;
+  list.innerHTML = dbHtml + nvHtml + hint;
   document.getElementById('placePickerOverlay').classList.add('show');
 }
 
@@ -4568,11 +4595,13 @@ async function biStoreSearch() {
     ...dbRows.slice(0, 20).map(p => ({ _t: 'db', id: p.id, name: p.name, address: p.address || '' })),
     ...naverNew.map(it => ({ _t: 'naver', name: it.name, address: it.roadAddress || it.address || '', naverCategory: it.category || '' }))
   ];
-  if (!_biStoreRows.length) { box.innerHTML = '<div class="search-hint error">검색 결과가 없어요. 매장명을 다시 확인해주세요.</div>'; return; }
+  if (!_biStoreRows.length) { box.innerHTML = `<div class="search-hint error">검색 결과가 없어요. 지역을 함께 입력해보세요 (예: ${rvEsc(q)} 강남)</div>`; return; }
+  // 네이버는 최대 5개만 반환 → 흔한 이름은 특정 지점이 묻힘. 지역 붙여 검색 유도(예: 몽상 구로).
+  const biHint = `<div class="search-hint rv-region-hint">찾는 지점이 없으면 지역을 함께 입력해보세요 (예: ${rvEsc(q)} 강남)</div>`;
   box.innerHTML = _biStoreRows.map((p, idx) => `<button class="bi-store-item" data-idx="${idx}" onclick="biPickStore(${idx})">
       <div class="bi-store-item-txt"><p class="bi-store-item-name">${rvEsc(p.name)}${p._t === 'naver' ? ' <span class="bi-store-new">신규</span>' : ''}</p><p class="bi-store-item-addr">${rvEsc(p.address || '')}</p></div>
       <svg class="bi-store-item-check" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 12.5L10 17.5L19 7" stroke="#006cff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>`).join('');
+    </button>`).join('') + biHint;
 }
 function biMarkStorePick(idx) {
   document.querySelectorAll('#biStoreResults .bi-store-item').forEach(el => el.classList.toggle('on', Number(el.getAttribute('data-idx')) === idx));
