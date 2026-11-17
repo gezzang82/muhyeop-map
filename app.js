@@ -2683,11 +2683,18 @@ function renderAll() {
   renderSidebar();
 }
 
+// IME 미완성/깨진 검색어 정리: 끝에 붙은 단독 호환자모(완성형에 안 합쳐진 낱자 ㄱ~ㅎ·ㅏ~ㅣ) 제거.
+//  '대구ㅜ'→'대구', 'ㅍ'→''(→검색 스킵). 모바일 조합 중 엔터/blur로 들어온 깨진 검색어를 복구해
+//  헛 0건·엉뚱한 결과 방지(검색 0건 로그의 상당수가 이 깨진 입력이었음, docs/product/22 P1).
+function cleanSearchQuery(q) {
+  return String(q || '').trim().replace(/[㄰-㆏]+$/, '').trim();
+}
+
 // ===== 지역 검색 =====
 async function searchRegion() {
   _suppressInitialLocation = true;  // 검색 시작 → 늦게 오는 초기 위치이동 취소(검색 중 지도 튐 방지)
-  const query = document.getElementById('regionSearch').value.trim();
-  if (!query) return;
+  const query = cleanSearchQuery(document.getElementById('regionSearch').value);
+  if (!query) return;   // 빈값/자모만('ㅍ') → 검색·집계 둘 다 스킵
   // 검색 시작 → ①가운데 로딩 스피너(지오코딩+타일 로드 동안 '멈춘 듯' 보이던 것 해소) ②사이드바 자동갱신 시간창 세팅
   //  (유저 피드백 2026-11-10: 지역 바꿔 검색해도 좌측 목록이 안 바뀌고, 기다리는 동안 로딩 표시가 없음)
   _sbSearchMoveUntil = Date.now() + 4000;
