@@ -1,6 +1,7 @@
 // api/_blogimport.js — 블로그 글 → 후기 자동매칭 엔진 (RSS 수집 + AI 매장/지역 추출 + places 매칭).
 //  '_' 접두=함수 카운트 제외. docs/product/20 스펙. places.js `?blogimport=` 분기가 호출.
 //  검증: PoC(match-poc.cjs)에서 체험단 블로거 15글 → 14/14 매칭, 게이트가 오매칭('하루') 🟡로 차단.
+const { decodeEntities } = require('./_scrape');  // 블로그 제목 HTML 엔티티(&#39; &amp; 등) 디코드
 const norm = s => String(s || '').replace(/\s/g, '').toLowerCase();
 
 // 네이버 블로그 공개 RSS로 최근 글 목록(제목·링크·날짜·요약). 권한/스코프 불필요.
@@ -15,7 +16,7 @@ async function fetchBlogPosts(blogId, limit = 50) {
   const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => m[1]);
   const pick = (b, t) => { const r = new RegExp(`<${t}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${t}>`).exec(b); return r ? r[1].trim() : ''; };
   return items.slice(0, limit).map(b => ({
-    title: pick(b, 'title'),
+    title: decodeEntities(pick(b, 'title')),
     link: pick(b, 'link').split('?')[0],
     date: pick(b, 'pubDate').slice(5, 16),
     desc: pick(b, 'description').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').slice(0, 120),
@@ -25,7 +26,7 @@ async function fetchBlogPosts(blogId, limit = 50) {
 // 네이버 블로그 글목록 API(PostTitleListAsync) — 한 페이지(≤30개) 글(제목·logNo·작성일). 요약 없음(제목만).
 //  제목에 매장명이 들어가는 체험단 특성상 제목만으로 매칭 가능. 반환: {posts, isLast}(isLast=마지막 페이지/더 없음).
 async function fetchBlogPage(blogId, page) {
-  const decTitle = (t) => { try { return decodeURIComponent(String(t).replace(/\+/g, ' ')).trim(); } catch (e) { return String(t).replace(/\+/g, ' ').trim(); } };
+  const decTitle = (t) => { let s; try { s = decodeURIComponent(String(t).replace(/\+/g, ' ')); } catch (e) { s = String(t).replace(/\+/g, ' '); } return decodeEntities(s).trim(); };  // URL + HTML엔티티(&#39; 등) 둘 다 디코드
   let text = '';
   try {
     const r = await fetch(`https://blog.naver.com/PostTitleListAsync.naver?blogId=${encodeURIComponent(blogId)}&currentPage=${page}&countPerPage=30&categoryNo=0`, { headers: { 'User-Agent': 'Mozilla/5.0', Referer: `https://blog.naver.com/${blogId}` } });
