@@ -49,7 +49,7 @@ const envPath = path.join(__dirname, '..', '.env.local');
 const { runScrape, loadDedupe, SEOUL_AREA2, AREA2_BY_REGION } = require('../api/_scrape');
 const { runAutopilot } = require('../api/_autopilot');
 const { refreshStatsCache } = require('../api/_stats');
-const { notifyDailyDigest, serviceAccount } = require('../api/_push');
+const { notifyDailyDigest, notifyReengage, serviceAccount } = require('../api/_push');
 // 인스타 발행은 서버(Vercel Cron, /api/campaigns?action=igcron)가 전담 — 크롤러는 수집만.
 
 // 지역별 수집 단위(하위지역). '전체' 목록은 하위지역을 다 담지 않아 누락되므로 하위지역별로 순회한다.
@@ -244,6 +244,8 @@ async function pass() {
       // 하루 1회 요약 푸시(PUSH_SEND_ENABLED=1 + 서비스계정 있을 때만). 매 패스 체크하되 발송 시각/1일1회는 내부 가드. 실패해도 무시.
       if (process.env.PUSH_SEND_ENABLED === '1') {
         try { const dg = await notifyDailyDigest(db); if (dg.devices) console.log(`  [${ts()}] 하루요약 푸시: ${dg.devices}개 기기 (신규 후보 ${dg.candidates})`); } catch (e) { console.error(`  [${ts()}] 푸시 오류: ${e.message}`); }
+        // 휴면 재engagement 푸시(저녁 1회, 이탈 7~13일 유저, 30일 캡, 홀드아웃 20%). 내부 가드로 시각/1일1회 처리.
+        try { const re = await notifyReengage(db); if (re.pushed || re.held) console.log(`  [${ts()}] 휴면 재engage: ${re.pushed}명 발송 / ${re.held} 홀드아웃 (대상 ${re.targets})`); } catch (e) { console.error(`  [${ts()}] 재engage 오류: ${e.message}`); }
       }
       // (인스타/웹툰 발행은 서버 크론 전담 — 여기서 하지 않음)
       // 아직 긁을 게 남았으면 짧게, 다 따라잡았으면 길게 대기(불필요한 요청 방지)

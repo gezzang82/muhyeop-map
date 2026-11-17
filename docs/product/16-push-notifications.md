@@ -79,6 +79,20 @@ push_prefs(device_id, user_id, lat, lng, radius_km, categories, digest, enabled,
 - **게이트**: `FIREBASE_SERVICE_ACCOUNT` 있을 때만 발송(`serviceAccount()` 없으면 no-op).
 - 향후 옵션(배관 불변): 마감임박("찜한 협찬 내일 마감"), 발송 시각 조정(`PUSH_DIGEST_HOUR`), 카테고리 가중치 조정. **여러 관심지역(집·회사·여행지)은 이미 지원**(user_places 기반, 2026-10-09). **다음 작업: iOS APNs 인증키 연동**(현재 안드만 수신).
 
+## 휴면 재engagement 푸시 (✅ 구현 2026-11-17, 기본값 · 크롤러 발송)
+**구현**: `_push.js` `notifyReengage(db)` + 크롤러(`crawl-worker.js`, `PUSH_SEND_ENABLED=1` 블록)에서 매 패스 호출(내부 가드로 19시·1일1회). 서버 전용(탭 nav=기존 `applyPushNav` lat/lng, 탭집계=기존 `push=open` kind='reengage'로 클라 수정 불필요). `scrape_state 'push_reengage'` 날짜 가드, `push_reengage_log(user_id,held_out,created_at)` 테이블(캡+측정), `users.push_event_enabled` 게이트. **⚠️ 활성화=크롤러 재시작**(로컬 발송). 드라이런(2026-11-17): 7~13일 band 대상 12명(내장소 8). 기본값 그대로(아래). 결정 [[06-decision-log]].
+
+### (설계 메모)
+완전 휴면(60일+)보다 **막 멀어지는 구간**을 노려 "새 협찬이 쌓였다"는 가치로 이탈 직전 당겨오기. (계기: 오늘 재방문 52명 중 48명이 1주내 재방문=코어 끈끈, 68일 복귀 1명은 organic. 휴면 부활을 '의도적으로' 만들려면 푸시가 레버. 토큰 귀속 개선[6cad328]으로 도달 확대.)
+- **대상**: 활성 push_token+user_id 귀속 앱 유저 중 **직전 방문 7~13일 전**(1주 band) + `push_event_enabled` ON. 제외=운영자·최근방문·**30일내 이미 재engage 받음**·**보낼 새 협찬(N)=0**.
+- **메시지**: 내 장소 있으면 "○○ 근처 새 협찬 N건 올라왔어요"(N=반경내 최근7일 신규 활성), 없으면 "네 주변에 새 협찬이 쌓였어요". **N>0일 때만**(빈 알림 금지). 죄책감 톤 금지=가치 중심.
+- **탭**: 내 장소 좌표 이동/앱 오픈. 집계 `push_opens` kind=`reengage`(신규).
+- **발송**: 저녁 1회(예 19시, 정오 digest와 분리), 로컬 크롤러 `notifyReengage` + `scrape_state 'push_reengage'` 날짜 가드.
+- **빈도 캡**: 유저당 **30일 1회**(`users.reengage_pushed_at` lazy ALTER), 돌아오면 리셋.
+- **측정**: **홀드아웃 20%**(안 보냄) vs 푸시군 1~2일 재방문율 비교 = 진짜 lift(없으면 '어차피 올 사람'과 구분 불가).
+- **Phase 1**: 좁게+홀드아웃으로 효과 검증 → 있으면 band/빈도 확장. ⚠️ 과하면 알림피로→앱삭제, 보수적 시작.
+- **확정 필요**: band(7~13일?)·게이트(event 재사용 vs 전용토글)·홀드아웃·발송시각. 결정 [[06-decision-log]].
+
 ## 착수 순서
 1. **안드로이드 Play 출시 후**(앱이 스토어에 있어야 푸시 의미)
 2. Firebase 셋업 + `@capacitor/push-notifications` + 토큰 등록(`users.js` 분기)

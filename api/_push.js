@@ -248,4 +248,80 @@ async function notifyDailyDigest(db) {
   return { devices, usersTargeted, candidates: cands.length };
 }
 
-module.exports = { getAccessToken, sendToTokens, sendApns, sendToDevices, notifyDailyDigest, serviceAccount };
+// 휴면 재engagement: 이탈 직전(직전 방문 7~13일 전) 앱 유저에게 "새 협찬 쌓였어요" 1회 발송(재방문 유도).
+//  하루 1회(REENGAGE_HOUR 기본 19시, 정오 digest와 분리), 유저당 30일 1회(push_reengage_log 캡),
+//  event 토글 ON·운영자 제외·활성 토큰 보유만. 홀드아웃 20%(userId%5==0, 안 보냄)로 lift 측정.
+//  개인화: 내 장소 반경 내 최근7일 신규 활성 협찬 N>0이면 "○○ 근처 새 협찬 N건", 아니면 전역 신규 있을 때만 일반 문구.
+async function notifyReengage(db) {
+  if (!serviceAccount()) return { devices: 0, reason: 'no-service-account' };
+  const reHour = Number(process.env.REENGAGE_HOUR || 19);
+  const nowKst = new Date(Date.now() + 9 * 3600 * 1000);
+  const hourKst = nowKst.getUTCHours();
+  const todayInt = Number(nowKst.toISOString().slice(0, 10).replace(/-/g, ''));
+  if (hourKst < reHour) return { devices: 0, reason: 'before-hour' };
+  const st = (await db.execute("SELECT last_max_id FROM scrape_state WHERE platform='push_reengage'")).rows[0];
+  if (Number((st && st.last_max_id) || 0) >= todayInt) return { devices: 0, reason: 'already-sent' };
+
+  try { await db.execute("ALTER TABLE users ADD COLUMN push_event_enabled INTEGER DEFAULT 1"); } catch (e) {}
+  try { await db.execute("CREATE TABLE IF NOT EXISTS push_reengage_log (user_id INTEGER, held_out INTEGER, created_at TEXT)"); } catch (e) {}
+
+  const todayStr = nowKst.toISOString().slice(0, 10);
+  const EXCL = String(process.env.EXCLUDED_USER_IDS || '12').split(',').map(s => Number(s.trim())).filter(Boolean);
+
+  // 최근 7일 신규 활성 협찬(좌표 포함) — 개인화 N·반경 매칭 + 전역 신규수
+  const cands = (await db.execute({
+    sql: `SELECT c.place_id placeId, p.lat lat, p.lng lng
+          FROM campaigns c JOIN places p ON p.id=c.place_id
+          WHERE COALESCE(c.hidden,0)=0 AND COALESCE(p.hidden,0)=0
+            AND (c.deadline='' OR c.deadline IS NULL OR c.deadline >= ?)
+            AND c.created_at >= datetime('now','-7 day')
+            AND p.lat IS NOT NULL AND p.lng IS NOT NULL`,
+    args: [todayStr],
+  })).rows;
+  const globalNew = cands.length;
+
+  // 이탈 band(직전 방문 7~13일 전) + 활성토큰 + event ON + 30일내 미발송 + 운영자 제외
+  const exclSql = EXCL.length ? `AND u.id NOT IN (${EXCL.join(',')})` : '';
+  const targets = (await db.execute(`
+    SELECT u.id userId
+    FROM users u
+    WHERE COALESCE(u.push_event_enabled,1)=1 ${exclSql}
+      AND EXISTS (SELECT 1 FROM push_tokens pt WHERE pt.user_id=u.id AND pt.enabled=1 AND pt.token IS NOT NULL)
+      AND NOT EXISTS (SELECT 1 FROM push_reengage_log rl WHERE rl.user_id=u.id AND rl.created_at > datetime('now','-30 day'))
+      AND (SELECT MAX(visit_date) FROM user_visits uv WHERE uv.user_id=u.id)
+          BETWEEN date('now','+9 hours','-13 day') AND date('now','+9 hours','-7 day')`)).rows;
+
+  let devices = 0, pushed = 0, held = 0, noContent = 0;
+  for (const t of targets) {
+    const userId = t.userId;
+    // 개인화: 내 장소 반경 내 신규 N
+    const ups = (await db.execute({ sql: "SELECT name, lat, lng, radius_km radiusKm FROM user_places WHERE user_id=? AND lat IS NOT NULL", args: [userId] })).rows;
+    let near = 0, nearPlace = null;
+    for (const c of cands) {
+      for (const pl of ups) {
+        if (haversineKm(Number(pl.lat), Number(pl.lng), Number(c.lat), Number(c.lng)) <= Number(pl.radiusKm || 3)) { near++; if (!nearPlace) nearPlace = pl; break; }
+      }
+    }
+    let msg = null;
+    if (nearPlace && near > 0) {
+      msg = { title: `🔔 ${nearPlace.name || '내 장소'} 근처 새 협찬`, body: `그동안 새 협찬 ${near}건이 올라왔어요. 지금 확인해볼까요?`, data: { lat: String(nearPlace.lat), lng: String(nearPlace.lng), kind: 'reengage' } };
+    } else if (globalNew > 0) {
+      msg = { title: `🔔 새 협찬이 쌓였어요`, body: `그동안 네 주변에 새 협찬이 많이 올라왔어요. 지금 확인해볼까요?`, data: { kind: 'reengage' } };
+    }
+    if (!msg) { noContent++; continue; }  // 보낼 새 협찬 없음 → 로그/캡 안 함(다음 기회 유지)
+
+    const holdout = (userId % 5 === 0);   // 20% 홀드아웃(결정적) → lift 측정
+    await db.execute({ sql: "INSERT INTO push_reengage_log (user_id, held_out, created_at) VALUES (?,?,datetime('now'))", args: [userId, holdout ? 1 : 0] });
+    if (holdout) { held++; continue; }
+
+    const toks = (await db.execute({ sql: "SELECT token, platform FROM push_tokens WHERE enabled=1 AND user_id=?", args: [userId] })).rows.filter(r => r.token);
+    if (!toks.length) continue;
+    const r = await sendToDevices(toks, msg);
+    await disableInvalid(db, r.invalid);
+    if (r.sent > 0) { devices++; pushed++; }
+  }
+  await db.execute({ sql: "INSERT OR REPLACE INTO scrape_state (platform, last_max_id, last_run_at) VALUES ('push_reengage', ?, datetime('now'))", args: [todayInt] });
+  return { devices, pushed, held, noContent, targets: targets.length, globalNew };
+}
+
+module.exports = { getAccessToken, sendToTokens, sendApns, sendToDevices, notifyDailyDigest, notifyReengage, serviceAccount };
