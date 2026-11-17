@@ -4493,7 +4493,7 @@ function biRowHtml(it, i) {
     <label class="bi-check"><input type="checkbox"${it._checked ? ' checked' : ''} onchange="biToggleItem(${i}, this.checked)"><span class="bi-check-box"></span></label>
     <div class="bi-row-main">
       <div class="bi-row-titleblock">
-        <div class="bi-row-top"><p class="bi-row-title">${rvEsc(it.title)}</p>${badge}</div>
+        <div class="bi-row-top"><p class="bi-row-title">${rvEsc(it.title)}</p>${badge}<button class="bi-skip-btn" onclick="biSkipItem(${i})" title="이 글 제외(다시 안 뜸)">제외</button></div>
         <p class="bi-row-date">${rvEsc(biFmtDate(it.date))}</p>
       </div>
       ${storeBox}
@@ -4506,6 +4506,17 @@ function biToggleItem(i, checked) {
   const row = document.querySelector('.bi-row[data-i="' + i + '"]');
   if (row) row.classList.toggle('on', !!checked);
   biUpdateCta(); biSyncSelectAll();
+}
+// 글 제외 — 폐점/매칭 불가 등으로 등록 못 하는 글을 목록에서 빼고 서버에 기록(다시 불러와도 안 뜸).
+async function biSkipItem(i) {
+  const it = _biItems[i];
+  if (!it) return;
+  try {
+    await fetch('/api/places?blogimport=skip', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: it.link }) });
+  } catch (e) {}
+  _biItems.splice(i, 1);     // 목록에서 제거
+  biRenderResult();          // 인덱스 재계산 재렌더(빈 목록이면 빈 상태)
+  showToast('이 글을 제외했어요. 다시 불러와도 안 나와요.');
 }
 function biToggleAll() {
   const allOn = _biItems.length && _biItems.every(i => i._checked);

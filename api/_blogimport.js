@@ -137,6 +137,15 @@ async function importList({ db, blogId, existingUrls = new Set(), batch = 30, ma
   let allPlaces = [];
   try { allPlaces = (await db.execute("SELECT id, name, address FROM places WHERE COALESCE(hidden,0)=0")).rows; allPlaces.forEach(p => { p._n = norm(p.name); }); } catch (e) {}
 
+  // 판정 캐시(url별 AI 판정 저장 → 같은 글은 재호출 안 함: 목록 안정 + AI 비용↓) + 사용자 제외(status='skip').
+  //  매칭(matchPlaceInMem)은 캐시 안 하고 매번 live 계산(DB 최신 반영).
+  const vcache = new Map(); const skipSet = new Set();
+  try {
+    await db.execute("CREATE TABLE IF NOT EXISTS blogimport_cache (url TEXT PRIMARY KEY, blog_id TEXT, is_review INTEGER, store TEXT, region TEXT, status TEXT, created_at TEXT)");
+    const cr = (await db.execute({ sql: "SELECT url, is_review, store, region, status FROM blogimport_cache WHERE blog_id=?", args: [blogId] })).rows;
+    for (const r of cr) { vcache.set(r.url, r); if (r.status === 'skip') skipSet.add(r.url); }
+  } catch (e) {}
+
   // 최신부터 페이지 순회하며 미등록 글을 모으되, '비체험단(여행·일상·정보 글)은 AI가 걸러서 건너뛰고'
   //  체험단 후기가 batch개 나올 때까지(또는 블로그 끝/페이지 상한) 더 깊이 스캔한다.
   //  (예전엔 미등록 30개만 모아 AI 1회 → 그 30개가 전부 비체험단이면 빈 결과로 멈춰, 더 과거의 체험단에 '막히던' 문제)
@@ -145,19 +154,31 @@ async function importList({ db, blogId, existingUrls = new Set(), batch = 30, ma
   let reachedEnd = false;
   const CHUNK = 60;           // extractPosts 내부 청크와 동일
 
-  async function flush() {     // buffer를 AI로 판별 → 체험단만 items에 누적(비체험단은 스킵)
+  async function flush() {     // buffer 판별(캐시 재사용, 미캐시만 AI) → 체험단만 items에 누적
     if (!buffer.length || items.length >= batch) return;
     const take = buffer; buffer = [];
-    const ex = await extractPosts(take);
-    const byIdx = {}; (ex || []).forEach(e => { if (e && e.idx != null) byIdx[e.idx] = e; });
+    // 캐시에 없는 글만 AI 호출 → 판정 캐시에 기록(다음 불러오기 땐 재호출 안 함).
+    const uncached = take.filter(p => !vcache.has(p.link));
+    if (uncached.length) {
+      const ex = await extractPosts(uncached);
+      const byIdx = {}; (ex || []).forEach(e => { if (e && e.idx != null) byIdx[e.idx] = e; });
+      const writes = [];
+      uncached.forEach((p, i) => {
+        const e = byIdx[i] || {};
+        const v = { is_review: e.isStoreReview ? 1 : 0, store: e.storeName || '', region: e.region || '', status: null };
+        vcache.set(p.link, v);
+        writes.push({ sql: "INSERT OR REPLACE INTO blogimport_cache (url, blog_id, is_review, store, region, status, created_at) VALUES (?,?,?,?,?,?,datetime('now'))", args: [p.link, blogId, v.is_review, v.store, v.region, null] });
+      });
+      if (writes.length) { try { await db.batch(writes); } catch (e) { for (const w of writes) { try { await db.execute(w); } catch (e2) {} } } }
+    }
     for (let i = 0; i < take.length && items.length < batch; i++) {
-      const e = byIdx[i] || {};
-      if (!e.isStoreReview) continue;                 // 비체험단(관광지/일상/정보 글) 건너뜀
       const p = take[i];
-      const mt = matchPlaceInMem(allPlaces, e.storeName, e.region);
+      const v = vcache.get(p.link) || {};
+      if (!Number(v.is_review)) continue;             // 비체험단(관광지/일상/정보 글) 건너뜀
+      const mt = matchPlaceInMem(allPlaces, v.store, v.region);
       items.push({
         title: p.title, link: p.link, date: p.date,
-        store: e.storeName || '', region: e.region || '',
+        store: v.store || '', region: v.region || '',
         match: mt ? { placeId: mt.placeId, name: mt.name, address: mt.address } : null,
         confidence: mt ? mt.confidence : 'none',       // auto | confirm | none
       });
@@ -166,7 +187,7 @@ async function importList({ db, blogId, existingUrls = new Set(), batch = 30, ma
 
   for (let page = 1; page <= maxPages; page++) {
     const { posts, isLast } = await fetchBlogPage(blogId, page);
-    for (const p of posts) { if (!existingUrls.has(p.link)) buffer.push(p); }
+    for (const p of posts) { if (!existingUrls.has(p.link) && !skipSet.has(p.link)) buffer.push(p); }  // 기등록·사용자제외 글 빼고 버퍼에
     if (buffer.length >= CHUNK) await flush();   // 청크 차면 판별(비체험단 건너뛰며 체험단 누적)
     if (items.length >= batch) break;            // 체험단 batch개 확보 → 충분
     if (isLast) { reachedEnd = true; break; }     // 블로그 끝

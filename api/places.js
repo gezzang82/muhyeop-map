@@ -583,6 +583,18 @@ module.exports = async function handler(req, res) {
       }
       return res.status(200).json({ registered, skipped, failed });
     }
+    // 글 제외(폐점/매칭 불가 등) — 그 글을 blogimport_cache에 status='skip' 기록 → 다시 불러와도 안 뜸.
+    if (req.query.blogimport === 'skip' && req.method === 'POST') {
+      const url = String((req.body && req.body.url) || '').split('?')[0].trim();
+      if (!url) return res.status(400).json({ error: 'url이 필요해요.' });
+      const m = url.match(/blog\.naver\.com\/([^/?#]+)/);
+      const blogId = m ? m[1] : '';
+      try {
+        await db.execute("CREATE TABLE IF NOT EXISTS blogimport_cache (url TEXT PRIMARY KEY, blog_id TEXT, is_review INTEGER, store TEXT, region TEXT, status TEXT, created_at TEXT)");
+        await db.execute({ sql: "INSERT INTO blogimport_cache (url, blog_id, status, created_at) VALUES (?,?,'skip',datetime('now')) ON CONFLICT(url) DO UPDATE SET status='skip'", args: [url, blogId] });
+      } catch (e) { return res.status(500).json({ error: '처리 실패' }); }
+      return res.status(200).json({ ok: true });
+    }
     return res.status(400).json({ error: 'unknown blogimport action' });
   }
 
