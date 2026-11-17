@@ -6320,7 +6320,7 @@ async function loadMyStats(force) {
 
 async function refreshAuthUI() {
   try {
-    const res = await fetch('/api/auth/me?platform=' + detectPlatform());
+    const res = await fetch('/api/auth/me?platform=' + detectPlatform() + '&deviceId=' + encodeURIComponent(getPushDeviceId()));  // deviceId → 로그인 접속 시 그 기기의 고아 FCM 토큰을 내 계정에 귀속(하루요약 도달)
     const data = await res.json();
     currentUser = data.user || null;
   } catch (e) {

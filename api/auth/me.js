@@ -41,6 +41,12 @@ module.exports = async function handler(req, res) {
       await db.execute({ sql: "INSERT INTO user_platforms (user_id, platform, first_seen, last_seen, cnt) VALUES (?, ?, datetime('now'), datetime('now'), 1) ON CONFLICT(user_id, platform) DO UPDATE SET last_seen = datetime('now'), cnt = cnt + 1", args: [session.userId, plat] });
     }
   } catch (e) {}
+  // 고아 FCM 토큰 귀속: 이 기기(deviceId)에 user_id 없이 등록된 토큰을 현재 로그인 유저에게 연결.
+  //  로그아웃 상태로 등록된 토큰은 user_id=NULL → 하루요약 발송 대상에서 빠짐. 로그인 접속마다 여기서 귀속.
+  try {
+    const dev = String(req.query.deviceId || '').slice(0, 64);
+    if (dev) await db.execute({ sql: "UPDATE push_tokens SET user_id = ? WHERE device_id = ? AND user_id IS NULL", args: [session.userId, dev] });
+  } catch (e) {}
 
   const result = await db.execute({ sql: 'SELECT email, url_platform, url_id, profile_image, created_at FROM users WHERE id = ?', args: [session.userId] });
   const row = result.rows[0] || {};
