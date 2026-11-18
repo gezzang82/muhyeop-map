@@ -102,8 +102,15 @@ function matchPlaceInMem(places, storeName, region) {
   //  (예: '동양솥밥'만 추출 → 수원역점이 폐점이라 엉뚱한 '광교엘포트점'에 auto되던 것 방지 → confirm)
   //  단일 매장은 기존대로 부분일치 허용.
   const chain = rows.length > 1;
-  const nameOk = chain ? (place._n === sn || sn.includes(place._n)) : (place._n.includes(sn) || sn.includes(place._n));
+  const nameOk = chain ? chainNameOk(place._n, sn, regHit.length) : (place._n.includes(sn) || sn.includes(place._n));
   return { placeId: place.id, name: place.name, address: place.address, confidence: (regHit.length && nameOk) ? 'auto' : 'confirm' };
+}
+// 체인 매칭 이름 게이트: 질의가 지점명까지 온전히 특정(full)하거나,
+//  질의가 후보에 포함 + 지역이 딱 1곳(regHit===1) + 후보의 '나머지'에 지점('점') 마커 없음(=영문/표기 변형)이면 auto.
+//  'henzy 헨지'(나머지 'henzy'=변형)=auto / '동양솥밥 광교엘포트점'(나머지 '광교엘포트점'=지점)=confirm(보호).
+function chainNameOk(pn, sn, regHitLen) {
+  if (pn === sn || sn.includes(pn)) return true;
+  return pn.includes(sn) && regHitLen === 1 && !/점/.test(pn.replace(sn, ''));
 }
 
 // DB 매칭: 매장명(공백무시 부분일치) 후보 → 지역(주소 포함)으로 좁힘 → 신뢰도 판정.
@@ -121,10 +128,10 @@ async function matchPlace(db, storeName, region) {
   const cand = (regHit.length ? regHit : rows);
   cand.sort((a, b) => (norm(b.name).includes(sn) ? 1 : 0) - (norm(a.name).includes(sn) ? 1 : 0));
   const place = cand[0];
-  // 체인점 보호(matchPlaceInMem과 동일): 체인이면 지점명을 온전히 특정해야 auto, 아니면 confirm.
+  // 체인점 보호(matchPlaceInMem과 동일): 체인이면 chainNameOk(full 특정 OR 지역1곳+변형)만 auto.
   const chain = rows.length > 1;
   const pn = norm(place.name);
-  const nameOk = chain ? (pn === sn || sn.includes(pn)) : (pn.includes(sn) || sn.includes(pn));
+  const nameOk = chain ? chainNameOk(pn, sn, regHit.length) : (pn.includes(sn) || sn.includes(pn));
   return { placeId: place.id, name: place.name, address: place.address, confidence: (regHit.length && nameOk) ? 'auto' : 'confirm' };
 }
 
