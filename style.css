@@ -2307,12 +2307,18 @@ body.fav-mode #pcAppDownload { display: none !important; }
 .rk-month-label { font-size: 20px; font-weight: 500; color: #000; line-height: 21px; }
 /* 시상대 영역 */
 .rk-board { position: relative; z-index: 1; min-height: 346px; margin-top: 18px; }
-.rk-stage { position: relative; width: 390px; height: 346px; margin: 0 auto; }
+/* 390 고정 스테이지를 '프레임 가로 정중앙'에 — 과폭 요소라 margin:0 auto는 좌측에 핀(우측 클립)되므로
+   left:50%+translateX(-50%)로 바디 중앙에 정렬(패딩 무관·모든 폭에서 좌우 대칭). */
+.rk-stage { position: relative; width: 390px; height: 346px; margin: 0; left: 50%; transform: translateX(-50%); }
+/* 단상 블록: 하단을 투명으로 페이드(Figma 73905 mask — bottom ~40px가 크림 배경에 녹아듦).
+   세 블록 바닥이 같은 화면 y에서 페이드되게 블록별 %를 맞춤. */
 .rk-pod { position: absolute; }
 .rk-pod img { display: block; }
 .rk-pod1 { left: 118px; top: 96px; }
+.rk-pod1 img { -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 69%, transparent 87%); mask-image: linear-gradient(to bottom, #000 0, #000 69%, transparent 87%); }
 .rk-pod2 { left: 2px; top: 152px; }
 .rk-pod3 { left: 240px; top: 152px; }
+.rk-pod2 img, .rk-pod3 img { -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 61%, transparent 84%); mask-image: linear-gradient(to bottom, #000 0, #000 61%, transparent 84%); }
 .rk-stars { position: absolute; display: block; }
 .rk-stars1 { left: 167px; top: 149px; width: 56px; height: 18px; }
 .rk-stars2 { left: 48px; top: 198px; width: 54px; height: 18px; }
