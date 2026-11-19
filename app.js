@@ -4987,10 +4987,10 @@ function rkShiftMonth(delta) {
   _rkMonth = next;
   renderReviewKing();
 }
-// profile_image 있으면 이미지, 없으면 회색 원 플레이스홀더(특정 캐릭터 금지)
+// profile_image 있으면 그 이미지, 없으면 앱 표준 기본 프로필(후기 카드·MY 등과 동일 default avatar)
 function rkAvatar(profileImage, cls) {
-  if (profileImage) return `<div class="${cls}"><img src="${rvEsc(profileImage)}" alt="" onerror="this.remove()"></div>`;
-  return `<div class="${cls}"></div>`;
+  const src = profileImage || 'image/img_profile_login.png?v=2';
+  return `<div class="${cls}"><img src="${rvEsc(src)}" alt="" onerror="this.src='image/img_profile_login.png?v=2'"></div>`;
 }
 function rkColHtml(r, cls) {
   return `<div class="rk-col ${cls}">
@@ -5048,10 +5048,32 @@ async function renderReviewKing() {
   if (!items.length) {
     board.innerHTML = '<div class="rk-empty"><p class="rk-empty-title">아직 후기왕이 없어요</p><p class="rk-empty-desc">이 달에 등록된 후기가 아직 없어요.</p></div>';
     list.innerHTML = '';
+    requestAnimationFrame(rkPositionSunburst);
     return;
   }
   board.innerHTML = rkBoardHtml(items.slice(0, 3));
   list.innerHTML = items.slice(3).map(rkRowHtml).join('');
+  requestAnimationFrame(rkPositionSunburst);   // sunburst 원점/회전축을 1위 아바타 정중앙에 정렬
+}
+// sunburst 원점(=회전축=1위 아바타 정중앙)을 실측 위치에 정렬. 클립 중심에 img를 둬 클립 중심=원점=회전축.
+//  빈 상태(아바타 없음)엔 상단 중앙 기본값. 세이프에어리어/화면폭에 무관하게 실측이라 정확.
+function rkPositionSunburst() {
+  const body = document.getElementById('rkBody');
+  const sun = document.getElementById('rkSunburst');
+  if (!body || !sun) return;
+  const ava = body.querySelector('.rk-col1 .rk-ava');
+  const bodyRect = body.getBoundingClientRect();
+  let cx, cy;
+  if (ava) {
+    const r = ava.getBoundingClientRect();
+    cx = (r.left - bodyRect.left) + r.width / 2;
+    cy = (r.top - bodyRect.top) + body.scrollTop + r.height / 2;
+  } else {
+    cx = body.clientWidth / 2; cy = 150;   // 빈 상태 기본
+  }
+  const W = sun.offsetWidth || 440, H = sun.offsetHeight || 560;
+  sun.style.left = Math.round(cx - W / 2) + 'px';
+  sun.style.top = Math.round(cy - H / 2) + 'px';
 }
 
 // 글쓰기 영역: 로그인 + SNS(블로그/인스타) 등록자만. 아니면 안내 CTA.
