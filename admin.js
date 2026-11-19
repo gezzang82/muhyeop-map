@@ -616,13 +616,21 @@ function renderGnbClicks(today, total) {
 }
 
 // 커뮤니티 세그먼트 조회: 수다방/후기/내후기 중 뭘 많이 보나(누적 비율 + 오늘). GNB 탭 집계와 동일 패턴.
-function renderCmSeg(today, total) {
+//  + 보조 라인: '이 달의 후기왕' 팝업 진입 클릭(세그먼트 아님=후기 탭 위 팝업이라 비율엔 미포함, 별도 표기).
+//    operator-only + 운영자 IP 제외라 공개 전까진 0이 정상(공개 후부터 실유저 클릭 집계).
+function renderCmSeg(today, total, rkToday, rkTotal) {
   const el = document.getElementById('cmSegStats');
   if (!el) return;
   today = today || {}; total = total || {};
+  rkToday = Number(rkToday || 0); rkTotal = Number(rkTotal || 0);
   const segs = [['seoichu', '수다방'], ['feed', '후기'], ['myreviews', '내 후기']];
   const totalAll = segs.reduce((s, t) => s + (total[t[0]] || 0), 0);
-  if (!totalAll) { el.innerHTML = '<div class="empty-msg">아직 세그먼트 조회 데이터가 없어요. (배포 이후부터 수집)</div>'; return; }
+  const rkLine = `
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid #eee">
+      <span style="font-size:13px;color:#777">🏆 이 달의 후기왕 팝업 열람</span>
+      <span style="float:right;font-size:13px;color:#39395c;font-weight:600">${rkTotal.toLocaleString()} · 오늘 ${rkToday.toLocaleString()}</span>
+    </div>`;
+  if (!totalAll) { el.innerHTML = '<div class="empty-msg">아직 세그먼트 조회 데이터가 없어요. (배포 이후부터 수집)</div>' + rkLine; return; }
   const max = Math.max(1, ...segs.map(t => total[t[0]] || 0));
   el.innerHTML = segs.map(t => {
     const tot = total[t[0]] || 0, tdy = today[t[0]] || 0, pct = Math.round(tot / totalAll * 100);
@@ -631,21 +639,7 @@ function renderCmSeg(today, total) {
         <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(tot / max * 100)}%;background:#39395c"></div></div>
         <span class="stat-num">${tot.toLocaleString()} <span style="color:#aaa;font-weight:400">(${pct}%)</span> · 오늘 ${tdy}</span>
       </div>`;
-  }).join('');
-}
-
-// 이 달의 후기왕 진입 클릭(누적/오늘, 단일 카운터). GNB 탭 집계와 동일 패턴.
-//  operator-only + 운영자 IP 제외라 공개 전까진 0이 정상(공개 후부터 실유저 클릭 집계).
-function renderReviewKingClicks(today, total) {
-  const el = document.getElementById('rkClicks');
-  if (!el) return;
-  today = Number(today || 0); total = Number(total || 0);
-  if (!total) { el.innerHTML = '<div class="empty-msg">아직 후기왕 클릭 데이터가 없어요. (공개 후부터 수집·운영자 제외)</div>'; return; }
-  el.innerHTML = `<div class="stat-row">
-      <span class="stat-badge" style="background:#39395c1a;color:#39395c">진입 클릭</span>
-      <div class="stat-bar-wrap"><div class="stat-bar" style="width:100%;background:#39395c"></div></div>
-      <span class="stat-num">${total.toLocaleString()} · 오늘 ${today.toLocaleString()}</span>
-    </div>`;
+  }).join('') + rkLine;
 }
 
 // 지도 검색창 사용: 누적/오늘 횟수 + 최근 검색어 태그(최근 100건 내 중복 묶음, 최신순)
@@ -935,8 +929,7 @@ function renderDashboard() {
     renderReferrerDaily(s.referrerDaily || []);
     renderPlatforms(s.todayPlatforms || []);
     renderGnbClicks(s.gnbToday || {}, s.gnbTotal || {});
-    renderCmSeg(s.cmSegToday || {}, s.cmSegTotal || {});
-    renderReviewKingClicks(s.reviewkingToday || 0, s.reviewkingTotal || 0);
+    renderCmSeg(s.cmSegToday || {}, s.cmSegTotal || {}, s.reviewkingToday || 0, s.reviewkingTotal || 0);
     renderSearchStats(s.searchToday || 0, s.searchTotal || 0, s.recentSearches || [], s.searchZeroToday || 0, s.searchZeroTotal || 0, s.recentZeroSearches || []);
     renderAppInstall(s.appInstallToday || {}, s.appInstallTotal || {});
     // 앱 스토어 다운로드(누적) — iOS/Android 둘 다 누적 신규 설치. Android는 활성 기기수도 함께(괄호).

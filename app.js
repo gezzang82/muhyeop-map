@@ -4213,8 +4213,8 @@ function updateCommunitySegUI() {
     if (isMobileView()) { link.hidden = !(_cmSeg === 'feed' && !!currentUser); link.classList.remove('on'); }   // 모바일: 후기탭+로그인(오버레이)
     else { link.hidden = !(!!currentUser && isReview); link.classList.toggle('on', _cmSeg === 'myreviews'); }    // PC: 후기/내후기+로그인, 내후기 보는 중이면 강조
   }
-  // 이 달의 후기왕 진입 링크: 후기 세그먼트 + 운영자 미리보기(공개 전환 시 isOperatorOptimistic() 가드만 제거)
-  const rkLink = document.getElementById('cmReviewKingLink'); if (rkLink) rkLink.hidden = !(_cmSeg === 'feed' && isOperatorOptimistic());
+  // 이 달의 후기왕 진입 링크: 후기 세그먼트에서 전체 공개(2026-11-19, 운영자 미리보기 게이트 해제)
+  const rkLink = document.getElementById('cmReviewKingLink'); if (rkLink) rkLink.hidden = !(_cmSeg === 'feed');
   const fab = document.getElementById('cmWriteFab'); if (fab) fab.hidden = !isReview;        // 후기작성 FAB는 후기/내후기에서
   const top = document.getElementById('cmTopBtn'); if (top && isReview) top.hidden = true;   // 후기 계열에선 탑버튼 안 씀
 }
@@ -4850,8 +4850,8 @@ function cmRefreshAuthChrome() {
   else if (!cur && want) { const tabs = body.querySelector('.cm-region-tabs'); if (tabs) { const d = document.createElement('div'); d.innerHTML = want; tabs.parentNode.insertBefore(d.firstElementChild, tabs); } }
   const link = document.getElementById('cmMyRevLink');   // feed(auth 확정): 모바일·PC 모두 로그인 시 상단 '내 후기' 노출
   if (link) { link.hidden = !currentUser; link.classList.remove('on'); }
-  const rkLink = document.getElementById('cmReviewKingLink');   // auth 확정 후 운영자 판정으로 재토글
-  if (rkLink) rkLink.hidden = !(_cmSeg === 'feed' && isOperator());
+  const rkLink = document.getElementById('cmReviewKingLink');   // 전체 공개(2026-11-19): 후기 세그먼트면 노출
+  if (rkLink) rkLink.hidden = !(_cmSeg === 'feed');
 }
 // 수다방(seoichu): auth 확정 시 리스트는 유지(공개라 재fetch 불필요)하고 compose 영역만 갱신 →
 //  콜드스타트에 수다방이 '통째 재렌더'돼 로딩 스피너가 2번 돌던 문제 방지.
