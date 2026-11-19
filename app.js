@@ -3779,6 +3779,7 @@ let _favMode = false; // PC 즐겨찾기 모드(지도·사이드바를 내 즐�
 let _favLoading = false;
 let _preFavView = null; // 즐겨찾기 진입 직전 지도 뷰(center/zoom) — 나갈 때 복원(전국 줌아웃 유지+버벅임 방지)
 let _favBusy = new Set(); // 토글 처리 중인 placeId(연타/경합 방지 잠금)
+let _favMergedPlaceIds = new Set(); // 즐겨찾기 모드에서 places에 새로 push한 매장id(종료/죽은 매장 포함) — 홈 복귀 시 언머지
 
 function _favEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function isFavorited(placeId) { return _favorites.has(Number(placeId)); }
@@ -3921,6 +3922,7 @@ function _mergeFavIntoPlaces() {
     const pid = Number(f.placeId);
     if (!places.find(p => p.id === pid)) {
       places.push({ id: pid, name: f.name, address: f.address, category: f.category || '', lat: f.lat, lng: f.lng, hasReview: (f.reviewCount || 0) > 0 });
+      _favMergedPlaceIds.add(pid); // 홈 복귀 시 걷어낼 후보(원래 places엔 없던=활성/후기 아닌 종료 매장)
     }
     (f.campaigns || []).forEach(c => {
       if (!_loadedCampaignIds.has(c.id)) { _loadedCampaignIds.add(c.id); campaigns.push(c); }
@@ -4004,6 +4006,16 @@ function exitFavMode() {
   // 진입 직전 뷰로 복원 → 홈이 전국 줌아웃 상태로 뜨며 2만 매장 클러스터링으로 버벅이던 것 방지.
   if (_preFavView && map) { try { map.setCenter(new naver.maps.LatLng(_preFavView.lat, _preFavView.lng)); map.setZoom(_preFavView.zoom); } catch (e) {} }
   _preFavView = null;
+  // 즐겨찾기로 끌어온 매장 중 '홈 자격 없는 것'(활성 캠페인·후기 모두 없는 종료/죽은 매장)을 홈 복귀 시 제거.
+  //  places 불변식='활성 캠페인 OR 후기'를 복원 → 안 하면 종료된 즐겨찾기 매장이 홈 지도에 핀으로 남음(renderMarkers 홈 분기가
+  //  채널필터 '전체'일 때 hasActiveCampaign 검사를 단락시켜 불변식에 의존하기 때문). 후기/활성 있는 즐겨찾기는 홈 콘텐츠라 유지.
+  //  재진입 때 _mergeFavIntoPlaces가 _favItems에서 다시 병합하므로 제거해도 안전.
+  if (_favMergedPlaceIds.size) {
+    const drop = new Set();
+    _favMergedPlaceIds.forEach(id => { const p = places.find(pp => pp.id === id); if (p && !p.hasReview && !hasActiveCampaign(id)) drop.add(id); });
+    if (drop.size) { for (let i = places.length - 1; i >= 0; i--) if (drop.has(places[i].id)) places.splice(i, 1); }
+    _favMergedPlaceIds.clear();
+  }
   renderMarkers(); renderSidebar();
 }
 
