@@ -600,6 +600,10 @@ module.exports = async function handler(req, res) {
         const kst = new Date(Date.now() + 9 * 3600 * 1000);   // 기본: 이번 달(KST)
         month = kst.getUTCFullYear() + '-' + String(kst.getUTCMonth() + 1).padStart(2, '0');
       }
+      if (month < '2026-11') {   // 서비스 시작월(2026-11) 이전은 노출 안 함(클라 월네비 하한과 동일)
+        res.setHeader('Cache-Control', 'public, s-maxage=3600');
+        return res.status(200).json([]);
+      }
       let rows = [];
       try {
         rows = (await db.execute({

@@ -4959,6 +4959,7 @@ function setMyRevSort(s) {
 // API: GET /api/users?leaderboard=reviews&month=YYYY-MM → [{rank,userId,nickname,profileImage,count}] 상위 10.
 let _rkMonth = '';       // 현재 보는 월 'YYYY-MM'
 let _rkLoadSeq = 0;
+const RK_START_MONTH = '2026-11';   // 서비스 시작 월 — 이전 달로는 못 내려감(월네비 하한)
 function rkCurrentMonth() {
   const k = new Date(Date.now() + 9 * 3600 * 1000);  // KST
   return k.getUTCFullYear() + '-' + String(k.getUTCMonth() + 1).padStart(2, '0');
@@ -4979,11 +4980,12 @@ function closeReviewKing() {
   closeSheetSlide('reviewKingOverlay', () => resetModalScroll('reviewKingOverlay'));
 }
 function rkShiftMonth(delta) {
-  // -1 이전달 / +1 다음달. 미래달로는 못 감(현재월이 상한).
+  // -1 이전달 / +1 다음달. 상한=현재월(미래 X), 하한=서비스 시작월 2026-11(이전 X).
   const p = _rkMonth.split('-').map(Number);
   const d = new Date(Date.UTC(p[0], p[1] - 1 + delta, 1));
   const next = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
-  if (next > rkCurrentMonth()) return;
+  if (next > rkCurrentMonth()) return;   // 미래 차단
+  if (next < RK_START_MONTH) return;     // 서비스 시작 이전 차단
   _rkMonth = next;
   renderReviewKing();
 }
@@ -5034,9 +5036,11 @@ async function renderReviewKing() {
   const list = document.getElementById('rkList');
   const label = document.getElementById('rkMonthLabel');
   const nextBtn = document.getElementById('rkNavNext');
+  const prevBtn = document.getElementById('rkNavPrev');
   if (!board || !list) return;
   if (label) label.textContent = rkMonthLabel(_rkMonth);
   if (nextBtn) { const atCur = _rkMonth >= rkCurrentMonth(); nextBtn.classList.toggle('rk-nav-disabled', atCur); nextBtn.disabled = atCur; }
+  if (prevBtn) { const atStart = _rkMonth <= RK_START_MONTH; prevBtn.classList.toggle('rk-nav-disabled', atStart); prevBtn.disabled = atStart; }  // 2026-11 하한
   const seq = ++_rkLoadSeq;
   board.innerHTML = cmCenterSpinner();
   list.innerHTML = '';
