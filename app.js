@@ -4208,6 +4208,8 @@ function updateCommunitySegUI() {
   const myRev = document.querySelector('#cmSeg .cm-seg-myrev');
   if (myRev) { myRev.hidden = !(currentUser && isReview); myRev.classList.toggle('on', _cmSeg === 'myreviews'); }  // PC 우측 링크: 로그인+후기계열, 내후기 보는 중이면 강조
   const link = document.getElementById('cmMyRevLink'); if (link) link.hidden = !(_cmSeg === 'feed' && isMobileView() && !!currentUser);  // 모바일 링크: 후기탭+로그인만
+  // 이 달의 후기왕 진입 링크: 후기 세그먼트 + 운영자 미리보기(공개 전환 시 isOperatorOptimistic() 가드만 제거)
+  const rkLink = document.getElementById('cmReviewKingLink'); if (rkLink) rkLink.hidden = !(_cmSeg === 'feed' && isOperatorOptimistic());
   const fab = document.getElementById('cmWriteFab'); if (fab) fab.hidden = !isReview;        // 후기작성 FAB는 후기/내후기에서
   const top = document.getElementById('cmTopBtn'); if (top && isReview) top.hidden = true;   // 후기 계열에선 탑버튼 안 씀
 }
@@ -4843,6 +4845,8 @@ function cmRefreshAuthChrome() {
   else if (!cur && want) { const tabs = body.querySelector('.cm-region-tabs'); if (tabs) { const d = document.createElement('div'); d.innerHTML = want; tabs.parentNode.insertBefore(d.firstElementChild, tabs); } }
   const link = document.getElementById('cmMyRevLink');
   if (link) link.hidden = !(isMobileView() && !!currentUser);
+  const rkLink = document.getElementById('cmReviewKingLink');   // auth 확정 후 운영자 판정으로 재토글
+  if (rkLink) rkLink.hidden = !(_cmSeg === 'feed' && isOperator());
 }
 // 수다방(seoichu): auth 확정 시 리스트는 유지(공개라 재fetch 불필요)하고 compose 영역만 갱신 →
 //  콜드스타트에 수다방이 '통째 재렌더'돼 로딩 스피너가 2번 돌던 문제 방지.
@@ -4948,6 +4952,106 @@ function setMyRevSort(s) {
   if (s === _myRevSort) return;
   _myRevSort = s;
   renderMyReviews();
+}
+
+// ===== 이 달의 후기왕(월간 후기 랭킹) — 운영자 미리보기(공개 전). Figma 2175-73905 =====
+// 공개 전환: 진입 링크(updateCommunitySegUI/cmRefreshAuthChrome의 isOperator 가드)만 풀면 전체 공개.
+// API: GET /api/users?leaderboard=reviews&month=YYYY-MM → [{rank,userId,nickname,profileImage,count}] 상위 10.
+let _rkMonth = '';       // 현재 보는 월 'YYYY-MM'
+let _rkLoadSeq = 0;
+function rkCurrentMonth() {
+  const k = new Date(Date.now() + 9 * 3600 * 1000);  // KST
+  return k.getUTCFullYear() + '-' + String(k.getUTCMonth() + 1).padStart(2, '0');
+}
+function rkMonthLabel(ym) { const p = ym.split('-'); return p[0] + '. ' + p[1]; }
+function openReviewKing() {
+  _rkMonth = rkCurrentMonth();
+  const ov = document.getElementById('reviewKingOverlay');
+  if (!ov) return;
+  syncMobileModalHeader('#reviewKingOverlay');
+  bindMobileScrollHeader('rkBody', 'rkScrollHeader', 'rkStickyHeader');
+  const sticky = document.getElementById('rkStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('rkBody'); if (body) body.scrollTop = 0;
+  ov.classList.add('open');
+  renderReviewKing();
+}
+function closeReviewKing() {
+  closeSheetSlide('reviewKingOverlay', () => resetModalScroll('reviewKingOverlay'));
+}
+function rkShiftMonth(delta) {
+  // -1 이전달 / +1 다음달. 미래달로는 못 감(현재월이 상한).
+  const p = _rkMonth.split('-').map(Number);
+  const d = new Date(Date.UTC(p[0], p[1] - 1 + delta, 1));
+  const next = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+  if (next > rkCurrentMonth()) return;
+  _rkMonth = next;
+  renderReviewKing();
+}
+// profile_image 있으면 이미지, 없으면 회색 원 플레이스홀더(특정 캐릭터 금지)
+function rkAvatar(profileImage, cls) {
+  if (profileImage) return `<div class="${cls}"><img src="${rvEsc(profileImage)}" alt="" onerror="this.remove()"></div>`;
+  return `<div class="${cls}"></div>`;
+}
+function rkColHtml(r, cls) {
+  return `<div class="rk-col ${cls}">
+    <div class="rk-ava-wrap">${rkAvatar(r.profileImage, 'rk-ava')}<img class="rk-ava-badge" src="image/rk_avatar_star.svg" width="18" height="18" alt=""></div>
+    <div class="rk-col-text">
+      <p class="rk-col-name">${rvEsc(r.nickname)}</p>
+      <p class="rk-col-count">${Number(r.count).toLocaleString()}건</p>
+    </div>
+  </div>`;
+}
+function rkBoardHtml(top3) {
+  const r1 = top3[0], r2 = top3[1], r3 = top3[2];
+  return `<div class="rk-stage">
+    ${r2 ? '<div class="rk-pod rk-pod2"><img src="image/rk_podium_2.svg" width="148" height="176" alt=""></div>' : ''}
+    ${r3 ? '<div class="rk-pod rk-pod3"><img src="image/rk_podium_3.svg" width="148" height="176" alt=""></div>' : ''}
+    <div class="rk-pod rk-pod1"><img src="image/rk_podium_1.svg" width="154" height="232" alt=""></div>
+    ${r2 ? '<img class="rk-stars rk-stars2" src="image/rk_stars_23.svg" width="54" height="18" alt="">' : ''}
+    ${r3 ? '<img class="rk-stars rk-stars3" src="image/rk_stars_23.svg" width="54" height="18" alt="">' : ''}
+    <img class="rk-stars rk-stars1" src="image/rk_stars_1.svg" width="56" height="18" alt="">
+    <div class="rk-num rk-num1">1</div>
+    ${r2 ? '<div class="rk-num rk-num2">2</div>' : ''}
+    ${r3 ? '<div class="rk-num rk-num3">3</div>' : ''}
+    ${rkColHtml(r1, 'rk-col1')}
+    ${r2 ? rkColHtml(r2, 'rk-col2') : ''}
+    ${r3 ? rkColHtml(r3, 'rk-col3') : ''}
+    <div class="rk-updated"><img src="image/ic_refresh_24.svg" width="16" height="16" alt="">방금 업데이트</div>
+  </div>`;
+}
+function rkRowHtml(r) {
+  return `<div class="rk-row">
+    <div class="rk-row-lead">
+      <div class="rk-row-rank"><img src="image/ic_trophy_16.svg" width="16" height="16" alt=""><span>${r.rank}</span></div>
+      ${rkAvatar(r.profileImage, 'rk-row-ava')}
+    </div>
+    <p class="rk-row-name">${rvEsc(r.nickname)}</p>
+    <p class="rk-row-count">${Number(r.count).toLocaleString()}건</p>
+  </div>`;
+}
+async function renderReviewKing() {
+  const board = document.getElementById('rkBoard');
+  const list = document.getElementById('rkList');
+  const label = document.getElementById('rkMonthLabel');
+  const nextBtn = document.getElementById('rkNavNext');
+  if (!board || !list) return;
+  if (label) label.textContent = rkMonthLabel(_rkMonth);
+  if (nextBtn) { const atCur = _rkMonth >= rkCurrentMonth(); nextBtn.classList.toggle('rk-nav-disabled', atCur); nextBtn.disabled = atCur; }
+  const seq = ++_rkLoadSeq;
+  board.innerHTML = cmCenterSpinner();
+  list.innerHTML = '';
+  let items = [];
+  try { items = await fetch(`/api/users?leaderboard=reviews&month=${_rkMonth}`).then(r => r.ok ? r.json() : []); }
+  catch (e) { items = []; }
+  if (seq !== _rkLoadSeq) return;   // stale(월 전환 연타)
+  if (!Array.isArray(items)) items = [];
+  if (!items.length) {
+    board.innerHTML = '<div class="rk-empty"><p class="rk-empty-title">아직 후기왕이 없어요</p><p class="rk-empty-desc">이 달에 등록된 후기가 아직 없어요.</p></div>';
+    list.innerHTML = '';
+    return;
+  }
+  board.innerHTML = rkBoardHtml(items.slice(0, 3));
+  list.innerHTML = items.slice(3).map(rkRowHtml).join('');
 }
 
 // 글쓰기 영역: 로그인 + SNS(블로그/인스타) 등록자만. 아니면 안내 CTA.

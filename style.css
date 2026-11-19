@@ -1700,6 +1700,7 @@ body.fav-mode #pcAppDownload { display: none !important; }
   #profileOverlay.open > .modal, #reportOverlay.open > .modal, #alarmOverlay.open > .modal,
   #noticeOverlay.open > .modal, #noticeDetailOverlay.open > .modal, #policyOverlay.open > .modal,
   #aboutOverlay.open > .modal, #myReviewsOverlay.open > .modal, #myReviewsOverlay.sheet-closing > .modal,
+  #reviewKingOverlay.open > .modal, #reviewKingOverlay.sheet-closing > .modal,
   .ml-setting-overlay:not([hidden]), .ml-setting-overlay.mlset-closing,
   .login-overlay.open > .modal, .login-overlay.sheet-closing > .modal { animation: none !important; }
 }
@@ -2275,6 +2276,71 @@ body.fav-mode #pcAppDownload { display: none !important; }
 .blogimport-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
 /* 내 후기: 커뮤니티와 동일 배경(카드 사이 여백이 회색으로). sticky 헤더는 커뮤니티처럼 흰색 유지 */
 .myrev-modal { background: #f7f9fa; }
+
+/* ===== 이 달의 후기왕(월간 후기 랭킹) — Figma 2175-73905 ===== */
+/* 진입 링크(커뮤니티 후기 세그먼트 우측, 운영자 미리보기) */
+.cm-rk-link { margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; font-family: inherit; font-size: 16px; color: #000; cursor: pointer; }
+.cm-rk-link[hidden] { display: none; }
+.cm-rk-link img { width: 24px; height: 24px; display: block; }
+
+.rk-modal { background: #f7f9fa; }
+.rk-modal .modal-body { position: relative; padding: 0 0 calc(24px + env(safe-area-inset-bottom)); gap: 0; background: #f7f9fa; overflow-x: hidden; }
+.rk-modal .modal-scroll-header { gap: 12px; padding: 40px 20px 0; position: relative; z-index: 2; }
+.rk-modal .modal-scroll-header h2 { flex: 1; min-width: 0; }
+.native-app .rk-modal .modal-scroll-header { padding-top: calc(40px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
+/* 1등 중심 방사형 sunburst — 화면 최상단(헤더 뒤)까지 연결 */
+.rk-sunburst { position: absolute; top: 10px; left: 50%; transform: translateX(-195px); width: 390px; height: 500px; overflow: hidden; z-index: 0; pointer-events: none; }
+.rk-sunburst img { position: absolute; left: -105px; top: -106px; width: 600px; height: 600px; display: block; }
+/* 월 네비 < 2026. 11 > */
+.rk-monthnav { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 24px; padding: 32px 0 8px; }
+.rk-nav { flex-shrink: 0; width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; }
+.rk-nav img { width: 24px; height: 24px; display: block; }
+.rk-nav.rk-nav-disabled { opacity: 0.3; cursor: default; }
+.rk-month-label { font-size: 20px; font-weight: 500; color: #000; line-height: 21px; }
+/* 시상대 영역 */
+.rk-board { position: relative; z-index: 1; min-height: 346px; margin-top: 18px; }
+.rk-stage { position: relative; width: 390px; height: 346px; margin: 0 auto; }
+.rk-pod { position: absolute; }
+.rk-pod img { display: block; }
+.rk-pod1 { left: 118px; top: 96px; }
+.rk-pod2 { left: 2px; top: 152px; }
+.rk-pod3 { left: 240px; top: 152px; }
+.rk-stars { position: absolute; display: block; }
+.rk-stars1 { left: 167px; top: 149px; width: 56px; height: 18px; }
+.rk-stars2 { left: 48px; top: 198px; width: 54px; height: 18px; }
+.rk-stars3 { left: 288px; top: 198px; width: 54px; height: 18px; }
+.rk-num { position: absolute; transform: translateX(-50%); font-weight: 700; color: #fff; text-align: center; line-height: 1; text-shadow: 0 2px 3px rgba(140,102,13,0.22); }
+.rk-num1 { left: 195px; top: 158px; font-size: 62px; }
+.rk-num2 { left: 75px; top: 204px; font-size: 48px; }
+.rk-num3 { left: 315px; top: 205px; font-size: 48px; }
+.rk-col { position: absolute; width: 100px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.rk-col1 { left: 145px; top: -2px; }
+.rk-col2 { left: 25px; top: 54px; }
+.rk-col3 { left: 265px; top: 54px; }
+.rk-ava-wrap { position: relative; }
+.rk-ava { width: 56px; height: 56px; border-radius: 24px; background: #d9d9d9; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.08); overflow: hidden; }
+.rk-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rk-ava-badge { position: absolute; top: -5px; left: 50%; transform: translateX(-50%); width: 18px; height: 18px; }
+.rk-col-text { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.rk-col-name { font-size: 14px; color: #000; line-height: normal; white-space: nowrap; }
+.rk-col-count { font-size: 16px; font-weight: 700; color: #000; line-height: normal; white-space: nowrap; }
+.rk-updated { position: absolute; left: 0; right: 0; top: 322px; display: flex; gap: 2px; align-items: center; justify-content: center; color: #999; font-size: 13px; }
+.rk-updated img { width: 16px; height: 16px; display: block; }
+/* 4~10위 랭킹 리스트 */
+.rk-list { position: relative; z-index: 1; max-width: 390px; margin: 0 auto; padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+.rk-row { display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 20px; background: #fff; border: 1px solid #ededed; border-radius: 14px; box-shadow: 0 3px 8px rgba(102,89,26,0.06); }
+.rk-row-lead { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.rk-row-rank { display: flex; align-items: center; gap: 4px; width: 40px; }
+.rk-row-rank img { width: 16px; height: 16px; display: block; }
+.rk-row-rank span { font-size: 16px; font-weight: 700; color: #404040; }
+.rk-row-ava { width: 40px; height: 40px; border-radius: 16px; background: #dbdbdb; overflow: hidden; flex-shrink: 0; }
+.rk-row-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rk-row-name { flex: 1; min-width: 0; font-size: 15px; color: #212121; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-row-count { font-size: 15px; font-weight: 700; color: #212121; text-align: right; white-space: nowrap; }
+/* 빈 상태 */
+.rk-empty { padding: 48px 20px; text-align: center; }
+.rk-empty-title { font-size: 17px; font-weight: 700; color: #333; margin-bottom: 8px; }
+.rk-empty-desc { font-size: 14px; color: #888; }
 /* 정책: 푸터(닫기) 제거 → 본문 하단 여백 축소 */
 .policy-modal .modal-body { padding-bottom: calc(32px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }
 /* 무협맵 소개: 헤더 [back][무협맵 소개] + 푸터(닫기) 제거 */
@@ -3381,14 +3447,14 @@ body.pc-about-mode #aboutOverlay .intro-legal li { font-size: 14px; }
   .modal-header { padding-top: max(40px, env(safe-area-inset-top, 40px)); }
   .modal-overlay { align-items: stretch; }
   /* back 버튼 서브화면: 전체화면 시트가 우측에서 밀려 들어오고(push), 뒤 화면은 약간 dim */
-  #profileOverlay, #reportOverlay, #alarmOverlay, #noticeOverlay, #noticeDetailOverlay, #policyOverlay, #aboutOverlay, #myReviewsOverlay { background: rgba(0,0,0,0.3); }
+  #profileOverlay, #reportOverlay, #alarmOverlay, #noticeOverlay, #noticeDetailOverlay, #policyOverlay, #aboutOverlay, #myReviewsOverlay, #reviewKingOverlay { background: rgba(0,0,0,0.3); }
   #profileOverlay.open > .modal, #reportOverlay.open > .modal, #alarmOverlay.open > .modal,
   #noticeOverlay.open > .modal, #noticeDetailOverlay.open > .modal, #policyOverlay.open > .modal,
-  #aboutOverlay.open > .modal, #myReviewsOverlay.open > .modal { animation: sheetSlideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
+  #aboutOverlay.open > .modal, #myReviewsOverlay.open > .modal, #reviewKingOverlay.open > .modal { animation: sheetSlideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
   /* 닫기(back): 우측으로 슬라이드 아웃 (JS가 sheet-closing 부여 후 250ms 뒤 open 제거) */
   #profileOverlay.sheet-closing > .modal, #reportOverlay.sheet-closing > .modal, #alarmOverlay.sheet-closing > .modal,
   #noticeOverlay.sheet-closing > .modal, #noticeDetailOverlay.sheet-closing > .modal, #policyOverlay.sheet-closing > .modal,
-  #aboutOverlay.sheet-closing > .modal, #myReviewsOverlay.sheet-closing > .modal { animation: sheetSlideOut 0.24s cubic-bezier(0.4, 0, 1, 1) forwards; }
+  #aboutOverlay.sheet-closing > .modal, #myReviewsOverlay.sheet-closing > .modal, #reviewKingOverlay.sheet-closing > .modal { animation: sheetSlideOut 0.24s cubic-bezier(0.4, 0, 1, 1) forwards; }
   /* 내 장소 설정(집/회사/여행지): 동일 슬라이드 인/아웃 (mlSettingOverlay는 hidden 토글) */
   .ml-setting-overlay:not([hidden]) { animation: sheetSlideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
   .ml-setting-overlay.mlset-closing { animation: sheetSlideOut 0.24s cubic-bezier(0.4, 0, 1, 1) forwards; }

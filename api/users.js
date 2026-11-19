@@ -593,6 +593,35 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.query.leaderboard) {
+    // 이 달의 후기왕 — 월별(KST) 후기 등록 수 랭킹 TOP10 (공개, PII 최소: 닉네임·프로필이미지만)
+    if (req.query.leaderboard === 'reviews') {
+      let month = String(req.query.month || '').trim();
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        const kst = new Date(Date.now() + 9 * 3600 * 1000);   // 기본: 이번 달(KST)
+        month = kst.getUTCFullYear() + '-' + String(kst.getUTCMonth() + 1).padStart(2, '0');
+      }
+      let rows = [];
+      try {
+        rows = (await db.execute({
+          sql: `SELECT u.id AS user_id, u.nickname AS nickname, u.profile_image AS profile_image, COUNT(*) AS count
+                FROM reviews r JOIN users u ON u.id = r.user_id
+                WHERE r.user_id IS NOT NULL AND COALESCE(r.hidden,0)=0
+                  AND strftime('%Y-%m', r.created_at, '+9 hours') = ?
+                GROUP BY r.user_id
+                ORDER BY count DESC, MIN(r.created_at) ASC
+                LIMIT 10`,
+          args: [month]
+        })).rows;
+      } catch (e) { rows = []; }
+      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1800');
+      return res.status(200).json(rows.map((x, i) => ({
+        rank: i + 1,
+        userId: x.user_id,
+        nickname: x.nickname || '익명',
+        profileImage: x.profile_image || '',
+        count: Number(x.count) || 0
+      })));
+    }
     const result = await db.execute(`
       SELECT u.nickname AS nickname, COUNT(*) AS count
       FROM places p
