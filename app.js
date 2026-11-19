@@ -377,7 +377,9 @@ function getGrayPinSelected(cat, foodSubtype) {
 // → 캠페인 bbox 로드 전에도 컬러로 그려 '회색→컬러' 깜빡임 제거(화면 이동 시). 후기 매장만 로드 후 컬러 확정.
 function getPlacePin(place, selected) {
   // 채널 필터 중엔 실제 활성(그 채널)만 컬러 — '후기없음=활성' 지름길은 미필터(전체)일 때만(깜빡임 방지용).
-  const active = hasActiveCampaign(place.id) || (currentChannelFilter === '전체' && place.hasReview === false);
+  //  즐겨찾기 모드(_favMode)에선 이 지름길 제외: 즐겨찾기는 merge로 활성 캠페인을 이미 다 확보하므로
+  //  타일 로드 대기가 없고, 마감된 즐겨찾기 매장(후기 없고 활성 없음)이 지름길에 걸려 컬러핀이 되던 것 방지(= 마감=회색핀).
+  const active = hasActiveCampaign(place.id) || (!_favMode && currentChannelFilter === '전체' && place.hasReview === false);
   const fs = place.foodSubtype || '';
   if (selected) return active ? getCategoryPinSelected(place.category, fs) : getGrayPinSelected(place.category, fs);
   return active ? getCategoryPin(place.category, fs) : getGrayPin(place.category, fs);
