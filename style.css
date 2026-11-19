@@ -2305,9 +2305,9 @@ body.fav-mode #pcAppDownload { display: none !important; }
   clip-path: polygon(50% 0%, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0% 50%, 42% 42%);
   animation: cm-rk-sparkle 2.6s ease-in-out infinite;
 }
-.cm-rk-spark1 { top: -2px; right: -3px; width: 5px; height: 5px; animation-delay: 0s; }
-.cm-rk-spark2 { top: 3px; left: -4px; width: 4px; height: 4px; background: #FFD66B; animation-delay: 0.12s; }
-.cm-rk-spark3 { bottom: -1px; right: 3px; width: 4px; height: 4px; animation-delay: 0.24s; }
+.cm-rk-spark1 { top: -5px; right: -6px; width: 11px; height: 11px; animation-delay: 0s; }
+.cm-rk-spark2 { top: 0; left: -7px; width: 8px; height: 8px; background: #FFD66B; animation-delay: 0.12s; }
+.cm-rk-spark3 { bottom: -5px; right: 1px; width: 9px; height: 9px; animation-delay: 0.24s; }
 @keyframes cm-rk-sparkle {
   0%, 78% { opacity: 0; transform: scale(0.2); }   /* shine sweep(62~82%) 지날 동안 숨김 */
   87% { opacity: 1; transform: scale(1); }           /* 반짝 등장 */
@@ -2375,7 +2375,9 @@ body.fav-mode #pcAppDownload { display: none !important; }
 .rk-col-name { font-size: 14px; color: #000; line-height: normal; white-space: nowrap; }
 .rk-col-count { font-size: 16px; font-weight: 700; color: #000; line-height: normal; white-space: nowrap; }
 .rk-updated { position: absolute; left: 0; right: 0; top: 322px; display: flex; gap: 2px; align-items: center; justify-content: center; color: #999; font-size: 13px; }
-.rk-updated img { width: 16px; height: 16px; display: block; }
+/* 새로고침 아이콘 = 텍스트색(currentColor=#999)과 동일하게 — mask로 재색 */
+.rk-updated-ico { flex-shrink: 0; width: 16px; height: 16px; display: block; background: currentColor;
+  -webkit-mask: url(image/ic_refresh_24.svg) center / 16px 16px no-repeat; mask: url(image/ic_refresh_24.svg) center / 16px 16px no-repeat; }
 /* 4~10위 랭킹 리스트 — Figma: 폭 350(390 프레임 내 좌우 20 마진), 행 간격 10 */
 .rk-list { position: relative; z-index: 1; width: 100%; max-width: 350px; margin: 12px auto 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .rk-row { display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 20px; background: #fff; border: 1px solid #ededed; border-radius: 14px; box-shadow: 0 3px 8px rgba(102,89,26,0.06); }
@@ -2397,12 +2399,15 @@ body.fav-mode #pcAppDownload { display: none !important; }
 /* PC(hover/pointer): 후기왕 = 중앙 카드. 헤더는 간편로그인 모달(Figma 1178-11593/12354)처럼 **중앙 타이틀 + 우상단 X**, back 없음.
    sunburst는 카드 폭(390 초과) 전체를 덮게 확대. 모바일(좌측 back+좌측 타이틀, 390 sunburst)은 불변. */
 @media (hover: hover) and (pointer: fine) {
+  /* 카드 폭 축소: 간편로그인(320)은 390 시상대가 안 들어가 찌그러지므로, 시상대(390)+소폭 여백만 남게 410px로.
+     (좌우 여백이 480→410로 줄되 podium·list는 안 깨짐) */
+  .modal.rk-modal { width: 410px; }
   .rk-modal .mlset-back { display: none; }                               /* back(chevron) 숨김 */
-  .rk-modal .modal-scroll-header h2 { text-align: center; }              /* 타이틀 중앙 정렬 */
-  .rk-close { display: flex; position: absolute; top: 20px; right: 18px; z-index: 10; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; cursor: pointer; align-items: center; justify-content: center; }
-  /* 카드가 390보다 넓어 좌우 빈 공간이 생기던 것 → 클립·패턴을 키워 카드 폭 전체를 덮음(1위 아바타 중심 유지, rkPositionSunburst가 offsetW/H로 재정렬) */
-  .rk-sunburst { width: 680px; height: 720px; }
-  .rk-sunburst img { width: 1200px; height: 1200px; left: -260px; top: -240px; }
+  .rk-modal .modal-scroll-header h2 { font-size: 18px; font-weight: 600; text-align: center; }  /* Figma 12354: 18px SemiBold 중앙 */
+  .rk-close { display: flex; position: absolute; top: 18px; right: 16px; z-index: 10; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; cursor: pointer; align-items: center; justify-content: center; }
+  /* sunburst를 축소한 카드 폭(410)에 맞춰 스케일(1위 아바타 중심·좌우 꽉 참 유지, rkPositionSunburst가 offsetW/H로 재정렬) */
+  .rk-sunburst { width: 560px; height: 600px; }
+  .rk-sunburst img { width: 1000px; height: 1000px; left: -220px; top: -200px; }
 }
 /* 정책: 푸터(닫기) 제거 → 본문 하단 여백 축소 */
 .policy-modal .modal-body { padding-bottom: calc(32px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }

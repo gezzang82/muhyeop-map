@@ -5029,7 +5029,7 @@ function rkBoardHtml(top3) {
     ${rkColHtml(r1, 'rk-col1')}
     ${r2 ? rkColHtml(r2, 'rk-col2') : ''}
     ${r3 ? rkColHtml(r3, 'rk-col3') : ''}
-    <div class="rk-updated"><img src="image/ic_refresh_24.svg" width="16" height="16" alt="">방금 업데이트</div>
+    <div class="rk-updated"><span class="rk-updated-ico"></span>방금 업데이트</div>
   </div>`;
 }
 function rkRowHtml(r) {
