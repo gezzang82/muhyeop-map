@@ -39,6 +39,8 @@ async function ensureSiteVisitTables(db) {
   await db.execute("CREATE TABLE IF NOT EXISTS gnb_daily (visit_date TEXT NOT NULL, tab TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, tab))");
   // 커뮤니티 세그먼트 조회 일자 집계(수다방/후기/내후기) — 커뮤니티 안에서 뭘 많이 보나(setCommunitySeg·openCommunity에서 ?visit=cmseg&seg=).
   await db.execute("CREATE TABLE IF NOT EXISTS cmseg_daily (visit_date TEXT NOT NULL, seg TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, seg))");
+  // 이 달의 후기왕 진입 클릭 일자 집계 — 후기 탭 '이 달의 후기왕' 링크 클릭수(openReviewKing에서 ?visit=reviewking).
+  await db.execute("CREATE TABLE IF NOT EXISTS reviewking_daily (visit_date TEXT PRIMARY KEY, cnt INTEGER DEFAULT 0)");
   await db.execute("CREATE TABLE IF NOT EXISTS app_install_daily (visit_date TEXT NOT NULL, action TEXT NOT NULL, cnt INTEGER DEFAULT 0, PRIMARY KEY(visit_date, action))"); // 모바일웹 앱 설치 팝업(show=노출/install=다운로드탭)
   // 지도 검색창 사용 집계 — 일별 검색 횟수 + 최근 검색어 로그(어드민: 얼마나 쓰나 + 뭘 검색하나 태그)
   await db.execute("CREATE TABLE IF NOT EXISTS search_daily (visit_date TEXT PRIMARY KEY, cnt INTEGER DEFAULT 0)");
@@ -303,6 +305,17 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    // 이 달의 후기왕 진입 클릭 기록: POST ?visit=reviewking (openReviewKing에서 fire-and-forget). 일별 클릭수 누적.
+    if (req.method === 'POST' && req.query.visit === 'reviewking') {
+      try {
+        await ensureSiteVisitTables(db);
+        const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+        if (EXCLUDED_VISIT_IPS.has(ip)) return res.status(200).json({ ok: true, excluded: true }); // 운영자 본인 클릭 제외
+        await db.execute({ sql: "INSERT INTO reviewking_daily (visit_date, cnt) VALUES (?, 1) ON CONFLICT(visit_date) DO UPDATE SET cnt = cnt + 1", args: [kstDay()] });
+      } catch (e) { /* 무시 */ }
+      return res.status(200).json({ ok: true });
+    }
+
     // 지도 검색창 사용 집계: POST ?visit=search {q:검색어} (searchRegion에서 fire-and-forget, 운영자 IP 제외).
     //  일별 검색 횟수(search_daily) + 최근 검색어 로그(search_log, 최근 500건만 유지). 빈 검색은 클라에서 이미 제외.
     if (req.method === 'POST' && req.query.visit === 'search') {
@@ -443,6 +456,12 @@ module.exports = async function handler(req, res) {
         const zrows = (await db.execute("SELECT term, COUNT(*) AS cnt, MAX(id) AS mx FROM (SELECT id, term FROM search_zero_log ORDER BY id DESC LIMIT 100) GROUP BY term ORDER BY mx DESC")).rows;
         recentZeroSearches = zrows.map(r => ({ term: r.term, cnt: Number(r.cnt || 0) }));
       } catch (e) {}
+      // 이 달의 후기왕 진입 클릭: 오늘/누적(단일 카운터)
+      let reviewkingToday = 0, reviewkingTotal = 0;
+      try {
+        reviewkingToday = Number(((await db.execute({ sql: "SELECT cnt FROM reviewking_daily WHERE visit_date = ?", args: [day] })).rows[0] || {}).cnt || 0);
+        reviewkingTotal = Number(((await db.execute("SELECT COALESCE(SUM(cnt),0) AS n FROM reviewking_daily")).rows[0] || {}).n || 0);
+      } catch (e) {}
       // 모바일웹 앱 설치 팝업: 노출(show)/다운로드탭(install) 오늘+누적
       const appInstallToday = { show: 0, install: 0, dismiss: 0 }, appInstallTotal = { show: 0, install: 0, dismiss: 0 };
       try {
@@ -458,6 +477,7 @@ module.exports = async function handler(req, res) {
       } catch (e) {}
       const vsPayload = {
         gnbToday, gnbTotal, cmSegToday, cmSegTotal, appInstallToday, appInstallTotal, storeDownloads,
+        reviewkingToday, reviewkingTotal,
         searchToday, searchTotal, recentSearches,
         searchZeroToday, searchZeroTotal, recentZeroSearches,
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),

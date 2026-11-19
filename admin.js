@@ -634,6 +634,20 @@ function renderCmSeg(today, total) {
   }).join('');
 }
 
+// 이 달의 후기왕 진입 클릭(누적/오늘, 단일 카운터). GNB 탭 집계와 동일 패턴.
+//  operator-only + 운영자 IP 제외라 공개 전까진 0이 정상(공개 후부터 실유저 클릭 집계).
+function renderReviewKingClicks(today, total) {
+  const el = document.getElementById('rkClicks');
+  if (!el) return;
+  today = Number(today || 0); total = Number(total || 0);
+  if (!total) { el.innerHTML = '<div class="empty-msg">아직 후기왕 클릭 데이터가 없어요. (공개 후부터 수집·운영자 제외)</div>'; return; }
+  el.innerHTML = `<div class="stat-row">
+      <span class="stat-badge" style="background:#39395c1a;color:#39395c">진입 클릭</span>
+      <div class="stat-bar-wrap"><div class="stat-bar" style="width:100%;background:#39395c"></div></div>
+      <span class="stat-num">${total.toLocaleString()} · 오늘 ${today.toLocaleString()}</span>
+    </div>`;
+}
+
 // 지도 검색창 사용: 누적/오늘 횟수 + 최근 검색어 태그(최근 100건 내 중복 묶음, 최신순)
 //  + 결과 0건 검색(수요 있는데 못 찾은 검색어 = 데이터/지역 공백) 별도 섹션.
 function renderSearchStats(today, total, recent, zeroToday, zeroTotal, zeroRecent) {
@@ -922,6 +936,7 @@ function renderDashboard() {
     renderPlatforms(s.todayPlatforms || []);
     renderGnbClicks(s.gnbToday || {}, s.gnbTotal || {});
     renderCmSeg(s.cmSegToday || {}, s.cmSegTotal || {});
+    renderReviewKingClicks(s.reviewkingToday || 0, s.reviewkingTotal || 0);
     renderSearchStats(s.searchToday || 0, s.searchTotal || 0, s.recentSearches || [], s.searchZeroToday || 0, s.searchZeroTotal || 0, s.recentZeroSearches || []);
     renderAppInstall(s.appInstallToday || {}, s.appInstallTotal || {});
     // 앱 스토어 다운로드(누적) — iOS/Android 둘 다 누적 신규 설치. Android는 활성 기기수도 함께(괄호).

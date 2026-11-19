@@ -4204,10 +4204,15 @@ function updateCommunitySegUI() {
     b.classList.toggle('active', b.getAttribute('data-seg') === _cmSeg));
   const isReview = (_cmSeg === 'feed' || _cmSeg === 'myreviews');  // 후기 계열 세그먼트
   const chips = document.getElementById('cmChips'); if (chips) chips.hidden = true;  // 카테고리 칩 폐지(정렬로 대체)
-  // '내 후기'(본인 후기)는 로그인 시에만. PC=세그먼트 줄 우측 텍스트 링크(후기/내후기에서만, 활성 시 강조) / 모바일=우상단 링크(오버레이)
+  // '내 후기'(본인 후기)는 로그인 시에만. **PC·모바일 모두 상단 타이틀 행 우측 링크(cmMyRevLink)로 통일**(Figma 1775-3032).
+  //  PC=클릭 시 myreviews 세그먼트 인라인 전환(활성 시 강조) / 모바일=오버레이. 세그먼트 버튼(cm-seg-myrev)은 PC에서 CSS로 숨김.
   const myRev = document.querySelector('#cmSeg .cm-seg-myrev');
-  if (myRev) { myRev.hidden = !(currentUser && isReview); myRev.classList.toggle('on', _cmSeg === 'myreviews'); }  // PC 우측 링크: 로그인+후기계열, 내후기 보는 중이면 강조
-  const link = document.getElementById('cmMyRevLink'); if (link) link.hidden = !(_cmSeg === 'feed' && isMobileView() && !!currentUser);  // 모바일 링크: 후기탭+로그인만
+  if (myRev) { myRev.hidden = !(currentUser && isReview); myRev.classList.toggle('on', _cmSeg === 'myreviews'); }  // (레거시; PC에선 CSS display:none)
+  const link = document.getElementById('cmMyRevLink');
+  if (link) {
+    if (isMobileView()) { link.hidden = !(_cmSeg === 'feed' && !!currentUser); link.classList.remove('on'); }   // 모바일: 후기탭+로그인(오버레이)
+    else { link.hidden = !(!!currentUser && isReview); link.classList.toggle('on', _cmSeg === 'myreviews'); }    // PC: 후기/내후기+로그인, 내후기 보는 중이면 강조
+  }
   // 이 달의 후기왕 진입 링크: 후기 세그먼트 + 운영자 미리보기(공개 전환 시 isOperatorOptimistic() 가드만 제거)
   const rkLink = document.getElementById('cmReviewKingLink'); if (rkLink) rkLink.hidden = !(_cmSeg === 'feed' && isOperatorOptimistic());
   const fab = document.getElementById('cmWriteFab'); if (fab) fab.hidden = !isReview;        // 후기작성 FAB는 후기/내후기에서
@@ -4843,8 +4848,8 @@ function cmRefreshAuthChrome() {
   if (cur && want) { const d = document.createElement('div'); d.innerHTML = want; cur.replaceWith(d.firstElementChild); }
   else if (cur && !want) { cur.remove(); }
   else if (!cur && want) { const tabs = body.querySelector('.cm-region-tabs'); if (tabs) { const d = document.createElement('div'); d.innerHTML = want; tabs.parentNode.insertBefore(d.firstElementChild, tabs); } }
-  const link = document.getElementById('cmMyRevLink');
-  if (link) link.hidden = !(isMobileView() && !!currentUser);
+  const link = document.getElementById('cmMyRevLink');   // feed(auth 확정): 모바일·PC 모두 로그인 시 상단 '내 후기' 노출
+  if (link) { link.hidden = !currentUser; link.classList.remove('on'); }
   const rkLink = document.getElementById('cmReviewKingLink');   // auth 확정 후 운영자 판정으로 재토글
   if (rkLink) rkLink.hidden = !(_cmSeg === 'feed' && isOperator());
 }
@@ -4896,6 +4901,11 @@ function setCmRegion(r) {
 }
 // '내 후기' — 후기 화면 링크 → 별도 서브화면(백버튼). 후기 카드/정렬은 기존 컴포넌트 재사용.
 let _myRevSort = 'latest';
+// 상단 '내 후기' 링크 클릭 — 모바일=오버레이, PC=myreviews 세그먼트 인라인 전환(Figma 1775-3032 PC 배치)
+function cmMyRevLinkClick() {
+  if (isMobileView()) openMyReviews();
+  else { if (!currentUser) { openLoginSheet(); return; } setCommunitySeg('myreviews'); }
+}
 function openMyReviews() {
   if (!currentUser) { openLoginSheet(); return; }
   syncMobileModalHeader('#myReviewsOverlay');
@@ -4966,6 +4976,7 @@ function rkCurrentMonth() {
 }
 function rkMonthLabel(ym) { const p = ym.split('-'); return p[0] + '. ' + p[1]; }
 function openReviewKing() {
+  try { fetch('/api/places?visit=reviewking', { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {}  // 진입 클릭 집계(운영자 IP는 서버에서 제외)
   _rkMonth = rkCurrentMonth();
   const ov = document.getElementById('reviewKingOverlay');
   if (!ov) return;
@@ -4996,7 +5007,7 @@ function rkAvatar(profileImage, cls) {
 }
 function rkColHtml(r, cls) {
   return `<div class="rk-col ${cls}">
-    <div class="rk-ava-wrap">${rkAvatar(r.profileImage, 'rk-ava')}<img class="rk-ava-badge" src="image/rk_avatar_star.svg" width="18" height="18" alt=""></div>
+    <div class="rk-ava-wrap">${rkAvatar(r.profileImage, 'rk-ava')}<img class="rk-ava-badge" src="image/rk_avatar_star.svg?v=2" width="18" height="18" alt=""></div>
     <div class="rk-col-text">
       <p class="rk-col-name">${rvEsc(r.nickname)}</p>
       <p class="rk-col-count">${Number(r.count).toLocaleString()}건</p>
