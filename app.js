@@ -3916,7 +3916,9 @@ async function loadFavoritesFull() {
   } catch (e) { return; }
   _favItems = arr;
   _favorites = new Set(arr.map(f => Number(f.placeId)));
-  _mergeFavIntoPlaces();
+  // ⚠️ 즐겨찾기 모드일 때만 병합: 백그라운드 fetch가 끝나기 전 홈으로 나가면(exitFavMode가 이미 정리함)
+  //  여기서 다시 places를 오염시켜 '마감 즐겨찾기 매장'이 홈에 재등장하던 레이스 방지(2026-11-20).
+  if (_favMode) _mergeFavIntoPlaces();
 }
 
 // _favItems(즐겨찾기 전체)를 in-memory places/campaigns에 병합(멱등). 화면 밖·캠페인 없는 즐겨찾기도 지도 핀·리스트에서 확보.
