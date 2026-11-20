@@ -1086,6 +1086,7 @@ function showBannerPopup(force) {
       try { fetch('/api/banners?track=click&id=' + b.id, { method: 'POST', keepalive: true }).catch(function () {}); } catch (e) {} // 팝업 클릭 집계(운영자 IP 서버제외)
       if (b.noticeId) { closeBannerPopup(); openNoticeDetail(b.noticeId); }
       else if (b.linkUrl === 'app:community-reviews') { closeBannerPopup(); gotoCommunityReviews(); }  // 내부 링크: 커뮤니티 후기 피드
+      else if (b.linkUrl === 'app:reviewking') { closeBannerPopup(); gotoCommunityReviews(); setTimeout(openReviewKing, 60); }  // 내부 링크: 커뮤니티 후기로 전환 후 후기왕 오버레이(닫으면 back=후기 피드)
       else if (b.linkUrl) openExternal(b.linkUrl);
     };
   });
@@ -8504,6 +8505,7 @@ function _closeTopOverlayForBack() {
   if (open('selectSheetPanel', 'show')) { closeSelectSheet(); return true; }
   if (shown('scCmtBar')) { showSeoichuCommentBar(false); return true; }
   if (open('noticeDetailOverlay', 'open')) { closeNoticeDetail(); return true; }
+  if (open('reviewKingOverlay', 'open')) { closeReviewKing(); return true; }  // 후기왕 오버레이 = 닫기(back) → 밑의 커뮤니티 후기
   if (open('profileOverlay', 'open')) { closeProfileSheet(); return true; }
   if (open('modalOverlay', 'open')) { closeModal(); return true; }
   if (open('bannerPopupOverlay', 'show')) { closeBannerPopup(); return true; }
