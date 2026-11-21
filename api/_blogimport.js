@@ -156,13 +156,18 @@ async function importList({ db, blogId, existingUrls = new Set(), batch = 30, ma
   // 최신부터 페이지 순회하며 미등록 글을 모으되, '비체험단(여행·일상·정보 글)은 AI가 걸러서 건너뛰고'
   //  체험단 후기가 batch개 나올 때까지(또는 블로그 끝/페이지 상한) 더 깊이 스캔한다.
   //  (예전엔 미등록 30개만 모아 AI 1회 → 그 30개가 전부 비체험단이면 빈 결과로 멈춰, 더 과거의 체험단에 '막히던' 문제)
-  const items = [];
+  // ⚠️ 배치 한도(batch)는 '매칭된 것(matched)'만 카운트. 매칭 안 됨(none)은 소량만 따로 담아 배치를 막지 않음.
+  //  (버그: 해외여행 맛집글도 AI가 is_review=1로 쳐서 none인데도 30칸을 다 먹어, 더 과거의 '매칭되는 국내 체험단'에
+  //   영영 도달 못 하던 클로그. 이제 none은 UNMATCHED_CAP개까지만 담고, 매칭된 체험단이 batch개 될 때까지 깊이 스캔.)
+  const matched = [];          // 매칭된 체험단 후기(auto/confirm) — 등록 가능. 배치 한도는 이것만.
+  const unmatched = [];        // is_review지만 매칭 안 됨(해외여행/신규매장 등) — 수동선택용 소량.
+  const UNMATCHED_CAP = 12;
   let buffer = [];            // 아직 AI로 안 돌린 미등록 글
   let reachedEnd = false;
   const CHUNK = 60;           // extractPosts 내부 청크와 동일
 
-  async function flush() {     // buffer 판별(캐시 재사용, 미캐시만 AI) → 체험단만 items에 누적
-    if (!buffer.length || items.length >= batch) return;
+  async function flush() {     // buffer 판별(캐시 재사용, 미캐시만 AI) → 매칭됨=matched / 매칭안됨=unmatched
+    if (!buffer.length || matched.length >= batch) return;
     const take = buffer; buffer = [];
     // 캐시에 없는 글만 AI 호출 → 판정 캐시에 기록(다음 불러오기 땐 재호출 안 함).
     const uncached = take.filter(p => !vcache.has(p.link));
@@ -178,34 +183,37 @@ async function importList({ db, blogId, existingUrls = new Set(), batch = 30, ma
       });
       if (writes.length) { try { await db.batch(writes); } catch (e) { for (const w of writes) { try { await db.execute(w); } catch (e2) {} } } }
     }
-    for (let i = 0; i < take.length && items.length < batch; i++) {
+    for (let i = 0; i < take.length && matched.length < batch; i++) {
       const p = take[i];
       const v = vcache.get(p.link) || {};
       if (!Number(v.is_review)) continue;             // 비체험단(관광지/일상/정보 글) 건너뜀
       const mt = matchPlaceInMem(allPlaces, v.store, v.region);
-      items.push({
+      const item = {
         title: p.title, link: p.link, date: p.date,
         store: v.store || '', region: v.region || '',
         match: mt ? { placeId: mt.placeId, name: mt.name, address: mt.address } : null,
         confidence: mt ? mt.confidence : 'none',       // auto | confirm | none
-      });
+      };
+      if (mt) matched.push(item);                              // 매칭된 체험단만 배치 카운트
+      else if (unmatched.length < UNMATCHED_CAP) unmatched.push(item);  // 매칭 안 됨(해외여행 등)은 소량만 → 배치 안 막음
     }
   }
 
   for (let page = 1; page <= maxPages; page++) {
     const { posts, isLast } = await fetchBlogPage(blogId, page);
     for (const p of posts) { if (!existingUrls.has(p.link) && !skipSet.has(p.link)) buffer.push(p); }  // 기등록·사용자제외 글 빼고 버퍼에
-    if (buffer.length >= CHUNK) await flush();   // 청크 차면 판별(비체험단 건너뛰며 체험단 누적)
-    if (items.length >= batch) break;            // 체험단 batch개 확보 → 충분
+    if (buffer.length >= CHUNK) await flush();   // 청크 차면 판별(매칭됨 누적, 매칭안됨은 소량만)
+    if (matched.length >= batch) break;          // 매칭된 체험단 batch개 확보 → 충분
     if (isLast) { reachedEnd = true; break; }     // 블로그 끝
     await new Promise(r => setTimeout(r, 120));   // throttle
   }
-  if (items.length < batch) await flush();        // 남은 버퍼 처리
+  if (matched.length < batch) await flush();      // 남은 버퍼 처리
 
-  // done: 블로그 끝까지 와서(더 스캔할 글 없음) 체험단이 batch 미만이면 '더 없음'.
+  // done: 블로그 끝까지 와서(더 스캔할 글 없음) 매칭된 체험단이 batch 미만이면 '더 없음'.
   //  페이지 상한(maxPages)으로 끝 미도달 시엔 더 있을 수 있어 done=false('이어서'로 계속).
-  const done = reachedEnd && items.length < batch;
-  return { items: items.slice(0, batch), done };
+  const done = reachedEnd && matched.length < batch;
+  // 매칭된 것(등록 가능) 먼저, 그 뒤 매칭 안 됨(수동선택용) 소량 — 여행/일상글이 배치를 막지 않음.
+  return { items: [...matched.slice(0, batch), ...unmatched], done };
 }
 
 module.exports = { importList, fetchBlogPosts, fetchBlogPage, fetchAllBlogPosts, extractPosts, matchPlace, matchPlaceInMem };
