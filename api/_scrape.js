@@ -2673,33 +2673,75 @@ function popName(title, addrDetail) {
   return cleanStoreName(String(title || '').replace(/^\[[^\]]*\]\s*/, '').replace(/\s*\d{1,2}\/\d{1,2}\s*\([^)]*\).*$/, '').replace(/\s*(방문|예약)\s*$/, '').trim());
 }
 
+// 현재 활성(방문형) 목록 전수 수집. ⚠️ fetch_getcampaignlist의 pageNum은 '페이지'가 아니라 '오프셋'처럼 동작(12건 윈도우가
+//  1칸씩 슬라이드) → pageNum을 **받은 개수만큼 전진**(off += items.length)해 non-overlap으로 전수 순회. 기존 `page++`(1칸)+
+//  `anyNew` 조기중단은 윈도우 겹침 때문에 깊은/최근 활성 대량 미수집의 원인이었음(2026-11 reconcile 전환). 멱등.
+async function popFetchActiveList({ hardCapReqs = 500, deadlineTs = 0 } = {}) {
+  const map = new Map(); // C_idx → item (dedupe)
+  let off = 0, noNew = 0, reqs = 0, campCount = 0;
+  while (reqs < hardCapReqs) {
+    if (deadlineTs && Date.now() > deadlineTs) break;
+    const { items, campCount: cc } = await popFetchList(off);
+    reqs++;
+    if (cc) campCount = cc;
+    if (!items.length) break;
+    let added = 0;
+    for (const it of items) { const id = String(it.C_idx || ''); if (id && !map.has(id)) { map.set(id, it); added++; } }
+    off += items.length;                 // 다음 블록 = 현재 오프셋 + 받은 개수(겹침 없이 전진)
+    if (added === 0) { if (++noNew >= 3) break; } else noNew = 0; // 신규 0이 연속이면 catalog 끝
+    await sleep(80);
+  }
+  return { items: [...map.values()], campCount, reqs };
+}
+
+// '활성목록 reconcile'(2026-11, 대량누락 수정). 기존은 doneIds 영구스킵 + 슬라이드 페이지네이션 + anyNew 조기중단으로
+//  실제 활성 ~4천 중 극소수만 수집하고 마감연장도 못 따라감(활성 405 중 맞는 건 ~29). → 현재 활성 전수를 훑어
+//  (1)이미 campaign 있는 C_idx는 C_regi_end_date로 마감 갱신(renew, 상세 불필요·무제한) (2)없는 C_idx만 상세(공개 API)
+//  fetch_getCampaignData로 주소·방문시간 확보해 신규 스테이징(limit개/실행). 포블로그 reconcile과 동형(포포몬은 상세가 공개).
 async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = null }) {
   const platform = '포포몬';
   const today = new Date().toISOString().slice(0, 10);
   const dedupe = _dedupe || await loadDedupe(db);
-  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='포포몬'")).rows.map((r) => String(r.source_id)));
+
+  const { items: all, campCount, reqs } = await popFetchActiveList({ deadlineTs });
+  // ONGOING & 미만료만 reconcile 대상
+  const active = all.filter((it) => String(it.C_state) === 'ONGOING' && (() => { const dl = String(it.C_regi_end_date || '').slice(0, 10); return !dl || dl >= today; })());
+
+  // 우리 DB: campaign(C_idx→{id,deadline,hidden}) + staged(C_idx→status)
+  const campByIdx = new Map();
+  for (const r of (await db.execute("SELECT id, deadline, hidden, link FROM campaigns WHERE link LIKE '%popomon.com/campaign/%'")).rows) {
+    const m = String(r.link || '').match(/campaign\/(\d+)/); if (m) campByIdx.set(m[1], { id: Number(r.id), deadline: String(r.deadline || ''), hidden: Number(r.hidden || 0) });
+  }
+  const stagedByIdx = new Map((await db.execute("SELECT source_id, status FROM scraped_items WHERE platform='포포몬'")).rows.map((r) => [String(r.source_id), String(r.status)]));
+
   const seenVC = new Set();
-  const c = { staged: 0, excluded: 0, dupActive: 0, expired: 0, noAddr: 0, processed: 0 };
-  let timedOut = false, campCount = 0;
-  for (let page = 0; page <= 400; page++) {
-    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
-    if (c.processed >= limit) break;
-    const { items, campCount: cc } = await popFetchList(page);
-    if (cc) campCount = cc;
-    if (!items.length) break;
-    let anyNew = false;
-    for (const it of items) {
-      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
-      if (c.processed >= limit) break;
-      const id = String(it.C_idx || '');
-      if (!id || doneIds.has(id)) continue;
-      anyNew = true;
-      if (String(it.C_state) !== 'ONGOING') { doneIds.add(id); continue; }
+  const c = { staged: 0, renewed: 0, current: 0, excluded: 0, dupActive: 0, noAddr: 0, failed: 0 };
+  const needStage = [];
+
+  // 1) 이미 campaign 있는 C_idx: 목록 C_regi_end_date로 마감만 갱신(연장·만료재활성). 상세 불필요 → 전건.
+  for (const it of active) {
+    const id = String(it.C_idx || ''); if (!id) continue;
+    const camp = campByIdx.get(id);
+    if (!camp) {
+      const prev = stagedByIdx.get(id);
+      if (prev === undefined || prev === 'rejected') needStage.push(it); // 신규 or 과거 rejected 재활성(pending=이미 큐)
+      continue;
+    }
+    const dl = String(it.C_regi_end_date || '').slice(0, 10);
+    if (dl && dl !== camp.deadline && !camp.hidden) { // 신고숨김은 보존
+      await db.execute({ sql: 'UPDATE campaigns SET deadline=? WHERE id=?', args: [dl, camp.id] });
+      c.renewed++;
+    } else c.current++;
+  }
+
+  // 2) 신규/재활성: 상세(공개 API)로 주소·방문시간 확보해 스테이징(limit개까지, 나머지 다음 실행). 목록 순서=최신부터.
+  const targets = needStage.slice(0, limit);
+  for (const it of targets) {
+    if (deadlineTs && Date.now() > deadlineTs) break;
+    const id = String(it.C_idx || '');
+    try {
       const deadline = String(it.C_regi_end_date || '').slice(0, 10);
-      if (deadline && deadline < today) { doneIds.add(id); c.expired++; continue; }
-      doneIds.add(id);
-      c.processed++;
-      const d = await popFetchDetail(id); // 주소 확보(상세)
+      const d = await popFetchDetail(id);
       await sleep(200); // 레이트리밋
       if (!d) { c.noAddr++; continue; }
       const address = String(d.C_address || '').trim();
@@ -2710,13 +2752,12 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
       const vcKey = name.replace(/\s+/g, '') + '|' + channel;
       if (seenVC.has(vcKey)) { c.dupActive++; continue; }
       seenVC.add(vcKey);
-      // 제공내용 = C_provision + 금액(C_provision_price). 상세(d) 우선(목록 it.C_provision은 잘려 오는 경우가 있음).
-      // 금액 빠지면 '자유'만 남아 빈약해지므로 금액을 붙임.
+      // 제공내용 = C_provision + 금액(C_provision_price). 상세(d) 우선(목록 it.C_provision은 잘려 오는 경우).
       const provision = String((d && d.C_provision) || it.C_provision || '').trim();
       const provPrice = Number((d && d.C_provision_price) || it.C_provision_price || 0);
       let content = provision;
       if (provPrice > 0) content = provision ? `${provision} (${provPrice.toLocaleString()}원 상당)` : `${provPrice.toLocaleString()}원 상당`;
-      // 방문시간(C_visit_time) → 레뷰처럼 요일·시간 분리(rbHoursDays) + 공휴일 처리
+      // 방문시간(C_visit_time) → 요일·시간 분리(rbHoursDays) + 공휴일 처리
       const vt = String(d.C_visit_time || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
       let hours = '', days = '', excludeHoliday = 0;
       if (vt) {
@@ -2733,23 +2774,31 @@ async function runPopomon({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = n
       if (cls.status === 'dup_active') { c.dupActive++; continue; }
       const flags = [];
       if (!auto && !POP_CAT[String(it.CT_type || '').toUpperCase()]) flags.push('카테고리확인(기본값 기타)');
-      const ins = await db.execute({
-        sql: `INSERT OR IGNORE INTO scraped_items
-          (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
-          VALUES ('포포몬',?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
-        args: [id, url, name, address, category, channel, content, deadline || '', hours, days, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
-      });
-      if (ins.rowsAffected > 0) c.staged++;
-    }
-    if (!anyNew && page > 0) break; // 이 페이지에 신규 없음(이미 다 수집) → 조기 종료
+      const prev = stagedByIdx.get(id);
+      if (prev === 'rejected') {
+        // 과거 rejected가 다시 활성 → UNIQUE 때문에 INSERT OR IGNORE가 막으니 UPDATE로 재활성(pending/auto_seen=0).
+        await db.execute({
+          sql: `UPDATE scraped_items SET source_url=?, name=?, address=?, category=?, channel=?, content=?, deadline=?, hours=?, days=?, exclude_holiday=?, flags=?, dedupe_status=?, matched_place_id=?, status='pending', auto_seen=0, auto_note='', reviewed_at=NULL WHERE platform='포포몬' AND source_id=?`,
+          args: [url, name, address, category, channel, content, deadline || '', hours, days, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId, id],
+        });
+        c.staged++;
+      } else {
+        const ins = await db.execute({
+          sql: `INSERT OR IGNORE INTO scraped_items
+            (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+            VALUES ('포포몬',?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+          args: [id, url, name, address, category, channel, content, deadline || '', hours, days, excludeHoliday, flags.join(' '), cls.status, cls.matchedPlaceId],
+        });
+        if (ins.rowsAffected > 0) c.staged++;
+      }
+    } catch (e) { c.failed++; }
   }
-  const moreLeft = campCount > doneIds.size;
   await db.execute({
     sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
           VALUES ('포포몬', 0, 0, ?, ?, ?, ?)`,
-    args: [c.processed, c.staged, c.excluded + c.dupActive + c.expired + c.noAddr, `방문형${campCount ? '/' + campCount : ''} 처리 ${c.processed} (적재 ${c.staged}, dup ${c.dupActive}, 마감지남 ${c.expired}, 주소없음 ${c.noAddr}, 제외 ${c.excluded}${timedOut ? ', 중단' : ''})`],
+    args: [active.length, c.staged, c.excluded + c.dupActive + c.noAddr, `reconcile 활성 ${active.length}/${campCount}(req ${reqs}) (신규/재활성 ${c.staged}, 마감갱신 ${c.renewed}, 유지 ${c.current}, dup ${c.dupActive}, 주소없음 ${c.noAddr}, 제외 ${c.excluded}, 실패 ${c.failed})`],
   });
-  return { platform, newCandidates: moreLeft ? campCount : c.processed, processed: c.processed, staged: c.staged, excluded: c.excluded, dupActive: c.dupActive, expired: c.expired, noAddr: c.noAddr, campCount, timedOut };
+  return { platform, active: active.length, campCount, newCandidates: needStage.length, processed: targets.length, staged: c.staged, renewed: c.renewed, current: c.current, dupActive: c.dupActive, noAddr: c.noAddr, excluded: c.excluded, failed: c.failed };
 }
 
 // 네이버 로컬검색 카테고리 문자열(예 "음식점>한식", "미용>미용실") → 우리 16종(2026-10-16).
@@ -2795,4 +2844,4 @@ function mapNaverCat(cat, name) {
   if (/음식점|한식|중식|일식|양식|분식|술집|주점|이자카야|바\(BAR\)|포장마차|뷔페|도시락|컵밥|고기|육류|해물|생선|치킨|피자|요리|식당|국밥|면류|샐러드|샌드위치|햄버거|이탈리아|파스타|스파게티|레스토랑|떡,한과/.test(c)) return '음식점';
   return '기타';
 }
-module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, decodeEntities, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, rnFetchDetail, rnDays, rnHours, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runAssaview, avParseDetail, avFetchList, runCometoplay, cpParseDetail, cpFetchList, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, fbFetchList, fbFetchActiveList, fbResolveAddress, FB_CAMP_LINK_RE, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbFetchList, rbHoursDays, soScrapeDetail, soParseList, soName, soAddress, gdFetchList, ombFetch, rnFetchPage, SO_BASE, SO_VISIT_CAT };
+module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, decodeEntities, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, rnFetchDetail, rnDays, rnHours, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchActiveList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runAssaview, avParseDetail, avFetchList, runCometoplay, cpParseDetail, cpFetchList, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, fbFetchList, fbFetchActiveList, fbResolveAddress, FB_CAMP_LINK_RE, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbFetchList, rbHoursDays, soScrapeDetail, soParseList, soName, soAddress, gdFetchList, ombFetch, rnFetchPage, SO_BASE, SO_VISIT_CAT };

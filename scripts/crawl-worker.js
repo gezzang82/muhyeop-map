@@ -72,6 +72,7 @@ if (String(CRAWL_DB_URL || '').startsWith('file:')) {
   console.error('[crawl-worker] ⚠️ 운영이 아닌 로컬 dev.db를 가리킵니다. .env.local에 TURSO_PROD_URL/TURSO_PROD_AUTH_TOKEN 설정 필요.');
 }
 const db = createClient({ url: CRAWL_DB_URL, authToken: CRAWL_DB_TOKEN });
+let _lastPopomonMs = 0; // 포포몬 reconcile은 ~4천 전수열거(~230s·DB읽기 많음)라 매 패스 금지 → 3시간 1회로 게이트(재시작 직후 1회 실행)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ts = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(11, 19); // KST HH:MM:SS
 
@@ -207,8 +208,9 @@ async function pass() {
     remaining = rva.remaining;
     console.log(`  [${ts()}] └ [레뷰] AI검증: 자동등록 ${rva.registered} · 검수 ${rva.review} · 스킵 ${rva.skipped} · 남은대기 ${rva.remaining}`);
   }
-  // 포포몬 (popomon.com 무인증. 목록 API(방문형 ~3.5천) + 상세 API(주소·방문시간). 좌표는 승인 시 지오코딩)
-  if (!stopping) {
+  // 포포몬 (popomon.com 무인증. 활성목록 reconcile ~4천 전수열거라 무거움 → 3시간 1회만, 저빈도 게이트)
+  if (!stopping && Date.now() - _lastPopomonMs > 3 * 3600e3) {
+    _lastPopomonMs = Date.now();
     const pm = await runScrape({ db, platform: '포포몬', limit: 400, dedupe });
     if ((pm.newCandidates || 0) > (pm.processed || 0)) more = true;
     console.log(`  [${ts()}] 수집(포포몬${pm.campCount ? '/' + pm.campCount : ''}): 처리 ${pm.processed} · 적재 ${pm.staged} · 주소없음 ${pm.noAddr} · 마감지남 ${pm.expired} · 중복 ${pm.dupActive} · 제외 ${pm.excluded}`);
