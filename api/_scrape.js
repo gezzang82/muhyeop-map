@@ -701,6 +701,8 @@ async function runScrape({ db, platform, mode, limit, region, deadlineTs, dedupe
   if (platform === 'revu' || platform === '레뷰') return runRevu({ db, limit, deadlineTs, dedupe });
   if (platform === 'popomon' || platform === '포포몬') return runPopomon({ db, limit, deadlineTs, dedupe });
   if (platform === 'mrblog' || platform === '미블') return runMrblog({ db, limit, deadlineTs, dedupe });
+  if (platform === 'assaview' || platform === '아싸뷰') return runAssaview({ db, limit, deadlineTs, dedupe });
+  if (platform === 'cometoplay' || platform === '놀러와') return runCometoplay({ db, limit, deadlineTs, dedupe });
   return runDinnerqueen({ db, mode, limit, region, deadlineTs, dedupe });
 }
 
@@ -2068,6 +2070,285 @@ async function runMrblog({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = nu
   return { platform, newCandidates: processed, processed, staged, excluded, dupActive, noAddr, expired, failed, timedOut };
 }
 
+// ===== 아싸뷰 (assaview.co.kr) — PHP SSR 체험단 =====
+// 공개 SSR(로그인/쿠키 불필요, UA 헤더만). 방문형 목록(GET /campaign_list.php?type=area&page=N, 페이지당 ~21건)에서
+// cp_id 추출 → 상세(GET /campaign.php?cp_id=ID) 파싱. 방문형만(배송형=매장주소 없음 스킵). UNIQUE(platform,source_id)로 멱등.
+// 필드: 매장명=브랜드 span(괄호 없는 상호)·주소/방문시간=상세 '매장 주소'/'방문 가능 시간' 라벨(div.text_, <br> 구분)·
+//       마감=카운트다운 타이머 data-countdown1(YYYY/MM/DD)·제공=p.comment·채널=아이콘(details aside). 좌표 없음 →
+//       승인/오토파일럿이 도로명 지오코딩 + naverCanonicalName으로 네이버 정식명/카테고리 정규화(공용 경로, 미블과 동일).
+const AV_BASE = 'https://assaview.co.kr';
+// 채널 아이콘 파일명 → 무협맵 채널. "인스타 릴스"는 reels_icon(릴스 전용)이라 릴스로(인스타 피드와 구분).
+const AV_CH_ICON = [[/blog/i, '블로그'], [/reels/i, '릴스'], [/clip/i, '클립'], [/youtube|ytb/i, '유튜브'], [/insta/i, '인스타그램']];
+
+function avStrip(h) {
+  return String(h || '').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// 상세 HTML → { name, address, deadline, content, channel, hours, days, excludeHoliday, visitType }
+function avParseDetail(html) {
+  const h = String(html || '');
+  // 매장명: 괄호 없는 상호 span(brand_name). 폴백: h1에서 "[지역]" 접두 제거 후 cleanStoreName.
+  let name = avStrip((h.match(/<span class="brand_name">([\s\S]*?)<\/span>/) || [])[1] || '');
+  if (!name) name = cleanStoreName(avStrip((h.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || '').replace(/^\s*\[[^\]]*\]\s*/, ''));
+  // 방문형/배송형: store_name span("매장 방문형" 등)
+  const typeTxt = avStrip((h.match(/class="musinsa store_name"[^>]*>([\s\S]*?)<\/span>/) || [])[1] || '');
+  const visitType = /방문형/.test(typeTxt) ? '방문형' : (/배송형/.test(typeTxt) ? '배송형' : '');
+  // 제공내역 = 캠페인 코멘트(p.comment, 예: "[20만원 상당] ○○ 및 무료 입장")
+  const content = avStrip((h.match(/<p class="comment">([\s\S]*?)<\/p>/) || [])[1] || '').slice(0, 200);
+  // 채널: details aside 내부 tag_area(아이콘 src 우선, 폴백 span 텍스트)
+  const chBlock = (h.match(/class="details aside"[^>]*>[\s\S]*?class="tag_area"[^>]*>([\s\S]*?)<\/div>/) || [])[1] || '';
+  const chSet = new Set();
+  for (const m of chBlock.matchAll(/<img[^>]*src="([^"]*)"/g)) { const hit = AV_CH_ICON.find(([re]) => re.test(m[1])); if (hit) chSet.add(hit[1]); }
+  if (!chSet.size) {
+    const t = avStrip(chBlock);
+    if (/블로그/.test(t)) chSet.add('블로그');
+    if (/릴스/.test(t)) chSet.add('릴스');
+    if (/클립/.test(t)) chSet.add('클립');
+    if (/유튜브/.test(t)) chSet.add('유튜브');
+    if (/인스타/.test(t) && !chSet.has('릴스')) chSet.add('인스타그램');
+  }
+  const channel = [...chSet].join(',');
+  // 매장 정보 블록(div.text_): '매장 주소 :' / '방문 가능 시간 :' 라벨(라벨 사이는 <br>). 여러 text_ 중 라벨 있는 것만 채택.
+  let address = '', hoursRaw = '';
+  for (const bm of h.matchAll(/class="text_"[^>]*>([\s\S]*?)<\/div>/g)) {
+    for (const ln of bm[1].split(/<br\s*\/?>/i).map((x) => avStrip(x)).filter(Boolean)) {
+      const am = ln.match(/매장\s*주소\s*[:：]\s*(.+)$/); if (am && !address) address = am[1].trim();
+      const vm = ln.match(/방문\s*가능\s*시간\s*[:：]\s*(.+)$/); if (vm && !hoursRaw) hoursRaw = vm[1].trim();
+    }
+  }
+  // "도로명 (동/리) 매장명/층" 꼬리(괄호 이후) 제거 → 지오코딩 정확도(미블·구구다스와 동일)
+  address = address.replace(/\s*\([^)]*\).*$/, '').trim();
+  // 방문가능시간 → rbHoursDays로 요일/시간/공휴일 분리(공용 파서). 시각 없는 모호표현(밤/점심 등)은 hours 빈값(요일만 유지).
+  let hours = '', days = '', excludeHoliday = 0;
+  if (hoursRaw) {
+    const hd = rbHoursDays('방문가능시간: ' + hoursRaw);
+    days = hd.days || ''; hours = hd.hours || ''; excludeHoliday = hd.excludeHoliday || 0;
+    if (!/\d{1,2}\s*:\s*\d{2}/.test(hours)) hours = ''; // 시각 없으면 신뢰불가 → 빈값(요일은 유지)
+    hours = hours.slice(0, 90);
+  }
+  // 마감 = 카운트다운 타이머(data-countdown1="YYYY/MM/DD HH:MM:SS", 연도 포함). 폴백: "N일 남음 (YY. MM. DD)".
+  let deadline = '';
+  const cm = h.match(/data-countdown1="(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if (cm) deadline = `${cm[1]}-${cm[2].padStart(2, '0')}-${cm[3].padStart(2, '0')}`;
+  if (!deadline) { const pm = avStrip(h).match(/남음\s*\(\s*(\d{2})\.\s*(\d{1,2})\.\s*(\d{1,2})\s*\)/); if (pm) deadline = `20${pm[1]}-${pm[2].padStart(2, '0')}-${pm[3].padStart(2, '0')}`; }
+  return { name, address, deadline, content, channel, hours, days, excludeHoliday, visitType };
+}
+
+async function avFetchList(page) {
+  const r = await fetch(`${AV_BASE}/campaign_list.php?type=area&page=${page}`, { headers: { 'User-Agent': UA, Referer: `${AV_BASE}/` } });
+  if (!r.ok) return [];
+  const html = await r.text();
+  return [...new Set((html.match(/cp_id=(\d+)/g) || []).map((s) => s.replace('cp_id=', '')))];
+}
+
+// 스테이징 대상 아님(배송형/만료/이름없음)을 rejected로 기록 → 다음 패스 doneIds가 재요청 차단(미블 mbMarkSeen와 동일).
+async function avMarkSeen(db, id, url, name, reason) {
+  try {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO scraped_items
+        (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status, auto_seen, auto_note)
+        VALUES ('아싸뷰',?,?,?,'','','','','','','',0,?,'',NULL,'rejected',1,?)`,
+      args: [id, url, name || '', reason, reason],
+    });
+  } catch (e) {}
+}
+
+async function runAssaview({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = null }) {
+  const platform = '아싸뷰';
+  const today = new Date().toISOString().slice(0, 10);
+  const dedupe = _dedupe || await loadDedupe(db);
+  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='아싸뷰'")).rows.map((r) => String(r.source_id)));
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, noAddr = 0, expired = 0, timedOut = false;
+  let page = 1;
+  while (page <= 200) {
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    const ids = await avFetchList(page);
+    if (!ids.length) break;
+    let newOnPage = 0;
+    for (const id of ids) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      if (doneIds.has(id)) continue;
+      newOnPage++;
+      if (processed >= limit) { timedOut = true; break; }
+      processed++;
+      doneIds.add(id);
+      try {
+        const url = `${AV_BASE}/campaign.php?cp_id=${id}`;
+        const dres = await fetch(url, { headers: { 'User-Agent': UA, Referer: `${AV_BASE}/campaign_list.php?type=area` } });
+        await sleep(150);
+        if (!dres.ok) { failed++; continue; }
+        const d = avParseDetail(await dres.text());
+        if (d.visitType === '배송형') { excluded++; await avMarkSeen(db, id, url, d.name, '배송형(주소없음)'); continue; }
+        if (!d.name) { excluded++; await avMarkSeen(db, id, url, '', '이름없음'); continue; }
+        if (!d.address) { noAddr++; continue; } // 매장주소 없음 → 지도에 못 올림(파싱실패 가능성 있어 재요청 허용)
+        if (d.deadline && d.deadline < today) { expired++; await avMarkSeen(db, id, url, d.name, `마감지남(${d.deadline})`); continue; }
+        const channel = d.channel || '블로그';
+        const auto = categoryByKeyword((d.content || '') + ' ' + d.name, d.name);
+        const category = auto || '기타'; // 아싸뷰 목록은 업종 미제공 → 승인 시 naverCanonicalName이 네이버 카테고리로 교정
+        const cls = classify({ name: d.name, channel, address: d.address }, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; continue; }
+        const flags = [];
+        if (!auto) flags.push('카테고리확인(기본값 기타)');
+        if (!d.channel) flags.push('채널확인');
+        if (!d.hours) flags.push('가능시간확인');
+        const ins = await db.execute({
+          sql: `INSERT OR IGNORE INTO scraped_items
+            (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+          args: [platform, id, url, d.name, d.address, category, channel, d.content || '', d.deadline || '', d.hours || '', d.days || '', d.excludeHoliday ? 1 : 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+        });
+        if (ins.rowsAffected > 0) staged++;
+      } catch (e) { failed++; }
+    }
+    if (timedOut) break;
+    if (!newOnPage) break; // 이 페이지 전부 기존 처리분 → 더 볼 것 없음(증분)
+    page++;
+  }
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('아싸뷰', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive + noAddr + expired, `처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 마감지남 ${expired}, 주소없음 ${noAddr}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, noAddr, expired, failed, timedOut };
+}
+
+// ===== 놀러와 (cometoplay.kr) — PHP SSR 체험단(핫이슈컴퍼니) =====
+// 공개 SSR(UA 헤더만, 로그인 불필요). 방문형=지역 목록(GET /item_list.php?category_id=001&page=N, 20건/페이지, 숫자 페이징)에서
+// it_id 추출 → 상세(GET /item.php?it_id=ID) 파싱. category 001=방문형만(002=제품/배송·004=기자단은 목록서 안 옴). UNIQUE 멱등.
+// 필드: 매장명=og:title 끝 "[상호]"(h1은 제네릭 '놀러와체험단'이라 못 씀)·주소=업체주소 li·마감='리뷰어 신청' 종료일(MM.DD, 연도보정)·
+//       채널=itname 앞 채널 span·제공=캠페인 설명(제공내역 구조필드 없음). ⚠️방문가능시간 구조필드 없음(영업시간 li 주석/빈값) → hours/days 비움.
+//       좌표는 상세에 kakao 지도(LatLng)로 있으나 scraped_items 좌표컬럼 없음 → 승인/오토파일럿이 도로명 지오코딩 +
+//       naverCanonicalName으로 네이버 정식명/카테고리 정규화(아싸뷰·미블과 동일 공용 경로). 업체주소 없는 건(배송성/무매장)은 스킵.
+const CP_BASE = 'https://www.cometoplay.kr';
+// 채널: class명(blog/insta/clip/reels/youtube) 또는 한글 텍스트로 탐지.
+const CP_CH = [[/blog|블로그/i, '블로그'], [/reels|릴스/i, '릴스'], [/clip|클립/i, '클립'], [/youtube|ytb|유튜브/i, '유튜브'], [/insta|인스타/i, '인스타그램']];
+
+function cpStrip(h) {
+  return String(h || '').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+// 'MM.DD' → 'YYYY-MM-DD' (KST 기준, 연말 롤오버: 계산일이 오늘보다 90일+ 과거면 내년으로 — 12월에 1월 마감 수집 대비).
+function cpYearDate(mm, dd) {
+  const now = new Date(Date.now() + 9 * 3600e3);
+  let y = now.getUTCFullYear();
+  const today = now.toISOString().slice(0, 10);
+  const mk = (yy) => `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+  if (mk(y) < today && (Date.parse(today) - Date.parse(mk(y))) > 90 * 86400e3) y += 1;
+  return mk(y);
+}
+// 상세 HTML → { name, address, deadline, channel, content }
+function cpParseDetail(html) {
+  const h = String(html || '');
+  // 매장명 시드: og:title의 마지막 "[상호]"(h1은 제네릭). 폴백: itname에서 지역 대괄호 span 제거 후 마지막 대괄호.
+  const og = (h.match(/<meta property="og:title" content="([^"]*)"/) || [])[1] || '';
+  let seed = (og.match(/\[([^\]]+)\]\s*$/) || [])[1] || '';
+  if (!seed) {
+    const itn = (h.match(/class="itname[^"]*">([\s\S]*?)<\/div>/) || [])[1] || '';
+    const t = cpStrip(itn.replace(/<span[^>]*>\s*\[[^\]]*\]\s*<\/span>/, '')); // 지역 대괄호 span 제거
+    const brs = [...t.matchAll(/\[([^\]]+)\]/g)]; seed = brs.length ? brs[brs.length - 1][1] : '';
+  }
+  const name = cleanStoreName(seed);
+  // 주소: 업체주소 li(<li class="tit">업체주소</li><li  class="info"> 도로명 <div id="map">…). ⚠️info li는 공백 2개(<li  class).
+  let address = '';
+  const am = h.match(/업체주소<\/li>\s*<li\s+class="info">\s*([^<]+)/);
+  if (am) address = cpStrip(am[1]).replace(/\s*\([^)]*\).*$/, '').trim();
+  // 마감 = '리뷰어 신청'의 종료일(MM.DD). 리뷰등록/선정/베스트 등 다른 일정과 혼동 방지 위해 라벨 고정.
+  let deadline = '';
+  const dm = h.match(/리뷰어\s*신청\s*<\/em>\s*\d{1,2}\.\d{1,2}\s*~\s*(\d{1,2})\.(\d{1,2})/);
+  if (dm) deadline = cpYearDate(+dm[1], +dm[2]);
+  // 채널: itname 앞 블록의 채널 span(class/텍스트). 폴백 블로그.
+  const ii = h.indexOf('class="itname');
+  const win = ii >= 0 ? h.slice(Math.max(0, ii - 400), ii) : '';
+  const chSet = new Set();
+  for (const m of win.matchAll(/<span class="([^"]+)"[^>]*>([^<]*)<\/span>/g)) {
+    const hit = CP_CH.find(([re]) => re.test(m[1]) || re.test(m[2])); if (hit) chSet.add(hit[1]);
+  }
+  const channel = [...chSet].join(',');
+  // 제공/설명: 제공내역 li는 비정형이라 캠페인 타이틀 설명(og에서 대괄호 제거) + 해시태그(itdes)로 키워드 분류·요약 확보.
+  const phrase = cpStrip(og.replace(/\[[^\]]*\]/g, ''));
+  const itdes = cpStrip((h.match(/class="itdes[^"]*">([\s\S]*?)<\/span>/) || [])[1] || '');
+  const content = [phrase, itdes].filter(Boolean).join(' ').slice(0, 200);
+  return { name, address, deadline, channel, content };
+}
+
+async function cpFetchList(page) {
+  const r = await fetch(`${CP_BASE}/item_list.php?category_id=001&page=${page}`, { headers: { 'User-Agent': UA, Referer: `${CP_BASE}/` } });
+  if (!r.ok) return [];
+  const html = await r.text();
+  return [...new Set((html.match(/it_id=(\d{6,})/g) || []).map((s) => s.replace('it_id=', '')))];
+}
+
+// 스테이징 대상 아님(만료/이름없음)을 rejected로 기록 → 다음 패스 doneIds가 재요청 차단(아싸뷰 avMarkSeen와 동일).
+async function cpMarkSeen(db, id, url, name, reason) {
+  try {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO scraped_items
+        (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status, auto_seen, auto_note)
+        VALUES ('놀러와',?,?,?,'','','','','','','',0,?,'',NULL,'rejected',1,?)`,
+      args: [id, url, name || '', reason, reason],
+    });
+  } catch (e) {}
+}
+
+async function runCometoplay({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = null }) {
+  const platform = '놀러와';
+  const today = new Date().toISOString().slice(0, 10);
+  const dedupe = _dedupe || await loadDedupe(db);
+  const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='놀러와'")).rows.map((r) => String(r.source_id)));
+  let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, noAddr = 0, expired = 0, timedOut = false;
+  let page = 1;
+  while (page <= 200) {
+    if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+    const ids = await cpFetchList(page);
+    if (!ids.length) break;
+    let newOnPage = 0;
+    for (const id of ids) {
+      if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
+      if (doneIds.has(id)) continue;
+      newOnPage++;
+      if (processed >= limit) { timedOut = true; break; }
+      processed++;
+      doneIds.add(id);
+      try {
+        const url = `${CP_BASE}/item.php?it_id=${id}`;
+        const dres = await fetch(url, { headers: { 'User-Agent': UA, Referer: `${CP_BASE}/item_list.php?category_id=001` } });
+        await sleep(150);
+        if (!dres.ok) { failed++; continue; }
+        const d = cpParseDetail(await dres.text());
+        if (!d.name) { excluded++; await cpMarkSeen(db, id, url, '', '이름없음'); continue; }
+        if (!d.address) { noAddr++; continue; } // 업체주소 없음(배송성/무매장/비정형) → 지도에 못 올림(파싱실패 가능성 있어 재요청 허용)
+        if (d.deadline && d.deadline < today) { expired++; await cpMarkSeen(db, id, url, d.name, `마감지남(${d.deadline})`); continue; }
+        const channel = d.channel || '블로그';
+        const auto = categoryByKeyword((d.content || '') + ' ' + d.name, d.name);
+        const category = auto || '기타'; // 놀러와 목록은 업종 미제공 → 승인 시 naverCanonicalName이 네이버 카테고리로 교정
+        const cls = classify({ name: d.name, channel, address: d.address }, dedupe, today);
+        if (cls.status === 'dup_active') { dupActive++; continue; }
+        const flags = [];
+        if (!auto) flags.push('카테고리확인(기본값 기타)');
+        if (!d.channel) flags.push('채널확인');
+        flags.push('가능시간확인'); // 놀러와는 방문시간 구조필드 없음(항상 빈값) → 검수시 확인
+        const ins = await db.execute({
+          sql: `INSERT OR IGNORE INTO scraped_items
+            (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
+          args: [platform, id, url, d.name, d.address, category, channel, d.content || '', d.deadline || '', '', '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+        });
+        if (ins.rowsAffected > 0) staged++;
+      } catch (e) { failed++; }
+    }
+    if (timedOut) break;
+    if (!newOnPage) break; // 이 페이지 전부 기존 처리분 → 더 볼 것 없음(증분)
+    page++;
+  }
+  await db.execute({
+    sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
+          VALUES ('놀러와', 0, 0, ?, ?, ?, ?)`,
+    args: [processed, staged, excluded + dupActive + noAddr + expired, `처리 ${processed} (적재 ${staged}, dup_active ${dupActive}, 마감지남 ${expired}, 주소없음 ${noAddr}, 제외 ${excluded}, 실패 ${failed}${timedOut ? ', 중단' : ''})`],
+  });
+  return { platform, newCandidates: processed, processed, staged, excluded, dupActive, noAddr, expired, failed, timedOut };
+}
+
 // ===== 레뷰 (revu.net → 백엔드 api.weble.net 공개 API) =====
 // revu.net은 AngularJS SPA라 HTML엔 데이터가 없고, 백엔드 api.weble.net에서 JSON을 받는다.
 // 두 가지 모드:
@@ -2458,4 +2739,4 @@ function mapNaverCat(cat, name) {
   if (/음식점|한식|중식|일식|양식|분식|술집|주점|이자카야|바\(BAR\)|포장마차|뷔페|도시락|컵밥|고기|육류|해물|생선|치킨|피자|요리|식당|국밥|면류|샐러드|샌드위치|햄버거|이탈리아|파스타|스파게티|레스토랑|떡,한과/.test(c)) return '음식점';
   return '기타';
 }
-module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, decodeEntities, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, rnFetchDetail, rnDays, rnHours, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
+module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, decodeEntities, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, rnFetchDetail, rnDays, rnHours, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runAssaview, avParseDetail, avFetchList, runCometoplay, cpParseDetail, cpFetchList, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbHoursDays, soScrapeDetail, soName, soAddress };
