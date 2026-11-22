@@ -2320,27 +2320,35 @@ function cpExpandDays(seq) {
 // 참고사항 → { hours, days, excludeHoliday }. cpStrip은 개행을 공백으로 합쳐 한 줄이므로(개행 분리 불가),
 //  리뷰미션(사진/글자수/키워드/동영상)은 항상 방문조건 '뒤'에 오므로 첫 미션 마커에서 잘라 앞부분만 방문조건으로 사용.
 function cpVisitInfo(ref) {
-  let note = String(ref || '');
-  const cut = note.search(/(리뷰\s*작성|사진\s*\d+\s*장|글자수|키워드를|동영상\s*\d|포스팅\s*작성)/);
-  if (cut > 0) note = note.slice(0, cut);
-  note = note.replace(/[★▶※]/g, ' ').replace(/\s+/g, ' ').trim();
-  const excludeHoliday = /(공휴일|연휴)[은는,\s]*(?:체험|예약)?\s*(불가|휴무|제외)/.test(note);
-  // 요일 파싱 전 비요일 단어(공휴일·평일·주말·연휴·매일·휴일)의 '일'이 일요일로 오인되지 않게 제거.
-  const dayText = note.replace(/공휴일|평일|주말|연휴|매일|휴일/g, ' ');
+  const raw = String(ref || '');
+  const cut = raw.search(/(리뷰\s*작성|사진\s*\d+\s*장|글자수|키워드를|동영상\s*\d|포스팅\s*작성|영수증\s*리뷰)/);
+  const head = (cut > 0 ? raw.slice(0, cut) : raw).replace(/[★▶※☆]/g, ' ').replace(/\s+/g, ' ').trim();
+  // '[체험가능시간]' 라벨이 있으면 그 뒤~다음 라벨([) 전까지를 시간 소스로 우선(없으면 head 전체).
+  const lab = head.match(/체험\s*가능\s*시간\]?\s*([\s\S]*?)(?:\[|$)/);
+  const timeSrc = (lab && lab[1].trim()) ? lab[1] : head;
+  const excludeHoliday = /(공휴일|연휴)[은는,\s]*(?:체험|예약)?\s*(불가|휴무|제외)/.test(head);
+  // 요일 파싱 전 비요일 단어(공휴일·평일·연휴·매일·휴일)의 '일'이 일요일로 오인되지 않게 제거(주말은 별도 처리).
+  const dayText = head.replace(/공휴일|평일|연휴|매일|휴일/g, ' ');
   let days = '';
   const pos = dayText.match(/((?:[월화수목금토일]\s*[,~]?\s*)+)요일?\s*(?:까지\s*)?체험\s*가능/);
+  const range = dayText.match(/([월화수목금토일])\s*~\s*([월화수목금토일])/); // "월~금" 단독 범위
+  const weekendX = /주말\s*[xX×]|주말\s*(?:제외|불가|휴무|휴일)/.test(dayText);
   const neg = [...dayText.matchAll(/((?:[월화수목금토일]\s*[,/]?\s*)+)(?:요일)?(?:은|는)?\s*(?:체험|예약)?\s*불가/g)];
   if (pos) days = cpExpandDays(pos[1]).join(',');
+  else if (range) { const d = cpExpandDays(range[1] + '~' + range[2]); if (d.length && d.length < 7) days = d.join(','); }
+  else if (weekendX) days = '월,화,수,목,금';
   else if (neg.length) {
     const bad = new Set(); neg.forEach((m) => cpExpandDays(m[1]).forEach((d) => bad.add(d)));
     const ok = CP_DAYS.filter((d) => !bad.has(d));
     if (ok.length && ok.length < 7) days = ok.join(',');
   }
+  // 시간: am/pm·오전/오후 접미 처리(놀러와는 "12:00pm ~ 17:30pm"처럼 24h에 pm 붙이기도).
+  const conv = (hh, ap) => { hh = +hh; if (/pm|오후/i.test(ap || '') && hh < 12) hh += 12; if (/am|오전/i.test(ap || '') && hh === 12) hh = 0; return String(hh).padStart(2, '0'); };
   let hours = '';
-  const t = note.match(/(\d{1,2})\s*(?::|시)\s*(\d{2})?\s*(?:분)?\s*~\s*(\d{1,2})\s*(?::|시)\s*(\d{2})?/);
-  if (t) hours = `${t[1].padStart(2, '0')}:${t[2] || '00'}~${t[3].padStart(2, '0')}:${t[4] || '00'}`;
-  else { const af = note.match(/(\d{1,2})\s*(?::|시)\s*(\d{2})?\s*이후/); if (af) hours = `${af[1].padStart(2, '0')}:${af[2] || '00'} 이후`; }
-  const resv = /(\d\s*일\s*전|하루\s*전|당일[^가-힣]{0,3}불가|예약\s*필수)/.test(note);
+  const t = timeSrc.match(/(\d{1,2})\s*(?::|시)\s*(\d{2})?\s*분?\s*(am|pm|오전|오후)?\s*~\s*(\d{1,2})\s*(?::|시)\s*(\d{2})?\s*분?\s*(am|pm|오전|오후)?/i);
+  if (t) hours = `${conv(t[1], t[3])}:${t[2] || '00'}~${conv(t[4], t[6])}:${t[5] || '00'}`;
+  else { const af = timeSrc.match(/(\d{1,2})\s*(?::|시)\s*(\d{2})?\s*(am|pm|오전|오후)?\s*이후/i); if (af) hours = `${conv(af[1], af[3])}:${af[2] || '00'} 이후`; }
+  const resv = /(\d\s*일\s*전|하루\s*전|당일[^가-힣]{0,3}불가|예약\s*필수|예약\s*시간\s*철저|예약\s*철저)/.test(head);
   if (hours && resv) hours += ' (예약필수)'; else if (!hours && resv) hours = '예약필수';
   return { hours, days, excludeHoliday };
 }
