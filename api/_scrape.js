@@ -1353,6 +1353,9 @@ const rnCleanName = (t) => cleanStoreName(String(t || '').replace(/^\s*(?:\[[^\]
 function rnDeadline(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; return new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10); }
 // 매장이 아닌 캠페인(이벤트·전문서비스·온라인/재택)은 지오코딩 대상이 아니라 제외(geoFail로 세지 않음)
 const RN_NONSTORE = /소개팅|세미나|법무법인|변호사|노무사|세무사|보험|대출|투자|코인|주식|온라인클래스|재택|택배|무료나눔|설문|앱테크|구독서비스/;
+// content(제공내역)에만 드러나는 비매장 이벤트(이름엔 상호만 나옴): 소개팅·로테이션 미팅·올나잇/클럽 파티 등.
+//  아싸뷰/놀러와는 제공내역에 '로테이션 소개팅권'처럼 적혀 이름기반 RN_NONSTORE로는 못 걸러짐. 와인파티(실제 와인바)는 제외.
+const NONSTORE_CONTENT = /소개팅|로테이션|올나잇|클럽\s*파티|벙개|번개\s*모임/;
 // 매장명 검색 변형: 전체명 → '/'분리 → 괄호제거 → 마지막토큰(디자이너/스텝명 등) 제거 → 브랜드+지점 → 브랜드.
 // 첫 히트에서 멈추므로 정확한 전체명이 먼저, 노이즈 있는 이름만 점진 완화(리뷰노트 이름은 지점·스텝명이 붙어 검색 0건 나던 것 보완).
 function rnNameVariants(name) {
@@ -2235,7 +2238,7 @@ async function runAssaview({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = 
         const d = avParseDetail(await dres.text());
         if (d.visitType === '배송형') { excluded++; await avMarkSeen(db, id, url, d.name, '배송형(주소없음)'); continue; }
         if (!d.name) { excluded++; await avMarkSeen(db, id, url, '', '이름없음'); continue; }
-        if (RN_NONSTORE.test(d.name)) { excluded++; await avMarkSeen(db, id, url, d.name, '비매장(소개팅/서비스)'); continue; } // 소개팅·세미나 등 비매장 이벤트 제외(리뷰노트와 동일 RN_NONSTORE)
+        if (RN_NONSTORE.test(d.name) || NONSTORE_CONTENT.test(d.content || '')) { excluded++; await avMarkSeen(db, id, url, d.name, '비매장(소개팅/파티)'); continue; } // 이름 또는 제공내역이 소개팅/파티 이벤트면 제외
         if (!d.address) { noAddr++; continue; } // 매장주소 없음 → 지도에 못 올림(파싱실패 가능성 있어 재요청 허용)
         if (d.deadline && d.deadline < today) { expired++; await avMarkSeen(db, id, url, d.name, `마감지남(${d.deadline})`); continue; }
         const channel = d.channel || '블로그';
@@ -2431,7 +2434,7 @@ async function runCometoplay({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe 
         if (!dres.ok) { failed++; continue; }
         const d = cpParseDetail(await dres.text());
         if (!d.name) { excluded++; await cpMarkSeen(db, id, url, '', '이름없음'); continue; }
-        if (RN_NONSTORE.test(d.name)) { excluded++; await cpMarkSeen(db, id, url, d.name, '비매장(소개팅/서비스)'); continue; } // 소개팅·세미나 등 비매장 이벤트 제외(리뷰노트와 동일 RN_NONSTORE)
+        if (RN_NONSTORE.test(d.name) || NONSTORE_CONTENT.test(d.content || '')) { excluded++; await cpMarkSeen(db, id, url, d.name, '비매장(소개팅/파티)'); continue; } // 이름 또는 제공내역이 소개팅/파티 이벤트면 제외
         if (!d.address) { noAddr++; continue; } // 업체주소 없음(배송성/무매장/비정형) → 지도에 못 올림(파싱실패 가능성 있어 재요청 허용)
         if (d.deadline && d.deadline < today) { expired++; await cpMarkSeen(db, id, url, d.name, `마감지남(${d.deadline})`); continue; }
         const channel = d.channel || '블로그';

@@ -231,6 +231,15 @@ async function pass() {
       console.log(`  [${ts()}] └ [미블] AI검증: 자동등록 ${mba.registered} · 검수 ${mba.review} · 스킵 ${mba.skipped} · 남은대기 ${mba.remaining}`);
     }
   }
+  // 아싸뷰 (assaview.co.kr 무인증. 방문형만, 상세에 매장주소·방문시간. content/이름이 소개팅·파티면 비매장 제외. 증분이라 가벼움)
+  if (!stopping) {
+    const av = await runScrape({ db, platform: '아싸뷰', limit: 400, dedupe });
+    if ((av.newCandidates || 0) > (av.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(아싸뷰): 처리 ${av.processed} · 적재 ${av.staged} · 주소없음 ${av.noAddr} · 마감지남 ${av.expired} · 중복 ${av.dupActive} · 제외 ${av.excluded}`);
+    const ava = await runAutopilot({ db, places: apPlaces });
+    remaining = ava.remaining;
+    console.log(`  [${ts()}] └ [아싸뷰] AI검증: 자동등록 ${ava.registered} · 검수 ${ava.review} · 스킵 ${ava.skipped} · 남은대기 ${ava.remaining}`);
+  }
   // 놀러와 (cometoplay.kr 무인증 PHP SSR. 방문형 지역목록→상세. 증분(doneIds)이라 초기 캐치업만 무겁고 steady-state는 신규 소량)
   if (!stopping) {
     const cp = await runScrape({ db, platform: '놀러와', limit: 400, dedupe });
