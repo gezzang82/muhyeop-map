@@ -1657,7 +1657,7 @@ async function runOhmyblog({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = 
 
 // ===== 구구다스 (99das.com) — 공개 목록 JSON(cmpnList.do, XHR 헤더 필요) + 상세 HTML(주소/방문시간 SSR) =====
 // 방문형=cmpnDcd AMZ027.001. 상세에 지번주소(class="addr")·카카오맵 좌표·방문가능시간 SSR. 원고료형(주소 없음)은 스킵.
-const GD_BASE = 'https://www.99das.com';
+const GD_BASE = 'https://99das.com';  // 2026-11: 99das가 www→non-www 301 리다이렉트로 전환 → POST가 리다이렉트에서 깨져 빈 목록(0건 수집)이던 것 수정
 async function gdFetchList(page, unit = 20) {
   const body = `cmpnDcd=AMZ027.001&cmpnKindDcd=&type=cmpnList&area=&cate=&sns=&orderby=new&pageSize=${unit}&pageNum=${page}&tagId=cmpnList`;
   const res = await fetch(`${GD_BASE}/amz/list/cmpnList.do`, {
