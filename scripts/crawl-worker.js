@@ -231,6 +231,15 @@ async function pass() {
       console.log(`  [${ts()}] └ [미블] AI검증: 자동등록 ${mba.registered} · 검수 ${mba.review} · 스킵 ${mba.skipped} · 남은대기 ${mba.remaining}`);
     }
   }
+  // 놀러와 (cometoplay.kr 무인증 PHP SSR. 방문형 지역목록→상세. 증분(doneIds)이라 초기 캐치업만 무겁고 steady-state는 신규 소량)
+  if (!stopping) {
+    const cp = await runScrape({ db, platform: '놀러와', limit: 400, dedupe });
+    if ((cp.newCandidates || 0) > (cp.processed || 0)) more = true;
+    console.log(`  [${ts()}] 수집(놀러와): 처리 ${cp.processed} · 적재 ${cp.staged} · 주소없음 ${cp.noAddr} · 마감지남 ${cp.expired} · 중복 ${cp.dupActive} · 제외 ${cp.excluded}`);
+    const cpa = await runAutopilot({ db, places: apPlaces });
+    remaining = cpa.remaining;
+    console.log(`  [${ts()}] └ [놀러와] AI검증: 자동등록 ${cpa.registered} · 검수 ${cpa.review} · 스킵 ${cpa.skipped} · 남은대기 ${cpa.remaining}`);
+  }
   return { collected, more, remaining };
 }
 
