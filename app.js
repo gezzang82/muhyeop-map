@@ -968,6 +968,10 @@ function toggleSearchPinFab(on) {
 }
 // 지도 검색창(모바일/PC/히든 프록시) 검색어 비우기
 let _suppressSearchResetOnInput = false;  // 프로그램적 검색어 비우기(핀 선택 등) 땐 input 리스너의 지도 리셋 억제
+// 검색 시작 직전 지도 뷰(center/zoom). 검색어를 비우면 이 뷰로 되돌려 '검색 전 지도/리스트'로 복귀(2026-11-22).
+//  매장명 검색은 focusPlace가 그 매장으로 확대(zoom 16~17)하는데, 검색어를 지워도 지도가 확대된 채라
+//  좌측 리스트가 그 매장만 남던 문제(원우씨 제보) → 클리어 시 저장해둔 넓은 뷰로 복원.
+let _preSearchView = null;
 function clearSearchInput() {
   _suppressSearchResetOnInput = true;
   ['regionSearch', 'regionSearchPC', 'regionSearchMobile', 'regionSearchMobileTop', 'regionSearchMobileOverlay'].forEach(id => {
@@ -985,12 +989,16 @@ function initMapSearchReset() {
     el.addEventListener('input', () => {
       if (_suppressSearchResetOnInput) return;
       if (el.value.trim() !== '') return;
-      // 검색창을 비우면: 검색필터 + 검색핀 + 선택마커까지 해제('제자리로'). 매장명 정확일치는 필터 없이 선택마커만 남으므로 필터 유무와 무관하게 정리.
-      const had = _nameFilter || _regionFilter || _searchCatFilter || searchPinMarker || selectedMarkerId != null;
+      // 검색창을 비우면: 검색필터 + 검색핀 + 선택마커 + '검색 전 지도 뷰 복원'까지. 매장명 정확일치는 필터 없이 선택마커만 남으므로 필터 유무와 무관하게 정리.
+      const had = _nameFilter || _regionFilter || _searchCatFilter || searchPinMarker || selectedMarkerId != null || _preSearchView;
       if (!had) return;
       _nameFilter = ''; _regionFilter = ''; _searchCatFilter = '';
       clearSearchPin();
       clearSelectedMarker();  // 상세 카드가 열려있으면 renderAll이 다시 선택(1330~)하므로 '닫힌 채 남은 선택'만 해제됨
+      _sbSkipStale = false;   // 검색 후 사이드바 프리즈 해제 → 복원된 뷰(및 이후 지도 이동)를 다시 추적
+      // 검색 전 지도 뷰로 복원 → 매장명 검색으로 확대됐던 지도가 원래대로, 좌측 리스트도 그 넓은 지도 기준으로 복귀.
+      if (_preSearchView && map && map.setCenter) { map.setCenter(_preSearchView.center); map.setZoom(_preSearchView.zoom); }
+      _preSearchView = null;
       renderAll();
     });
   });
@@ -998,6 +1006,7 @@ function initMapSearchReset() {
 // 검색 상태 초기화: 검색 핀+후기등록 FAB 제거 + 검색창 검색어 리셋 (핀 선택·바텀시트·칩스·GNB 등에서 호출)
 function resetMapSearch() {
   _nameFilter = ''; _regionFilter = ''; _searchCatFilter = '';  // 검색필터 해제(카테고리칩 선택·검색 리셋 시)
+  _preSearchView = null;   // 칩/GNB/현재위치 등 명시적 리셋은 '검색 전 뷰 복원' 대상 아님(의도적 이동)
   clearSearchPin();
   clearSearchInput();
 }
@@ -2698,6 +2707,8 @@ async function searchRegion() {
   _suppressInitialLocation = true;  // 검색 시작 → 늦게 오는 초기 위치이동 취소(검색 중 지도 튐 방지)
   const query = cleanSearchQuery(document.getElementById('regionSearch').value);
   if (!query) return;   // 빈값/자모만('ㅍ') → 검색·집계 둘 다 스킵
+  // 검색 전 지도 뷰 저장(연속 검색은 '최초' 뷰 유지 → 이미 저장돼 있으면 안 덮음). 검색어 비우면 이 뷰로 복원.
+  if (!_preSearchView && map && map.getCenter) _preSearchView = { center: map.getCenter(), zoom: map.getZoom() };
   // 검색 시작 → ①가운데 로딩 스피너(지오코딩+타일 로드 동안 '멈춘 듯' 보이던 것 해소) ②사이드바 자동갱신 시간창 세팅
   //  (유저 피드백 2026-11-10: 지역 바꿔 검색해도 좌측 목록이 안 바뀌고, 기다리는 동안 로딩 표시가 없음)
   _sbSearchMoveUntil = Date.now() + 4000;
