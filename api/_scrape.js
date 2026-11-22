@@ -613,6 +613,35 @@ async function fbFetchActiveList(hardCap = 1500) {
   return out;
 }
 
+// ⚠️ 포블로그 상세 페이지가 2026-11 '로그인월'로 전환됨(GET /campaign/{cid}/ → "로그인 - 포블로그" 페이지, campaigninfo/체험장소 마커
+//  사라짐·모든 CID 동일 길이). 공개로 주소를 더는 못 읽음. 목록 API(loadMoreDataCategoryV2)는 여전히 공개 →
+//  목록의 name + LOCATION_NM(시/동)으로 네이버 로컬검색해 도로명 해석(리뷰노트 rnResolveAddress와 동일 전략).
+//  좌표·정식명·카테고리는 승인/오토파일럿이 재확인. 요일/시간은 상세가 로그인월이라 미확보(검수 플래그).
+async function fbResolveAddress(name, locationNm, nameRegion) {
+  if (!name) return '';
+  // 지역 힌트: LOCATION_NM("[시흥시/배곧동]")의 시·동 + CAMPAIGN_NM "[강남/역삼]" 접두(fbName.region). 중복 제거.
+  const regs = [];
+  for (const src of [locationNm, nameRegion]) String(src || '').replace(/[\[\]]/g, '').split('/').map((s) => s.trim()).filter(Boolean).forEach((r) => regs.push(r));
+  const uniq = [...new Set(regs)];
+  const cityTok = uniq.find((r) => /[시도군]$/.test(r)) || uniq[0] || '';
+  const cityStem = cityTok.replace(/(특별자치시|특별자치도|특별시|광역시|시|도|군)$/, ''); // "시흥시"→"시흥"(도로명 "경기도 시흥시…" 매칭)
+  if (!uniq.length) return ''; // 지역 힌트 없으면 포기(name-only는 동명 타지점 오매칭 위험) → noAddr(다음 실행 재시도)
+  for (const v of rnNameVariants(name)) {
+    for (const r of uniq) {
+      let items = []; try { items = await rnNaverLocal(`${v} ${r}`); } catch (e) {}
+      for (const it of items) {
+        const a = (it.roadAddress || it.address || '').replace(/<[^>]+>/g, '').trim();
+        const lat = Number(it.mapy) / 1e7, lng = Number(it.mapx) / 1e7;
+        if (!(lat >= 33 && lat <= 39.6 && lng >= 124.5 && lng <= 132)) continue; // 한국 범위
+        if (cityStem && !a.includes(cityStem) && !a.includes(cityTok)) continue;  // 시/도 일치(프랜차이즈 오지점 방지)
+        return a;
+      }
+      await sleep(90);
+    }
+  }
+  return '';
+}
+
 // '활성목록 reconcile' 방식(2026-11, 대량누락 수정). 기존은 CID커서(>last_max_id)만 신규로 봐서:
 //  ① featured·저CID 활성건을 영구 미수집(커서가 최댓값에 고정), ② 같은 CID로 마감만 연장되는 포블 캠페인을
 //     커서가 안 커져 재처리 못 해 우리 DB 마감이 옛날 걸로 굳어 만료(활성 651 ↔ 우리 13). →
@@ -635,8 +664,8 @@ async function runFoblog({ db, limit = 40, dedupe: _dedupe = null }) {
   const stagedByCid = new Map((await db.execute("SELECT source_id, status FROM scraped_items WHERE platform='포블로그'")).rows.map((r) => [Number(r.source_id), String(r.status)]));
 
   const dedupe = _dedupe || await loadDedupe(db);
-  let staged = 0, renewed = 0, current = 0, dupActive = 0, excluded = 0, failed = 0, consecShort = 0, throttled = false;
-  const needDetail = []; // campaign 없는 CID(신규 or 과거 rejected 재활성) — 상세fetch 대상
+  let staged = 0, renewed = 0, current = 0, dupActive = 0, excluded = 0, noAddr = 0, failed = 0;
+  const needStage = []; // campaign 없는 CID(신규 or 과거 rejected 재활성) — 목록+네이버로 스테이징
 
   // 1) 이미 campaign 있는 CID: 목록 REQ_CLOSE_DT로 마감만 갱신(연장·만료재활성). 상세 불필요 → 전건 처리.
   for (const it of active) {
@@ -644,7 +673,7 @@ async function runFoblog({ db, limit = 40, dedupe: _dedupe = null }) {
     const c = campByCid.get(cid);
     if (!c) {
       const prev = stagedByCid.get(cid);
-      if (prev === undefined || prev === 'rejected') needDetail.push(it); // 신규 또는 재활성 후보(pending=이미 큐·registered=아래 campaign 있음)
+      if (prev === undefined || prev === 'rejected') needStage.push(it); // 신규 또는 재활성 후보(pending=이미 큐·registered=아래 campaign 있음)
       continue;
     }
     const fbDl = fbDeadline(it.REQ_CLOSE_DT);
@@ -655,52 +684,47 @@ async function runFoblog({ db, limit = 40, dedupe: _dedupe = null }) {
     } else current++;
   }
 
-  // 2) 신규/재활성: 상세 fetch로 주소·요일·시간 확보 후 스테이징(limit개까지, 나머지 다음 실행). 저CID부터.
-  const targets = needDetail.sort((a, b) => Number(a.CID) - Number(b.CID)).slice(0, limit);
-  for (let i = 0; i < targets.length; i++) {
-    const it = targets[i];
+  // 2) 신규/재활성: 상세가 로그인월이라 목록 필드 + 네이버 주소해석으로 스테이징(limit개까지, 나머지 다음 실행). 저CID부터.
+  //    요일/시간은 미확보(상세 로그인월) → 비움 + '가능요일확인' 플래그. 주소 해석 실패분은 rejected 안 남기고 다음 실행 재시도.
+  const targets = needStage.sort((a, b) => Number(a.CID) - Number(b.CID)).slice(0, limit);
+  for (const it of targets) {
     const cid = Number(it.CID);
     try {
-      const { name } = fbName(it.CAMPAIGN_NM);
+      const { name, region: nmRegion } = fbName(it.CAMPAIGN_NM);
+      if (!name) { excluded++; continue; }
       const channel = FB_CH[String(it.CATEGORY || '').toLowerCase()] || '';
       const content = cleanContent(String(it.REVIEWER_BENEFIT || ''));
-      let html = await fetchText(`${FB_BASE}/campaign/${cid}/`);
-      // 축약 페이지(campaigninfo 없음)는 만료 or 레이트리밋 축약본 — 백오프 후 1회 재시도해 차단 오탐 방지
-      if (!/campaigninfo-label/.test(html)) { await sleep(2500); html = await fetchText(`${FB_BASE}/campaign/${cid}/`); }
-      // 서킷브레이커: 축약이 연속되면(=IP 차단 추정) 즉시 중단해 4blog 부하↓ → 차단 빨리 해제.
-      if (!/campaigninfo-label/.test(html)) { if (++consecShort >= 5) { throttled = true; break; } else { continue; } } else consecShort = 0;
-      const { address, hours, days, holiday, deadline: dlCal } = fbParseDetail(html);
-      if (!address) { excluded++; continue; } // 재시도 후에도 주소 없으면 만료/비매장으로 보고 제외
-      const deadline = dlCal || fbDeadline(it.REQ_CLOSE_DT); // 캘린더 '리뷰어 모집' 종료일 우선
-      const excludeHoliday = holiday;
+      const address = await fbResolveAddress(name, it.LOCATION_NM, nmRegion);
+      if (!address) { noAddr++; continue; } // 네이버 해석 실패 → 스킵(rejected 안 남김, 다음 실행 재시도)
+      const deadline = fbDeadline(it.REQ_CLOSE_DT);
       const auto = categoryByKeyword(String(it.KEYWORD || '') + ' ' + content, name);
       const category = auto || '음식점';
       const flags = [];
       if (!auto) flags.push('카테고리확인(기본값 음식점)');
       if (!channel) flags.push('채널확인');
-      if (!days) flags.push('가능요일확인');
-      const item = { name, url: `${FB_BASE}/campaign/${cid}/`, channel, category, address, deadline, content, hours, days, excludeHoliday, flags: flags.join(' ') };
+      flags.push('가능요일확인'); // 상세 로그인월이라 요일/시간 미확보 → 검수에서 확인
+      const item = { name, url: `${FB_BASE}/campaign/${cid}/`, channel, category, address, deadline, content, hours: '', days: '', excludeHoliday: '', flags: flags.join(' ') };
       const cls = classify(item, dedupe, today);
       if (cls.status === 'dup_active') { dupActive++; continue; }
       const prev = stagedByCid.get(cid);
       if (prev === 'rejected') {
         // 과거 rejected(만료로 제외됐던 것)가 다시 활성 → UNIQUE로 INSERT OR IGNORE가 막으니 그 행을 UPDATE로 재활성(pending/auto_seen=0).
         await db.execute({
-          sql: `UPDATE scraped_items SET source_url=?, name=?, address=?, category=?, channel=?, content=?, deadline=?, hours=?, days=?, exclude_holiday=?, flags=?, dedupe_status=?, matched_place_id=?, status='pending', auto_seen=0, auto_note='', reviewed_at=NULL WHERE platform='포블로그' AND source_id=?`,
-          args: [item.url, name, address, category, channel, content, deadline || '', hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, item.flags || '', cls.status, cls.matchedPlaceId, cid],
+          sql: `UPDATE scraped_items SET source_url=?, name=?, address=?, category=?, channel=?, content=?, deadline=?, hours='', days='', exclude_holiday=0, flags=?, dedupe_status=?, matched_place_id=?, status='pending', auto_seen=0, auto_note='', reviewed_at=NULL WHERE platform='포블로그' AND source_id=?`,
+          args: [item.url, name, address, category, channel, content, deadline || '', item.flags || '', cls.status, cls.matchedPlaceId, cid],
         });
         staged++;
       } else {
         const ins = await db.execute({
           sql: `INSERT OR IGNORE INTO scraped_items
             (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
-          args: [platform, cid, item.url, name, address, category, channel, content, deadline || '', hours || '', days || '', excludeHoliday === 'Y' ? 1 : 0, item.flags || '', cls.status, cls.matchedPlaceId],
+            VALUES (?,?,?,?,?,?,?,?,?,'','',0,?,?,?,'pending')`,
+          args: [platform, cid, item.url, name, address, category, channel, content, deadline || '', item.flags || '', cls.status, cls.matchedPlaceId],
         });
         if (ins.rowsAffected > 0) staged++;
       }
     } catch (e) { failed++; }
-    if (i < targets.length - 1) await sleep(1000); // 4blog 레이트리밋 회피: 상세 fetch 간 1초
+    await sleep(120); // 네이버 로컬검색 레이트리밋 회피
   }
 
   // 커서는 호환/효율용으로 최대 CID 유지(reconcile이 실질 소스라 더 이상 신규 판정 기준 아님).
@@ -713,9 +737,9 @@ async function runFoblog({ db, limit = 40, dedupe: _dedupe = null }) {
   await db.execute({
     sql: `INSERT INTO scrape_runs (platform, cursor_from, cursor_to, fetched, staged, excluded, note)
           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    args: [platform, lastMaxId, newCursor, active.length, staged, excluded + dupActive, `reconcile 활성 ${active.length} (신규/재활성 ${staged}, 마감갱신 ${renewed}, 유지 ${current}, dup_active ${dupActive}, 주소없음 ${excluded}, 실패 ${failed}${throttled ? ', 차단감지-중단' : ''})`],
+    args: [platform, lastMaxId, newCursor, active.length, staged, excluded + dupActive + noAddr, `reconcile 활성 ${active.length} (신규/재활성 ${staged}, 마감갱신 ${renewed}, 유지 ${current}, dup_active ${dupActive}, 주소해석실패 ${noAddr}, 이름없음 ${excluded}, 실패 ${failed})`],
   });
-  return { platform, cursorFrom: lastMaxId, cursorTo: newCursor, active: active.length, newCandidates: needDetail.length, processed: targets.length, staged, renewed, current, dupActive, excluded, failed, throttled };
+  return { platform, cursorFrom: lastMaxId, cursorTo: newCursor, active: active.length, newCandidates: needStage.length, processed: targets.length, staged, renewed, current, dupActive, noAddr, excluded, failed };
 }
 
 // 플랫폼 디스패처
@@ -2771,4 +2795,4 @@ function mapNaverCat(cat, name) {
   if (/음식점|한식|중식|일식|양식|분식|술집|주점|이자카야|바\(BAR\)|포장마차|뷔페|도시락|컵밥|고기|육류|해물|생선|치킨|피자|요리|식당|국밥|면류|샐러드|샌드위치|햄버거|이탈리아|파스타|스파게티|레스토랑|떡,한과/.test(c)) return '음식점';
   return '기타';
 }
-module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, decodeEntities, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, rnFetchDetail, rnDays, rnHours, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runAssaview, avParseDetail, avFetchList, runCometoplay, cpParseDetail, cpFetchList, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, fbFetchList, fbFetchActiveList, FB_CAMP_LINK_RE, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbFetchList, rbHoursDays, soScrapeDetail, soParseList, soName, soAddress, gdFetchList, ombFetch, rnFetchPage, SO_BASE, SO_VISIT_CAT };
+module.exports = { categoryByKeyword, mapNaverCat, cleanStoreName, decodeEntities, isHair, PHOTO_RE, loadDedupe, runDinnerqueen, runFoblog, runGangnam, runRingble, runSeouloba, runReviewnote, rnFetchDetail, rnDays, rnHours, runOhmyblog, ombHoursDays, runGooddas, gdParseDetail, runRamirami, rrParseDetail, rrLogin, rrFetchList, runRevu, revuFetchList, revuLogin, revuFetchAuthed, revuFetchDetail, revuRewardClean, revuVisitHours, runPopomon, popFetchList, popFetchDetail, runMrblog, mbSession, mbFetchList, mbParseDetail, mbListItems, runAssaview, avParseDetail, avFetchList, runCometoplay, cpParseDetail, cpFetchList, runScrape, reparsePending, fbParseDetail, fbName, fbDeadline, fbFetchList, fbFetchActiveList, fbResolveAddress, FB_CAMP_LINK_RE, SEOUL_AREA2, AREA2_BY_REGION, deriveDays, cleanHours, parseExcludeHoliday, scrapeDetail, gnFetchList, gnScrapeDetail, gnDetailAddress, gnGuideText, gnDaysFromGuide, rbScrapeDetail, rbParseList, rbFetchList, rbHoursDays, soScrapeDetail, soParseList, soName, soAddress, gdFetchList, ombFetch, rnFetchPage, SO_BASE, SO_VISIT_CAT };
