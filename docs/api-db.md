@@ -35,6 +35,7 @@
 - `places(id, name, address, lat, lng, category, founder_nickname, founder_email, founder_url, founder_user_id, created_at)`
 - `campaigns(id, place_id, platform, channels, content, deadline, link, operating_days, operating_hours, exclude_holiday, reporter_nickname, reporter_email, reporter_blog, reporter_instagram, reporter_url, source, hidden, user_id, created_at)`
   - `deadline`은 빈 문자열 허용(마감일 없음), `source`는 등록 경로 구분: `'user'`(유저 제보)/`'admin'`(수집 승인)/`'ai'`(오토파일럿 자동등록)/`'unknown'`
+  - **⚠️ `channels`·`operating_days`는 JSON 배열 문자열**(`["월","화"]`)로 저장. `toCampaign`이 `JSON.parse`하므로 **콤마문자열(`월,화`)로 직접 쓰면 `JSON.parse` 예외 → GET이 500 크래시**(공개 bbox·어드민 조회 모두). 정상 경로는 `insertCampaign`(`JSON.stringify(csv(r.days))`)·POST(`JSON.stringify`)라 안전하나, **유지보수 스크립트로 `operating_days`를 직접 UPDATE할 때 반드시 JSON.stringify**. 사고(2026-11-22): 놀러와 백필이 콤마문자열로 써 53건이 어드민 조회 '놀러와' 선택 시 500 유발 → JSON 배열로 일괄 교정.
   - `user_id`/`founder_user_id`는 로그인 사용자 식별용 nullable FK (`users.id`). 비로그인 제보도 계속 허용하므로 NULL 가능
   - **경쟁률/썸네일 공간(2026-09-19)**: `apply_count`(신청수)·`recruit_limit`(모집인원)·`thumbnail` 컬럼 추가(미사용 nullable, 나중에 채움). 포포몬/레뷰 목록에 경쟁률·썸네일이 있어 선반영해 둔 자리. `scraped_items`에도 동일 컬럼 존재
 - `banners(id, image_url, link_url, start_date, end_date, hidden, sort_order, created_at)` — 이벤트 팝업. `sort_order`(2026-09-24)=노출 순서(작을수록 캐러셀 앞, 기본 맨 뒤)
