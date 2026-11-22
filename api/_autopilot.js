@@ -18,7 +18,7 @@
 
 const { geocodeServer } = require('./_geocode');
 const { judgeCandidate } = require('./_ai');
-const { cleanStoreName, mapNaverCat } = require('./_scrape');
+const { cleanStoreName, mapNaverCat, decodeEntities } = require('./_scrape');
 
 const MAX_PER_RUN = 300; // 한 실행 처리 상한(실질 상한은 시간 예산 deadlineTs)
 const MAX_AI_CALLS = 800; // 신규매장 AI 호출 상한(비용 안전판; gpt-4o-mini라 매우 저렴해 넉넉히)
@@ -79,7 +79,7 @@ async function naverCanonicalName(name, lat, lng) {
       const nx = Number(it.mapx) / 1e7, ny = Number(it.mapy) / 1e7; // lng, lat
       if (!isFinite(nx) || !isFinite(ny) || nx < 124 || nx > 132 || ny < 33 || ny > 39.5) continue; // 한국 범위 밖(좌표계 다름 등) 제외
       if (_havMeters(Number(lat), Number(lng), ny, nx) <= 80) {
-        const t = String(it.title || '').replace(/<[^>]+>/g, '').trim();
+        const t = decodeEntities(String(it.title || '').replace(/<[^>]+>/g, '')).trim(); // <b>태그 제거 + &amp;/&lt; 등 엔티티 디코드(네이버 title은 둘 다 들어옴)
         if (t) return { name: t, category: String(it.category || '').trim() }; // 정식명 + 네이버 카테고리
       }
     }

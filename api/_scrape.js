@@ -2292,7 +2292,59 @@ function cpYearDate(mm, dd) {
   if (mk(y) < today && (Date.parse(today) - Date.parse(mk(y))) > 90 * 86400e3) y += 1;
   return mk(y);
 }
-// 상세 HTML → { name, address, deadline, channel, content }
+// 제공내역: 상단 .etc_list2의 tit_etc2=제공내역 → etc2 값. (campain_info 테이블의 제공내역 li는 주석처리라 비어있음 →
+//   예전엔 못 찾아 og 홍보문구+해시태그로 때웠던 버그. 실제 제공내역은 여기 있음, 2026-11-22)
+function cpProvide(h) {
+  const m = h.match(/tit_etc2">제공내역<\/span>\s*<span class="etc2[^"]*"[^>]*>([\s\S]*?)<\/span>/);
+  if (!m) return '';
+  let t = cpStrip(m[1]).replace(/^[★※▶\s]*제공내역\s*[:：]\s*/, ''); // 중복 라벨 제거
+  t = t.replace(/\[[★☆][^\]]{0,400}\]/g, ' ').replace(/\s{2,}/g, ' ').trim(); // 긴 [★설명] 블록 제거(핵심 제공만)
+  if (t.length > 180) t = t.slice(0, 180).replace(/\s+\S*$/, '') + '…';
+  return t;
+}
+// 참고사항 원문(방문 가능시간/요일/공휴일이 들어있는 칸).
+function cpRefText(h) {
+  const m = h.match(/<li class="tit">참고사항<\/li>\s*<li\s+class="info"[^>]*>([\s\S]*?)<\/li>/);
+  return m ? cpStrip(m[1]) : '';
+}
+const CP_DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+function cpExpandDays(seq) {
+  seq = String(seq || '').replace(/\s/g, '');
+  if (seq.includes('~')) {
+    const p = seq.split('~').map((x) => (x.match(/[월화수목금토일]/) || [])[0]);
+    const ia = CP_DAYS.indexOf(p[0]), ib = CP_DAYS.indexOf(p[1]);
+    if (ia >= 0 && ib >= 0) { const r = []; for (let i = ia; i <= ib; i++) r.push(CP_DAYS[i]); return r; }
+  }
+  return [...seq.matchAll(/[월화수목금토일]/g)].map((m) => m[0]);
+}
+// 참고사항 → { hours, days, excludeHoliday }. cpStrip은 개행을 공백으로 합쳐 한 줄이므로(개행 분리 불가),
+//  리뷰미션(사진/글자수/키워드/동영상)은 항상 방문조건 '뒤'에 오므로 첫 미션 마커에서 잘라 앞부분만 방문조건으로 사용.
+function cpVisitInfo(ref) {
+  let note = String(ref || '');
+  const cut = note.search(/(리뷰\s*작성|사진\s*\d+\s*장|글자수|키워드를|동영상\s*\d|포스팅\s*작성)/);
+  if (cut > 0) note = note.slice(0, cut);
+  note = note.replace(/[★▶※]/g, ' ').replace(/\s+/g, ' ').trim();
+  const excludeHoliday = /(공휴일|연휴)[은는,\s]*(?:체험|예약)?\s*(불가|휴무|제외)/.test(note);
+  // 요일 파싱 전 비요일 단어(공휴일·평일·주말·연휴·매일·휴일)의 '일'이 일요일로 오인되지 않게 제거.
+  const dayText = note.replace(/공휴일|평일|주말|연휴|매일|휴일/g, ' ');
+  let days = '';
+  const pos = dayText.match(/((?:[월화수목금토일]\s*[,~]?\s*)+)요일?\s*(?:까지\s*)?체험\s*가능/);
+  const neg = [...dayText.matchAll(/((?:[월화수목금토일]\s*[,/]?\s*)+)(?:요일)?(?:은|는)?\s*(?:체험|예약)?\s*불가/g)];
+  if (pos) days = cpExpandDays(pos[1]).join(',');
+  else if (neg.length) {
+    const bad = new Set(); neg.forEach((m) => cpExpandDays(m[1]).forEach((d) => bad.add(d)));
+    const ok = CP_DAYS.filter((d) => !bad.has(d));
+    if (ok.length && ok.length < 7) days = ok.join(',');
+  }
+  let hours = '';
+  const t = note.match(/(\d{1,2})\s*(?::|시)\s*(\d{2})?\s*(?:분)?\s*~\s*(\d{1,2})\s*(?::|시)\s*(\d{2})?/);
+  if (t) hours = `${t[1].padStart(2, '0')}:${t[2] || '00'}~${t[3].padStart(2, '0')}:${t[4] || '00'}`;
+  else { const af = note.match(/(\d{1,2})\s*(?::|시)\s*(\d{2})?\s*이후/); if (af) hours = `${af[1].padStart(2, '0')}:${af[2] || '00'} 이후`; }
+  const resv = /(\d\s*일\s*전|하루\s*전|당일[^가-힣]{0,3}불가|예약\s*필수)/.test(note);
+  if (hours && resv) hours += ' (예약필수)'; else if (!hours && resv) hours = '예약필수';
+  return { hours, days, excludeHoliday };
+}
+// 상세 HTML → { name, address, deadline, channel, content, hours, days, excludeHoliday }
 function cpParseDetail(html) {
   const h = String(html || '');
   // 매장명 시드: og:title의 마지막 "[상호]"(h1은 제네릭). 폴백: itname에서 지역 대괄호 span 제거 후 마지막 대괄호.
@@ -2320,11 +2372,10 @@ function cpParseDetail(html) {
     const hit = CP_CH.find(([re]) => re.test(m[1]) || re.test(m[2])); if (hit) chSet.add(hit[1]);
   }
   const channel = [...chSet].join(',');
-  // 제공/설명: 제공내역 li는 비정형이라 캠페인 타이틀 설명(og에서 대괄호 제거) + 해시태그(itdes)로 키워드 분류·요약 확보.
-  const phrase = cpStrip(og.replace(/\[[^\]]*\]/g, ''));
-  const itdes = cpStrip((h.match(/class="itdes[^"]*">([\s\S]*?)<\/span>/) || [])[1] || '');
-  const content = [phrase, itdes].filter(Boolean).join(' ').slice(0, 200);
-  return { name, address, deadline, channel, content };
+  // 협찬 내용 = 실제 제공내역(상단 .etc2) + 참고사항에서 방문시간/요일/공휴일 파싱.
+  const content = cpProvide(h);
+  const v = cpVisitInfo(cpRefText(h));
+  return { name, address, deadline, channel, content, hours: v.hours, days: v.days, excludeHoliday: v.excludeHoliday };
 }
 
 async function cpFetchList(page) {
@@ -2383,12 +2434,13 @@ async function runCometoplay({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe 
         const flags = [];
         if (!auto) flags.push('카테고리확인(기본값 기타)');
         if (!d.channel) flags.push('채널확인');
-        flags.push('가능시간확인'); // 놀러와는 방문시간 구조필드 없음(항상 빈값) → 검수시 확인
+        if (!d.content) flags.push('제공내역확인'); // 제공내역 .etc2 미검출 시 검수
+        if (!d.hours) flags.push('가능시간확인'); // 참고사항에서 시간 못 뽑은 경우만
         const ins = await db.execute({
           sql: `INSERT OR IGNORE INTO scraped_items
             (platform, source_id, source_url, name, address, category, channel, content, deadline, hours, days, exclude_holiday, flags, dedupe_status, matched_place_id, status)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')`,
-          args: [platform, id, url, d.name, d.address, category, channel, d.content || '', d.deadline || '', '', '', 0, flags.join(' '), cls.status, cls.matchedPlaceId],
+          args: [platform, id, url, d.name, d.address, category, channel, d.content || '', d.deadline || '', d.hours || '', d.days || '', d.excludeHoliday ? 1 : 0, flags.join(' '), cls.status, cls.matchedPlaceId],
         });
         if (ins.rowsAffected > 0) staged++;
       } catch (e) { failed++; }
