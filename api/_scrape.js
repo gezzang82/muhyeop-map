@@ -2181,6 +2181,7 @@ async function runAssaview({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = 
         const d = avParseDetail(await dres.text());
         if (d.visitType === '배송형') { excluded++; await avMarkSeen(db, id, url, d.name, '배송형(주소없음)'); continue; }
         if (!d.name) { excluded++; await avMarkSeen(db, id, url, '', '이름없음'); continue; }
+        if (RN_NONSTORE.test(d.name)) { excluded++; await avMarkSeen(db, id, url, d.name, '비매장(소개팅/서비스)'); continue; } // 소개팅·세미나 등 비매장 이벤트 제외(리뷰노트와 동일 RN_NONSTORE)
         if (!d.address) { noAddr++; continue; } // 매장주소 없음 → 지도에 못 올림(파싱실패 가능성 있어 재요청 허용)
         if (d.deadline && d.deadline < today) { expired++; await avMarkSeen(db, id, url, d.name, `마감지남(${d.deadline})`); continue; }
         const channel = d.channel || '블로그';
@@ -2317,6 +2318,7 @@ async function runCometoplay({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe 
         if (!dres.ok) { failed++; continue; }
         const d = cpParseDetail(await dres.text());
         if (!d.name) { excluded++; await cpMarkSeen(db, id, url, '', '이름없음'); continue; }
+        if (RN_NONSTORE.test(d.name)) { excluded++; await cpMarkSeen(db, id, url, d.name, '비매장(소개팅/서비스)'); continue; } // 소개팅·세미나 등 비매장 이벤트 제외(리뷰노트와 동일 RN_NONSTORE)
         if (!d.address) { noAddr++; continue; } // 업체주소 없음(배송성/무매장/비정형) → 지도에 못 올림(파싱실패 가능성 있어 재요청 허용)
         if (d.deadline && d.deadline < today) { expired++; await cpMarkSeen(db, id, url, d.name, `마감지남(${d.deadline})`); continue; }
         const channel = d.channel || '블로그';
