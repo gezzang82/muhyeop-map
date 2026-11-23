@@ -233,6 +233,32 @@ async function genImage(prompt, size) {
   return b64;
 }
 
+// ── 발행 전 이미지 QC(비전, 2026-11-23 원우님 "다리 꼭 검수 파이프라인에 추가") ──
+// gpt-image는 강아지에 여분 다리/발을 자주 그림 → 발행 전 gpt-4o-mini 비전으로 다리 4개·해부학·한글 검사.
+// 실패면 {ok:false} → 호출부가 재생성. QC 인프라 자체 오류는 fail-open(ok:true)로 발행을 막지 않음.
+async function qcImage(b64) {
+  try {
+    const body = { model: 'gpt-4o-mini', temperature: 0, messages: [{ role: 'user', content: [
+      { type: 'text', text: `치비 소년+시바견 일러스트 QC. JSON만 출력: {"dogLegs":강아지 다리/발 개수(정수),"dogAnatomyOk":정확히 4다리이고 여분/융합 다리·발 없으면 true,"koreanTextOk":한글이 안 깨지고 읽히면 true,"reason":"문제 짧게"}. 강아지 다리를 특히 꼼꼼히 세고, 애매하면 false.` },
+      { type: 'image_url', image_url: { url: `data:image/png;base64,${b64}` } } ] }] };
+    const r = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json();
+    const txt = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+    const m = txt.match(/\{[\s\S]*\}/); const o = m ? JSON.parse(m[0]) : {};
+    return { ok: !!(o.dogAnatomyOk && o.koreanTextOk), reason: o.reason || '', legs: o.dogLegs };
+  } catch (e) { return { ok: true, reason: 'qc-infra-error(skip-gate)' }; }
+}
+// 생성 + QC 게이트 재시도: 통과한 이미지 b64 반환, 끝까지 실패면 null.
+async function genImageQC(prompt, size, tries = 3) {
+  for (let i = 1; i <= tries; i++) {
+    const b64 = await genImage(prompt, size);
+    const q = await qcImage(b64);
+    if (q.ok) return b64;
+    try { console.log(`  [IG QC] 해부학/텍스트 실패(${q.reason || '다리' + q.legs}) → 재생성 ${i}/${tries}`); } catch (_) {}
+  }
+  return null;
+}
+
 // ── IG 발행 ──
 async function publish(token, imageUrl, caption) {
   let res = await fetch(`${IG_BASE}/${USER_ID}/media`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ image_url: imageUrl, caption, access_token: token }) });
@@ -269,7 +295,8 @@ async function runDailyIgPost(db) {
   if (!t) { return { skipped: 'no-material' }; }
 
   const prompt = buildPrompt(t);
-  const b64 = await genImage(prompt);
+  const b64 = await genImageQC(prompt);   // QC 게이트: 다리4·해부학·한글 통과분만. 끝까지 실패면 null → 이날 발행 스킵(나쁜 이미지 공개 방지)
+  if (!b64) return { skipped: 'qc-failed' };
   const assetId = 'post-' + today.replace(/-/g, '') + '-' + Math.random().toString(36).slice(2, 7);
   await db.execute({ sql: `INSERT OR REPLACE INTO ig_assets (id, mime, data) VALUES (?, 'image/png', ?)`, args: [assetId, b64] });
   const imageUrl = `${PUBLIC_BASE}/api/banners?asset=${assetId}`;
@@ -323,4 +350,4 @@ async function generateDailyStory(db) {
   return { posted: true, topic: t ? t.topic : 'generic' };
 }
 
-module.exports = { runDailyIgPost, ensureTables, pickTopic, buildPrompt, generatePreview, generateDailyStory };
+module.exports = { runDailyIgPost, ensureTables, pickTopic, buildPrompt, generatePreview, generateDailyStory, qcImage, genImageQC };
