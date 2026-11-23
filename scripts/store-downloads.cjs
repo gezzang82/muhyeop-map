@@ -102,8 +102,10 @@ async function playInstalls(date) {
 }
 
 // ---------- Play 누적 다운로드 + 활성 ----------
-//  Play Console '총 설치 수'(누적) = Daily User Installs 합(출시월~date). ('Total User Installs' 컬럼은 이 export에서 전부 0이라 못 씀 → iOS처럼 일별 합산)
-//  '활성 기기 수' = Active Device Installs 최신행. 둘 다 반환 {date, total(누적), active(활성)}.
+//  '순 설치 사용자'(누적) = Daily User Installs 합(리포트 시작월~date). 다기기·재설치 중복제거 = 실사용자 수.
+//   ⚠️ Play Console '총 설치수'(기기·재설치 이벤트 전부)와는 정의가 달라 더 낮게 나옴(의도된 차이). ('Total User Installs' 컬럼은 이 export에서 전부 0이라 못 씀 → 일별 합산)
+//   ⚠️ 시작월: 2026-09(소프트런칭·Play 리포트 시작). 예전 2026-10 시작은 9월 22건을 누락하던 버그(2026-11-23 수정).
+//  '활성 기기 수' = Active Device Installs 최신행. 둘 다 반환 {date, total(순사용자 누적), active(활성)}.
 async function playTotal(date) {
   const BUCKET = envGet('GPLAY_STATS_BUCKET');
   const saFile = envGet('GOOGLE_PLAY_SA_FILE');
@@ -116,9 +118,9 @@ async function playTotal(date) {
   const jsig = b64url(crypto.sign('RSA-SHA256', Buffer.from(jh + '.' + jp), sa.private_key));
   const tk = await (await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jh + '.' + jp + '.' + jsig }) })).json();
   if (!tk.access_token) return null;
-  // 출시월(2026-10, Play 리포트 시작)부터 date월까지 월 CSV 순회
+  // 리포트 시작월(2026-09 소프트런칭)부터 date월까지 월 CSV 순회. (없는 월은 res.ok=false로 자동 스킵)
   const months = [];
-  { let y = 2026, m = 10; const endYm = Number(date.slice(0, 4)) * 100 + Number(date.slice(5, 7)); while (y * 100 + m <= endYm) { months.push(String(y) + String(m).padStart(2, '0')); m++; if (m > 12) { m = 1; y++; } } }
+  { let y = 2026, m = 9; const endYm = Number(date.slice(0, 4)) * 100 + Number(date.slice(5, 7)); while (y * 100 + m <= endYm) { months.push(String(y) + String(m).padStart(2, '0')); m++; if (m > 12) { m = 1; y++; } } }
   let cum = 0, active = null, asOf = null;
   for (const ym of months) {
     const obj = encodeURIComponent(`stats/installs/installs_${PKG}_${ym}_overview.csv`);
