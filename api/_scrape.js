@@ -2217,16 +2217,20 @@ async function runAssaview({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = 
   const dedupe = _dedupe || await loadDedupe(db);
   const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='아싸뷰'")).rows.map((r) => String(r.source_id)));
   let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, noAddr = 0, expired = 0, timedOut = false;
+  // 전체목록 reconcile(2026-11-23): 예전 `if(!newOnPage) break`는 '기존분만 있는 페이지'에서 멈춰 깊은 페이지의 미수집분(실측 59%)을
+  //  놓쳤음(featured/기존이 앞페이지에 섞임). → '이번 실행에 처음 보는 목록 id'(seen) 기준으로 순회하고, 반복(새 id 0)이면 종료.
+  //  doneIds(이미 상세처리=미수집 여부)와 seen(순회 종료판정)을 분리.
+  const seen = new Set();
   let page = 1;
   while (page <= 200) {
     if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
     const ids = await avFetchList(page);
     if (!ids.length) break;
-    let newOnPage = 0;
+    let newListItems = 0;
     for (const id of ids) {
+      if (!seen.has(id)) { seen.add(id); newListItems++; }
       if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
       if (doneIds.has(id)) continue;
-      newOnPage++;
       if (processed >= limit) { timedOut = true; break; }
       processed++;
       doneIds.add(id);
@@ -2260,7 +2264,7 @@ async function runAssaview({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe = 
       } catch (e) { failed++; }
     }
     if (timedOut) break;
-    if (!newOnPage) break; // 이 페이지 전부 기존 처리분 → 더 볼 것 없음(증분)
+    if (!newListItems) break; // 이 페이지가 전부 '이미 본 목록 id'(목록 반복) → 전체 열거 끝(reconcile)
     page++;
   }
   await db.execute({
@@ -2414,16 +2418,19 @@ async function runCometoplay({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe 
   const dedupe = _dedupe || await loadDedupe(db);
   const doneIds = new Set((await db.execute("SELECT source_id FROM scraped_items WHERE platform='놀러와'")).rows.map((r) => String(r.source_id)));
   let staged = 0, excluded = 0, dupActive = 0, failed = 0, processed = 0, noAddr = 0, expired = 0, timedOut = false;
+  // 전체목록 reconcile(2026-11-23): 아싸뷰와 동일 — '이번 실행에 처음 보는 목록 id'(seen) 기준 순회, 반복되면 종료.
+  //  예전 `if(!newOnPage) break`가 앞페이지의 기존분에서 멈춰 깊은 페이지 미수집분을 놓치던 것 수정.
+  const seen = new Set();
   let page = 1;
   while (page <= 200) {
     if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
     const ids = await cpFetchList(page);
     if (!ids.length) break;
-    let newOnPage = 0;
+    let newListItems = 0;
     for (const id of ids) {
+      if (!seen.has(id)) { seen.add(id); newListItems++; }
       if (deadlineTs && Date.now() > deadlineTs) { timedOut = true; break; }
       if (doneIds.has(id)) continue;
-      newOnPage++;
       if (processed >= limit) { timedOut = true; break; }
       processed++;
       doneIds.add(id);
@@ -2457,7 +2464,7 @@ async function runCometoplay({ db, limit = 400, deadlineTs = 0, dedupe: _dedupe 
       } catch (e) { failed++; }
     }
     if (timedOut) break;
-    if (!newOnPage) break; // 이 페이지 전부 기존 처리분 → 더 볼 것 없음(증분)
+    if (!newListItems) break; // 이 페이지가 전부 '이미 본 목록 id'(목록 반복) → 전체 열거 끝(reconcile)
     page++;
   }
   await db.execute({
