@@ -286,6 +286,10 @@ async function runDailyIgPost(db) {
   if (!process.env.OPENAI_API_KEY) return { skipped: 'no-openai' };
   if (kstHour() < TARGET_HOUR) return { skipped: 'before-hour' };
   await ensureTables(db);
+  // DB 킬스위치(2026-11-23): 기존 홍보카드 자동발행 중단(원우씨 "자동발행 끄자", 캐러셀 수동 운영으로 전환).
+  //  env(IG_POST_ENABLED) 대신 DB 토글 — 서버/로컬 크롤러 양쪽이 같은 ig_state를 봐서 한 곳만 끄면 됨. 재개는 'on'.
+  const _sw = await getState(db, 'auto_post');
+  if (_sw && _sw.v === 'off') return { skipped: 'kill-switch-off' };
   const today = kstDate();
   const last = await getState(db, 'last_post_date');
   if (last && last.v === today) return { skipped: 'already-today' };
