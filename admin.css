@@ -758,8 +758,10 @@ body {
   .admin-topbar .topbar-user { display: none; }
   .admin-topbar .topbar-logout { font-size: 14px; padding: 8px 14px; }
 
-  /* 당길 때 밀리는 오버스크롤(고무줄 바운스)·스크롤 체이닝 차단 → 화면 고정감 */
-  html, body { overscroll-behavior: none; overflow: hidden; }
+  /* 당길 때 밀리는 오버스크롤(고무줄 바운스)·스크롤 체이닝 차단 → 화면 고정감.
+     ⚠️ 높이는 100dvh(동적 뷰포트)로 — base의 100vh는 iOS 툴바 포함 높이라 .admin-app(100dvh)보다 커서
+     하단에 빈 회색 영역이 생기고 '화면이 풀로 안 보이던' 문제(2026-11-24). dvh로 통일해 shell이 보이는 영역에 딱 맞음. */
+  html, body { height: 100dvh; overscroll-behavior: none; overflow: hidden; }
   /* 콘텐츠: 페이지 가로 스크롤 차단(넓은 차트/표는 각자 overflow-x:auto로 내부 스크롤).
      .admin-content가 overflow-y:auto라 가로축이 auto로 계산돼 내용이 넘치면 페이지가 좌우로 밀리던 문제 해결. */
   .admin-content { padding: 16px; overflow-x: hidden; overscroll-behavior: none; }
