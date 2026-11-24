@@ -5134,6 +5134,7 @@ function openOperatorDash() {
   const sticky = document.getElementById('odStickyHeader'); if (sticky) sticky.classList.remove('show');
   const body = document.getElementById('odBody'); if (body) body.scrollTop = 0;
   ov.classList.add('open');
+  odBindTipOutside();   // 차트 바깥 탭 → 말풍선 닫힘(1회 바인드)
   loadOperatorDash();
 }
 function closeOperatorDash() {
@@ -5208,10 +5209,64 @@ function odCardHead(icon, tint, title, sub, right) {
     + (right || '') + '</div>';
 }
 function odDelta(text, up) { return '<span class="od-delta ' + (up === false ? 'down' : 'up') + '">' + (up === false ? '▼' : '▲') + ' ' + text + '</span>'; }
-function odSpark(values, color) {
-  const v = (values || []).map(x => Number(x || 0));
-  const max = Math.max(1, ...v);
-  return '<div class="od-spark">' + v.map(x => '<span style="height:' + Math.max(8, Math.round(x / max * 100)) + '%;background:' + color + '"></span>').join('') + '</div>';
+// 스파크라인 — 방문(UV) 추이 백드롭. 바 탭 시 말풍선(날짜·방문수). series=[{label,uv}]
+function odSpark(series, color) {
+  const v = (series || []).map(s => ({ label: s.label || '', val: Number(s.uv || 0) }));
+  const max = Math.max(1, ...v.map(x => x.val));
+  return '<div class="od-spark">' + v.map((x, i) => '<span class="od-spk-col" onclick="odSparkTap(this,' + i + ')" data-lab="' + rvEsc(x.label) + '" data-val="' + x.val + '"><span class="od-spk-fill" style="height:' + Math.max(8, Math.round(x.val / max * 100)) + '%;background:' + color + '"></span></span>').join('') + '</div>';
+}
+// ── 차트 탭 → 말풍선 툴팁 공통(모바일 터치) ──
+let _odTipBound = false;
+function odBindTipOutside() {
+  if (_odTipBound) return;
+  _odTipBound = true;
+  document.addEventListener('click', e => { if (!e.target.closest('.od-vbar, .od-spk-col')) odCloseTips(); });
+}
+function odCloseTips() {
+  document.querySelectorAll('.od-vchart[data-tipi], .od-spark[data-tipi]').forEach(h => {
+    h.removeAttribute('data-tipi');
+    const t = h.querySelector('.od-vtip'); if (t) t.remove();
+    h.querySelectorAll('.active').forEach(b => b.classList.remove('active'));
+  });
+}
+// host(position:relative) 기준, 막대 가로중심(centerX)·막대 상단(barTopY)에 말풍선. 좌우 clamp + 꼬리 위치.
+function odShowTip(host, centerX, barTopY, html) {
+  let tip = host.querySelector('.od-vtip');
+  if (!tip) { tip = document.createElement('div'); tip.className = 'od-vtip'; host.appendChild(tip); }
+  tip.innerHTML = html;
+  tip.style.visibility = 'hidden';
+  const hw = host.clientWidth, tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = Math.max(0, Math.min(centerX - tw / 2, hw - tw));
+  tip.style.left = Math.round(left) + 'px';
+  tip.style.top = Math.round(barTopY - th - 8) + 'px';   // 막대 위로(오버플로 visible이라 카드 영역 밖도 OK)
+  tip.style.setProperty('--tail-x', Math.max(10, Math.min(tw - 10, centerX - left)) + 'px');
+  tip.style.visibility = 'visible';
+}
+// 방문추이 막대 탭(PV+UV 둘 다)
+function odVisitBarTap(el, i) {
+  const host = el.closest('.od-vchart'); if (!host) return;
+  if (host.getAttribute('data-tipi') === String(i)) { odCloseTips(); return; }  // 같은 막대 재탭 → 닫힘
+  odCloseTips();
+  const s = (_odData && _odData.visit && _odData.visit.series) || [], d = s[i] || {};
+  el.classList.add('active'); host.setAttribute('data-tipi', String(i));
+  const hr = host.getBoundingClientRect();
+  const col = el.querySelector('.od-vbar-col') || el, cr = col.getBoundingClientRect();
+  odShowTip(host, (cr.left - hr.left) + cr.width / 2, cr.top - hr.top,
+    '<span class="od-vtip-lab">' + rvEsc(d.label || '') + '</span>'
+    + '<span class="od-vtip-v"><i style="background:#C9C7F2"></i>PV ' + odNum(d.pv) + '</span>'
+    + '<span class="od-vtip-v"><i style="background:#1A1A2E;outline:1px solid #6b6b86"></i>UV ' + odNum(d.uv) + '</span>');
+}
+// 스파크라인 바 탭(방문 UV)
+function odSparkTap(el, i) {
+  const host = el.closest('.od-spark'); if (!host) return;
+  if (host.getAttribute('data-tipi') === String(i)) { odCloseTips(); return; }
+  odCloseTips();
+  el.classList.add('active'); host.setAttribute('data-tipi', String(i));
+  const hr = host.getBoundingClientRect();
+  const fill = el.querySelector('.od-spk-fill') || el, fr = fill.getBoundingClientRect();
+  odShowTip(host, (fr.left - hr.left) + fr.width / 2, fr.top - hr.top,
+    '<span class="od-vtip-lab">' + rvEsc(el.getAttribute('data-lab') || '') + '</span>'
+    + '<span class="od-vtip-v">방문 ' + odNum(el.getAttribute('data-val')) + '</span>');
 }
 function odHBar(label, value, color, max, valueText) {
   const pct = Math.max(2, Math.round(Number(value || 0) / Math.max(1, max) * 100));
@@ -5234,7 +5289,7 @@ function odRenderCore(d) {
   const ret = Number(v.todayMemberReturning || 0), yret = Number(v.yesterdayMemberReturning || 0);
   const rate = odPct(ret, v.todayUv);
   const retDelta = yret > 0 ? Math.round((ret - yret) / yret * 100) : null;
-  const uvSeries = (v.series || []).map(s => s.uv);
+  const sr = v.series || [];   // 스파크라인 공통(방문 UV 추이)
   // 회원
   const m = d.members || {}, sg = d.segs || {};
   // 방문
@@ -5243,7 +5298,7 @@ function odRenderCore(d) {
   const hero = '<div class="od-card od-hero">'
     + odCardHead('retention', '#E82A2D', '오늘 재방문 회원 · 리텐션', '기존 회원 (당일 가입자 제외)', retDelta != null ? odDelta(Math.abs(retDelta) + '%', retDelta >= 0) : '')
     + '<p class="od-hero-num"><b>' + odNum(ret) + '</b><span class="od-unit">명</span><span class="od-hero-rate">· 재방문율 ' + rate + '%</span></p>'
-    + odSpark(uvSeries, '#1A1A2E')
+    + odSpark(sr, '#1A1A2E')
     + '<div class="od-hero-foot"><span>14일 전</span><span>어제 ' + odNum(yret) + '명</span></div>'
     + '</div>';
   const member = '<div class="od-card">'
@@ -5251,14 +5306,14 @@ function odRenderCore(d) {
     + '<div class="od-trio"><div class="od-trio-i"><b class="od-big od-purple">' + odNum(m.total) + '</b><span>가입 회원(누적)</span></div>'
     + '<div class="od-trio-i"><b class="od-big">' + odNum(m.todayNew) + '</b><span>오늘 가입</span></div>'
     + '<div class="od-trio-i"><b class="od-big">' + odNum(sg.new7) + '</b><span>이번 주</span></div></div>'
-    + odSpark(uvSeries, '#7B61FF')
+    + odSpark(sr, '#7B61FF')
     + '</div>';
   const visit = '<div class="od-card">'
     + odCardHead('visit', '#2E90FA', '방문', '오늘 · 평균 체류', uvDelta != null ? odDelta(Math.abs(uvDelta) + '%', uvDelta >= 0) : '')
     + '<div class="od-trio"><div class="od-trio-i"><b class="od-big od-blue">' + odNum(v.todayUv) + '</b><span>오늘 UV</span></div>'
     + '<div class="od-trio-i"><b class="od-big">' + odNum(v.todayPv) + '</b><span>오늘 PV</span></div>'
     + '<div class="od-trio-i"><b class="od-big">' + odDwell(v.todayDwell) + '</b><span>평균 체류</span></div></div>'
-    + odSpark(uvSeries, '#2E90FA')
+    + odSpark(sr, '#2E90FA')
     + '<p class="od-card-foot">누적 방문(PV) ' + odNum(v.totalPv) + '</p>'
     + '</div>';
   return odSecHead('retention', '핵심 지표', '가장 중요한 지표부터') + hero + member + visit;
@@ -5398,11 +5453,11 @@ function odVisitChartHtml() {
   const s = (_odData && _odData.visit && _odData.visit.series) || [];
   if (!s.length) return '<div class="od-tempty">데이터가 아직 없어요</div>';
   const maxPv = Math.max(1, ...s.map(r => Number(r.pv || 0)));
-  const bars = s.map(r => {
+  const bars = s.map((r, i) => {
     const pv = Number(r.pv || 0), uv = Number(r.uv || 0);
     const h = Math.max(4, Math.round(pv / maxPv * 100));
     const uvH = pv > 0 ? Math.round(uv / maxPv * 100) : 0;
-    return '<div class="od-vbar"><span class="od-vbar-col" style="height:' + h + '%"><span class="od-vbar-uv" style="height:' + Math.min(100, Math.round(uvH / Math.max(1, h) * 100)) + '%"></span></span></div>';
+    return '<div class="od-vbar" onclick="odVisitBarTap(this,' + i + ')"><span class="od-vbar-col" style="height:' + h + '%"><span class="od-vbar-uv" style="height:' + Math.min(100, Math.round(uvH / Math.max(1, h) * 100)) + '%"></span></span></div>';
   }).join('');
   const first = s[0] ? s[0].label : '', last = s[s.length - 1] ? s[s.length - 1].label : '';
   return '<div class="od-vchart">' + bars + '</div><div class="od-vchart-foot"><span>' + rvEsc(first) + '</span><span>' + rvEsc(last) + '</span></div>';
