@@ -4713,6 +4713,10 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 
 /* ===== 운영자 대시보드 (앱 내부, isOperator 전용). Figma DASHBOARD 2183-15 ===== */
 .mypage-menu-op { color: #E82A2D; font-weight: 600; }
+/* 숨김 메뉴는 확실히 숨김: .mypage-menu-item의 display:flex(모바일 미디어쿼리)와
+   body.pc-myinfo-mode .mypage-menu-item(더 높은 특이성)이 [hidden] UA 스타일을 이겨서,
+   운영자 전용 '운영자 대시보드'(#myOperatorDashLink, hidden 기본)가 전 유저에게 노출되던 문제. */
+.mypage-menu-item[hidden] { display: none !important; }
 /* 후기등록(reviewFormOverlay)과 동일 구조: fullpage-overlay > signup-page(슬라이드) > signup-content(스크롤) */
 .od-overlay .signup-page { background: #F4F5F7; }
 .od-overlay .signup-content { background: #F4F5F7; overflow-x: hidden; gap: 0;

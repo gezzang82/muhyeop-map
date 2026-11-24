@@ -2,6 +2,13 @@
 
 ## 2026-11
 
+### 운영자 대시보드 메뉴가 전 유저에게 노출되던 버그 수정 (2026-11-24)
+- `#myOperatorDashLink`는 `hidden` 기본 + `refreshMyPageUI`가 `el.hidden = !(isOperator() && isMobileView())`로만 토글하는데, `.mypage-menu-item { display:flex }`(모바일 미디어쿼리)와 `body.pc-myinfo-mode .mypage-menu-item`이 `[hidden]`의 UA `display:none`을 이겨 **운영자 아닌 유저에게도 메뉴가 보였음**(클릭 동작은 별개).
+- 조치: `style.css`에 `.mypage-menu-item[hidden] { display: none !important; }` 추가(이 저장소의 기존 패턴 `.mypage-login-link[hidden]`·`.cm-rk-link[hidden]`과 동일) + `style.css?v=287` 캐시버스팅.
+- **후속 검토 필요**: `isOperator()`가 `id===12 || nickname==='개짜장'` — 닉네임만 바꿔도 운영자 판정되므로 닉네임 조건 제거 권장. 또한 대시보드 **데이터 API 자체가 서버에서 운영자 인증으로 막혀 있는지** 확인 필요(현재는 화면 노출만 막은 상태).
+
+
+
 ### 아싸뷰 대량누락 수정(reconcile) + Play 설치수 9월 누락 버그 (2026-11-23)
 - **아싸뷰 대량누락 — 전체목록 reconcile(원우씨 "캠페인이 안 는다" 직감)**: 실측 아싸뷰 사이트 활성 **885 vs 우리 375(누락 523·59%)**, 미수집 대부분 진짜 방문형. 놀러와 325 vs 309(누락 48, 대부분 주소없음/dup=무해). 근본원인: `runAssaview`/`runCometoplay`의 **`if(!newOnPage) break`**(앞페이지에 featured/기존분 섞여 깊은 페이지 미도달, 포블로그·포포몬과 동일 조기중단). **수정**: '이번 실행에 처음 보는 목록 id(seen)' 기준 순회→반복 감지 시 종료(reconcile), doneIds(미수집)·seen(종료판정) 분리. 캐치업: 아싸뷰 +523 수집→오토파일럿 자동등록 324·검수 95, campaigns 878. ⚠️ 크롤러 재시작 필요.
 - **Play 설치수 집계 9월 누락 버그 + 라벨(원우씨 "콘솔 372인데 우리랑 다르다")**: `store-downloads.cjs playTotal`이 **출시월을 2026-10으로 하드코딩**해 **9월 소프트런칭 설치 22건 누락**(305로 집계). 완벽 분해: 우리305 +9월22=**327(순사용자)** +기기/이벤트차28=**355(Device)** +3일지연17=**콘솔372**. 즉 콘솔 '총 설치수'는 **기기·재설치 이벤트 전부**, 우리는 **순 설치 사용자(중복제거)**라 구조적으로 낮은 게 정상. **결정(원우씨 B안)**: 순사용자 유지 + **시작월 9월로 수정**(327로 교정) + 대시보드 라벨 '🤖 Android 순 설치 사용자'로 명확화(title에 콘솔 차이 설명). 날짜 지연은 곁가지(원우씨 지적대로). [[admin]]·memory project_monitoring.
