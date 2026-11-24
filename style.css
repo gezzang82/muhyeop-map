@@ -4713,19 +4713,33 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 
 /* ===== 운영자 대시보드 (앱 내부, isOperator 전용). Figma DASHBOARD 2183-15 ===== */
 .mypage-menu-op { color: #E82A2D; font-weight: 600; }
-.od-modal { background: #F4F5F7; }
-/* 데스크톱(비터치)만 중앙 패널 폭 지정 — 모바일(터치)은 공통 .modal 풀스크린 규칙을 그대로 사용 */
-@media (hover: hover) and (pointer: fine) { .od-modal { width: 430px; } }
-.od-modal .modal-body { background: #F4F5F7; gap: 0; padding: 20px 16px calc(28px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); overflow-x: hidden; }
-.od-modal .modal-scroll-header { gap: 12px; }
-.od-modal .modal-scroll-header h2 { flex: 1; min-width: 0; font-size: 26px; font-weight: 600; color: #1A1A2E; }
-.od-modal .modal-sticky-header > span { color: #1A1A2E; font-weight: 600; }
+/* 후기등록(reviewFormOverlay)과 동일 구조: fullpage-overlay > signup-page(슬라이드) > signup-content(스크롤) */
+.od-overlay .signup-page { background: #F4F5F7; }
+.od-overlay .signup-content { background: #F4F5F7; overflow-x: hidden; gap: 0;
+  padding: calc(24px + max(env(safe-area-inset-top, 0px), var(--and-sat, 0px))) 16px calc(28px + max(env(safe-area-inset-bottom, 0px), var(--and-sab, 0px))); }
+/* 상단 인라인 헤더: 뒤로 + 제목(좌측·26px) + 새로고침(우측) */
+.od-overlay .rv-form-head { align-items: center; gap: 8px; margin-bottom: 16px; }
+.od-overlay .rv-form-head h2 { flex: 1; min-width: 0; font-size: 26px; font-weight: 500; letter-spacing: -0.52px; color: #1A1A2E; }
+.od-refresh { flex-shrink: 0; width: 44px; height: 44px; margin: -10px -10px -10px 0; border: 0; background: none; color: #1A1A2E; display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.od-refresh svg { width: 24px; height: 24px; display: block; }
+.od-refresh.spinning svg { animation: od-spin 0.7s linear infinite; }
+@keyframes od-spin { to { transform: rotate(360deg); } }
+/* 스크롤 시 compact sticky 헤더(뒤로 + 제목 + 새로고침) */
+.od-sticky-head { display: none; position: absolute; top: 0; left: 0; right: 0; z-index: 50; height: 56px; background: #fff; box-shadow: 0 4px 2px rgba(0,0,0,0.04); padding: 10px 16px; align-items: center; gap: 10px; }
+.native-app .od-sticky-head { height: calc(56px + max(env(safe-area-inset-top), var(--and-sat, 0px))); padding-top: calc(10px + max(env(safe-area-inset-top), var(--and-sat, 0px))); }
+.od-sticky-head.show { display: flex; }
+.od-sticky-head > span { flex: 1; font-size: 18px; font-weight: 600; letter-spacing: -0.36px; color: #1A1A2E; }
+.od-sticky-head .od-refresh { margin: 0 -10px 0 0; }
 .od-content { display: flex; flex-direction: column; }
 .od-loading { padding: 80px 0; }
+@media (prefers-reduced-motion: reduce) {
+  #opDashOverlay.open > .signup-page, #opDashOverlay.sheet-closing > .signup-page { animation: none !important; }
+  .od-refresh.spinning svg { animation: none; }
+}
 
 /* 섹션 헤더 */
 .od-sec { margin: 26px 2px 12px; }
-.od-sec:first-child { margin-top: 14px; }
+.od-sec:first-child { margin-top: 2px; }
 .od-sec-title { display: flex; align-items: center; gap: 7px; font-size: 17px; font-weight: 700; color: #1A1A2E; }
 .od-sec-ico { width: 20px; height: 20px; color: #E82A2D; flex-shrink: 0; }
 .od-sec-ico svg { width: 20px; height: 20px; display: block; }
