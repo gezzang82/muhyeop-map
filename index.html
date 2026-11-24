@@ -449,6 +449,26 @@
     </div>
   </div>
 
+  <!-- 운영자 대시보드(앱 내부, isOperator && 모바일 전용) — 후기등록(reviewFormOverlay) 헤더 패턴. 내용은 renderOperatorDash가 채움 -->
+  <div class="fullpage-overlay od-overlay" id="opDashOverlay">
+    <div class="signup-page">
+      <!-- 스크롤 시 노출되는 compact sticky 헤더 (뒤로 + 제목 + 새로고침) -->
+      <div class="od-sticky-head" id="odStickyHeader">
+        <button class="mlset-back" onclick="closeOperatorDash()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span>운영자 대시보드</span>
+        <button class="od-refresh" onclick="odRefresh()" aria-label="새로고침"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button>
+      </div>
+      <div class="signup-content" id="odBody">
+        <div class="signup-title-wrap rv-form-head" id="odScrollHeader">
+          <button class="mlset-back" onclick="closeOperatorDash()" aria-label="뒤로"><svg width="11" height="20" viewBox="0 0 11 20" fill="none"><path d="M10 1L1 10L10 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>운영자 대시보드</h2>
+          <button class="od-refresh" onclick="odRefresh()" aria-label="새로고침"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button>
+        </div>
+        <div class="od-content" id="odContent"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- 블로그 글 불러오기(후기 자동매칭) — 로딩/결과/완료 full-screen 플로우 -->
   <div class="modal-overlay blogimport-overlay" id="blogImportOverlay">
     <div class="modal blogimport-modal" onclick="event.stopPropagation()">
@@ -1347,6 +1367,7 @@
         <button class="mypage-menu-item" onclick="openProfileSheet()">회원정보관리</button>
         <button class="mypage-menu-item" onclick="openReportModal()">신고하기</button>
         <button class="mypage-menu-item" onclick="openMyAlarmSetting()">알림설정</button>
+        <button class="mypage-menu-item mypage-menu-op" id="myOperatorDashLink" onclick="openOperatorDash()" hidden>운영자 대시보드</button>
         <div class="mypage-menu-line"></div>
         <button class="mypage-menu-item" onclick="openAbout()">무협맵 소개</button>
         <button class="mypage-menu-item" onclick="openNoticeFeed()">이벤트·공지</button>

@@ -1,5 +1,5 @@
 const { getDb } = require('./_db');
-const { requireAdmin } = require('./auth/_admin');
+const { requireAdmin, requireAdminOrOperator } = require('./auth/_admin');
 const { readSession } = require('./auth/_session');
 const { enforceRateLimit } = require('./_ratelimit');
 
@@ -190,8 +190,8 @@ async function handlePushPost(req, res, db, kind) {
     return res.status(200).json({ ok: true });
   }
   if (kind === 'broadcast') {
-    // 이벤트/공지 전체 발송(관리자 전용)
-    if (!requireAdmin(req, res)) return;
+    // 이벤트/공지 전체 발송(관리자 또는 운영자 세션 — 운영자 대시보드 '이벤트 푸시' 발송, 클라에서 확인창 후 호출)
+    if (!requireAdminOrOperator(req, res)) return;
     const { serviceAccount, sendToDevices } = require('./_push');
     if (!serviceAccount()) return res.status(400).json({ error: 'FIREBASE_SERVICE_ACCOUNT 미설정' });
     const title = String(body.title || '').trim();
@@ -494,7 +494,7 @@ module.exports = async function handler(req, res) {
 
   // 이벤트 푸시 대상 기기수(관리자) — 발송 전 미리보기용
   if (req.query.push === 'count') {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdminOrOperator(req, res)) return;  // 기기수 집계 — 운영자 대시보드 허용
     await ensurePushTables(db);
     const c = (await db.execute("SELECT COUNT(*) AS n FROM push_tokens WHERE enabled=1")).rows[0] || {};
     return res.status(200).json({ devices: Number(c.n || 0) });
@@ -502,7 +502,7 @@ module.exports = async function handler(req, res) {
 
   // 알림 탭(앱 접근) 집계(관리자) — 최근 7일/오늘, 고유 유저 수·총 탭수, digest/event 구분
   if (req.query.push === 'openstats') {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdminOrOperator(req, res)) return;  // 알림탭 집계 — 운영자 대시보드 허용
     await ensurePushTables(db);
     const row = async (sql) => (await db.execute(sql)).rows[0] || {};
     const n = (r, k) => Number(r[k] || 0);
@@ -522,7 +522,7 @@ module.exports = async function handler(req, res) {
   // 회원탈퇴 집계(관리자): 오늘/누적 탈퇴수 + 당일가입→당일탈퇴(onboarding 신호) + 최근목록 + 사유/제공자 분포.
   //  탈퇴는 users row를 hard delete → delete-account.js가 삭제 직전 deleted_users에 비식별 메타만 적재(PII 없음).
   if (req.query.withdrawals !== undefined) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdminOrOperator(req, res)) return;  // 탈퇴 집계(비식별) — 운영자 대시보드 허용
     try { await db.execute("SELECT 1 FROM deleted_users LIMIT 1"); } catch (e) {
       return res.status(200).json({ today: 0, total: 0, sameDayToday: 0, recent: [], reasons: [], providers: [] });
     }
@@ -550,6 +550,12 @@ module.exports = async function handler(req, res) {
 
   // 대시보드 회원 '수'만 필요할 때: 전체 목록(상관 서브쿼리로 수 초) 대신 COUNT 1줄 → 즉시.
   if (req.query.count) {
+    // count=members: 운영자 대시보드용 — 가입 회원 '수'만(PII 없음). 전체/오늘 신규.
+    if (req.query.count === 'members') {
+      if (!requireAdminOrOperator(req, res)) return;
+      const c = (await db.execute("SELECT COUNT(*) AS total, SUM(CASE WHEN date(created_at,'+9 hours')=date('now','+9 hours') THEN 1 ELSE 0 END) AS today_new FROM users")).rows[0] || {};
+      return res.status(200).json({ total: Number(c.total || 0), todayNew: Number(c.today_new || 0) });
+    }
     if (!requireAdmin(req, res)) return;
     const c = (await db.execute("SELECT COUNT(*) AS n FROM users")).rows[0] || {};
     return res.status(200).json({ count: Number(c.n || 0) });
@@ -559,7 +565,7 @@ module.exports = async function handler(req, res) {
   //  활동=최근7일 AND 방문2일+(재방문 증명) / 잠재=최근7일이지만 1회방문 OR 8~29일 / 이탈=30일+.
   //  (1회만 방문한 최근 유저는 리텐션 미증명이라 활동 대신 잠재로) 활동신호 없으면 가입일 대체. 서버 집계라 PII 미전송.
   if (req.query.segments !== undefined) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdminOrOperator(req, res)) return;  // 회원 세그먼트 집계(PII 없음) — 운영자 대시보드 허용
     const r = (await db.execute(`
       WITH m AS (
         SELECT u.id,
@@ -617,7 +623,9 @@ module.exports = async function handler(req, res) {
           args: [month]
         })).rows;
       } catch (e) { rows = []; }
-      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1800');
+      // max-age=0 → 브라우저/앱 웹뷰(WKWebView)는 매번 재검증(자기 캐시의 옛 랭킹을 재사용하지 않음 →
+      // "앱 재시작해야 갱신되던" 문제 수정). s-maxage로 CDN만 짧게 캐시해 원본(reviews GROUP BY) 보호.
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
       return res.status(200).json(rows.map((x, i) => ({
         rank: i + 1,
         userId: x.user_id,

@@ -1,6 +1,6 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
-const { requireAdmin, isAdmin } = require('./auth/_admin');
+const { requireAdmin, isAdmin, requireAdminOrOperator } = require('./auth/_admin');
 const { waitUntil } = require('@vercel/functions'); // 응답 후에도 백그라운드 작업 완료 보장(인스타 발행)
 const { runScrape, reparsePending, AREA2_BY_REGION } = require('./_scrape');
 const { enforceRateLimit } = require('./_ratelimit');
@@ -310,7 +310,7 @@ module.exports = async function handler(req, res) {
     }
     // 어드민 대시보드 통계: 캠페인 전량을 클라로 내리지 않고 서버에서 집계(COUNT/GROUP BY)만 반환 → 대시보드 즉시 렌더.
     if (q.stats) {
-      if (!requireAdmin(req, res)) return;
+      if (!requireAdminOrOperator(req, res)) return;  // 집계만 — 앱 내 운영자 대시보드 허용
       // 1) 인메모리(같은 웜 인스턴스 재요청 즉시)
       if (_statsCache && Date.now() - _statsCache.at < STATS_CACHE_TTL) {
         return res.status(200).json(_statsCache.data);
@@ -325,7 +325,7 @@ module.exports = async function handler(req, res) {
 
     // 어드민: 캠페인 상세보기(view)/링크클릭(click) — 일별 + 지역(시/도)별. campaign_events 집계.
     if (q.clickstats) {
-      if (!requireAdmin(req, res)) return;
+      if (!requireAdminOrOperator(req, res)) return;  // 집계만 — 앱 내 운영자 대시보드 허용
       // 캐시 3단(?stats=1과 동일 전략): campaign_events(4만여행)를 매 로드 3회 풀스캔하던 걸 캐시로.
       if (_clickCache && Date.now() - _clickCache.at < CLICK_CACHE_TTL) return res.status(200).json(_clickCache.data);
       const cachedClick = await getCachedBlob(db, 'clickstats', CLICK_CACHE_TTL);

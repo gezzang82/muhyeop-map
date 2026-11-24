@@ -1,6 +1,6 @@
 const { getDb } = require('./_db');
 const { readSession } = require('./auth/_session');
-const { isAdmin, requireAdmin } = require('./auth/_admin');
+const { isAdmin, requireAdmin, requireAdminOrOperator } = require('./auth/_admin');
 const { enforceRateLimit } = require('./_ratelimit');
 const { getCachedBlob, setCachedBlob } = require('./_stats');
 
@@ -358,7 +358,7 @@ module.exports = async function handler(req, res) {
     }
     // 조회: 어드민 대시보드 GET ?visit=stats[&period=day|week|month]
     if (req.method === 'GET' && req.query.visit === 'stats') {
-      if (!requireAdmin(req, res)) return;
+      if (!requireAdminOrOperator(req, res)) return;  // 앱 내 운영자 대시보드도 읽기 허용(집계만)
       const vsPeriod = req.query.period === 'week' ? 'week' : req.query.period === 'month' ? 'month' : 'day';
       if (_visitStatsCache[vsPeriod] && Date.now() - _visitStatsCache[vsPeriod].at < VISIT_STATS_TTL) return res.status(200).json(_visitStatsCache[vsPeriod].data);
       const vsCached = await getCachedBlob(db, 'visitstats:' + vsPeriod, VISIT_STATS_TTL);
@@ -380,6 +380,16 @@ module.exports = async function handler(req, res) {
           args: [day, day]
         })).rows[0] || {};
         todayMemberReturning = Number(mr.n || 0);
+      } catch (e) {}
+      // 어제 재방문 회원 수 — 운영자 대시보드 리텐션 히어로의 전일 대비(델타)·'어제 N명' 푸터용.
+      let yesterdayMemberReturning = 0;
+      try {
+        const yday = new Date(Date.now() + 9 * 3600 * 1000 - 86400000).toISOString().slice(0, 10);
+        const mr2 = (await db.execute({
+          sql: "SELECT COUNT(*) AS n FROM user_visits uv JOIN users u ON u.id = uv.user_id WHERE uv.visit_date = ? AND date(u.created_at, '+9 hours') <> ?",
+          args: [yday, yday]
+        })).rows[0] || {};
+        yesterdayMemberReturning = Number(mr2.n || 0);
       } catch (e) {}
 
       // 오늘 방문한 로그인 회원 수(당일 가입 포함) → 비회원 추정 = UV − 로그인회원.
@@ -483,7 +493,7 @@ module.exports = async function handler(req, res) {
         todayPv: Number(today.pv || 0), todayUv: Number(today.uv || 0),
         totalPv: Number(total.pv || 0), totalUv: Number(total.uv || 0),
         todayDwell: dwellAvg(today), todayDwellCount: Number(today.dwell_count || 0),
-        todayMemberReturning,
+        todayMemberReturning, yesterdayMemberReturning,
         todayMemberTotal, todayNonMemberEst, seoichuCount,
         period, series,
         referrers: refRows.map(r => ({ ref: r.ref, cnt: Number(r.cnt || 0) })),
@@ -506,7 +516,7 @@ module.exports = async function handler(req, res) {
   // ===== 앱스토어 지표(평점·리뷰) — 공개 iTunes API를 서버에서 프록시(CORS 회피). 어드민 대시보드용.
   // 다운로드(판매량)는 공개 API가 없어 App Store Connect API 키(.p8) 필요 → downloads는 별도(현재 null). =====
   if (req.query.appstore !== undefined) {
-    if (!requireAdmin(req, res)) return;
+    if (!requireAdminOrOperator(req, res)) return;  // 평점은 공개 iTunes 프록시(집계) — 운영자 대시보드 허용
     const APP_ID = '6794363402';
     try {
       const [lkRes, rssRes] = await Promise.all([

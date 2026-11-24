@@ -5077,7 +5077,7 @@ async function renderReviewKing() {
   board.innerHTML = cmCenterSpinner();
   list.innerHTML = '';
   let items = [];
-  try { items = await fetch(`/api/users?leaderboard=reviews&month=${_rkMonth}`).then(r => r.ok ? r.json() : []); }
+  try { items = await fetch(`/api/users?leaderboard=reviews&month=${_rkMonth}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : []); }  // 웹뷰 HTTP 캐시 미사용(열 때마다 최신 랭킹) — CDN(s-maxage=60)은 서버에서 보호
   catch (e) { items = []; }
   if (seq !== _rkLoadSeq) return;   // stale(월 전환 연타)
   if (!Array.isArray(items)) items = [];
@@ -5110,6 +5110,424 @@ function rkPositionSunburst() {
   const W = sun.offsetWidth || 440, H = sun.offsetHeight || 560;
   sun.style.left = Math.round(cx - W / 2) + 'px';
   sun.style.top = Math.round(cy - H / 2) + 'px';
+}
+
+// ===== 운영자 대시보드 (앱 내부, isOperator 전용). Figma DASHBOARD 2183-15. =====
+// 서브헤더는 무협맵 공통 패턴(후기왕과 동일), 섹션은 피그마 디자인. 데이터는 집계 엔드포인트(운영자 세션 허용분)만.
+let _odData = null;
+let _odVisitPeriod = 'day';      // 방문 추이 토글
+let _odClickTab = 'daily';       // 캠페인 조회·클릭 탭
+let _odRankMonth = '';           // 이벤트 후기 랭킹 월(YYYY-MM)
+let _odLoadSeq = 0;
+let _odRefreshing = false;
+
+function odCurrentMonth() {
+  const k = new Date(Date.now() + 9 * 3600 * 1000);
+  return k.getUTCFullYear() + '-' + String(k.getUTCMonth() + 1).padStart(2, '0');
+}
+function openOperatorDash() {
+  if (!isOperator() || !isMobileView()) return;   // 운영자 + 모바일 전용(PC는 어드민)
+  const ov = document.getElementById('opDashOverlay');
+  if (!ov) return;
+  _odVisitPeriod = 'day'; _odClickTab = 'daily'; _odRankMonth = odCurrentMonth();
+  bindMobileScrollHeader('odBody', 'odScrollHeader', 'odStickyHeader');
+  const sticky = document.getElementById('odStickyHeader'); if (sticky) sticky.classList.remove('show');
+  const body = document.getElementById('odBody'); if (body) body.scrollTop = 0;
+  ov.classList.add('open');
+  loadOperatorDash();
+}
+function closeOperatorDash() {
+  closeSheetSlide('opDashOverlay', () => resetModalScroll('opDashOverlay'));
+}
+// 새로고침: 전체 stat 재fetch + 재렌더(기존 내용 유지한 채 아이콘만 회전). 연타 가드.
+async function odRefresh() {
+  if (_odRefreshing) return;
+  _odRefreshing = true;
+  document.querySelectorAll('.od-refresh').forEach(b => b.classList.add('spinning'));
+  try { await loadOperatorDash(true); } finally {
+    _odRefreshing = false;
+    document.querySelectorAll('.od-refresh').forEach(b => b.classList.remove('spinning'));
+  }
+}
+async function loadOperatorDash(silent) {
+  const seq = ++_odLoadSeq;
+  const content = document.getElementById('odContent');
+  if (content && !silent) content.innerHTML = '<div class="od-loading">' + cmCenterSpinner() + '</div>';
+  const j = (u) => fetch(u, { cache: 'no-store', credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const [visit, camp, click, members, pushOpen, pushCount, withdraw, segs, appstore, rank] = await Promise.all([
+    j('/api/places?visit=stats&period=' + _odVisitPeriod),
+    j('/api/campaigns?stats=1'),
+    j('/api/campaigns?clickstats=1'),
+    j('/api/users?count=members'),
+    j('/api/users?push=openstats'),
+    j('/api/users?push=count'),
+    j('/api/users?withdrawals=stats'),
+    j('/api/users?segments=1'),
+    j('/api/places?appstore=1'),
+    j('/api/users?leaderboard=reviews&month=' + _odRankMonth),
+  ]);
+  if (seq !== _odLoadSeq) return;
+  _odData = { visit: visit || {}, camp: camp || {}, click: click || {}, members: members || {}, pushOpen: pushOpen || {}, pushCount: pushCount || {}, withdraw: withdraw || {}, segs: segs || {}, appstore: appstore || {}, rank: Array.isArray(rank) ? rank : [] };
+  renderOperatorDash();
+}
+
+// ── 공통 포맷/빌더 ──
+function odNum(n) { return Number(n || 0).toLocaleString(); }
+function odMan(n) { n = Number(n || 0); return n >= 10000 ? (Math.round(n / 1000) / 10).toLocaleString() + '만' : n.toLocaleString(); }
+function odDwell(sec) { sec = Math.max(0, Math.round(Number(sec || 0))); const m = Math.floor(sec / 60); return m + 'm' + String(sec % 60).padStart(2, '0') + 's'; }
+function odSum(obj) { return Object.values(obj || {}).reduce((a, b) => a + Number(b || 0), 0); }
+function odPct(a, b) { b = Number(b || 0); return b > 0 ? (Math.round(Number(a || 0) / b * 1000) / 10) : 0; }
+// Material baseline 아이콘(24 viewBox, currentColor). 이모지 금지(디자인 지침).
+const OD_ICONS = {
+  retention: '<path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/>',
+  members: '<path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>',
+  visit: '<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9zm0-7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/>',
+  campaign: '<path d="M18 11v2h4v-2h-4zm-1.5 7.6l2.4 1.8 1.2-1.6-2.4-1.8-1.2 1.6zM20.1 4.2L18.9 2.6l-2.4 1.8 1.2 1.6 2.4-1.8zM4 9c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2h1v4h2v-4h1l5 3V6L8 9H4zm11.5 3c0-1.33-.58-2.53-1.5-3.35v6.69c.92-.81 1.5-2.01 1.5-3.34z"/>',
+  review: '<path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V9h2v2zm0-4h-2V5h2v2z"/>',
+  forum: '<path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v16l4-4h14c1.1 0 2-.9 2-2V6zm-2 0v10H5.17L4 17.17V6h16z"/><path d="M6 9h12v2H6zm0-3h12v2H6z" opacity=".5"/>',
+  send: '<path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>',
+  bell: '<path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C8.13 5.36 6.5 7.92 6.5 11v5l-2 2v1h15v-1l-2-2z"/>',
+  schedule: '<path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>',
+  globe: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93C7.05 19.44 4 16.08 4 12c0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>',
+  devices: '<path d="M4 6h18V4H4c-1.1 0-2 .9-2 2v11H0v3h14v-3H4V6zm19 2h-6c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V9c0-.55-.45-1-1-1zm-1 9h-4v-7h4v7z"/>',
+  grid: '<path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>',
+  search: '<path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/>',
+  star: '<path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>',
+  trophy: '<path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 0 0 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>',
+  phone: '<path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>',
+  android: '<path d="M6 18c0 .55.45 1 1 1h1v3.5a1.5 1.5 0 0 0 3 0V19h2v3.5a1.5 1.5 0 0 0 3 0V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8a1.5 1.5 0 0 0-1.5 1.5v7a1.5 1.5 0 0 0 3 0v-7A1.5 1.5 0 0 0 3.5 8zm17 0A1.5 1.5 0 0 0 19 9.5v7a1.5 1.5 0 0 0 3 0v-7A1.5 1.5 0 0 0 20.5 8zm-4.97-5.84l1.3-1.3a.25.25 0 0 0-.35-.35l-1.48 1.48A5.98 5.98 0 0 0 12 1.5c-.96 0-1.86.22-2.68.6L7.84.62a.25.25 0 0 0-.35.35l1.3 1.3A5.99 5.99 0 0 0 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/>',
+  install: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 15l-5-5h3V8h4v5h3l-5 5z"/>',
+};
+function odIcon(name) { return '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + (OD_ICONS[name] || '') + '</svg>'; }
+function odSecHead(icon, title, sub) {
+  return '<div class="od-sec"><div class="od-sec-title"><span class="od-sec-ico">' + odIcon(icon) + '</span><span>' + title + '</span></div><p class="od-sec-sub">' + sub + '</p></div>';
+}
+function odCardHead(icon, tint, title, sub, right) {
+  return '<div class="od-chead"><span class="od-chead-ico" style="background:' + tint + '22;color:' + tint + '">' + odIcon(icon) + '</span>'
+    + '<div class="od-chead-txt"><p class="od-chead-title">' + title + '</p><p class="od-chead-sub">' + sub + '</p></div>'
+    + (right || '') + '</div>';
+}
+function odDelta(text, up) { return '<span class="od-delta ' + (up === false ? 'down' : 'up') + '">' + (up === false ? '▼' : '▲') + ' ' + text + '</span>'; }
+function odSpark(values, color) {
+  const v = (values || []).map(x => Number(x || 0));
+  const max = Math.max(1, ...v);
+  return '<div class="od-spark">' + v.map(x => '<span style="height:' + Math.max(8, Math.round(x / max * 100)) + '%;background:' + color + '"></span>').join('') + '</div>';
+}
+function odHBar(label, value, color, max, valueText) {
+  const pct = Math.max(2, Math.round(Number(value || 0) / Math.max(1, max) * 100));
+  return '<div class="od-hbar"><span class="od-hbar-label">' + rvEsc(label) + '</span><span class="od-hbar-track"><span class="od-hbar-fill" style="width:' + pct + '%;background:' + color + '"></span></span><span class="od-hbar-val">' + (valueText != null ? valueText : odNum(value)) + '</span></div>';
+}
+
+function renderOperatorDash() {
+  const content = document.getElementById('odContent');
+  if (!content || !_odData) return;
+  const d = _odData;
+  content.innerHTML = [
+    odRenderCore(d), odRenderContent(d), odRenderPush(d), odRenderCampPerf(d),
+    odRenderVisitInflow(d), odRenderBehavior(d), odRenderApp(d), odRenderMember(d), odRenderRanking(d)
+  ].join('');
+}
+
+// ① 핵심 지표
+function odRenderCore(d) {
+  const v = d.visit || {};
+  const ret = Number(v.todayMemberReturning || 0), yret = Number(v.yesterdayMemberReturning || 0);
+  const rate = odPct(ret, v.todayUv);
+  const retDelta = yret > 0 ? Math.round((ret - yret) / yret * 100) : null;
+  const uvSeries = (v.series || []).map(s => s.uv);
+  // 회원
+  const m = d.members || {}, sg = d.segs || {};
+  // 방문
+  const uvDelta = (() => { const s = v.series || []; if (s.length < 2) return null; const a = Number(s[s.length - 2].uv || 0), b = Number(s[s.length - 1].uv || 0); return a > 0 ? Math.round((b - a) / a * 100) : null; })();
+
+  const hero = '<div class="od-card od-hero">'
+    + odCardHead('retention', '#E82A2D', '오늘 재방문 회원 · 리텐션', '기존 회원 (당일 가입자 제외)', retDelta != null ? odDelta(Math.abs(retDelta) + '%', retDelta >= 0) : '')
+    + '<p class="od-hero-num"><b>' + odNum(ret) + '</b><span class="od-unit">명</span><span class="od-hero-rate">· 재방문율 ' + rate + '%</span></p>'
+    + odSpark(uvSeries, '#1A1A2E')
+    + '<div class="od-hero-foot"><span>14일 전</span><span>어제 ' + odNum(yret) + '명</span></div>'
+    + '</div>';
+  const member = '<div class="od-card">'
+    + odCardHead('members', '#7B61FF', '회원', '가입자 + 신규 추이', (Number(m.todayNew || 0) >= 0 ? odDelta('오늘 +' + odNum(m.todayNew), true) : ''))
+    + '<div class="od-trio"><div class="od-trio-i"><b class="od-big od-purple">' + odNum(m.total) + '</b><span>가입 회원(누적)</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odNum(m.todayNew) + '</b><span>오늘 가입</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odNum(sg.new7) + '</b><span>이번 주</span></div></div>'
+    + odSpark(uvSeries, '#7B61FF')
+    + '</div>';
+  const visit = '<div class="od-card">'
+    + odCardHead('visit', '#2E90FA', '방문', '오늘 · 평균 체류', uvDelta != null ? odDelta(Math.abs(uvDelta) + '%', uvDelta >= 0) : '')
+    + '<div class="od-trio"><div class="od-trio-i"><b class="od-big od-blue">' + odNum(v.todayUv) + '</b><span>오늘 UV</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odNum(v.todayPv) + '</b><span>오늘 PV</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odDwell(v.todayDwell) + '</b><span>평균 체류</span></div></div>'
+    + odSpark(uvSeries, '#2E90FA')
+    + '<p class="od-card-foot">누적 방문(PV) ' + odNum(v.totalPv) + '</p>'
+    + '</div>';
+  return odSecHead('retention', '핵심 지표', '가장 중요한 지표부터') + hero + member + visit;
+}
+
+// ② 콘텐츠 & 활동
+function odRenderContent(d) {
+  const c = d.camp || {}, v = d.visit || {};
+  const row = (icon, tint, title, sub, big, foot, footCls) =>
+    '<div class="od-row"><span class="od-row-ico" style="background:' + tint + '22;color:' + tint + '">' + odIcon(icon) + '</span>'
+    + '<div class="od-row-txt"><p class="od-row-title">' + title + '</p><p class="od-row-sub">' + sub + '</p></div>'
+    + '<div class="od-row-right"><b class="od-row-big">' + big + '</b><span class="od-row-foot ' + (footCls || '') + '">' + foot + '</span></div></div>';
+  const card = '<div class="od-card od-rows">'
+    + row('campaign', '#8B8B96', '캠페인', '전체 ' + odMan(c.total) + ' 건', odNum(c.active), '모집 중', 'muted')
+    + '<div class="od-row-line"></div>'
+    + row('review', '#2E90FA', '후기', '블로그 불러오기 ' + odNum(c.reviewBlogimportCount) + '건', odNum(c.reviewCount), '오늘 +' + odNum(c.reviewTodayCount), 'up')
+    + '<div class="od-row-line"></div>'
+    + row('forum', '#F5862E', '수다방', '세그 조회 ' + odNum(odSum(v.cmSegTotal)) + '회', odNum(v.seoichuCount), '오늘 +' + odNum(odSum(v.cmSegToday)), 'up')
+    + '</div>';
+  return odSecHead('grid', '콘텐츠 & 활동', '캠페인 · 후기 · 수다방') + card;
+}
+
+// ③ 푸시 · 알림
+function odRenderPush(d) {
+  const pc = d.pushCount || {}, po = d.pushOpen || {};
+  const dg = po.digest || {}, ev = po.event || {};
+  const form = '<div class="od-card od-push-form">'
+    + odCardHead('send', '#E82A2D', '이벤트 푸시', '알림 허용 기기 전체 발송', '<span class="od-pill">대상 ' + odNum(pc.devices) + '기기</span>')
+    + '<input id="odPushTitle" class="od-input" type="text" placeholder="제목 (예: 🎉 무협맵 새 이벤트!)" maxlength="60">'
+    + '<textarea id="odPushBody" class="od-input od-textarea" rows="4" placeholder="내용 (알림 본문)" maxlength="300"></textarea>'
+    + '<input id="odPushTarget" class="od-input" type="text" placeholder="(선택) 탭 이동 — 매장 ID 또는 https:// 링크">'
+    + '<div class="od-push-foot"><span class="od-push-hint">제목과 내용을 입력하세요</span><button class="od-send-btn" onclick="odSendEventPush()">발송</button></div>'
+    + '</div>';
+  const tapRow = (badge, txt) => '<div class="od-tap-row"><span class="od-tap-badge">' + badge + '</span><span class="od-tap-txt">' + txt + '</span></div>';
+  const subRow = (label, txt) => '<div class="od-tap-row od-tap-sub"><span class="od-tap-sublabel">└ ' + label + '</span><span class="od-tap-txt">' + txt + '</span></div>';
+  const taps = '<div class="od-card">'
+    + odCardHead('bell', '#7B61FF', '알림 탭 (앱 접근)', '최근 7일 · 안드 · 본인 이후부터', '')
+    + tapRow('최근 7일', '유저 ' + odNum(po.users7d) + '명 · ' + odNum(po.taps7d) + '회')
+    + tapRow('오늘', '유저 ' + odNum(po.usersToday) + '명 · ' + odNum(po.tapsToday) + '회')
+    + subRow('하루요약', '유저 ' + odNum(dg.users) + '명 · ' + odNum(dg.taps) + '회')
+    + subRow('이벤트', '유저 ' + odNum(ev.users) + '명 · ' + odNum(ev.taps) + '회')
+    + '</div>';
+  return odSecHead('send', '푸시 · 알림', '이벤트 발송 · 앱 복귀 전환') + form + taps;
+}
+// 이벤트 푸시 발송 — 발송은 어드민 인증(requireAdmin) 필요. 운영자 세션은 집계만 열려 있어 401이면 안내.
+async function odSendEventPush() {
+  const title = (document.getElementById('odPushTitle') || {}).value || '';
+  const body = (document.getElementById('odPushBody') || {}).value || '';
+  const target = ((document.getElementById('odPushTarget') || {}).value || '').trim();
+  if (!title.trim() || !body.trim()) { showToast('제목과 내용을 입력하세요'); return; }
+  showAlert('전체 발송할까요?', '알림 허용 기기 전체에 즉시 발송돼요.', {
+    twoButton: true, header: '이벤트 푸시', confirmText: '발송', cancelText: '취소', align: 'left',
+    onConfirm: async () => {
+      const b = { title: title.trim(), body: body.trim() };
+      if (target) { if (/^https?:\/\//i.test(target)) b.url = target; else b.placeId = target; }
+      try {
+        const r = await fetch('/api/users?push=broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(b) });
+        if (r.status === 401) { showToast('발송 권한은 어드민 로그인이 필요해요'); return; }
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { showToast(j.error || '발송 실패'); return; }
+        showToast((j.devices || 0) + '기기로 발송했어요');
+        ['odPushTitle', 'odPushBody', 'odPushTarget'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      } catch (e) { showToast('발송 실패'); }
+    }
+  });
+}
+
+// ④ 캠페인 성과
+function odRenderCampPerf(d) {
+  const dd = (d.camp && d.camp.dday) || {};
+  const tiles = [];
+  for (let i = 0; i <= 7; i++) {
+    const lab = i === 0 ? 'D-DAY' : 'D-' + i;
+    tiles.push('<div class="od-dtile' + (i === 0 ? ' od-dtile-today' : '') + '"><span class="od-dtile-lab">' + lab + '</span><b class="od-dtile-num">' + odNum(dd[i]) + '</b></div>');
+  }
+  const dcard = '<div class="od-card">'
+    + odCardHead('schedule', '#F5862E', '마감 임박', 'D-DAY ~ D-7 모집중 캠페인', '')
+    + '<div class="od-dtiles">' + tiles.join('') + '</div></div>';
+  const tabs = [['daily', '일별'], ['regions', '지역'], ['categories', '카테고리'], ['platforms', '플랫폼']]
+    .map(([k, l]) => '<button class="od-tab' + (_odClickTab === k ? ' active' : '') + '" onclick="odSetClickTab(\'' + k + '\')">' + l + '</button>').join('');
+  const ccard = '<div class="od-card od-click-card"><div class="od-tabs">' + tabs + '</div><div id="odClickTable">' + odClickTableHtml() + '</div></div>';
+  return odSecHead('schedule', '캠페인 성과', '조회·클릭·전환 — 일별·지역·카테고리·플랫폼') + dcard + ccard;
+}
+function odSetClickTab(tab) { _odClickTab = tab; renderOperatorDash(); const t = document.getElementById('odClickTable'); if (t) t.innerHTML = odClickTableHtml(); }
+function odClickTableHtml() {
+  const c = _odData && _odData.click || {};
+  const tab = _odClickTab;
+  const col = { daily: ['날짜', 'date'], regions: ['지역', 'region'], categories: ['카테고리', 'category'], platforms: ['플랫폼', 'platform'] }[tab];
+  const rows = (c[tab] || []).slice(0, 6);
+  const head = '<div class="od-trow od-thead"><span class="od-tc1">' + col[0] + '</span><span>조회</span><span>클릭</span><span>전환</span></div>';
+  if (!rows.length) return head + '<div class="od-tempty">데이터가 아직 없어요</div>';
+  const body = rows.map(r => {
+    const conv = odPct(r.clicks, r.views);
+    return '<div class="od-trow"><span class="od-tc1">' + rvEsc(r[col[1]] || '-') + '</span><span class="od-tview">' + odNum(r.views) + '</span><span class="od-tclick">' + odNum(r.clicks) + '</span><span class="od-tconv">' + conv + '%</span></div>';
+  }).join('');
+  return head + body;
+}
+
+// ⑤ 방문 & 유입
+function odRenderVisitInflow(d) {
+  const v = d.visit || {};
+  const toggles = [['day', '일'], ['week', '주'], ['month', '월']]
+    .map(([k, l]) => '<button class="od-vtoggle' + (_odVisitPeriod === k ? ' active' : '') + '" onclick="odSetVisitPeriod(\'' + k + '\')">' + l + '</button>').join('');
+  const chartCard = '<div class="od-card od-chart-card">'
+    + odCardHead('visit', '#2E90FA', '방문 추이', '최근 14일 · 일/주/월', '<div class="od-vtoggles">' + toggles + '</div>')
+    + '<div class="od-legend"><span><i style="background:#1A1A2E"></i>UV</span><span><i style="background:#C9C7F2"></i>PV</span></div>'
+    + '<div id="odVisitChart">' + odVisitChartHtml() + '</div></div>';
+  // 유입경로
+  const REF_COLOR = { '직접·앱': '#9AA0AA', 'direct': '#9AA0AA', '네이버': '#03C75A', 'naver': '#03C75A', '카카오': '#F5C600', 'kakao': '#F5C600', 'threads': '#1A1A1A', '스레드': '#1A1A1A', '구글': '#4285F4', 'google': '#4285F4', '인스타': '#C13584', 'instagram': '#C13584', '당근': '#FF7E36' };
+  const refs = (v.referrers || []).slice(0, 5);
+  const refMax = Math.max(1, ...refs.map(r => r.cnt));
+  const refCard = '<div class="od-card">'
+    + odCardHead('globe', '#1D9E75', '유입경로 (누적)', '채널별 방문 비중', '')
+    + refs.map(r => odHBar(r.ref, r.cnt, REF_COLOR[r.ref] || '#9AA0AA', refMax)).join('')
+    + '</div>';
+  // 접속 환경
+  const PLAT_LABEL = { mweb: '모바일웹', app: '앱', pcweb: 'PC웹' };
+  const PLAT_COLOR = { mweb: '#2E90FA', app: '#E82A2D', pcweb: '#7B61FF' };
+  const plats = (v.todayPlatforms || []).slice(0, 4);
+  const platMax = Math.max(1, ...plats.map(p => p.cnt));
+  const platCard = '<div class="od-card">'
+    + odCardHead('devices', '#7B61FF', '접속 환경', '오늘 · 앱/모바일웹/PC웹', '')
+    + plats.map(p => odHBar(PLAT_LABEL[p.platform] || p.platform, p.cnt, PLAT_COLOR[p.platform] || '#9AA0AA', platMax)).join('')
+    + '</div>';
+  return odSecHead('visit', '방문 & 유입', '추이 · 유입경로 · 접속 환경') + chartCard + refCard + platCard;
+}
+function odSetVisitPeriod(p) {
+  if (_odVisitPeriod === p) return;
+  _odVisitPeriod = p;
+  // 토글 액티브 갱신 + 차트만 교체(스크롤 유지). series만 다시 받아옴.
+  document.querySelectorAll('.od-vtoggle').forEach(b => b.classList.toggle('active', b.textContent.trim() === ({ day: '일', week: '주', month: '월' }[p])));
+  fetch('/api/places?visit=stats&period=' + p, { cache: 'no-store', credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(j => {
+    if (j && _odData) { _odData.visit.series = j.series; _odData.visit.period = j.period; const el = document.getElementById('odVisitChart'); if (el) el.innerHTML = odVisitChartHtml(); }
+  }).catch(() => {});
+}
+function odVisitChartHtml() {
+  const s = (_odData && _odData.visit && _odData.visit.series) || [];
+  if (!s.length) return '<div class="od-tempty">데이터가 아직 없어요</div>';
+  const maxPv = Math.max(1, ...s.map(r => Number(r.pv || 0)));
+  const bars = s.map(r => {
+    const pv = Number(r.pv || 0), uv = Number(r.uv || 0);
+    const h = Math.max(4, Math.round(pv / maxPv * 100));
+    const uvH = pv > 0 ? Math.round(uv / maxPv * 100) : 0;
+    return '<div class="od-vbar"><span class="od-vbar-col" style="height:' + h + '%"><span class="od-vbar-uv" style="height:' + Math.min(100, Math.round(uvH / Math.max(1, h) * 100)) + '%"></span></span></div>';
+  }).join('');
+  const first = s[0] ? s[0].label : '', last = s[s.length - 1] ? s[s.length - 1].label : '';
+  return '<div class="od-vchart">' + bars + '</div><div class="od-vchart-foot"><span>' + rvEsc(first) + '</span><span>' + rvEsc(last) + '</span></div>';
+}
+
+// ⑥ 사용자 행동
+function odRenderBehavior(d) {
+  const v = d.visit || {};
+  // GNB
+  const GNB = [['home', '홈', '#E82A2D'], ['community', '커뮤니티', '#2E90FA'], ['places', '내 장소', '#1D9E75'], ['my', 'MY', '#7B61FF']];
+  const gt = v.gnbTotal || {};
+  const gnbMax = Math.max(1, ...GNB.map(([k]) => Number(gt[k] || 0)));
+  const gnbCard = '<div class="od-card">'
+    + odCardHead('grid', '#F5862E', 'GNB 탭 클릭', '누적 · 어느 메뉴를 많이 쓰나', '')
+    + GNB.map(([k, l, c]) => odHBar(l, gt[k] || 0, c, gnbMax)).join('')
+    + '</div>';
+  // 커뮤니티 세그먼트
+  const SEG = [['seoichu', '수다방', '#2E90FA'], ['feed', '후기', '#1D9E75'], ['myreviews', '내 후기', '#7B61FF']];
+  const ct = v.cmSegTotal || {};
+  const segMax = Math.max(1, ...SEG.map(([k]) => Number(ct[k] || 0)));
+  const segCard = '<div class="od-card">'
+    + odCardHead('forum', '#2E90FA', '커뮤니티 세그먼트', '수다방 / 후기 / 내 후기 조회', '')
+    + SEG.map(([k, l, c]) => odHBar(l, ct[k] || 0, c, segMax)).join('')
+    + '</div>';
+  // 지도 검색
+  const zeroRate = odPct(v.searchZeroTotal, v.searchTotal);
+  const tags = (v.recentSearches || []).slice(0, 8).map(t => '<span class="od-tag">' + rvEsc(t.term) + (t.cnt > 1 ? ' <i>×' + t.cnt + '</i>' : '') + '</span>').join('');
+  const ztags = (v.recentZeroSearches || []).slice(0, 4).map(t => '<span class="od-tag od-tag-zero">' + rvEsc(t.term) + (t.cnt > 1 ? ' <i>×' + t.cnt + '</i>' : '') + '</span>').join('');
+  const searchCard = '<div class="od-card">'
+    + odCardHead('search', '#1D9E75', '지도 검색 사용', '누적 · 오늘 · 최근 검색어', '')
+    + '<div class="od-trio od-trio-tight"><div class="od-trio-i"><b class="od-big">' + odNum(v.searchTotal) + '</b><span>누적 검색</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odNum(v.searchToday) + '</b><span>오늘</span></div>'
+    + '<div class="od-trio-i"><b class="od-big od-red">' + zeroRate + '%</b><span>결과 0건율</span></div></div>'
+    + (tags || ztags ? '<p class="od-tags-label">최근 검색어</p><div class="od-tags">' + tags + ztags + '</div>' : '')
+    + '</div>';
+  return odSecHead('grid', '사용자 행동', 'GNB · 커뮤니티 세그 · 지도 검색') + gnbCard + segCard + searchCard;
+}
+
+// ⑦ 앱
+function odRenderApp(d) {
+  const v = d.visit || {}, sd = v.storeDownloads || {}, as = d.appstore || {};
+  const ios = sd.ios || {}, play = sd.play || {};
+  const half = '<div class="od-halfrow">'
+    + '<div class="od-card od-half">' + odCardHead('phone', '#8B8B96', 'iOS 누적 다운로드', '', '')
+    + '<b class="od-big od-big-lg">' + (ios.total != null ? odNum(ios.total) : '—') + '</b><p class="od-card-foot">' + (ios.asOf ? ios.asOf + ' 기준' : '준비중') + '</p></div>'
+    + '<div class="od-card od-half">' + odCardHead('android', '#1D9E75', 'Android 순 설치', '', '')
+    + '<b class="od-big od-big-lg">' + (play.total != null ? odNum(play.total) : '—') + '</b><p class="od-card-foot">' + (play.active != null ? '활성기기 ' + odNum(play.active) + ' · ' : '') + (play.asOf || '준비중') + '</p></div>'
+    + '</div>';
+  const rating = Number(as.rating || 0);
+  const stars = [1, 2, 3, 4, 5].map(i => '<span class="od-star' + (i <= Math.round(rating) ? ' on' : '') + '">' + odIcon('star') + '</span>').join('');
+  const ratingCard = '<div class="od-card">'
+    + odCardHead('star', '#F5A623', '앱스토어 평점·리뷰', 'iOS App Store', '')
+    + '<div class="od-rating"><b class="od-rating-num">' + (rating ? rating.toFixed(1) : '—') + '</b><span class="od-rating-of">/ 5</span><span class="od-stars">' + stars + '</span></div>'
+    + '<p class="od-card-foot">리뷰 ' + odNum(as.ratingCount) + '개' + (as.version ? ' · v' + rvEsc(as.version) : '') + '</p></div>';
+  const it = v.appInstallTotal || {}, id = v.appInstallToday || {};
+  const installConv = odPct(it.install, it.show), installConvToday = odPct(id.install, id.show);
+  const installCard = '<div class="od-card">'
+    + odCardHead('install', '#2E90FA', '앱 설치 팝업', '모바일웹 · 누적 · 오늘', '')
+    + '<div class="od-trio od-trio-tight"><div class="od-trio-i"><b class="od-big">' + odNum(it.show) + '</b><span>노출 · 오늘 ' + odNum(id.show) + '</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odNum(it.install) + '</b><span>설치 유도 · 오늘 ' + odNum(id.install) + '</span></div>'
+    + '<div class="od-trio-i"><b class="od-big od-green">' + installConv + '%</b><span>전환율 · 오늘 ' + installConvToday + '%</span></div></div></div>';
+  return odSecHead('phone', '앱', '다운로드 · 평점 · 설치 유도') + half + ratingCard + installCard;
+}
+
+// ⑧ 회원
+function odRenderMember(d) {
+  const sg = d.segs || {}, w = d.withdraw || {};
+  const segMax = Math.max(1, Number(sg.active || 0), Number(sg.potential || 0), Number(sg.churned || 0));
+  const segCard = '<div class="od-card">'
+    + odCardHead('members', '#7B61FF', '회원 세그먼트', '최근 로그인 활동 기준', '')
+    + odHBar('활동', sg.active || 0, '#1D9E75', segMax)
+    + odHBar('잠재', sg.potential || 0, '#F5A623', segMax)
+    + odHBar('이탈', sg.churned || 0, '#9AA0AA', segMax)
+    + '</div>';
+  const reasons = (w.reasons || []).filter(r => r.reason && r.reason !== '(미응답)').slice(0, 6)
+    .map(r => '<span class="od-tag">' + rvEsc(r.reason) + ' ' + r.cnt + '</span>').join('');
+  const wCard = '<div class="od-card">'
+    + odCardHead('members', '#E82A2D', '회원 탈퇴', '당일가입→당일탈퇴 신호 · 배포 이후', '')
+    + '<div class="od-trio od-trio-tight"><div class="od-trio-i"><b class="od-big od-red">' + odNum(w.today) + '</b><span>오늘</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odNum(w.total) + '</b><span>누적</span></div>'
+    + '<div class="od-trio-i"><b class="od-big od-red">' + odNum(w.sameDayToday) + '</b><span>당일→당일</span></div></div>'
+    + (reasons ? '<p class="od-tags-label">사유 분포</p><div class="od-tags">' + reasons + '</div>' : '')
+    + '</div>';
+  return odSecHead('members', '회원', '세그먼트 · 탈퇴') + segCard + wCard;
+}
+
+// ⑨ 이벤트 후기 랭킹
+function odRenderRanking(d) {
+  const [y, mo] = (_odRankMonth || odCurrentMonth()).split('-').map(Number);
+  const first = _odRankMonth + '-01';
+  const last = _odRankMonth + '-' + String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, '0');
+  const rows = (d.rank || []).filter(r => Number(r.userId) !== 12).slice(0, 10);   // 운영자 제외
+  const card = '<div class="od-card od-rank-card">'
+    + '<div class="od-rank-range"><input class="od-date" id="odRankFrom" type="date" value="' + first + '"><span class="od-range-dash">–</span><input class="od-date" id="odRankTo" type="date" value="' + last + '"><button class="od-range-btn" onclick="odRunRanking()">조회</button></div>'
+    + '<p class="od-rank-head">📝 후기 수 TOP</p>'
+    + '<div id="odRankList">' + odRankRowsHtml(rows) + '</div></div>';
+  return odSecHead('trophy', '이벤트 후기 랭킹', '스벅 쿠폰 · 운영자 제외') + card;
+}
+function odRankRowsHtml(rows) {
+  if (!rows || !rows.length) return '<div class="od-tempty">이 달엔 후기 기록이 아직 없어요</div>';
+  return rows.map((r, i) => {
+    const rank = i + 1;
+    const medal = rank === 1 ? 'g' : rank === 2 ? 's' : rank === 3 ? 'b' : '';
+    const initial = (r.nickname || '?').trim().slice(0, 1);
+    return '<div class="od-rank-row"><span class="od-rank-no od-rank-' + (medal || 'n') + '">' + rank + '</span>'
+      + '<span class="od-rank-ava">' + rvEsc(initial) + '</span>'
+      + '<span class="od-rank-name">' + rvEsc(r.nickname || '') + '</span>'
+      + '<span class="od-rank-cnt' + (rank <= 3 ? ' top' : '') + '">' + odNum(r.count) + '건</span></div>';
+  }).join('');
+}
+// 조회: 시작일의 '월'로 후기왕 랭킹(월 단위 집계) 재조회. 월 경계 내 범위만 유효(API가 월 단위).
+function odRunRanking() {
+  const from = (document.getElementById('odRankFrom') || {}).value || '';
+  const m = from.slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(m)) { showToast('시작일을 선택하세요'); return; }
+  if (m < '2026-11') { showToast('2026-11 이후만 조회할 수 있어요'); return; }
+  _odRankMonth = m;
+  const list = document.getElementById('odRankList');
+  if (list) list.innerHTML = cmCenterSpinner();
+  fetch('/api/users?leaderboard=reviews&month=' + m, { cache: 'no-store', credentials: 'same-origin' })
+    .then(r => r.ok ? r.json() : []).then(j => {
+      if (_odData) _odData.rank = Array.isArray(j) ? j : [];
+      const rows = (_odData.rank || []).filter(r => Number(r.userId) !== 12).slice(0, 10);
+      if (list) list.innerHTML = odRankRowsHtml(rows);
+    }).catch(() => { if (list) list.innerHTML = odRankRowsHtml([]); });
 }
 
 // 글쓰기 영역: 로그인 + SNS(블로그/인스타) 등록자만. 아니면 안내 CTA.
@@ -5449,6 +5867,7 @@ function renderMyPage() {
     show('myDays', false); show('myLoginLink', true);
     set('myEmail', '-'); set('mySns', '-'); set('myReviewCnt', '-'); set('myHelpfulCnt', '-');
   }
+  show('myOperatorDashLink', isOperator() && isMobileView());   // 운영자(개짜장) + 모바일에서만 '운영자 대시보드' 메뉴 노출(PC는 어드민 사용)
 }
 // 가입일(UTC)부터 오늘까지 KST 기준 일수(가입 첫날=1일째).
 function mypageDaysSince(createdAt) {
@@ -8511,6 +8930,7 @@ function _closeTopOverlayForBack() {
   if (open('selectSheetPanel', 'show')) { closeSelectSheet(); return true; }
   if (shown('scCmtBar')) { showSeoichuCommentBar(false); return true; }
   if (open('noticeDetailOverlay', 'open')) { closeNoticeDetail(); return true; }
+  if (open('opDashOverlay', 'open')) { closeOperatorDash(); return true; }  // 운영자 대시보드 = 닫기(back) → 밑의 MY
   if (open('reviewKingOverlay', 'open')) { closeReviewKing(); return true; }  // 후기왕 오버레이 = 닫기(back) → 밑의 커뮤니티 후기
   if (open('profileOverlay', 'open')) { closeProfileSheet(); return true; }
   if (open('modalOverlay', 'open')) { closeModal(); return true; }
