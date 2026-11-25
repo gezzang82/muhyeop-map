@@ -281,8 +281,16 @@ function detectPlatform() {
 // CSS(style.css)의 `@media (hover: none) and (pointer: coarse)` 와 반드시 동일 기준이어야 함.
 function isMobileView() {
   if (isNativeApp()) return true;
-  try { return window.matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) {}
-  return window.innerWidth <= 640; // 폴백(matchMedia 미지원 환경)
+  try { if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) return true; } catch (e) {}
+  // ⚠️ 폴더블(갤럭시 Z 플립 등) 오보고 방어(2026-11-25): 일부 기기/삼성 브라우저가 위 쿼리를
+  //  pointer:fine/hover:hover로 잘못 보고해 '폰인데 PC 레이아웃'으로 뜨던 유저 제보 → 뷰포트 폭(+터치)으로 2차 판정.
+  try {
+    const w = window.innerWidth || document.documentElement.clientWidth || 0;
+    const touch = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+    if (w && w <= 640) return true;            // 명백한 폰 폭
+    if (touch && w && w <= 820) return true;   // 터치 + 좁은 폭(폴더블 펼침 등) → 모바일
+  } catch (e) {}
+  return (window.innerWidth || 0) <= 640; // 폴백(matchMedia 미지원 환경)
 }
 function openExternal(url) {
   if (!url) return;
