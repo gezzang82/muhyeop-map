@@ -5288,8 +5288,8 @@ function renderOperatorDash() {
   if (!content || !_odData) return;
   const d = _odData;
   content.innerHTML = [
-    odRenderCore(d), odRenderContent(d), odRenderPush(d), odRenderCampPerf(d),
-    odRenderVisitInflow(d), odRenderBehavior(d), odRenderApp(d), odRenderMember(d), odRenderRanking(d)
+    odRenderCore(d), odRenderMember(d), odRenderContent(d), odRenderPush(d), odRenderCampPerf(d),
+    odRenderVisitInflow(d), odRenderBehavior(d), odRenderApp(d), odRenderRanking(d)
   ].join('');
 }
 
