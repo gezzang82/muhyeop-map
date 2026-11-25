@@ -5545,7 +5545,8 @@ function odRenderApp(d) {
     + '<b class="od-big od-big-lg">' + (play.total != null ? odNum(play.total) : '—') + '</b><p class="od-card-foot">' + (play.active != null ? '활성기기 ' + odNum(play.active) + ' · ' : '') + (play.asOf || '준비중') + '</p></div>'
     + '</div>';
   const rating = Number(as.rating || 0);
-  const stars = [1, 2, 3, 4, 5].map(i => '<span class="od-star' + (i <= Math.round(rating) ? ' on' : '') + '">' + odIcon('star') + '</span>').join('');
+  const starSvg = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
+  const stars = [1, 2, 3, 4, 5].map(i => '<span class="od-star' + (i <= Math.round(rating) ? ' on' : '') + '">' + starSvg + '</span>').join('');  // 평점 별점은 색 토글되는 작은 플랫 별(3D 아이콘 아님)
   const ratingCard = '<div class="od-card">'
     + odCardHead('star', '#F5A623', '앱스토어 평점·리뷰', 'iOS App Store', '')
     + '<div class="od-rating"><b class="od-rating-num">' + (rating ? rating.toFixed(1) : '—') + '</b><span class="od-rating-of">/ 5</span><span class="od-stars">' + stars + '</span></div>'
