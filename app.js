@@ -5302,6 +5302,7 @@ function odRenderCore(d) {
   const spk = v.spark || {};
   const sr = (spk.uv && spk.uv.length) ? spk.uv : (v.series || []);   // 스파크라인=고정 14일 일별 방문(기간 토글 무관)
   const sgSpark = (spk.signup && spk.signup.length) ? spk.signup : null;  // 회원 카드=일별 가입 수
+  const retSpark = (spk.retention && spk.retention.length) ? spk.retention : null;  // 리텐션 카드=일별 재방문 회원 수
   // 회원
   const m = d.members || {}, sg = d.segs || {};
   // 방문
@@ -5310,7 +5311,7 @@ function odRenderCore(d) {
   const hero = '<div class="od-card od-hero">'
     + odCardHead('retention', '#E82A2D', '오늘 재방문 회원 · 리텐션', '기존 회원 (당일 가입자 제외)', retDelta != null ? odDelta(Math.abs(retDelta) + '%', retDelta >= 0) : '')
     + '<p class="od-hero-num"><b>' + odNum(ret) + '</b><span class="od-unit">명</span><span class="od-hero-rate">· 재방문율 ' + rate + '%</span></p>'
-    + odSpark(sr, '#1A1A2E', '방문')
+    + odSpark(retSpark || sr, '#1A1A2E', retSpark ? '재방문' : '방문')
     + '<div class="od-hero-foot"><span>14일 전</span><span>어제 ' + odNum(yret) + '명</span></div>'
     + '</div>';
   const member = '<div class="od-card">'

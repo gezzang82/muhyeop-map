@@ -493,7 +493,12 @@ module.exports = async function handler(req, res) {
       const sgMap = {};
       try { (await db.execute({ sql: "SELECT date(created_at,'+9 hours') AS d, COUNT(*) AS c FROM users WHERE date(created_at,'+9 hours') >= ? GROUP BY d", args: [since] })).rows.forEach(r => { sgMap[r.d] = Number(r.c || 0); }); } catch (e) {}
       const sparkSignup = sparkDayRows.map(r => ({ label: String(r.k).slice(5), val: sgMap[r.k] || 0 })).reverse();
-      const spark = { uv: sparkUv, signup: sparkSignup };
+      // 리텐션 카드 그래프 = 일별 재방문 회원 '수' = 그날 방문한 '기존 회원(가입일<그날)' 수.
+      //  todayMemberReturning(히어로 큰 숫자)과 동일 정의를 14일 일별로. user_visits(로그인 방문)⨝users.
+      const retMap = {};
+      try { (await db.execute({ sql: "SELECT uv.visit_date AS d, COUNT(DISTINCT uv.user_id) AS c FROM user_visits uv JOIN users u ON u.id=uv.user_id WHERE uv.visit_date >= ? AND date(u.created_at,'+9 hours') < uv.visit_date GROUP BY uv.visit_date", args: [since] })).rows.forEach(r => { retMap[r.d] = Number(r.c || 0); }); } catch (e) {}
+      const sparkRetention = sparkDayRows.map(r => ({ label: String(r.k).slice(5), val: retMap[r.k] || 0 })).reverse();
+      const spark = { uv: sparkUv, signup: sparkSignup, retention: sparkRetention };
       const vsPayload = {
         spark,
         gnbToday, gnbTotal, cmSegToday, cmSegTotal, appInstallToday, appInstallTotal, storeDownloads,
