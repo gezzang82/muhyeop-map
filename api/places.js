@@ -488,17 +488,33 @@ module.exports = async function handler(req, res) {
       // 스파크라인용 고정 14일 일별(기간 토글과 무관) — 핵심지표 리텐션·회원·방문 카드.
       //  방문추이 차트만 period 토글(series)을 쓰고, 상단 스파크라인은 늘 일별이라 토글에 안 흔들림.
       const sparkDayRows = (await db.execute("SELECT visit_date AS k, pv, uv FROM site_daily ORDER BY visit_date DESC LIMIT 14")).rows;
-      const sparkUv = sparkDayRows.map(r => ({ label: String(r.k).slice(5), uv: Number(r.uv || 0), pv: Number(r.pv || 0) })).reverse();
-      // 회원 카드 그래프 = 일별 가입 수(PII 없음, 날짜별 COUNT)
-      const sgMap = {};
+      // 일별 집계 맵(가입·재방문회원수) — day 시계열 + 아래 week/month와 함께 카드별 탭에 사용.
+      const sgMap = {}, retMap = {};
       try { (await db.execute({ sql: "SELECT date(created_at,'+9 hours') AS d, COUNT(*) AS c FROM users WHERE date(created_at,'+9 hours') >= ? GROUP BY d", args: [since] })).rows.forEach(r => { sgMap[r.d] = Number(r.c || 0); }); } catch (e) {}
-      const sparkSignup = sparkDayRows.map(r => ({ label: String(r.k).slice(5), val: sgMap[r.k] || 0 })).reverse();
-      // 리텐션 카드 그래프 = 일별 재방문 회원 '수' = 그날 방문한 '기존 회원(가입일<그날)' 수.
-      //  todayMemberReturning(히어로 큰 숫자)과 동일 정의를 14일 일별로. user_visits(로그인 방문)⨝users.
-      const retMap = {};
       try { (await db.execute({ sql: "SELECT uv.visit_date AS d, COUNT(DISTINCT uv.user_id) AS c FROM user_visits uv JOIN users u ON u.id=uv.user_id WHERE uv.visit_date >= ? AND date(u.created_at,'+9 hours') < uv.visit_date GROUP BY uv.visit_date", args: [since] })).rows.forEach(r => { retMap[r.d] = Number(r.c || 0); }); } catch (e) {}
-      const sparkRetention = sparkDayRows.map(r => ({ label: String(r.k).slice(5), val: retMap[r.k] || 0 })).reverse();
-      const spark = { uv: sparkUv, signup: sparkSignup, retention: sparkRetention };
+      // 핵심지표 카드별 일/주/월 탭용: 지표별(uv=순방문/signup=가입/retention=재방문회원수) 3기간 시계열.
+      //  day=최근14일 / week=최근12주 / month=최근12개월. retention=그 기간 방문한 기존회원(가입<방문일) 수.
+      const okRows = async (sql) => { try { return (await db.execute(sql)).rows; } catch (e) { return []; } };
+      const mkSeries = (rows, lab) => rows.map(r => ({ label: lab(r), val: Number(r.v || 0) })).reverse();
+      const wkLabel = r => String(r.mind || '').slice(5) + '~';
+      const moLabel = r => String(r.k || '').slice(5) + '월';
+      const spark = {
+        uv: {
+          day: sparkDayRows.map(r => ({ label: String(r.k).slice(5), val: Number(r.uv || 0) })).reverse(),
+          week: mkSeries(await okRows("SELECT strftime('%Y-%W', visit_date) AS k, COUNT(DISTINCT visitor_key) AS v, MIN(visit_date) AS mind FROM site_visitor GROUP BY k ORDER BY k DESC LIMIT 12"), wkLabel),
+          month: mkSeries(await okRows("SELECT substr(visit_date,1,7) AS k, COUNT(DISTINCT visitor_key) AS v FROM site_visitor GROUP BY k ORDER BY k DESC LIMIT 12"), moLabel),
+        },
+        signup: {
+          day: sparkDayRows.map(r => ({ label: String(r.k).slice(5), val: sgMap[r.k] || 0 })).reverse(),
+          week: mkSeries(await okRows("SELECT strftime('%Y-%W', created_at, '+9 hours') AS k, COUNT(*) AS v, MIN(date(created_at,'+9 hours')) AS mind FROM users GROUP BY k ORDER BY k DESC LIMIT 12"), wkLabel),
+          month: mkSeries(await okRows("SELECT strftime('%Y-%m', created_at, '+9 hours') AS k, COUNT(*) AS v FROM users GROUP BY k ORDER BY k DESC LIMIT 12"), moLabel),
+        },
+        retention: {
+          day: sparkDayRows.map(r => ({ label: String(r.k).slice(5), val: retMap[r.k] || 0 })).reverse(),
+          week: mkSeries(await okRows("SELECT strftime('%Y-%W', uv.visit_date) AS k, COUNT(DISTINCT uv.user_id) AS v, MIN(uv.visit_date) AS mind FROM user_visits uv JOIN users u ON u.id=uv.user_id WHERE date(u.created_at,'+9 hours') < uv.visit_date GROUP BY k ORDER BY k DESC LIMIT 12"), wkLabel),
+          month: mkSeries(await okRows("SELECT substr(uv.visit_date,1,7) AS k, COUNT(DISTINCT uv.user_id) AS v FROM user_visits uv JOIN users u ON u.id=uv.user_id WHERE date(u.created_at,'+9 hours') < uv.visit_date GROUP BY k ORDER BY k DESC LIMIT 12"), moLabel),
+        },
+      };
       const vsPayload = {
         spark,
         gnbToday, gnbTotal, cmSegToday, cmSegTotal, appInstallToday, appInstallTotal, storeDownloads,
@@ -522,7 +538,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(vsPayload);
       } catch (e) {
         // 500으로 통째 실패 대신, 에러 메시지를 응답에 담아 진단 가능하게(대시보드는 빈 값으로 degrade)
-        return res.status(200).json({ todayPv: 0, todayUv: 0, totalPv: 0, totalUv: 0, period: 'day', series: [], spark: { uv: [], signup: [] }, referrers: [], _error: String((e && e.message) || e) });
+        return res.status(200).json({ todayPv: 0, todayUv: 0, totalPv: 0, totalUv: 0, period: 'day', series: [], spark: { uv: { day: [], week: [], month: [] }, signup: { day: [], week: [], month: [] }, retention: { day: [], week: [], month: [] } }, referrers: [], _error: String((e && e.message) || e) });
       }
     }
     return res.status(400).json({ error: 'visit 파라미터 오류' });
