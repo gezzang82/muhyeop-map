@@ -485,7 +485,17 @@ module.exports = async function handler(req, res) {
           storeDownloads[r.platform] = { total: Number(r.total || 0), asOf: r.as_of || '', active: (r.active == null ? null : Number(r.active)) };
         });
       } catch (e) {}
+      // 스파크라인용 고정 14일 일별(기간 토글과 무관) — 핵심지표 리텐션·회원·방문 카드.
+      //  방문추이 차트만 period 토글(series)을 쓰고, 상단 스파크라인은 늘 일별이라 토글에 안 흔들림.
+      const sparkDayRows = (await db.execute("SELECT visit_date AS k, pv, uv FROM site_daily ORDER BY visit_date DESC LIMIT 14")).rows;
+      const sparkUv = sparkDayRows.map(r => ({ label: String(r.k).slice(5), uv: Number(r.uv || 0), pv: Number(r.pv || 0) })).reverse();
+      // 회원 카드 그래프 = 일별 가입 수(PII 없음, 날짜별 COUNT)
+      const sgMap = {};
+      try { (await db.execute({ sql: "SELECT date(created_at,'+9 hours') AS d, COUNT(*) AS c FROM users WHERE date(created_at,'+9 hours') >= ? GROUP BY d", args: [since] })).rows.forEach(r => { sgMap[r.d] = Number(r.c || 0); }); } catch (e) {}
+      const sparkSignup = sparkDayRows.map(r => ({ label: String(r.k).slice(5), val: sgMap[r.k] || 0 })).reverse();
+      const spark = { uv: sparkUv, signup: sparkSignup };
       const vsPayload = {
+        spark,
         gnbToday, gnbTotal, cmSegToday, cmSegTotal, appInstallToday, appInstallTotal, storeDownloads,
         reviewkingToday, reviewkingTotal,
         searchToday, searchTotal, recentSearches,
@@ -507,7 +517,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(vsPayload);
       } catch (e) {
         // 500으로 통째 실패 대신, 에러 메시지를 응답에 담아 진단 가능하게(대시보드는 빈 값으로 degrade)
-        return res.status(200).json({ todayPv: 0, todayUv: 0, totalPv: 0, totalUv: 0, period: 'day', series: [], referrers: [], _error: String((e && e.message) || e) });
+        return res.status(200).json({ todayPv: 0, todayUv: 0, totalPv: 0, totalUv: 0, period: 'day', series: [], spark: { uv: [], signup: [] }, referrers: [], _error: String((e && e.message) || e) });
       }
     }
     return res.status(400).json({ error: 'visit 파라미터 오류' });
