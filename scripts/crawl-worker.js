@@ -249,6 +249,16 @@ async function pass() {
     remaining = cpa.remaining;
     console.log(`  [${ts()}] └ [놀러와] AI검증: 자동등록 ${cpa.registered} · 검수 ${cpa.review} · 스킵 ${cpa.skipped} · 남은대기 ${cpa.remaining}`);
   }
+  // ⚠️ 판정큐 드레인(2026-11-25): runAutopilot는 1회당 MAX_PER_RUN(300)만 처리 → 강남맛집처럼
+  //  한 번에 대량 적재되면 플랫폼별 1회 판정으로는 다 못 비워 백로그가 패스를 넘어 누적되던 문제.
+  //  패스 끝에서 remaining이 0이 될 때까지(또는 더 처리할 게 없을 때까지) 반복해 큐를 비우고 끝낸다.
+  let drainGuard = 0;
+  while (!stopping && remaining > 0 && drainGuard++ < 40) {
+    const d = await runAutopilot({ db, places: apPlaces });
+    remaining = d.remaining;
+    if (d.processed === 0) break; // 남았는데 처리 0 = 전부 auto_seen=1(검수큐) → 더 돌 필요 없음
+    console.log(`  [${ts()}] └ 드레인#${drainGuard}: 자동등록 ${d.registered} · 검수 ${d.review} · 스킵 ${d.skipped} · 남은대기 ${d.remaining}`);
+  }
   return { collected, more, remaining };
 }
 
