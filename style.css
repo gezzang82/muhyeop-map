@@ -4820,7 +4820,7 @@ body.pc-community-mode .sc-cmt-bar { display: none !important; }
 /* 마감임박 타일 */
 .od-dtiles { display: flex; gap: 8px; margin-top: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
 .od-dtiles::-webkit-scrollbar { display: none; }
-.od-dtile { flex: 0 0 auto; width: 58px; border: 1px solid #E7E7EC; border-radius: 14px; padding: 12px 0; text-align: center; background: #fff; }
+.od-dtile { flex: 0 0 auto; width: 72px; border: 1px solid #E7E7EC; border-radius: 7px; padding: 12px 4px; text-align: center; background: #fff; }
 .od-dtile-lab { display: block; font-size: 11px; color: #8B8B96; font-weight: 600; }
 .od-dtile-num { display: block; font-size: 20px; font-weight: 800; color: #1A1A2E; margin-top: 4px; }
 .od-dtile-today { border-color: #F6C9C9; background: #FEF4F4; }
