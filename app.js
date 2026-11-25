@@ -5315,8 +5315,8 @@ function odRenderCore(d) {
     + '</div>';
   const member = '<div class="od-card">'
     + odCardHead('members', '#7B61FF', '회원', '가입자 + 신규 추이', (Number(m.todayNew || 0) >= 0 ? odDelta('오늘 +' + odNum(m.todayNew), true) : ''))
-    + '<div class="od-trio"><div class="od-trio-i"><b class="od-big od-purple">' + odNum(m.total) + '</b><span>가입 회원(누적)</span></div>'
-    + '<div class="od-trio-i"><b class="od-big">' + odNum(m.todayNew) + '</b><span>오늘 가입</span></div>'
+    + '<div class="od-trio"><div class="od-trio-i"><b class="od-big od-purple">' + odNum(m.todayNew) + '</b><span>오늘 가입</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odNum(m.total) + '</b><span>가입 회원(누적)</span></div>'
     + '<div class="od-trio-i"><b class="od-big">' + odNum(sg.new7) + '</b><span>이번 주</span></div></div>'
     + odSpark(sgSpark || sr, '#7B61FF', sgSpark ? '가입' : '방문')
     + '</div>';
