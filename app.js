@@ -5207,12 +5207,12 @@ const OD_ICONS = {
   android: '<path d="M6 18c0 .55.45 1 1 1h1v3.5a1.5 1.5 0 0 0 3 0V19h2v3.5a1.5 1.5 0 0 0 3 0V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8a1.5 1.5 0 0 0-1.5 1.5v7a1.5 1.5 0 0 0 3 0v-7A1.5 1.5 0 0 0 3.5 8zm17 0A1.5 1.5 0 0 0 19 9.5v7a1.5 1.5 0 0 0 3 0v-7A1.5 1.5 0 0 0 20.5 8zm-4.97-5.84l1.3-1.3a.25.25 0 0 0-.35-.35l-1.48 1.48A5.98 5.98 0 0 0 12 1.5c-.96 0-1.86.22-2.68.6L7.84.62a.25.25 0 0 0-.35.35l1.3 1.3A5.99 5.99 0 0 0 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/>',
   install: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 15l-5-5h3V8h4v5h3l-5 5z"/>',
 };
-function odIcon(name) { return '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + (OD_ICONS[name] || '') + '</svg>'; }
+function odIcon(name) { return '<img class="od-ic" src="image/odicon/' + name + '.png" alt="" loading="lazy">'; }  // 3D 아이콘(image-2.6 생성, 흰배경)
 function odSecHead(icon, title, sub) {
   return '<div class="od-sec"><div class="od-sec-title"><span class="od-sec-ico">' + odIcon(icon) + '</span><span>' + title + '</span></div><p class="od-sec-sub">' + sub + '</p></div>';
 }
 function odCardHead(icon, tint, title, sub, right) {
-  return '<div class="od-chead"><span class="od-chead-ico" style="background:' + tint + '22;color:' + tint + '">' + odIcon(icon) + '</span>'
+  return '<div class="od-chead"><span class="od-chead-ico">' + odIcon(icon) + '</span>'
     + '<div class="od-chead-txt"><p class="od-chead-title">' + title + '</p><p class="od-chead-sub">' + sub + '</p></div>'
     + (right || '') + '</div>';
 }
@@ -5327,7 +5327,14 @@ function odRenderCore(d) {
   const ret = Number(v.todayMemberReturning || 0), yret = Number(v.yesterdayMemberReturning || 0);
   const rate = odPct(ret, v.todayUv);
   const m = d.members || {}, sg = d.segs || {};
+  const c = d.camp || {}, dd = c.dday || {};
 
+  const campCard = '<div class="od-card">'
+    + odCardHead('campaign', '#F5862E', '캠페인', '모집 중 · 전체 · 오늘 마감', '')
+    + '<div class="od-trio"><div class="od-trio-i"><b class="od-big" style="color:#F5862E">' + odNum(c.active) + '</b><span>모집 중</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odNum(c.total) + '</b><span>전체</span></div>'
+    + '<div class="od-trio-i"><b class="od-big">' + odNum(dd[0]) + '</b><span>오늘 마감</span></div></div>'
+    + '</div>';
   const hero = '<div class="od-card od-hero">'
     + odCardHead('retention', '#E82A2D', '오늘 재방문 회원 · 리텐션', '기존 회원 (당일 가입자 제외)', odCoreToggles('ret'))
     + '<p class="od-hero-num"><b>' + odNum(ret) + '</b><span class="od-unit">명</span><span class="od-hero-rate">· 재방문율 ' + rate + '%</span></p>'
@@ -5349,24 +5356,22 @@ function odRenderCore(d) {
     + '<div id="odSpark_vis">' + odCoreSparkHtml('vis') + '</div>'
     + '<p class="od-card-foot">누적 방문(PV) ' + odNum(v.totalPv) + '</p>'
     + '</div>';
-  return odSecHead('retention', '핵심 지표', '가장 중요한 지표부터') + hero + member + visit;
+  return odSecHead('core', '핵심 지표', '가장 중요한 지표부터') + campCard + hero + member + visit;
 }
 
 // ② 콘텐츠 & 활동
 function odRenderContent(d) {
   const c = d.camp || {}, v = d.visit || {};
   const row = (icon, tint, title, sub, big, foot, footCls) =>
-    '<div class="od-row"><span class="od-row-ico" style="background:' + tint + '22;color:' + tint + '">' + odIcon(icon) + '</span>'
+    '<div class="od-row"><span class="od-row-ico">' + odIcon(icon) + '</span>'
     + '<div class="od-row-txt"><p class="od-row-title">' + title + '</p><p class="od-row-sub">' + sub + '</p></div>'
     + '<div class="od-row-right"><b class="od-row-big">' + big + '</b><span class="od-row-foot ' + (footCls || '') + '">' + foot + '</span></div></div>';
   const card = '<div class="od-card od-rows">'
-    + row('campaign', '#8B8B96', '캠페인', '전체 ' + odMan(c.total) + ' 건', odNum(c.active), '모집 중', 'muted')
-    + '<div class="od-row-line"></div>'
     + row('review', '#2E90FA', '후기', '블로그 불러오기 ' + odNum(c.reviewBlogimportCount) + '건', odNum(c.reviewCount), '오늘 +' + odNum(c.reviewTodayCount), 'up')
     + '<div class="od-row-line"></div>'
     + row('forum', '#F5862E', '수다방', '세그 조회 ' + odNum(odSum(v.cmSegTotal)) + '회', odNum(v.seoichuCount), '오늘 +' + odNum(odSum(v.cmSegToday)), 'up')
     + '</div>';
-  return odSecHead('grid', '콘텐츠 & 활동', '캠페인 · 후기 · 수다방') + card;
+  return odSecHead('grid', '콘텐츠 & 활동', '후기 · 수다방') + card;
 }
 
 // ③ 푸시 · 알림
