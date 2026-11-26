@@ -197,7 +197,9 @@ ${n ? `<h2>모집 중인 협찬</h2><ul>${list}</ul>` : '<p>지금은 모집 중
     const revHtml = revs.length ? `<h2>블로그 후기 ${revs.length}건</h2><ul>${revs.map(r => `<li><a href="${seoEsc(r.url)}" rel="nofollow">${seoEsc(r.title || (p.name + ' 후기'))}</a>${r.author ? `<span class="muted"> · ${seoEsc(r.author)}</span>` : ''}</li>`).join('')}</ul>` : '';
     const jo = { '@context': 'https://schema.org', '@type': 'LocalBusiness', name: p.name };
     if (p.address) jo.address = p.address;
-    if (revs.length) jo.review = revs.slice(0, 5).map(r => ({ '@type': 'Review', name: r.title || undefined, url: r.url, author: { '@type': 'Person', name: r.author || '리뷰어' } }));
+    // ⚠️ Review 구조화 데이터 제거(2026-11-26): 무협맵 후기는 별점(평점)이 없어, schema Review를
+    //  reviewRating/aggregateRating 없이 내보내면 구글 서치콘솔이 '심각 문제'로 플래그(리뷰 리치스니펫 제외).
+    //  평점 조작은 정책 위반이라 불가 → Review JSON-LD 자체를 빼고, 블로그 링크백은 HTML(revHtml, rel=nofollow)로만 유지.
     const body = `<h1>${seoEsc(p.name)}</h1>
 <p class="muted">${seoEsc(p.address || '')} · ${seoEsc(cat)}</p>
 <a class="cta" href="${SEO_BASE}/">무협맵 지도에서 보기 →</a>
