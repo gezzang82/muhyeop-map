@@ -9,7 +9,10 @@
 //       배포(함수가 신규 이메일을 암호화) 후 샘플이 1건이라도 생기면 그걸로 키일치를 확정한 뒤 apply 권장.
 const fs = require('fs');
 const ef = '.env' + '.local';
-fs.readFileSync(__dirname + '/../' + ef, 'utf8').split('\n').forEach(l => { const m = l.match(/^([A-Z_]+)=(.*)$/); if (m) process.env[m[1]] = m[2].replace(/^["']|["']$/g, ''); });
+// .env.local 로드 — 단, **이미 export된 값은 덮어쓰지 않음**(중요):
+//  ⚠️ .env.local SESSION_SECRET이 운영과 다를 수 있어, 키 일치를 위해 호출 측에서
+//  `PII_ENC_KEY=... node ...` 또는 `SESSION_SECRET=<운영값> node ...`로 override할 수 있게 함.
+fs.readFileSync(__dirname + '/../' + ef, 'utf8').split('\n').forEach(l => { const m = l.match(/^([A-Z_]+)=(.*)$/); if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, ''); });
 const { createClient } = require('@libsql/client');
 const { encField, decField, isEncrypted } = require('../api/_crypto');
 
