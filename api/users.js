@@ -190,8 +190,9 @@ async function handlePushPost(req, res, db, kind) {
     return res.status(200).json({ ok: true });
   }
   if (kind === 'broadcast') {
-    // 이벤트/공지 전체 발송(관리자 또는 운영자 세션 — 운영자 대시보드 '이벤트 푸시' 발송, 클라에서 확인창 후 호출)
-    if (!requireAdminOrOperator(req, res)) return;
+    // 이벤트/공지 전체 발송 = 전 기기 아웃바운드(write). 보안(2026-11-27): 운영자 OAuth 세션은
+    //  '읽기 집계' 전용이라, 발송은 반드시 어드민 비밀번호 인증(requireAdmin)으로만. (운영자 계정 탈취 시 피싱푸시 방지)
+    if (!requireAdmin(req, res)) return;
     const { serviceAccount, sendToDevices } = require('./_push');
     if (!serviceAccount()) return res.status(400).json({ error: 'FIREBASE_SERVICE_ACCOUNT 미설정' });
     const title = String(body.title || '').trim();

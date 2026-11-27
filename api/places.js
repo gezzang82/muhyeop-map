@@ -128,7 +128,7 @@ function seoPage({ title, desc, canonical, bodyHtml, jsonld }) {
 <meta name="description" content="${seoEsc(desc)}">
 <link rel="canonical" href="${seoEsc(canonical)}">
 <meta property="og:title" content="${seoEsc(title)}"><meta property="og:description" content="${seoEsc(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${seoEsc(canonical)}">
-${jsonld ? `<script type="application/ld+json">${jsonld}</script>` : ''}
+${jsonld ? `<script type="application/ld+json">${jsonld.replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')}</script>` : ''}
 <style>body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;max-width:720px;margin:0 auto;padding:20px;color:#222;line-height:1.6}h1{font-size:22px}h2{font-size:17px;margin-top:28px}a{color:#1a56db;text-decoration:none}ul{padding-left:0;list-style:none}li{padding:10px 0;border-bottom:1px solid #eee}.tag{display:inline-block;background:#f1f1f4;border-radius:6px;padding:1px 7px;font-size:12px;color:#555;margin-right:4px}.cta{display:inline-block;margin:18px 0;background:#e82a2d;color:#fff;padding:12px 20px;border-radius:10px;font-weight:700}.muted{color:#888;font-size:13px}</style>
 </head><body>${bodyHtml}
 <p class="muted">무협맵은 리뷰노트·디너의여왕·강남맛집·레뷰·미블 등 여러 체험단·협찬 플랫폼 정보를 지도 한곳에 모아 보여주는 서비스입니다. 신청은 각 플랫폼에서 진행됩니다.</p>
