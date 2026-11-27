@@ -2,6 +2,7 @@ const { getDb } = require('./_db');
 const { requireAdmin, requireAdminOrOperator } = require('./auth/_admin');
 const { readSession } = require('./auth/_session');
 const { enforceRateLimit } = require('./_ratelimit');
+const { decField } = require('./_crypto'); // 이메일 필드 복호화(at-rest 암호화 해제)
 
 // 운영자 계정 user_id — 알림 탭(push_opens) 등 지표에서 본인 기록 제외. 기본 12(개짜장), 환경변수로 추가 가능.
 const EXCLUDED_USER_IDS = new Set(
@@ -423,7 +424,7 @@ function toUser(row) {
     id: row.id,
     provider: row.provider,
     nickname: row.nickname || '',
-    email: row.email || '',
+    email: decField(row.email),
     urlPlatform: row.url_platform || '',
     urlId: row.url_id || '',
     signupSource: row.signup_source || '',   // 가입 유입경로

@@ -4,6 +4,7 @@ const { getProvider } = require('./_provider');
 const { verifyStateCookie, clearStateCookie } = require('./_state');
 const { createSessionCookie } = require('./_session');
 const { getBaseUrl } = require('./_http');
+const { encField } = require('../_crypto'); // 이메일 필드 레벨 암호화(at-rest)
 
 const APPLE_KEYS_URL = 'https://appleid.apple.com/auth/keys';
 const APPLE_BUNDLE_ID = 'com.muhyeop.app'; // 네이티브 Sign in with Apple의 aud(앱 번들ID)
@@ -62,12 +63,13 @@ async function upsertAppleUser(db, providerUserId, email, nickname, src) {
   if (existing.rows.length) {
     const userId = existing.rows[0].id;
     const finalNick = existing.rows[0].nickname || nickname;
-    await db.execute({ sql: "UPDATE users SET email = CASE WHEN ? = '' THEN email ELSE ? END WHERE id = ?", args: [email, email, userId] });
+    // 빈값 체크는 원문(email)으로, 저장값만 암호화(encField)
+    await db.execute({ sql: "UPDATE users SET email = CASE WHEN ? = '' THEN email ELSE ? END WHERE id = ?", args: [email, encField(email), userId] });
     return { userId, finalNick, isNewUser: false };
   }
   const inserted = await db.execute({
     sql: 'INSERT INTO users (provider, provider_user_id, nickname, email, signup_source) VALUES (?, ?, ?, ?, ?)',
-    args: ['apple', providerUserId, nickname, email, src || ''],
+    args: ['apple', providerUserId, nickname, encField(email), src || ''],
   });
   return { userId: Number(inserted.lastInsertRowid), finalNick: nickname, isNewUser: true };
 }
@@ -127,14 +129,14 @@ module.exports = async function handler(req, res) {
         // 재로그인: 닉네임 유지, 이메일은 애플이 준 값이 있을 때만 갱신(보통 최초에만 줌)
         await db.execute({
           sql: "UPDATE users SET email = CASE WHEN ? = '' THEN email ELSE ? END WHERE id = ?",
-          args: [email, email, userId]
+          args: [email, encField(email), userId]
         });
       } else {
         isNewUser = true;
         finalNick = nickname;
         const inserted = await db.execute({
           sql: 'INSERT INTO users (provider, provider_user_id, nickname, email, signup_source) VALUES (?, ?, ?, ?, ?)',
-          args: ['apple', providerUserId, nickname, email, 'app'] // 네이티브 앱 가입
+          args: ['apple', providerUserId, nickname, encField(email), 'app'] // 네이티브 앱 가입
         });
         userId = Number(inserted.lastInsertRowid);
       }
@@ -206,12 +208,12 @@ module.exports = async function handler(req, res) {
       finalNick = existing.rows[0].nickname || profile.nickname;
       await db.execute({
         sql: "UPDATE users SET nickname = CASE WHEN nickname IS NULL OR nickname = '' THEN ? ELSE nickname END, email = CASE WHEN ? = '' THEN email ELSE ? END WHERE id = ?",
-        args: [profile.nickname, profile.email || '', profile.email || '', userId]
+        args: [profile.nickname, profile.email || '', encField(profile.email || ''), userId]
       });
     } else {
       const inserted = await db.execute({
         sql: 'INSERT INTO users (provider, provider_user_id, nickname, email, signup_source) VALUES (?, ?, ?, ?, ?)',
-        args: [stateData.provider, profile.providerUserId, profile.nickname, profile.email, stateData.src || '']
+        args: [stateData.provider, profile.providerUserId, profile.nickname, encField(profile.email), stateData.src || '']
       });
       userId = Number(inserted.lastInsertRowid);
     }

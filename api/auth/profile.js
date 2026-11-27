@@ -1,5 +1,6 @@
 const { getDb } = require('../_db');
 const { readSession, createSessionCookie } = require('./_session');
+const { encField } = require('../_crypto'); // 이메일 필드 레벨 암호화(at-rest)
 
 const URL_PLATFORM_DOMAINS = { '블로그': 'blog.naver.com/', '인스타그램': 'instagram.com/' };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -87,7 +88,7 @@ module.exports = async function handler(req, res) {
 
   const sets = [], args = [];
   if (hasUrl) { sets.push('url_platform = ?', 'url_id = ?'); args.push(finalPlatform, finalId); }
-  if (hasEmail) { sets.push('email = ?'); args.push(finalEmail); }
+  if (hasEmail) { sets.push('email = ?'); args.push(encField(finalEmail)); } // at-rest 암호화(빈값이면 encField가 '' 반환)
   if (hasImage) { sets.push('profile_image = ?'); args.push(finalImage); }
   if (hasNick) { sets.push('nickname = ?'); args.push(finalNick); }
   if (sets.length) {

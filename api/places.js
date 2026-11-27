@@ -3,6 +3,7 @@ const { readSession } = require('./auth/_session');
 const { isAdmin, requireAdmin, requireAdminOrOperator } = require('./auth/_admin');
 const { enforceRateLimit } = require('./_ratelimit');
 const { getCachedBlob, setCachedBlob } = require('./_stats');
+const { decField } = require('./_crypto'); // founder_email 복호화(users.email 암호문이 복사돼 저장됨)
 
 // ?visit=stats 캐시(기간별) — 쿼리 15개 순차 왕복(~2초+)을 캐시히트 1회 읽기로. 방문 지표는 2분 지연 무해.
 const VISIT_STATS_TTL = 120000;
@@ -20,7 +21,7 @@ function toPlace(row) {
     // 첫 후기 작성자 닉네임: 저장된 스냅샷(founder_nickname)은 작성자가 닉네임을 바꿔도 안 갱신돼
     //  후기 카드(현재 닉네임 조인)와 어긋남 → founder_user_id로 조인한 현재 닉네임(founder_nickname_live) 우선.
     founderNickname: row.founder_nickname_live || row.founder_nickname || '',
-    founderEmail: row.founder_email || '',
+    founderEmail: decField(row.founder_email),
     founderUrl: row.founder_url || '',
     founderKind: row.founder_kind || '',   // 'review'=첫 후기 작성자 / 그 외(''/'report')=최초제보자
     hidden: !!row.hidden
@@ -1013,6 +1014,7 @@ module.exports = async function handler(req, res) {
       if (q.status === 'visible') { where.push('COALESCE(p.hidden,0) = 0'); where.push(activeSub); args.push(today); }
       else if (q.status === 'expired') { where.push('COALESCE(p.hidden,0) = 0'); where.push('NOT ' + activeSub); args.push(today); }
       else if (q.status === 'hidden') { where.push('COALESCE(p.hidden,0) = 1'); }
+      // ⚠️ founder_email은 암호문이라 이메일 부분검색은 매칭 안 됨(닉네임 검색은 정상). LIKE절은 무해하게 둠.
       if (q.reporter) { where.push('(p.founder_nickname LIKE ? OR p.founder_email LIKE ?)'); args.push('%' + q.reporter + '%', '%' + q.reporter + '%'); }
       const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
       const totalRes = await db.execute({ sql: `SELECT COUNT(*) AS n FROM places p ${whereSql}`, args });
@@ -1112,13 +1114,15 @@ module.exports = async function handler(req, res) {
       });
       if (dup.rows.length) {
         const p = dup.rows[0];
-        return res.status(200).json({ id: p.id, name: p.name, address: p.address, lat: p.lat, lng: p.lng, category: p.category, founderNickname: p.founder_nickname || '', founderEmail: p.founder_email || '', founderUrl: p.founder_url || '', deduped: true });
+        return res.status(200).json({ id: p.id, name: p.name, address: p.address, lat: p.lat, lng: p.lng, category: p.category, founderNickname: p.founder_nickname || '', founderEmail: decField(p.founder_email), founderUrl: p.founder_url || '', deduped: true });
       }
     }
     // 어드민 등록(source='admin')은 운영자가 대신 입력하는 것이므로 로그인 세션을 최초 제보자로 기록하지 않음
     const session = (req.body?.source === 'admin') ? null : readSession(req);
     const founderNickname = session ? session.nickname : (req.body?.founderNickname || '');
     // 이메일은 로그인 사용자만 DB에서 조회해 저장(비로그인은 수집하지 않음 — 타인 이메일 임의 저장 방지)
+    //  users.email은 이미 암호문(encField)이므로 그 암호문을 그대로 founder_email에 복사 저장 → 읽을 때 toPlace decField가 복호화.
+    //  여기서 추가 encField 하면 이중암호화되므로 금지(read-only 복사).
     let finalFounderEmail = '';
     if (session) {
       try { const er = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [session.userId] }); finalFounderEmail = er.rows[0]?.email || ''; } catch (_e) {}

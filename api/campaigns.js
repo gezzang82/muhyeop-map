@@ -6,6 +6,7 @@ const { runScrape, reparsePending, AREA2_BY_REGION } = require('./_scrape');
 const { enforceRateLimit } = require('./_ratelimit');
 const { runAutopilot } = require('./_autopilot');
 const { getCachedStats, refreshStatsCache, getCachedBlob, setCachedBlob } = require('./_stats');
+const { decField } = require('./_crypto'); // reporter_email 복호화(users.email 암호문이 복사돼 저장됨)
 
 // 어드민 대시보드 통계(?stats=1) 캐시 3단.
 //  1) 인메모리: 같은 웜 인스턴스 재요청 즉시.
@@ -35,7 +36,7 @@ function toCampaign(row) {
     operatingHours: row.operating_hours || '',
     excludeHoliday: !!row.exclude_holiday,
     reporterNickname: row.reporter_nickname || '',
-    reporterEmail: row.reporter_email || '',
+    reporterEmail: decField(row.reporter_email),
     reporterBlog: row.reporter_blog || '',
     reporterInstagram: row.reporter_instagram || '',
     reporterUrl: row.reporter_url || '',
@@ -291,6 +292,7 @@ module.exports = async function handler(req, res) {
       if (q.q) { where.push('pl.name LIKE ?'); args.push('%' + q.q + '%'); }
       if (q.platform && q.platform !== 'all') { where.push('c.platform = ?'); args.push(q.platform); }
       if (q.channel && q.channel !== 'all') { where.push('c.channels LIKE ?'); args.push('%"' + q.channel + '"%'); }
+      // ⚠️ reporter_email은 암호문이라 이메일 부분검색은 매칭 안 됨(닉네임 검색은 정상). LIKE절은 무해하게 둠.
       if (q.reporter) { where.push('(c.reporter_nickname LIKE ? OR c.reporter_email LIKE ?)'); args.push('%' + q.reporter + '%', '%' + q.reporter + '%'); }
       if (q.source === 'user') where.push("c.source = 'user'");
       else if (q.source === 'admin') where.push("c.source = 'admin'");
@@ -480,6 +482,8 @@ module.exports = async function handler(req, res) {
     const session = (source === 'admin') ? null : readSession(req);
     const reporterNickname = session ? session.nickname : (req.body?.reporterNickname || '');
     // 이메일은 로그인 사용자만 DB에서 조회해 저장(비로그인은 수집하지 않음 — 타인 이메일 임의 저장 방지)
+    //  users.email은 이미 암호문(encField) → 그 암호문을 그대로 reporter_email에 복사 저장, 읽을 때 toCampaign decField가 복호화.
+    //  추가 encField 하면 이중암호화되므로 금지(read-only 복사).
     let reporterEmail = '';
     if (session) {
       try { const er = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [session.userId] }); reporterEmail = er.rows[0]?.email || ''; } catch (_e) {}

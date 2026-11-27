@@ -1,5 +1,6 @@
 const { getDb } = require('../_db');
 const { readSession, createSessionCookie } = require('./_session');
+const { decField } = require('../_crypto'); // 이메일 필드 복호화(at-rest 암호화 해제)
 
 // 스키마 보장(ALTER/CREATE)은 함수 인스턴스당 1회만 — 매 호출 5~7 왕복하던 것을 콜드스타트 때만 수행(Turso/함수 비용↓).
 let _schemaReady = false;
@@ -55,7 +56,7 @@ module.exports = async function handler(req, res) {
     id: session.userId,
     nickname: session.nickname,
     provider: session.provider,
-    email: row.email || '',
+    email: decField(row.email),
     urlPlatform: row.url_platform || '',
     urlId: row.url_id || '',
     profileImage: row.profile_image || '',

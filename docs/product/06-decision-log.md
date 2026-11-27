@@ -2,6 +2,13 @@
 
 ## 2026-11
 
+### 이메일 필드 at-rest 암호화 (2026-11-27)
+- `users.email` + 복사본 `places.founder_email`·`campaigns.reporter_email`을 **AES-256-GCM 필드 레벨 암호화**로 저장(평문 노출 최소화). 신규 `api/_crypto.js`의 `encField`/`decField`, 저장 포맷 `enc:v1:iv:tag:ct`. 키는 `PII_ENC_KEY`(있으면) 우선, 없으면 `SESSION_SECRET` 파생.
+- **쓰기(encField)**: `auth/callback.js`(카카오/네이버/애플 upsert)·`auth/profile.js`의 users.email 저장 지점만. founder_email/reporter_email은 `SELECT email FROM users`(이미 암호문)를 **그대로 복사**(이중암호화 금지) — 읽을 때 `toPlace`/`toCampaign`의 decField가 복호화.
+- **읽기(decField)**: `me.js`·`users.js(toUser)`·`places.js(toPlace·dedup)`·`campaigns.js(toCampaign)`.
+- `decField`는 `enc:v1:` 프리픽스가 아니면 **레거시 평문 passthrough**(마이그레이션 전/중 안전), 복호화 실패 시 throw 없이 ''(앱 무중단). 어드민 제보자 **이메일 LIKE 검색은 암호문이라 매칭 불가**(닉네임 검색은 유지).
+- 마이그레이션 `scripts/encrypt-emails.js`(TURSO_PROD_*, DRY 기본·apply, 멱등). **키 일치 게이트**: DB의 함수-암호화 샘플을 로컬 키로 복호화 성공해야 apply(.env.local 키 == 운영 키 확인). ⚠️ vercel dev 런타임 SESSION_SECRET은 Development 스코프라 .env.local과 다를 수 있음(정상) — 운영 적용은 **배포 후** 게이트 통과로 확정.
+
 ### 운영자 대시보드 메뉴가 전 유저에게 노출되던 버그 수정 (2026-11-24)
 - `#myOperatorDashLink`는 `hidden` 기본 + `refreshMyPageUI`가 `el.hidden = !(isOperator() && isMobileView())`로만 토글하는데, `.mypage-menu-item { display:flex }`(모바일 미디어쿼리)와 `body.pc-myinfo-mode .mypage-menu-item`이 `[hidden]`의 UA `display:none`을 이겨 **운영자 아닌 유저에게도 메뉴가 보였음**(클릭 동작은 별개).
 - 조치: `style.css`에 `.mypage-menu-item[hidden] { display: none !important; }` 추가(이 저장소의 기존 패턴 `.mypage-login-link[hidden]`·`.cm-rk-link[hidden]`과 동일) + `style.css?v=287` 캐시버스팅.
