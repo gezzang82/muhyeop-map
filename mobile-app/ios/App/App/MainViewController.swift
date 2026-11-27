@@ -30,7 +30,26 @@ class MainViewController: CAPBridgeViewController {
         let cookieStore = webView.configuration.websiteDataStore.httpCookieStore
         CookieSync.startObserving(cookieStore)                 // 이후 쿠키 변경 → Keychain 미러
         CookieSync.restore(into: cookieStore) { [weak self] in // 저장된 세션 쿠키 재주입 → 그다음 로드
-            self?.loadWebView()
+            self?.loadWithSession()
+        }
+    }
+
+    // 콜드스타트 첫 요청에 세션 쿠키를 'Cookie 헤더로 직접' 실어 로드(2026-11-27).
+    // WKWebView는 setCookie로 쿠키스토어에 넣어도 네트워크프로세스로 전파되기 전에 첫 요청을 쏘는 레이스가
+    // 있어, restore(쿠키스토어 주입)만으론 첫 /api/auth/me에 쿠키가 안 실려 '로그아웃'으로 떠 재로그인되는
+    // 경우가 있었다(1.1.6에도 잔존). → 복원한 쿠키 값을 초기 URLRequest의 Cookie 헤더에 직접 세팅해
+    // 레이스와 무관하게 첫 요청에 100% 포함시킨다. 쿠키 없으면 기존 loadWebView()로 폴백(로그아웃 상태).
+    private func loadWithSession() {
+        guard let webView = self.webView else { loadWebView(); return }
+        let serverURL = URL(string: "https://muhyeop.com")!   // = capacitor.config server.url
+        if let value = CookieSync.persistedCookieValue() {
+            var req = URLRequest(url: serverURL)
+            req.setValue("mhm_session=\(value)", forHTTPHeaderField: "Cookie")
+            NSLog("[CookieSync] cold-start load WITH session Cookie header (len=\(value.count))")
+            webView.load(req)
+        } else {
+            NSLog("[CookieSync] cold-start load WITHOUT session (no persisted cookie)")
+            loadWebView()
         }
     }
 
@@ -73,9 +92,11 @@ final class CookieSync: NSObject, WKHTTPCookieStoreObserver {
 
     // 첫 로드 전: 저장된 세션 쿠키를 복원 주입한 뒤 completion(로드 트리거). 저장분 없으면 바로 completion.
     static func restore(into store: WKHTTPCookieStore, completion: @escaping () -> Void) {
-        guard let cookie = loadPersisted() else { completion(); return }
-        store.setCookie(cookie) { completion() }
+        guard let cookie = loadPersisted() else { NSLog("[CookieSync] restore: no persisted cookie"); completion(); return }
+        store.setCookie(cookie) { NSLog("[CookieSync] restore: injected cookie into store"); completion() }
     }
+    // 콜드스타트 첫 요청 Cookie 헤더용 — 유효한 저장 세션 쿠키 값(만료분은 loadPersisted가 폐기).
+    static func persistedCookieValue() -> String? { return loadPersisted()?.value }
 
     // MARK: 직렬화(작은 JSON) — value/만료/도메인/경로만 보관(나머지는 재구성)
     private static func persist(_ c: HTTPCookie) {
@@ -87,6 +108,7 @@ final class CookieSync: NSObject, WKHTTPCookieStoreObserver {
         if let exp = c.expiresDate { dict["expires"] = exp.timeIntervalSince1970 }
         guard let data = try? JSONSerialization.data(withJSONObject: dict) else { return }
         Keychain.set(data, for: keychainKey)
+        NSLog("[CookieSync] persisted session cookie to Keychain (len=\(c.value.count))")
     }
 
     private static func loadPersisted() -> HTTPCookie? {
@@ -108,7 +130,7 @@ final class CookieSync: NSObject, WKHTTPCookieStoreObserver {
         return HTTPCookie(properties: props)
     }
 
-    private static func clear() { Keychain.delete(keychainKey) }
+    private static func clear() { Keychain.delete(keychainKey); NSLog("[CookieSync] cleared persisted cookie (logout/expiry)") }
 }
 
 // MARK: - Keychain 최소 래퍼(세션 쿠키 blob 저장)
