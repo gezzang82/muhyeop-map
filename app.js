@@ -7185,6 +7185,92 @@ function closeSignupDone() {
   document.getElementById('signupDoneOverlay').classList.remove('open');
 }
 
+/* ── 유입경로 질문(어떻게 알게 되셨어요?) — 신규 가입 온보딩 1회, SNS 등록 시트보다 먼저 ── */
+let _heardSelected = '';   // 선택된 코드
+let _heardThenSns = false; // 질문 끝나고 SNS 등록 시트로 이어갈지
+
+// OS 분기 셀(8번): iOS=App Store / 안드=Play 스토어 / 웹=없음(스토어 유입 없음 → 칸 제거, 오른쪽 칸 비움)
+function heardStoreCell() {
+  const plat = detectPlatform();
+  if (plat === 'ios') return { code: 'store', label: 'App Store', icon: 'image/heard_appstore_32.png', store: true };
+  if (plat === 'android') return { code: 'store', label: 'Play 스토어', icon: 'image/heard_playstore_32.svg' };  // 타일형 Play 앱아이콘(App Store 파란 타일과 동일 무게감)
+  // 웹(pcweb/mweb): 스토어에서 온 게 아니므로 이 칸 자체를 뺀다(Figma 2278-75143). 3열 그리드라 마지막 줄 오른쪽 칸이 빈 채로 남음(지인소개·기타만).
+  return null;
+}
+function heardItems() {
+  // Figma 2267-75053(업데이트): 라벨은 전부 한 줄(괄호 서브카피 삭제) → justify-center로 아이콘 자동 정렬
+  return [
+    { code: 'naver', label: '네이버', icon: 'image/heard_naver_32.png' },
+    { code: 'threads', label: '스레드', icon: 'image/heard_threads_32.png' },
+    { code: 'kakao', label: '카카오', icon: 'image/heard_kakao_32.png' },
+    { code: 'instagram', label: '인스타그램', icon: 'image/heard_instagram_32.png' },
+    { code: 'google', label: '구글 검색', icon: 'image/heard_google_32.png', bordered: true },
+    { code: 'daangn', label: '당근', icon: 'image/heard_daangn_32.png', bordered: true },
+    { code: 'referral', label: '지인소개', icon: 'image/heard_referral_32.svg' },
+    heardStoreCell(),
+    { code: 'etc', label: '기타', icon: 'image/heard_etc_32.svg' }
+  ].filter(Boolean);   // 웹은 스토어 셀이 null → 8칸(마지막 줄 2칸·오른쪽 빈 칸)
+}
+function renderHeardGrid() {
+  const grid = document.getElementById('heardGrid');
+  if (!grid) return;
+  grid.innerHTML = heardItems().map(function (it) {
+    const cls = 'heard-cell-ic' + (it.bordered ? ' bordered' : '') + (it.store ? ' store' : '');
+    const inner = it.iconSvg ? it.iconSvg : `<img class="heard-cell-ic-inner" src="${it.icon}" alt="">`;
+    const ic = `<span class="${cls}">${inner}</span>`;
+    const lbl = `<div class="heard-cell-label"><div class="l">${it.label}</div></div>`;
+    return `<div class="heard-cell" data-code="${it.code}" onclick="selectHeard('${it.code}')">${ic}${lbl}</div>`;
+  }).join('');
+}
+function selectHeard(code) {
+  _heardSelected = code;
+  document.querySelectorAll('#heardGrid .heard-cell').forEach(function (c) {
+    c.classList.toggle('selected', c.dataset.code === code);
+  });
+  const etc = document.getElementById('heardEtcWrap');
+  if (etc) etc.style.display = code === 'etc' ? 'flex' : 'none';
+  const btn = document.getElementById('heardNextBtn');
+  if (btn) btn.disabled = false;
+}
+function openHeardFrom(thenSns) {
+  _heardThenSns = !!thenSns;
+  _heardSelected = '';
+  renderHeardGrid();
+  const etc = document.getElementById('heardEtcWrap'); if (etc) etc.style.display = 'none';
+  const inp = document.getElementById('heardEtcInput'); if (inp) inp.value = '';
+  const btn = document.getElementById('heardNextBtn'); if (btn) btn.disabled = true;
+  document.getElementById('heardFromOverlay').classList.add('open');
+}
+function closeHeardFrom() {
+  document.getElementById('heardFromOverlay').classList.remove('open');
+}
+async function submitHeardFrom() {
+  if (!_heardSelected) return;
+  try { localStorage.setItem('mh_heard_asked', '1'); } catch (e) {}
+  const text = _heardSelected === 'etc' ? (document.getElementById('heardEtcInput').value || '').trim() : '';
+  try {
+    await fetch('/api/auth/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ heardFrom: _heardSelected, heardFromText: text })
+    });
+    if (currentUser) currentUser.heardFrom = _heardSelected;
+  } catch (e) {}
+  closeHeardFrom();
+  // 끝나면 SNS 등록 시트로(필요할 때만), 아니면 종료
+  if (_heardThenSns) openSignupInfoSheet();
+  _heardThenSns = false;
+}
+// 노출 게이트: 신규 로그인 + 아직 미응답 + 유입채널 미상(앱 또는 빈 값)일 때만.
+//  이미 ?ref로 채널을 아는 웹 유저(getSignupSrc가 채널명)에겐 안 묻는다.
+function _shouldAskHeard() {
+  if (!currentUser) return false;
+  if (currentUser.heardFrom) return false;
+  try { if (localStorage.getItem('mh_heard_asked')) return false; } catch (e) {}
+  const src = getSignupSrc();
+  return src === 'app' || src === '';
+}
+
 // 로그아웃 버튼 → 회원탈퇴처럼 확인 바텀시트 먼저 노출
 function logout() {
   document.getElementById('logoutConfirmOverlay').classList.add('open');
@@ -9515,7 +9601,11 @@ window.addEventListener('load', async function() {
       history.replaceState(null, '', url.toString());
       // URL 파라미터만 믿지 않고 실제 상태로 판단: SNS 미등록 + 아직 한 번도 안내 안 받은 신규 로그인 사용자에게만 노출
       // (모바일에서 탭이 폐기됐다 복원되면 signup=1이 살아난 채 재로드돼 중복 노출되던 문제 방지)
-      if (currentUser && !(currentUser.urlPlatform && currentUser.urlId) && !_snsRegisterPrompted()) {
+      const needSns = currentUser && !(currentUser.urlPlatform && currentUser.urlId) && !_snsRegisterPrompted();
+      // 유입경로 질문을 가장 먼저(1탭이라 가볍다) → 끝나면 SNS 등록 시트로 이어감.
+      if (_shouldAskHeard()) {
+        openHeardFrom(needSns);
+      } else if (needSns) {
         openSignupInfoSheet();
       }
     }

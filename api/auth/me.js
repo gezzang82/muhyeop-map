@@ -12,6 +12,7 @@ async function ensureSchema(db) {
     "ALTER TABLE users ADD COLUMN last_seen_at TEXT",
     "ALTER TABLE users ADD COLUMN last_platform TEXT",
     "ALTER TABLE users ADD COLUMN profile_image TEXT",
+    "ALTER TABLE users ADD COLUMN heard_from TEXT",
     "CREATE TABLE IF NOT EXISTS user_visits (user_id INTEGER NOT NULL, visit_date TEXT NOT NULL, UNIQUE(user_id, visit_date))",
     "CREATE TABLE IF NOT EXISTS user_platforms (user_id INTEGER NOT NULL, platform TEXT NOT NULL, first_seen TEXT, last_seen TEXT, cnt INTEGER DEFAULT 0, PRIMARY KEY(user_id, platform))",
   ]) { try { await db.execute(sql); } catch (e) {} }
@@ -49,7 +50,7 @@ module.exports = async function handler(req, res) {
     if (dev) await db.execute({ sql: "UPDATE push_tokens SET user_id = ? WHERE device_id = ? AND user_id IS NULL", args: [session.userId, dev] });
   } catch (e) {}
 
-  const result = await db.execute({ sql: 'SELECT email, url_platform, url_id, profile_image, created_at FROM users WHERE id = ?', args: [session.userId] });
+  const result = await db.execute({ sql: 'SELECT email, url_platform, url_id, profile_image, heard_from, created_at FROM users WHERE id = ?', args: [session.userId] });
   const row = result.rows[0] || {};
 
   const user = {
@@ -60,6 +61,7 @@ module.exports = async function handler(req, res) {
     urlPlatform: row.url_platform || '',
     urlId: row.url_id || '',
     profileImage: row.profile_image || '',
+    heardFrom: row.heard_from || '',   // 유입경로 질문 응답(있으면 온보딩 재노출 안 함)
     createdAt: row.created_at || '',
   };
 

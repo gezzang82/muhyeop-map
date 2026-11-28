@@ -2,6 +2,14 @@
 
 ## 2026-11
 
+### 가입 유입경로 직접 질문 화면(heard_from) + 어드민 유입 표시 기준 변경 (2026-11-28)
+- **배경**: 앱 설치 유입은 네이티브에 referrer/`?ref`가 없어 `signup_source`가 `'app'`으로만 찍혀 **출처가 깜깜**. → **신규 가입 직후 "무협맵, 어떻게 알게 되셨어요?"를 직접 1회 물어보는 화면** 신설(Figma 2267-75053 / PC 2278-75143).
+- **노출 게이트(`_shouldAskHeard`)**: 신규 가입(`signup=1`) + `currentUser.heardFrom` 없음 + `localStorage.mh_heard_asked` 없음 + **`getSignupSrc()`가 `'app'` 또는 `''`일 때만**(이미 `?ref`로 채널 아는 웹 가입은 스킵). **SNS 링크 등록 시트보다 먼저**(1탭이라 가벼움) → 저장 후 기존 `openSignupInfoSheet()`로 이어감. 1회성.
+- **그리드**: 9종(네이버/스레드/카카오/인스타/구글/당근/지인소개/**OS 분기 스토어**/기타). **OS 분기 셀**: iOS=App Store·안드=Play 스토어(둘 다 타일형 아이콘). **웹은 스토어 칸 자체 제거**(스토어 유입 없음 → 3열 그리드라 마지막 줄 오른쪽 칸 빈 채, 8칸). 전부 단일 1줄 라벨(`justify-center`로 아이콘 자동 정렬). "기타" 선택 시 자유입력칸, 하나 선택해야 "다음" 활성.
+- **저장**: `users.heard_from`(+`heard_from_text`) **별도 컬럼 lazy ALTER** — `signup_source`(객관 referrer)는 **안 덮고 보존**. `auth/profile.js` 저장(코드 화이트리스트·etc만 60자), `me.js` 리드(재노출 방지).
+- **어드민 표시 기준(원우씨 결정)**: 회원목록 '유입경로' 컬럼을 **`heard_from`(직접 응답) 기준**으로 노출(etc는 자유입력 괄호표기), `heard_from` 없으면 `signup_source` 폴백. "뒤에 붙는 링크(`?ref`) 기반 자동 분류는 표시에선 무시" — 직접 물어본 답을 1차 기준으로.
+- **아이콘**: Figma에서 받은 로고(네이버/스레드/카카오/인스타/구글/당근/App Store PNG + 지인소개/기타/Play SVG). **3배수 용량 최적화**: 192~600px 소스를 **96×96(3x)로 통일**(PNG 합계 ~570KB→60KB, 선명도 동일). **소급 불가**(배포 이후 신규 가입부터). [[frontend]]·[[api-db]]·[[admin]].
+
 ### 이메일 필드 at-rest 암호화 (2026-11-27)
 - `users.email` + 복사본 `places.founder_email`·`campaigns.reporter_email`을 **AES-256-GCM 필드 레벨 암호화**로 저장(평문 노출 최소화). 신규 `api/_crypto.js`의 `encField`/`decField`, 저장 포맷 `enc:v1:iv:tag:ct`. 키는 `PII_ENC_KEY`(있으면) 우선, 없으면 `SESSION_SECRET` 파생.
 - **쓰기(encField)**: `auth/callback.js`(카카오/네이버/애플 upsert)·`auth/profile.js`의 users.email 저장 지점만. founder_email/reporter_email은 `SELECT email FROM users`(이미 암호문)를 **그대로 복사**(이중암호화 금지) — 읽을 때 `toPlace`/`toCampaign`의 decField가 복호화.

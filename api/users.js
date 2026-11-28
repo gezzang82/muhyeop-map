@@ -428,6 +428,8 @@ function toUser(row) {
     urlPlatform: row.url_platform || '',
     urlId: row.url_id || '',
     signupSource: row.signup_source || '',   // 가입 유입경로
+    heardFrom: row.heard_from || '',         // 유입경로 질문 응답(어떻게 알게 되셨어요?)
+    heardFromText: row.heard_from_text || '',
     createdAt: row.created_at,
     lastSeenAt: row.last_seen_at || '',           // 최종접속 시각(UTC, 어드민에서 KST 변환) — 신규 접속부터
     lastVisitDate: row.last_visit_date || '',     // 최종접속 날짜(시각 없음) — last_seen_at 없는 기존 회원 폴백
@@ -752,6 +754,8 @@ module.exports = async function handler(req, res) {
   try { await db.execute("CREATE TABLE IF NOT EXISTS user_visits (user_id INTEGER NOT NULL, visit_date TEXT NOT NULL, UNIQUE(user_id, visit_date))"); } catch (e) {}
   try { await db.execute("ALTER TABLE users ADD COLUMN last_seen_at TEXT"); } catch (e) {}
   try { await db.execute("ALTER TABLE users ADD COLUMN last_platform TEXT"); } catch (e) {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN heard_from TEXT"); } catch (e) {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN heard_from_text TEXT"); } catch (e) {}
   // 회원별 제보수/후기수 상관 서브쿼리(회원마다 campaigns/reviews 스캔)가 인덱스 없이 수 초 걸림 → 인덱스로 seek.
   try { await db.execute("CREATE INDEX IF NOT EXISTS idx_campaigns_user_id ON campaigns(user_id)"); } catch (e) {}
   try { await db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id)"); } catch (e) {}

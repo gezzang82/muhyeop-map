@@ -40,8 +40,16 @@ module.exports = async function handler(req, res) {
   const hasEmail = Object.prototype.hasOwnProperty.call(body, 'email');
   const hasImage = Object.prototype.hasOwnProperty.call(body, 'profileImage');
   const hasNick = Object.prototype.hasOwnProperty.call(body, 'nickname');
+  // 유입경로 질문(어떻게 알게 되셨어요?) — signup_source(가입경로)와 별도 컬럼
+  const hasHeard = Object.prototype.hasOwnProperty.call(body, 'heardFrom');
+  const HEARD_CODES = ['naver', 'threads', 'kakao', 'instagram', 'google', 'daangn', 'referral', 'store', 'etc'];
 
-  let finalPlatform = '', finalId = '', finalEmail = '', finalImage = '', finalNick = '';
+  let finalPlatform = '', finalId = '', finalEmail = '', finalImage = '', finalNick = '', finalHeard = '', finalHeardText = '';
+  if (hasHeard) {
+    finalHeard = String(body.heardFrom || '').trim();
+    if (finalHeard && !HEARD_CODES.includes(finalHeard)) { res.status(400).json({ error: '잘못된 값입니다.' }); return; }
+    finalHeardText = finalHeard === 'etc' ? String(body.heardFromText || '').trim().slice(0, 60) : '';
+  }
   if (hasNick) {
     finalNick = String(body.nickname || '').replace(/\s+/g, ' ').trim().slice(0, 20);
     if (!finalNick) { res.status(400).json({ error: '닉네임을 입력해주세요.' }); return; }
@@ -85,12 +93,17 @@ module.exports = async function handler(req, res) {
     await db.execute("ALTER TABLE users ADD COLUMN url_id TEXT DEFAULT ''");
   } catch (e) {}
   try { await db.execute("ALTER TABLE users ADD COLUMN profile_image TEXT"); } catch (e) {}
+  if (hasHeard) {
+    try { await db.execute("ALTER TABLE users ADD COLUMN heard_from TEXT"); } catch (e) {}
+    try { await db.execute("ALTER TABLE users ADD COLUMN heard_from_text TEXT"); } catch (e) {}
+  }
 
   const sets = [], args = [];
   if (hasUrl) { sets.push('url_platform = ?', 'url_id = ?'); args.push(finalPlatform, finalId); }
   if (hasEmail) { sets.push('email = ?'); args.push(encField(finalEmail)); } // at-rest 암호화(빈값이면 encField가 '' 반환)
   if (hasImage) { sets.push('profile_image = ?'); args.push(finalImage); }
   if (hasNick) { sets.push('nickname = ?'); args.push(finalNick); }
+  if (hasHeard) { sets.push('heard_from = ?', 'heard_from_text = ?'); args.push(finalHeard, finalHeardText); }
   if (sets.length) {
     args.push(session.userId);
     await db.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args });
@@ -113,5 +126,6 @@ module.exports = async function handler(req, res) {
   if (hasEmail) out.email = finalEmail;
   if (hasImage) out.profileImage = finalImage;
   if (hasNick) out.nickname = finalNick;
+  if (hasHeard) out.heardFrom = finalHeard;
   res.status(200).json(out);
 };

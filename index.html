@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="image/favicon-180.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#F51122">
-  <link rel="stylesheet" href="style.css?v=290">
+  <link rel="stylesheet" href="style.css?v=291">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <script>
@@ -225,6 +225,24 @@
       </div>
       <div class="signup-footer">
         <button class="signup-btn-confirm" style="flex:1" onclick="closeSignupDone()">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 간편로그인 온보딩: 유입경로 질문(어떻게 알게 되셨어요?) — 신규 가입 1회, SNS 등록 시트보다 먼저 -->
+  <div class="fullpage-overlay" id="heardFromOverlay">
+    <div class="signup-page">
+      <div class="heard-content">
+        <h2 class="heard-title">무협맵, 어떻게 알게 되셨어요?</h2>
+        <p class="heard-sub">딱 하나만 골라주시면 돼요.<br>어디서 오시는지 알면, 그 채널에 더 신경 쓸게요.</p>
+        <div class="heard-grid" id="heardGrid"></div>
+        <div class="heard-etc-wrap" id="heardEtcWrap" style="display:none">
+          <label class="heard-etc-label">기타 (선택)</label>
+          <input type="text" id="heardEtcInput" class="heard-etc-input" placeholder="입력해주세요" maxlength="40" autocomplete="off">
+        </div>
+      </div>
+      <div class="heard-footer">
+        <button class="heard-next-btn" id="heardNextBtn" disabled onclick="submitHeardFrom()">다음</button>
       </div>
     </div>
   </div>

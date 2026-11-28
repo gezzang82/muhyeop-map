@@ -1868,6 +1868,20 @@ function signupSrcLabel(src) {
   if (!src) return '<span style="color:#bbb">-</span>';
   return escHtml(SIGNUP_SRC_LABELS[src] || src);
 }
+// 유입경로 질문(어떻게 알게 되셨어요?) 응답 라벨
+const HEARD_FROM_LABELS = { naver: '네이버', threads: '스레드', kakao: '카카오', instagram: '인스타', google: '구글', daangn: '당근', referral: '지인소개', store: '스토어', etc: '기타' };
+// 어드민 '유입경로' 표기 = 직접 물어본 자가응답(heard_from)을 기준(메인).
+//  heard_from 없으면(구회원·미응답) 링크 기반 signup_source로 폴백(흐린 색), 둘 다 없으면 '-'.
+function inflowLabel(u) {
+  const code = u && u.heardFrom;
+  if (code) {
+    const base = HEARD_FROM_LABELS[code] || code;
+    if (code === 'etc' && u.heardFromText) return `${escHtml(base)} <span style="color:#777">(${escHtml(u.heardFromText)})</span>`;
+    return escHtml(base);
+  }
+  if (u && u.signupSource) return `<span style="color:#aaa" title="링크 기반 자동 추정(가입경로)">${escHtml(SIGNUP_SRC_LABELS[u.signupSource] || u.signupSource)}</span>`;
+  return '<span style="color:#bbb">-</span>';
+}
 function getFilteredUsers() {
   const { field, keyword } = userView;
   if (!keyword) return allUsers;
@@ -1921,7 +1935,7 @@ function renderUserRows() {
       <td style="white-space:nowrap">${visitRecencyLabel(u)}</td>
       <td style="white-space:nowrap">${platLabelShort(u.lastPlatform)}</td>
       <td>${fmtKST(u.createdAt)}</td>
-      <td>${signupSrcLabel(u.signupSource)}</td>
+      <td style="white-space:nowrap">${inflowLabel(u)}</td>
     </tr>`).join('') || `<tr><td colspan="12" class="empty-msg">${total ? '해당 페이지 없음' : '조건에 맞는 회원 없음'}</td></tr>`;
   renderUserPager(totalPages);
 }

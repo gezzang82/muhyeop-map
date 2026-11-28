@@ -515,6 +515,87 @@ body.pc-myplaces-mode #mlItems .ml-card-bell { background: none; border: none; c
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 18px; font-weight: 700; color: #fff; cursor: pointer;
 }
+
+/* 유입경로 질문 화면 (어떻게 알게 되셨어요?) — Figma 2267:75053 */
+.heard-content {
+  flex: 1; overflow-y: auto;
+  padding: 40px 20px 96px; display: flex; flex-direction: column; gap: 24px;
+}
+.heard-title {
+  font-size: 26px; font-weight: 500; color: #000;
+  letter-spacing: -0.52px; line-height: normal;
+}
+.heard-sub { font-size: 16px; color: #333; line-height: normal; }
+.heard-grid {
+  /* Figma: 행 안 셀끼리 6px, 행과 행 사이 8px. minmax(0,1fr)로 긴 라벨이 열 폭을 넓히지 못하게 → 9칸 완전 균등 */
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 6px; row-gap: 8px;
+}
+.heard-cell {
+  height: 104px; min-width: 0; box-sizing: border-box;  /* min-width:0 → nowrap 라벨이 박스를 못 키움 */
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px 20px; background: #fff;              /* Figma: py16 / px20 */
+  border: 1px solid rgba(221,221,221,0.87); border-radius: 8px;
+  cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent;
+  transition: border-color .12s;
+}
+.heard-cell.selected { border-color: #000; }
+/* 아이콘: 32×32 박스, 안쪽 이미지는 contain. 스토어(앱스토어/플레이) 로고는 투명 여백이
+   있어 작아 보여 overflow:hidden 박스 안에서 살짝 키워 다른 로고와 광학 크기를 맞춘다. */
+.heard-cell-ic {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.heard-cell-ic.bordered { border: 1px solid #eaeaea; }
+.heard-cell-ic-inner { width: 100%; height: 100%; object-fit: contain; display: block; }
+.heard-cell-ic.store .heard-cell-ic-inner { width: 128%; height: 128%; }  /* 앱스토어/플레이 광학 보정 */
+.heard-cell-ic.store.bordered { border: none; }
+/* 라벨은 전부 한 줄(괄호 서브카피 삭제, Figma 업데이트) → justify-center로 아이콘 자동 정렬 */
+.heard-cell-label { line-height: 1.25; }
+.heard-cell-label .l { font-size: 15px; color: #000; white-space: nowrap; display: block; }
+.heard-etc-wrap { display: flex; flex-direction: column; gap: 8px; }
+.heard-etc-label { font-size: 14px; color: #777; }
+.heard-etc-input {
+  height: 56px; box-sizing: border-box; padding: 16px;
+  background: #fff; border: 1px solid rgba(221,221,221,0.87); border-radius: 8px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px; color: #000; width: 100%;
+}
+.heard-etc-input::placeholder { color: #bbb; }
+.heard-etc-input:focus { outline: none; border-color: #000; }
+.heard-footer {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 0 20px 24px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, #fff 20%);
+  pointer-events: none;
+}
+.heard-next-btn {
+  pointer-events: auto;
+  width: 100%; height: 56px; margin-top: 8px;
+  background: #e82a2d; border: none; border-radius: 8px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 20px; font-weight: 700; color: #fff; cursor: pointer;
+  transition: opacity .12s;
+}
+.heard-next-btn:disabled { background: #ddd; color: #fff; cursor: default; }
+/* PC: 유입경로 질문도 가운데 카드 모달로(추가 정보 입력과 동일 패턴). 그리드·버튼 그대로 유지 */
+@media (hover: hover) and (pointer: fine) {
+  #heardFromOverlay { background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+  #heardFromOverlay .signup-page {
+    flex: 0 1 auto; width: 420px; max-width: calc(100vw - 40px);
+    height: auto; max-height: 90vh; margin: 0;
+    background: #fff; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column;
+  }
+  #heardFromOverlay .heard-content { flex: 0 1 auto; overflow-y: auto; padding: 28px 24px 8px; gap: 20px; }
+  #heardFromOverlay .heard-title { font-size: 22px; letter-spacing: -0.44px; }
+  #heardFromOverlay .heard-etc-input { height: 48px; font-size: 15px; }  /* PC 입력 규격 48px */
+  #heardFromOverlay .heard-footer {
+    position: static; padding: 12px 24px 24px; background: none;
+  }
+  #heardFromOverlay .heard-next-btn { height: 56px; font-size: 18px; margin-top: 0; }  /* PC 버튼 56px */
+}
 /* PC: 추가 정보 입력은 풀페이지 대신 Figma 디자인의 가운데 카드 팝업으로 (node 1178:12354) */
 @media (hover: hover) and (pointer: fine) {
   #signupInfoOverlay { background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
